@@ -18,6 +18,7 @@ class RoleForm(FlaskForm):
     submit = SubmitField('Save Role')
 
     def __init__(self, *args, **kwargs):
+        self._obj = kwargs.get('obj', None)  # Store the original object
         super(RoleForm, self).__init__(*args, **kwargs)
         # Convert string 'y' to boolean True for is_active field
         if isinstance(self.is_active.data, str):
@@ -49,17 +50,24 @@ class RoleForm(FlaskForm):
                 from sqlalchemy.exc import SQLAlchemyError
                 # Check for existing role with same name (case-insensitive)
                 try:
-                    print("Form validation - checking for existing role:", name)  # Debug print
-                    existing_role = Role.query.filter(Role.name.ilike(name)).first()
-                    print("Form validation - existing role result:", existing_role)  # Debug print
-                    if existing_role and (not hasattr(self, '_obj') or existing_role.id != self._obj.id):
+                    print(f"Form validation - checking for existing role: {name}")  # Debug print
+                    print(f"Current role object: {self._obj}")  # Debug print
+                    
+                    # If we're editing an existing role, exclude it from the duplicate check
+                    query = Role.query.filter(Role.name.ilike(name))
+                    if self._obj:
+                        query = query.filter(Role.id != self._obj.id)
+                    
+                    existing_role = query.first()
+                    print(f"Form validation - existing role result: {existing_role}")  # Debug print
+                    
+                    if existing_role:
                         raise ValidationError('A role with this name already exists')
+                        
                 except SQLAlchemyError as db_error:
                     print(f"Form validation - database error: {str(db_error)}")  # Debug print
-                    print(f"Form validation - error type: {type(db_error)}")  # Debug print
-                    import traceback
-                    print(f"Form validation - traceback: {traceback.format_exc()}")  # Debug print
                     raise ValidationError(f'Database error: {str(db_error)}')
+                    
             except ImportError as import_error:
                 print(f"Form validation - import error: {str(import_error)}")  # Debug print
                 raise ValidationError('System configuration error')
@@ -68,9 +76,6 @@ class RoleForm(FlaskForm):
             raise
         except Exception as e:
             print(f"Form validation - unexpected error: {str(e)}")  # Debug print
-            print(f"Form validation - error type: {type(e)}")  # Debug print
-            import traceback
-            print(f"Form validation - traceback: {traceback.format_exc()}")  # Debug print
             raise ValidationError(f'Validation error: {str(e)}')
 
 class UserApprovalForm(FlaskForm):

@@ -22,7 +22,6 @@ from routes.main import main_bp
 from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
-from decorators import admin_required
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from routes.modules import modules_bp

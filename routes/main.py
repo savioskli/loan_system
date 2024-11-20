@@ -20,7 +20,7 @@ main_bp = Blueprint('main', __name__)
 @login_required
 def index():
     try:
-        if current_user.role.lower() == 'admin':
+        if current_user.role.name.lower() == 'admin':
             return redirect(url_for('main.admin_dashboard'))
         return redirect(url_for('main.dashboard'))
     except Exception as e:
@@ -32,7 +32,7 @@ def index():
 @login_required
 def dashboard():
     try:
-        if current_user.role.lower() == 'admin':
+        if current_user.role.name.lower() == 'admin':
             return redirect(url_for('main.admin_dashboard'))
             
         # Regular staff dashboard
@@ -47,7 +47,7 @@ def dashboard():
 @login_required
 def admin_dashboard():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access the admin dashboard.', 'error')
             return redirect(url_for('main.dashboard'))
         
@@ -116,7 +116,7 @@ def admin_settings():
 @login_required
 def view_users():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/users.html')
@@ -128,7 +128,7 @@ def view_users():
 @login_required
 def pending_approvals():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/pending_approvals.html')
@@ -140,7 +140,7 @@ def pending_approvals():
 @login_required
 def user_roles():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/user_roles.html')
@@ -153,7 +153,7 @@ def user_roles():
 @login_required
 def loan_types():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_types.html')
@@ -165,7 +165,7 @@ def loan_types():
 @login_required
 def loan_settings():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_settings.html')
@@ -177,7 +177,7 @@ def loan_settings():
 @login_required
 def loan_reports():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_reports.html')
@@ -190,7 +190,7 @@ def loan_reports():
 @login_required
 def email_settings():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/email_settings.html')
@@ -202,7 +202,7 @@ def email_settings():
 @login_required
 def backup_settings():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/backup_settings.html')
@@ -215,7 +215,7 @@ def backup_settings():
 @login_required
 def client_fields():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/client_fields.html')
@@ -227,7 +227,7 @@ def client_fields():
 @login_required
 def client_reports():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/client_reports.html')
@@ -240,7 +240,7 @@ def client_reports():
 @login_required
 def activity_logs():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/activity_logs.html')
@@ -252,7 +252,7 @@ def activity_logs():
 @login_required
 def audit_trail():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/audit_trail.html')
@@ -264,7 +264,7 @@ def audit_trail():
 @login_required
 def system_logs():
     try:
-        if not current_user.role.lower() == 'admin':
+        if not current_user.role.name.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/system_logs.html')

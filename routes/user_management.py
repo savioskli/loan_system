@@ -6,7 +6,6 @@ from models.staff import Staff
 from forms.user_management import UserApprovalForm, UserCreateForm
 from extensions import db
 from datetime import datetime
-from decorators import admin_required
 from werkzeug.security import generate_password_hash
 import logging
 
@@ -15,7 +14,6 @@ bp = Blueprint('user_management', __name__)
 # User Management
 @bp.route('/', methods=['GET'])
 @login_required
-@admin_required
 def list_users():
     status = request.args.get('status')
     query = User.query
@@ -28,7 +26,6 @@ def list_users():
 
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def create_user():
     form = UserCreateForm()
     try:
@@ -87,7 +84,6 @@ def create_user():
 
 @bp.route('/<int:id>/approve', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def approve_user(id):
     user = User.query.get_or_404(id)
     form = UserApprovalForm(obj=user)

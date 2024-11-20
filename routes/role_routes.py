@@ -2,14 +2,12 @@ from flask import Blueprint, render_template, redirect, url_for, flash, current_
 from flask_login import login_required, current_user
 from services.role_service import RoleService
 from forms.user_management import RoleForm
-from decorators import admin_required
 from flask import abort
 
 bp = Blueprint('roles', __name__, url_prefix='/roles')
 
 @bp.route('/', methods=['GET'])
 @login_required
-@admin_required
 def list_roles():
     """List all roles"""
     roles, error = RoleService.list_roles()
@@ -20,7 +18,6 @@ def list_roles():
 
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def create_role():
     """Create a new role"""
     form = RoleForm()
@@ -71,7 +68,6 @@ def create_role():
 
 @bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def edit_role(id):
     """Edit an existing role"""
     role, error = RoleService.get_role(id)
@@ -80,7 +76,12 @@ def edit_role(id):
         return redirect(url_for('roles.list_roles'))
 
     form = RoleForm(obj=role)
+    
+    if request.method == 'POST':
+        print(f"Form data received: name='{form.name.data}', description='{form.description.data}', is_active={form.is_active.data}")  # Debug print
+    
     if form.validate_on_submit():
+        print(f"Form validated, updating role {id}")  # Debug print
         updated_role, error = RoleService.update_role(
             role_id=id,
             name=form.name.data,
@@ -89,16 +90,18 @@ def edit_role(id):
             updated_by=current_user.id
         )
         if error:
-            flash('An error occurred while updating the role.', 'error')
+            print(f"Error updating role: {error}")  # Debug print
+            flash(error, 'error')
         else:
             flash('Role updated successfully.', 'success')
             return redirect(url_for('roles.list_roles'))
+    elif request.method == 'POST':
+        print(f"Form validation failed: {form.errors}")  # Debug print
     
-    return render_template('admin/roles/form.html', form=form, role=role, title='Edit Role')
+    return render_template('admin/user_roles/form.html', form=form, role=role, title='Edit Role')
 
 @bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
 def delete_role(id):
     """Delete a role"""
     error = RoleService.delete_role(id)

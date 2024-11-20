@@ -114,20 +114,50 @@ class RoleService:
         Returns: Tuple of (updated role if successful, error message if any)
         """
         try:
+            print(f"Updating role {role_id} with name: {name}")  # Debug print
+            
+            # Get the role to update
             role = Role.query.get(role_id)
             if not role:
+                print(f"Role {role_id} not found")  # Debug print
                 return None, "Role not found"
 
-            role.name = name.strip()
+            print(f"Current role name: {role.name}")  # Debug print
+
+            # Basic validation
+            if not name or not name.strip():
+                return None, "Role name is required"
+            
+            name = name.strip()
+            if len(name) < 2 or len(name) > 50:
+                return None, "Role name must be between 2 and 50 characters"
+            
+            # Check for existing role with same name (case-insensitive), excluding current role
+            existing_role = Role.query.filter(
+                Role.name.ilike(name),
+                Role.id != role_id
+            ).first()
+            
+            print(f"Existing role check result: {existing_role}")  # Debug print
+            if existing_role:
+                print(f"Found existing role with name '{name}': ID={existing_role.id}")  # Debug print
+                return None, "A role with this name already exists"
+
+            # Update role
+            print(f"Updating role {role_id} from '{role.name}' to '{name}'")  # Debug print
+            role.name = name
             role.description = description.strip() if description else None
             role.is_active = is_active
             role.updated_by = updated_by
             role.updated_at = datetime.utcnow()
 
             db.session.commit()
+            print(f"Successfully updated role: {role.name}")  # Debug print
             current_app.logger.info(f'Role updated: {role.name} by user ID {updated_by}')
             return role, None
+            
         except Exception as e:
+            print(f"Error updating role: {str(e)}")  # Debug print
             db.session.rollback()
             current_app.logger.error(f'Error updating role {role_id}: {str(e)}')
             return None, str(e)

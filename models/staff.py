@@ -11,7 +11,7 @@ class Staff(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='staff')
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=False)
     phone = db.Column(db.String(20))
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
@@ -21,14 +21,15 @@ class Staff(UserMixin, db.Model):
     # Relationships
     branch = db.relationship('Branch', foreign_keys=[branch_id], back_populates='staff_members')
     activities = db.relationship('ActivityLog', backref='staff', lazy='dynamic')
+    role = db.relationship('Role', foreign_keys=[role_id], backref=db.backref('staff_members', lazy='dynamic'))
 
-    def __init__(self, email, first_name, last_name, password=None, role='staff', phone=None, branch_id=None, is_active=False):
+    def __init__(self, email, first_name, last_name, password=None, role_id=None, phone=None, branch_id=None, is_active=False):
         self.email = email.lower()
         self.first_name = first_name
         self.last_name = last_name
         if password:
             self.set_password(password)
-        self.role = role
+        self.role_id = role_id
         self.phone = phone
         self.branch_id = branch_id
         self.is_active = is_active
@@ -41,7 +42,7 @@ class Staff(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role.name.lower() == 'admin'
 
     @property
     def full_name(self):

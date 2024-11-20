@@ -1,0 +1,137 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ title }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('user_management.list_users') }}">Users</a></li>
+        <li class="breadcrumb-item active">{{ title }}</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-edit me-1"></i>
+                    User Details
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" class="needs-validation" novalidate>
+                        {{ form.csrf_token }}
+                        
+                        <div class="mb-3">
+                            {{ form.first_name.label(class="form-label") }}
+                            {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.first_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.last_name.label(class="form-label") }}
+                            {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
+                            {% if form.last_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.last_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""),
+                                        readonly=True if user else False) }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.phone_number.label(class="form-label") }}
+                            {{ form.phone_number(class="form-control" + (" is-invalid" if form.phone_number.errors else "")) }}
+                            {% if form.phone_number.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.phone_number.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.branch_id.label(class="form-label") }}
+                            {{ form.branch_id(class="form-select" + (" is-invalid" if form.branch_id.errors else "")) }}
+                            {% if form.branch_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.branch_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if user %}
+                                <small class="form-text text-muted">Leave blank to keep current password</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            <a href="{{ url_for('user_management.list_users') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+})()
+</script>
+{% endblock %}

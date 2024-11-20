@@ -7,15 +7,23 @@
             <div class="sb-sidenav-menu">
                 <div class="nav">
                     <div class="sb-sidenav-menu-heading">Core</div>
-                    <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                    <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">
                         <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                         Dashboard
                     </a>
                     
-                    <div class="sb-sidenav-menu-heading">Navigation</div>
-                    <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                        Dashboard
+                    <div class="sb-sidenav-menu-heading">Management</div>
+                    <a class="nav-link" href="{{ url_for('user_management.list_users') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
+                        Users
+                    </a>
+                    <a class="nav-link" href="{{ url_for('role_management.list_roles') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-user-tag"></i></div>
+                        Roles
+                    </a>
+                    <a class="nav-link" href="{{ url_for('branch_management.list_branches') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-building"></i></div>
+                        Branches
                     </a>
                     
                     <div class="sb-sidenav-menu-heading">Settings</div>
@@ -26,9 +34,9 @@
                     </a>
                     <div class="collapse" id="collapseSettings" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="{{ url_for('admin.system_settings') }}">System Settings</a>
-                            <a class="nav-link" href="{{ url_for('admin.email_settings') }}">Email Settings</a>
-                            <a class="nav-link" href="{{ url_for('admin.backup_settings') }}">Backup Settings</a>
+                            <a class="nav-link" href="{{ url_for('settings.system_settings') }}">System Settings</a>
+                            <a class="nav-link" href="{{ url_for('settings.email_settings') }}">Email Settings</a>
+                            <a class="nav-link" href="{{ url_for('settings.backup_settings') }}">Backup Settings</a>
                         </nav>
                     </div>
                     
@@ -40,16 +48,16 @@
                     </a>
                     <div class="collapse" id="collapseReports" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="{{ url_for('admin.loan_reports') }}">Loan Reports</a>
-                            <a class="nav-link" href="{{ url_for('admin.client_reports') }}">Client Reports</a>
-                            <a class="nav-link" href="{{ url_for('admin.audit_trail') }}">Audit Trail</a>
+                            <a class="nav-link" href="{{ url_for('reports.loan_reports') }}">Loan Reports</a>
+                            <a class="nav-link" href="{{ url_for('reports.user_reports') }}">User Reports</a>
+                            <a class="nav-link" href="{{ url_for('reports.financial_reports') }}">Financial Reports</a>
                         </nav>
                     </div>
                 </div>
             </div>
             <div class="sb-sidenav-footer">
                 <div class="small">Logged in as:</div>
-                {{ current_user.name }}
+                {{ current_user.staff.first_name }} {{ current_user.staff.last_name }}
             </div>
         </nav>
     </div>
@@ -60,7 +68,7 @@
         <footer class="py-4 bg-light mt-auto">
             <div class="container-fluid px-4">
                 <div class="d-flex align-items-center justify-content-between small">
-                    <div class="text-muted">Copyright &copy; Your Website 2024</div>
+                    <div class="text-muted">Copyright &copy; Your Website 2023</div>
                     <div>
                         <a href="#">Privacy Policy</a>
                         &middot;
@@ -71,4 +79,140 @@
         </footer>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+#layoutSidenav {
+    display: flex;
+}
+
+#layoutSidenav_nav {
+    flex-basis: 225px;
+    flex-shrink: 0;
+    transition: transform .15s ease-in-out;
+    z-index: 1038;
+    transform: translateX(0);
+}
+
+#layoutSidenav_content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+    flex-grow: 1;
+    min-height: calc(100vh - 56px);
+    margin-left: -225px;
+}
+
+.sb-sidenav-toggled #layoutSidenav_nav {
+    transform: translateX(-225px);
+}
+
+.sb-sidenav-toggled #layoutSidenav_content {
+    margin-left: -225px;
+}
+
+.sb-sidenav {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    flex-wrap: nowrap;
+}
+
+.sb-sidenav .sb-sidenav-menu {
+    flex-grow: 1;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav {
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .sb-sidenav-menu-heading {
+    padding: 1.75rem 1rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .nav-link {
+    display: flex;
+    align-items: center;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    position: relative;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .nav-link .sb-nav-link-icon {
+    font-size: 0.9rem;
+    padding-right: 0.5rem;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .nav-link .sb-sidenav-collapse-arrow {
+    display: inline-block;
+    margin-left: auto;
+    transition: transform .15s ease;
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .nav-link.collapsed .sb-sidenav-collapse-arrow {
+    transform: rotate(-90deg);
+}
+
+.sb-sidenav .sb-sidenav-menu .nav .sb-sidenav-menu-nested {
+    margin-left: 1.5rem;
+    flex-direction: column;
+}
+
+.sb-sidenav .sb-sidenav-footer {
+    padding: 0.75rem;
+    flex-shrink: 0;
+}
+
+.sb-sidenav-dark {
+    background-color: #212529;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.sb-sidenav-dark .sb-sidenav-menu .nav-link {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.sb-sidenav-dark .sb-sidenav-menu .nav-link:hover {
+    color: #fff;
+}
+
+.sb-sidenav-dark .sb-sidenav-menu .nav-link.active {
+    color: #fff;
+}
+
+.sb-sidenav-dark .sb-sidenav-menu .nav-link .sb-nav-link-icon {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.sb-sidenav-dark .sb-sidenav-footer {
+    background-color: #343a40;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.addEventListener('DOMContentLoaded', event => {
+    // Toggle the side navigation
+    const sidebarToggle = document.body.querySelector('#sidebarToggle');
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', event => {
+            event.preventDefault();
+            document.body.classList.toggle('sb-sidenav-toggled');
+            localStorage.setItem('sb|sidebar-toggle', document.body.classList.contains('sb-sidenav-toggled'));
+        });
+    }
+});
+</script>
 {% endblock %}

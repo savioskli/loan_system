@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ title }}</h1>
+    </div>
+
+    <form method="POST" class="space-y-6">
+        {{ form.csrf_token }}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="branch_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Code</label>
+                <div class="mt-1">
+                    {{ form.branch_code(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2") }}
+                </div>
+                {% if form.branch_code.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.branch_code.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="branch_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Name</label>
+                <div class="mt-1">
+                    {{ form.branch_name(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2") }}
+                </div>
+                {% if form.branch_name.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.branch_name.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="lower_limit" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lower Limit</label>
+                <div class="mt-1">
+                    {{ form.lower_limit(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2", type="number", step="0.01") }}
+                </div>
+                {% if form.lower_limit.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.lower_limit.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="upper_limit" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Upper Limit</label>
+                <div class="mt-1">
+                    {{ form.upper_limit(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2", type="number", step="0.01") }}
+                </div>
+                {% if form.upper_limit.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.upper_limit.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-span-2">
+                <div class="flex items-center">
+                    {{ form.is_active(class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-gray-600 rounded") }}
+                    <label for="is_active" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Active</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+            <a href="{{ url_for('manage_branches') }}" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold py-2 px-4 rounded">
+                Cancel
+            </a>
+            {{ form.submit(class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="flex items-center space-x-4">
+        <div class="bg-primary rounded-full p-3">
+            <i class="fas fa-user text-white text-xl"></i>
+        </div>
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Welcome, {{ current_user.first_name }}</h2>
+            <p class="text-gray-600">Role: {{ current_user.role | replace('_', ' ') | title }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Administration Card -->
+    {% if current_user.role == 'Admin' %}
+    <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Administration</h3>
+                <div class="bg-blue-100 rounded-full p-3">
+                    <i class="fas fa-cogs text-primary"></i>
+                </div>
+            </div>
+            <p class="text-gray-600 mb-4">System administration and user management</p>
+            <div class="space-y-2">
+                <a href="{{ url_for('main.admin_dashboard') }}" class="block text-sm text-primary hover:text-blue-700">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Admin Dashboard
+                </a>
+                <a href="{{ url_for('main.admin_settings') }}" class="block text-sm text-primary hover:text-blue-700">
+                    <i class="fas fa-cogs mr-2"></i>System Settings
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Recent Activity</h3>
+                <div class="bg-blue-100 rounded-full p-3">
+                    <i class="fas fa-history text-primary"></i>
+                </div>
+            </div>
+            <div class="space-y-4">
+                {% if activities %}
+                    {% for activity in activities %}
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">{{ activity.action | title }}</p>
+                            <p class="text-xs text-gray-500">{{ activity.timestamp | format_datetime }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-gray-500">No recent activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Information -->
+    {% if current_user.branch %}
+    <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Branch Information</h3>
+                <div class="bg-blue-100 rounded-full p-3">
+                    <i class="fas fa-building text-primary"></i>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <p class="text-sm text-gray-600">
+                    <span class="font-medium">Branch:</span> {{ current_user.branch.branch_name }}
+                </p>
+                <p class="text-sm text-gray-600">
+                    <span class="font-medium">Branch Code:</span> {{ current_user.branch.branch_code }}
+                </p>
+                <p class="text-sm text-gray-600">
+                    <span class="font-medium">Loan Limits:</span> 
+                    {{ "{:,.2f}".format(current_user.branch.lower_limit) }} - {{ "{:,.2f}".format(current_user.branch.upper_limit) }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

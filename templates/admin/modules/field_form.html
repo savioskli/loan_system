@@ -1,0 +1,150 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        <h2 class="text-2xl font-bold mb-6">{{ title if title else 'Create Form Field' }}</h2>
+        
+        <form method="POST" class="space-y-6">
+            {{ form.csrf_token }}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div>
+                        {{ form.field_name.label(class="block text-sm font-medium text-gray-700") }}
+                        {{ form.field_name(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.field_name.errors %}
+                            {% for error in form.field_name.errors %}
+                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {{ form.field_label.label(class="block text-sm font-medium text-gray-700") }}
+                        {{ form.field_label(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.field_label.errors %}
+                            {% for error in form.field_label.errors %}
+                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {{ form.field_placeholder.label(class="block text-sm font-medium text-gray-700") }}
+                        {{ form.field_placeholder(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.field_placeholder.errors %}
+                            {% for error in form.field_placeholder.errors %}
+                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        {{ form.field_type.label(class="block text-sm font-medium text-gray-700") }}
+                        {{ form.field_type(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.field_type.errors %}
+                            {% for error in form.field_type.errors %}
+                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {{ form.validation_text.label(class="block text-sm font-medium text-gray-700") }}
+                        {{ form.validation_text(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.validation_text.errors %}
+                            {% for error in form.validation_text.errors %}
+                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                        <p class="text-sm text-gray-500 mt-1">{{ form.validation_text.description }}</p>
+                    </div>
+
+                    <div class="flex items-center">
+                        {{ form.is_required(class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
+                        {{ form.is_required.label(class="ml-2 block text-sm text-gray-900") }}
+                    </div>
+                </div>
+            </div>
+
+            {% if form.__class__.__name__ == 'DynamicFormFieldForm' %}
+                <div class="mt-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Field Options</h3>
+                    <div id="options-container" class="space-y-4">
+                        {% for option in form.options %}
+                            <div class="option-row flex space-x-4">
+                                {{ option.label(class="w-1/2") }}
+                                {{ option.value(class="w-1/2") }}
+                                <button type="button" class="remove-option text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" id="add-option" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                        Add Option
+                    </button>
+                </div>
+
+                <div class="mt-6">
+                    {{ form.validation_rules.label(class="block text-sm font-medium text-gray-700") }}
+                    {{ form.validation_rules(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500", rows=4) }}
+                    {% if form.validation_rules.errors %}
+                        {% for error in form.validation_rules.errors %}
+                            <p class="text-red-500 text-xs italic">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                    <p class="text-sm text-gray-500 mt-1">{{ form.validation_rules.description }}</p>
+                </div>
+            {% endif %}
+
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('modules.list_fields', id=module.id) }}" 
+                   class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Save Field
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if form.__class__.__name__ == 'DynamicFormFieldForm' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const optionsContainer = document.getElementById('options-container');
+    const addOptionBtn = document.getElementById('add-option');
+    
+    function createOptionRow() {
+        const div = document.createElement('div');
+        div.className = 'option-row flex space-x-4';
+        div.innerHTML = `
+            <input type="text" name="options-label" class="w-1/2 rounded-md border-gray-300" placeholder="Label">
+            <input type="text" name="options-value" class="w-1/2 rounded-md border-gray-300" placeholder="Value">
+            <button type="button" class="remove-option text-red-600 hover:text-red-800">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        return div;
+    }
+    
+    addOptionBtn.addEventListener('click', function() {
+        optionsContainer.appendChild(createOptionRow());
+    });
+    
+    optionsContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-option') || e.target.closest('.remove-option')) {
+            const row = e.target.closest('.option-row');
+            row.remove();
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

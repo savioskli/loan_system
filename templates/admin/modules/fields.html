@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Form Fields - {{ module.name }}</h1>
+            <p class="text-gray-600 mt-1">{{ module.description }}</p>
+        </div>
+        <div class="flex space-x-4">
+            <a href="{{ url_for('modules.manage_modules') }}" class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Modules
+            </a>
+            <a href="{{ url_for('modules.new_field', id=module.id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                <i class="fas fa-plus mr-2"></i>New Field
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <table class="min-w-full">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="sortable-fields" class="bg-white divide-y divide-gray-200">
+                {% for field in fields %}
+                <tr data-id="{{ field.id }}" class="cursor-move hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <span class="drag-handle mr-2 text-gray-400 hover:text-gray-600 cursor-grab">
+                                <i class="fas fa-grip-vertical"></i>
+                            </span>
+                            <div class="text-sm font-medium text-gray-900">{{ field.field_name }}</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ field.field_label }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            {{ field.field_type }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if field.is_required %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ 'Required' if field.is_required else 'Optional' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 field-order">
+                        {{ field.field_order }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="{{ url_for('modules.edit_field', field_id=field.id) }}" class="text-blue-600 hover:text-blue-900">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not fields %}
+                <tr>
+                    <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        No form fields defined yet. Click "New Field" to add one.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% block scripts %}
+<!-- Include Sortable.js -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sortableList = document.getElementById('sortable-fields');
+    if (sortableList) {
+        new Sortable(sortableList, {
+            handle: '.drag-handle',
+            animation: 150,
+            onEnd: function(evt) {
+                const fields = Array.from(sortableList.querySelectorAll('tr[data-id]')).map((row, index) => ({
+                    id: row.dataset.id,
+                    order: index + 1
+                }));
+                
+                // Update the displayed order numbers
+                fields.forEach(field => {
+                    const row = sortableList.querySelector(`tr[data-id="${field.id}"]`);
+                    const orderCell = row.querySelector('.field-order');
+                    orderCell.textContent = field.order;
+                });
+
+                // Send the new order to the server
+                fetch('{{ url_for("modules.update_field_order", id=module.id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ fields: fields })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        const message = document.createElement('div');
+                        message.className = 'fixed bottom-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4';
+                        message.innerHTML = '<i class="fas fa-check mr-2"></i>Field order updated successfully';
+                        document.body.appendChild(message);
+                        setTimeout(() => message.remove(), 3000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating field order:', error);
+                    // Show error message
+                    const message = document.createElement('div');
+                    message.className = 'fixed bottom-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4';
+                    message.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error updating field order';
+                    document.body.appendChild(message);
+                    setTimeout(() => message.remove(), 3000);
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

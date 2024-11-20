@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-blue-500 rounded-full p-3">
+                <i class="fas fa-tachometer-alt text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+                <p class="text-gray-600">System overview and management</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Total Users -->
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-blue-100 rounded-full p-3">
+                    <i class="fas fa-users text-blue-500"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 text-sm">Total Users</h4>
+                    <p class="text-2xl font-bold text-gray-800">{{ total_users }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Users -->
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-green-100 rounded-full p-3">
+                    <i class="fas fa-user-check text-green-500"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 text-sm">Active Users</h4>
+                    <p class="text-2xl font-bold text-gray-800">{{ active_users }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Branches -->
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-purple-100 rounded-full p-3">
+                    <i class="fas fa-code-branch text-purple-500"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 text-sm">Total Branches</h4>
+                    <p class="text-2xl font-bold text-gray-800">{{ total_branches }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Branches -->
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-yellow-100 rounded-full p-3">
+                    <i class="fas fa-store text-yellow-500"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 text-sm">Active Branches</h4>
+                    <p class="text-2xl font-bold text-gray-800">{{ active_branches }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Action Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- User Management Card -->
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">User Management</h3>
+                    <div class="bg-blue-100 rounded-full p-3">
+                        <i class="fas fa-users-cog text-blue-500"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">Manage system users and roles</p>
+                <div class="space-y-2">
+                    <a href="{{ url_for('main.view_users') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-users mr-2"></i>View All Users
+                    </a>
+                    <a href="{{ url_for('main.pending_approvals') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-user-clock mr-2"></i>Pending Approvals
+                    </a>
+                    <a href="{{ url_for('main.user_roles') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-user-tag mr-2"></i>Manage Roles
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Management Card -->
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Loan Management</h3>
+                    <div class="bg-green-100 rounded-full p-3">
+                        <i class="fas fa-money-check-alt text-green-500"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">Configure loan settings and types</p>
+                <div class="space-y-2">
+                    <a href="{{ url_for('main.loan_types') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-list-alt mr-2"></i>Loan Types
+                    </a>
+                    <a href="{{ url_for('main.loan_settings') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-cog mr-2"></i>Loan Settings
+                    </a>
+                    <a href="{{ url_for('main.loan_reports') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-chart-line mr-2"></i>Loan Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Settings Card -->
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">System Settings</h3>
+                    <div class="bg-gray-100 rounded-full p-3">
+                        <i class="fas fa-cogs text-gray-500"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">Configure system-wide settings</p>
+                <div class="space-y-2">
+                    <a href="{{ url_for('main.email_settings') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-envelope mr-2"></i>Email Settings
+                    </a>
+                    <a href="{{ url_for('main.backup_settings') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-database mr-2"></i>Backup & Restore
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Management Card -->
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Client Management</h3>
+                    <div class="bg-pink-100 rounded-full p-3">
+                        <i class="fas fa-users text-pink-500"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">Manage client information</p>
+                <div class="space-y-2">
+                    <a href="{{ url_for('main.client_fields') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-list-alt mr-2"></i>Custom Fields
+                    </a>
+                    <a href="{{ url_for('main.client_reports') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-chart-bar mr-2"></i>Client Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Monitoring Card -->
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Activity Monitoring</h3>
+                    <div class="bg-indigo-100 rounded-full p-3">
+                        <i class="fas fa-history text-indigo-500"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">Monitor system activities and logs</p>
+                <div class="space-y-2">
+                    <a href="{{ url_for('main.activity_logs') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-list-alt mr-2"></i>Activity Logs
+                    </a>
+                    <a href="{{ url_for('main.audit_trail') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-shield-alt mr-2"></i>Audit Trail
+                    </a>
+                    <a href="{{ url_for('main.system_logs') }}" class="block text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-terminal mr-2"></i>System Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities Section -->
+    {% if recent_activities %}
+    <div class="bg-white rounded-lg shadow mt-6 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activities</h3>
+        <div class="space-y-4">
+            {% for activity in recent_activities %}
+            <div class="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg">
+                <div class="bg-blue-100 rounded-full p-2">
+                    <i class="fas fa-history text-blue-500"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-800">{{ activity.details }}</p>
+                    <p class="text-xs text-gray-500">{{ format_datetime(activity.timestamp) }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

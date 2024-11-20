@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" class="{{ 'dark' if theme_mode == 'dark' else '' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}{% endblock %} - {{ system_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --color-primary: {{ theme_primary_color }};
+            --color-secondary: {{ theme_secondary_color }};
+            --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* Apply Inter font to all text */
+        html {
+            font-family: var(--font-inter);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Enhanced Typography */
+        h1, h2, h3, h4, h5, h6 {        
+            font-family: var(--font-inter);
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            line-height: 1.25;
+        }
+        
+        /* Body text */
+        body {
+            font-family: var(--font-inter);
+            font-weight: 400;
+            line-height: 1.6;
+            letter-spacing: -0.01em;
+        }
+        /* Navigation icons */
+        .nav-icon {
+            margin-right: 0.5rem;
+            color: #9ca3af;
+            transition: color 150ms ease-in-out;
+        }
+
+        .dark .nav-icon {
+            color: #6b7280;
+        }
+
+        a:hover .nav-icon,
+        .group:hover .nav-icon {
+            color: var(--color-primary);
+        }
+        
+        /* Color utilities */
+        .bg-primary { background-color: var(--color-primary) !important; }
+        .bg-secondary { background-color: var(--color-secondary) !important; }
+        .text-primary { color: var(--color-primary) !important; }
+        .text-secondary { color: var(--color-secondary) !important; }
+        .border-primary { border-color: var(--color-primary) !important; }
+        .border-secondary { border-color: var(--color-secondary) !important; }
+        .ring-primary { --tw-ring-color: var(--color-primary) !important; }
+        .ring-secondary { --tw-ring-color: var(--color-secondary) !important; }
+        .hover\:bg-primary:hover { background-color: var(--color-primary) !important; }
+        .hover\:bg-secondary:hover { background-color: var(--color-secondary) !important; }
+        .focus\:border-primary:focus { border-color: var(--color-primary) !important; }
+        .focus\:border-secondary:focus { border-color: var(--color-secondary) !important; }
+        .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary) !important; }
+        .focus\:ring-secondary:focus { --tw-ring-color: var(--color-secondary) !important; }
+        
+        /* Enhanced form elements */
+        input, select, textarea {
+            font-family: var(--font-inter);
+            font-size: 0.95rem;
+        }
+        
+        /* Button enhancements */
+        button, .btn {
+            font-family: var(--font-inter);
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--color-primary)',
+                        secondary: 'var(--color-secondary)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{{ 'dark:bg-gray-900 dark:text-white' if theme_mode == 'dark' else 'bg-gray-100' }}">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white dark:bg-gray-800 shadow-lg border-b-2" style="border-color: var(--color-primary)">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <div class="flex-shrink-0 flex items-center">
+                            <a href="{{ url_for('auth.landing') }}" class="flex items-center">
+                                <img class="h-8 w-auto" src="{{ url_for('static', filename='images/logo.png') }}" alt="Loan System">
+                                <span class="ml-2 text-xl font-bold text-gray-900 dark:text-white">Loan System</span>
+                            </a>
+                        </div>
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <a href="{{ url_for('main.dashboard') }}" class="group border-transparent text-gray-500 dark:text-gray-300 hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                <i class="fas fa-chart-line nav-icon"></i>
+                                Dashboard
+                            </a>
+                            {% if current_user.is_authenticated and current_user.role == 'Admin' %}
+                            <a href="{{ url_for('main.admin_dashboard') }}" class="group border-transparent text-gray-500 dark:text-gray-300 hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                <i class="fas fa-tachometer-alt nav-icon"></i>
+                                Admin Dashboard
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        {% if current_user.is_authenticated %}
+                        <div class="ml-3 relative group">
+                            <div class="flex items-center">
+                                <button type="button" class="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                                    <span class="sr-only">Open user menu</span>
+                                    <div class="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                </button>
+                                <div class="hidden group-hover:block origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100">
+                                        <div>{{ current_user.first_name }} {{ current_user.last_name }}</div>
+                                        <div class="text-xs text-gray-500">{{ current_user.email }}</div>
+                                    </div>
+                                    <a href="{{ url_for('auth.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <i class="fas fa-key mr-2"></i>Change Password
+                                    </a>
+                                    <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <i class="fas fa-sign-out-alt mr-2"></i>Sign out
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="hidden md:flex md:items-center md:space-x-6">
+                            <a href="{{ url_for('auth.login') }}" class="text-base font-medium text-gray-500 hover:text-gray-900">
+                                Sign in
+                            </a>
+                            <a href="{{ url_for('auth.register') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-dark">
+                                Sign up
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Page Content -->
+        <main class="py-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-4 p-4 rounded-md {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

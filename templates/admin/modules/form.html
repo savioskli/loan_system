@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">{{ title }}</h1>
+            <a href="{{ url_for('modules.manage_modules') }}" class="text-blue-500 hover:text-blue-600">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Modules
+            </a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            {{ form.csrf_token }}
+            
+            <div class="mb-4">
+                {{ form.name.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ form.name(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+                {% if form.name.errors %}
+                    {% for error in form.name.errors %}
+                        <p class="text-red-500 text-xs italic">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                {{ form.code.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ form.code(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+                {% if form.code.errors %}
+                    {% for error in form.code.errors %}
+                        <p class="text-red-500 text-xs italic">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                {{ form.description.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ form.description(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline", rows="3") }}
+                {% if form.description.errors %}
+                    {% for error in form.description.errors %}
+                        <p class="text-red-500 text-xs italic">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                {{ form.parent_id.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ form.parent_id(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+                {% if form.parent_id.errors %}
+                    {% for error in form.parent_id.errors %}
+                        <p class="text-red-500 text-xs italic">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center">
+                    {{ form.is_active(class="mr-2") }}
+                    <span class="text-gray-700 text-sm font-bold">{{ form.is_active.label.text }}</span>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+                    Save Module
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

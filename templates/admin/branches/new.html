@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-primary rounded-full p-3">
+                <i class="fas fa-code-branch text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">New Branch</h2>
+                <p class="text-gray-600">Create a new branch</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Form -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <form method="POST" class="space-y-6">
+            {{ form.csrf_token }}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Branch Code -->
+                <div>
+                    <label for="branch_code" class="block text-sm font-medium text-gray-700">Branch Code</label>
+                    <div class="mt-1">
+                        {{ form.branch_code(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md") }}
+                    </div>
+                    {% if form.branch_code.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.branch_code.errors[0] }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Branch Name -->
+                <div>
+                    <label for="branch_name" class="block text-sm font-medium text-gray-700">Branch Name</label>
+                    <div class="mt-1">
+                        {{ form.branch_name(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md") }}
+                    </div>
+                    {% if form.branch_name.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.branch_name.errors[0] }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Lower Limit -->
+                <div>
+                    <label for="lower_limit" class="block text-sm font-medium text-gray-700">Lower Limit</label>
+                    <div class="mt-1">
+                        {{ form.lower_limit(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md") }}
+                    </div>
+                    {% if form.lower_limit.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.lower_limit.errors[0] }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Upper Limit -->
+                <div>
+                    <label for="upper_limit" class="block text-sm font-medium text-gray-700">Upper Limit</label>
+                    <div class="mt-1">
+                        {{ form.upper_limit(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md") }}
+                    </div>
+                    {% if form.upper_limit.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.upper_limit.errors[0] }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Is Active -->
+            <div class="flex items-center">
+                {{ form.is_active(class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded") }}
+                <label for="is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <a href="{{ url_for('branch.manage_branches') }}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Cancel
+                </a>
+                {{ form.submit(class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ title }}</h1>
+    </div>
+
+    <form method="POST" class="space-y-6">
+        {{ form.csrf_token }}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="client_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Code</label>
+                <div class="mt-1">
+                    {{ form.client_code(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2") }}
+                </div>
+                {% if form.client_code.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.client_code.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="client_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Name</label>
+                <div class="mt-1">
+                    {{ form.client_name(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2") }}
+                </div>
+                {% if form.client_name.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.client_name.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="effective_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Effective From</label>
+                <div class="mt-1">
+                    {{ form.effective_from(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2", type="date") }}
+                </div>
+                {% if form.effective_from.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.effective_from.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="effective_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Effective To</label>
+                <div class="mt-1">
+                    {{ form.effective_to(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-4 py-2", type="date") }}
+                </div>
+                {% if form.effective_to.errors %}
+                <div class="text-red-500 text-sm mt-1">
+                    {% for error in form.effective_to.errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-span-2">
+                <div class="flex items-center">
+                    {{ form.status(class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-gray-600 rounded") }}
+                    <label for="status" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Active</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+            <a href="{{ url_for('client_types.manage_client_types') }}" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold py-2 px-4 rounded">
+                Cancel
+            </a>
+            {{ form.submit(class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

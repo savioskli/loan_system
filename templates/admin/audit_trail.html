@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-teal-500 rounded-full p-3">
+                <i class="fas fa-shield-alt text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">Audit Trail</h2>
+                <p class="text-gray-600">Track system changes and user actions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Trail Table -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">System Changes</h3>
+                <button class="bg-teal-500 text-white px-4 py-2 rounded hover:bg-teal-600">
+                    <i class="fas fa-download mr-2"></i>Export Log
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Timestamp
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                User
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Action
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Entity
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Changes
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- Audit entries will be listed here -->
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                Audit trail interface coming soon...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

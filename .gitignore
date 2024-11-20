@@ -24,6 +24,7 @@ wheels/
 # Virtual Environment
 venv/
 ENV/
+.env
 
 # IDE
 .idea/
@@ -42,11 +43,7 @@ instance/
 # Logs
 *.log
 
-# Environment variables
-.env
-.env.*
-
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*

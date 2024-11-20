@@ -56,7 +56,7 @@ def format_datetime_filter(value):
 # Register blueprints
 app.register_blueprint(auth_bp)  # Register auth_bp first for landing page
 app.register_blueprint(main_bp)  # Remove url_prefix for simpler URLs
-app.register_blueprint(user_management_bp, url_prefix='/user-management')
+app.register_blueprint(user_management_bp)  # URL prefix is already in blueprint
 app.register_blueprint(role_bp)  # Register the roles blueprint
 app.register_blueprint(branch_bp, url_prefix='/branches')
 app.register_blueprint(client_types_bp)

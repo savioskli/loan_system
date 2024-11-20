@@ -8,6 +8,11 @@ migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
+@login_manager.user_loader
+def load_user(id):
+    from models.staff import Staff
+    return Staff.query.get(int(id))
+
 def init_extensions(app):
     """Initialize Flask extensions"""
     # Initialize SQLAlchemy

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, BooleanField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms import StringField, TextAreaField, SelectField, BooleanField, SubmitField, PasswordField
+from wtforms.validators import DataRequired, Email, Length, Optional, EqualTo, Regexp
 from wtforms import ValidationError
 from models.role import Role
 from models.staff import Staff
@@ -90,8 +90,20 @@ class UserCreateForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=50)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=50)])
-    phone = StringField('Phone', validators=[Optional(), Length(max=20)])
+    phone = StringField('Phone Number', validators=[
+        Optional(),
+        Length(max=20, message='Phone number cannot exceed 20 characters'),
+        Regexp(r'^\+?1?\d{9,15}$', message='Please enter a valid phone number. Format: +1234567890')
+    ])
     branch_id = SelectField('Branch', coerce=int, validators=[Optional()])
     role_id = SelectField('Role', coerce=int, validators=[DataRequired()])
+    password = PasswordField('Password', validators=[
+        DataRequired(),
+        Length(min=6, message='Password must be at least 6 characters long')
+    ])
+    confirm_password = PasswordField('Confirm Password', validators=[
+        DataRequired(),
+        EqualTo('password', message='Passwords must match')
+    ])
     is_active = BooleanField('Active')
     submit = SubmitField('Create User')

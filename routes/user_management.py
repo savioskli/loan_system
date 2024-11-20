@@ -52,6 +52,7 @@ def create_user():
                 # Prepare staff data
                 staff_data = {
                     'email': form.email.data.strip(),
+                    'username': form.username.data.strip(),
                     'first_name': form.first_name.data.strip(),
                     'last_name': form.last_name.data.strip(),
                     'phone': form.phone.data.strip() if form.phone.data else None,
@@ -94,6 +95,7 @@ def create_user():
 @bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_user(id):
+    """Edit an existing user."""
     staff = StaffService.get_staff_by_id(id)
     if not staff:
         flash('User not found.', 'error')
@@ -101,34 +103,42 @@ def edit_user(id):
     
     form = UserCreateForm(obj=staff)
     
-    if request.method == 'GET':
+    try:
         # Get active branches for the dropdown
         branches = Branch.query.filter_by(is_active=True).all()
         form.branch_id.choices = [(0, '-- Select Branch --')] + [(b.id, b.branch_name) for b in branches]
-        form.branch_id.data = staff.branch_id if staff.branch_id else 0
         
         # Get active roles for the dropdown
         roles = Role.query.filter_by(is_active=True).all()
         form.role_id.choices = [(r.id, r.name) for r in roles]
-        form.role_id.data = staff.role_id
         
-        # Set is_active based on user status
-        form.is_active.data = staff.status == 'active'
-        
-        # Don't show password
-        form.password.data = ''
+        if request.method == 'GET':
+            # Set initial form data
+            form.branch_id.data = staff.branch_id if staff.branch_id else 0
+            form.role_id.data = staff.role_id
+            form.is_active.data = staff.status == 'active'
+            form.password.data = ''
+            form.confirm_password.data = ''
+            form.username.data = staff.username
+            form.email.data = staff.email
+    except Exception as e:
+        current_app.logger.error(f"Error setting up edit form: {str(e)}")
+        flash('An error occurred while loading the form.', 'error')
+        return redirect(url_for('user_management.list_users'))
     
     if form.validate_on_submit():
         try:
             data = {
-                'first_name': form.first_name.data,
-                'last_name': form.last_name.data,
-                'phone': form.phone.data,
+                'first_name': form.first_name.data.strip(),
+                'last_name': form.last_name.data.strip(),
+                'phone': form.phone.data.strip() if form.phone.data else None,
                 'branch_id': form.branch_id.data if form.branch_id.data != 0 else None,
                 'role_id': form.role_id.data,
-                'is_active': form.is_active.data
+                'is_active': form.is_active.data,
+                'username': form.username.data.strip()
             }
             
+            # Only update password if provided
             if form.password.data:
                 data['password'] = form.password.data
             
@@ -140,8 +150,8 @@ def edit_user(id):
                 flash(message, 'error')
                 
         except Exception as e:
+            current_app.logger.error(f"Error updating user: {str(e)}")
             flash(str(e), 'error')
-            logging.error(f"Error updating user: {str(e)}")
     
     return render_template('admin/users/form.html', form=form, title='Edit User', staff=staff)
 

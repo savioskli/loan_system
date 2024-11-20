@@ -88,6 +88,11 @@ class UserApprovalForm(FlaskForm):
 
 class UserCreateForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=3, max=50, message='Username must be between 3 and 50 characters'),
+        Regexp(r'^[\w.-]+$', message='Username can only contain letters, numbers, dots, and dashes')
+    ])
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=50)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=50)])
     phone = StringField('Phone Number', validators=[
@@ -98,12 +103,37 @@ class UserCreateForm(FlaskForm):
     branch_id = SelectField('Branch', coerce=int, validators=[Optional()])
     role_id = SelectField('Role', coerce=int, validators=[DataRequired()])
     password = PasswordField('Password', validators=[
-        DataRequired(),
+        Optional(),  # Make password optional for editing
         Length(min=6, message='Password must be at least 6 characters long')
     ])
     confirm_password = PasswordField('Confirm Password', validators=[
-        DataRequired(),
+        Optional(),  # Make confirm password optional for editing
         EqualTo('password', message='Passwords must match')
     ])
     is_active = BooleanField('Active')
-    submit = SubmitField('Create User')
+    submit = SubmitField('Save Changes')
+
+    def __init__(self, *args, **kwargs):
+        self._obj = kwargs.get('obj', None)  # Store the original object
+        super(UserCreateForm, self).__init__(*args, **kwargs)
+        # Convert string 'y' to boolean True for is_active field
+        if isinstance(self.is_active.data, str):
+            self.is_active.data = self.is_active.data.lower() in ['true', 't', 'yes', 'y', '1']
+
+    def validate_password(self, field):
+        if not self.password.data and not hasattr(self, '_obj'):
+            # If this is a new user (no _obj), password is required
+            raise ValidationError('Password is required for new users')
+
+    def validate_username(self, field):
+        if not field.data:
+            return
+        
+        from models.staff import Staff
+        # Check if username already exists (case-insensitive)
+        query = Staff.query.filter(Staff.username.ilike(field.data.strip()))
+        if self._obj:
+            query = query.filter(Staff.id != self._obj.id)
+        
+        if query.first():
+            raise ValidationError('This username is already taken')

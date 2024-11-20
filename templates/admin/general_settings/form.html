@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}General Settings{% endblock %}
+
+{% block styles %}
+<style>
+    .color-picker-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .color-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        border: 2px solid #e5e7eb;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    .color-preview input[type="color"] {
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    .color-text {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- Page header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-blue-500 rounded-full p-3">
+                <i class="fas fa-cog text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">General Settings</h2>
+                <p class="text-gray-600">Configure your site's basic information and appearance</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Form -->
+    <div class="bg-white shadow rounded-lg">
+        <form method="POST" action="{{ url_for('admin.system_settings') }}" enctype="multipart/form-data" class="p-6 space-y-8">
+            {{ form.csrf_token }}
+            
+            <!-- Site Information Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Site Information</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <!-- Site Name -->
+                    <div class="sm:col-span-4">
+                        <label for="{{ form.site_name.id }}" class="block text-sm font-medium text-gray-700">
+                            Site Name
+                        </label>
+                        <div class="mt-1">
+                            {{ form.site_name(class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2") }}
+                        </div>
+                        {% if form.site_name.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.site_name.errors[0] }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Site Description -->
+                    <div class="sm:col-span-6">
+                        <label for="{{ form.site_description.id }}" class="block text-sm font-medium text-gray-700">
+                            Site Description
+                        </label>
+                        <div class="mt-1">
+                            {{ form.site_description(class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2", rows="3") }}
+                        </div>
+                        {% if form.site_description.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.site_description.errors[0] }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Site Logo -->
+                    <div class="sm:col-span-6">
+                        <label for="{{ form.site_logo.id }}" class="block text-sm font-medium text-gray-700">
+                            Site Logo
+                        </label>
+                        <div class="mt-1 flex items-center space-x-4">
+                            <div class="flex-1">
+                                {{ form.site_logo(class="focus:outline-none block w-full text-sm text-slate-500
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-full file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-blue-50 file:text-blue-700
+                                    hover:file:bg-blue-100") }}
+                            </div>
+                        </div>
+                        {% if form.site_logo.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.site_logo.errors[0] }}</p>
+                        {% endif %}
+                        <p class="mt-2 text-sm text-gray-500">Recommended size: 200x200 pixels. Supported formats: PNG, JPG, JPEG.</p>
+                        
+                        <!-- Current Logo Preview -->
+                        {% if site_logo %}
+                        <div class="mt-4 border-2 border-gray-200 rounded-lg p-4">
+                            <p class="text-sm font-medium text-gray-700 mb-2">Current Logo:</p>
+                            <div class="flex items-center space-x-4">
+                                <div class="w-32 h-32 rounded-lg overflow-hidden bg-gray-100">
+                                    <img src="{{ url_for('static', filename=site_logo) }}" 
+                                         alt="Current Logo" 
+                                         class="w-full h-full object-contain">
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    <p>This is how your logo appears in the header.</p>
+                                    <p class="mt-1">Upload a new logo above to change it.</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Theme Settings Section -->
+            <div class="border border-gray-200 rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Theme Settings</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <!-- Theme Mode -->
+                    <div class="sm:col-span-3">
+                        <label for="{{ form.theme_mode.id }}" class="block text-sm font-medium text-gray-700">
+                            Theme Mode
+                        </label>
+                        <div class="mt-1">
+                            {{ form.theme_mode(class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md") }}
+                        </div>
+                        {% if form.theme_mode.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.theme_mode.errors[0] }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Settings Section -->
+            <div class="border border-gray-200 rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Color Settings</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <!-- Primary Color -->
+                    <div class="sm:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Primary Color
+                        </label>
+                        <div class="color-picker-wrapper">
+                            <div class="color-preview" style="background-color: {{ form.primary_color.data or '#3ba094' }}">
+                                <input type="color" 
+                                       id="primary_color_picker" 
+                                       value="{{ form.primary_color.data or '#3ba094' }}"
+                                       aria-label="Choose primary color">
+                            </div>
+                            <input type="text" 
+                                   name="primary_color"
+                                   id="primary_color"
+                                   value="{{ form.primary_color.data or '#3ba094' }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$"
+                                   class="color-text shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                   placeholder="#000000">
+                        </div>
+                        {% if form.primary_color.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.primary_color.errors[0] }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Secondary Color -->
+                    <div class="sm:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Secondary Color
+                        </label>
+                        <div class="color-picker-wrapper">
+                            <div class="color-preview" style="background-color: {{ form.secondary_color.data or '#8fdbe5' }}">
+                                <input type="color" 
+                                       id="secondary_color_picker" 
+                                       value="{{ form.secondary_color.data or '#8fdbe5' }}"
+                                       aria-label="Choose secondary color">
+                            </div>
+                            <input type="text" 
+                                   name="secondary_color"
+                                   id="secondary_color"
+                                   value="{{ form.secondary_color.data or '#8fdbe5' }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$"
+                                   class="color-text shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                   placeholder="#000000">
+                        </div>
+                        {% if form.secondary_color.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.secondary_color.errors[0] }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="pt-6 flex justify-end space-x-3">
+                <a href="{{ url_for('admin.dashboard') }}" 
+                   class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-blue-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function setupColorPicker(colorPickerId, textInputId, previewId) {
+            const colorPicker = document.getElementById(colorPickerId);
+            const textInput = document.getElementById(textInputId);
+            const preview = colorPicker.parentElement;
+
+            // Update text input and preview when color picker changes
+            colorPicker.addEventListener('input', function(e) {
+                const color = e.target.value.toUpperCase();
+                textInput.value = color;
+                preview.style.backgroundColor = color;
+            });
+
+            // Update color picker and preview when text input changes
+            textInput.addEventListener('input', function(e) {
+                const color = e.target.value.toUpperCase();
+                if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    colorPicker.value = color;
+                    preview.style.backgroundColor = color;
+                }
+            });
+
+            // Format text input on blur
+            textInput.addEventListener('blur', function(e) {
+                let color = e.target.value;
+                if (!color.startsWith('#')) {
+                    color = '#' + color;
+                }
+                if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    e.target.value = color.toUpperCase();
+                    colorPicker.value = color;
+                    preview.style.backgroundColor = color;
+                }
+            });
+        }
+
+        // Setup both color pickers
+        setupColorPicker('primary_color_picker', 'primary_color');
+        setupColorPicker('secondary_color_picker', 'secondary_color');
+    });
+</script>
+{% endblock %}

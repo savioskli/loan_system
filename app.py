@@ -22,9 +22,11 @@ from routes.main import main_bp
 from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
+from routes.admin import admin_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from routes.modules import modules_bp
+from flask_wtf.csrf import CSRFProtect
 
 # Configure logging
 logging.basicConfig(
@@ -33,124 +35,152 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize CSRF protection
+csrf = CSRFProtect()
+
 # Initialize application
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
 
-# Configuration
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/loan_system'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = True  # Enable SQL query logging
-app.config['DEBUG'] = True  # Enable debug mode
+    # Configuration
+    app.config['SECRET_KEY'] = 'your-secret-key-here'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/loan_system'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ECHO'] = True  # Enable SQL query logging
+    app.config['DEBUG'] = True  # Enable debug mode
 
-# Initialize extensions
-init_extensions(app)
+    # Load configuration
+    app.config.from_object('config.Config')
 
-# Register template filters
-@app.template_filter('format_datetime')
-def format_datetime_filter(value):
-    if value is None:
-        return ""
-    return value.strftime('%Y-%m-%d %H:%M:%S')
+    # Initialize extensions
+    init_extensions(app)
+    csrf.init_app(app)
 
-# Register blueprints
-app.register_blueprint(auth_bp)  # Register auth_bp first for landing page
-app.register_blueprint(main_bp)  # Remove url_prefix for simpler URLs
-app.register_blueprint(user_management_bp)  # URL prefix is already in blueprint
-app.register_blueprint(role_bp)  # Register the roles blueprint
-app.register_blueprint(branch_bp, url_prefix='/branches')
-app.register_blueprint(client_types_bp)
-app.register_blueprint(modules_bp)
+    # Register context processors
+    from context_processors import inject_settings, inject_navigation
+    app.context_processor(inject_settings)
+    app.context_processor(inject_navigation)
 
-# Flask-Login configuration
-@login_manager.user_loader
-def load_user(user_id):
-    return Staff.query.get(int(user_id))
+    # Clear SQLAlchemy model registry to ensure fresh model definitions
+    with app.app_context():
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        if inspector.has_table("system_settings"):
+            db.Model.metadata.clear()
+            from models.settings import SystemSettings
+            from models.staff import Staff
+            from models.role import Role
+            db.create_all()
 
-@login_manager.unauthorized_handler
-def unauthorized():
-    flash('Please log in to access this page.', 'error')
-    return redirect(url_for('auth.login', next=request.url))
+    # Register template filters
+    @app.template_filter('format_datetime')
+    def format_datetime_filter(value):
+        if value is None:
+            return ""
+        return value.strftime('%Y-%m-%d %H:%M:%S')
 
-# Timezone configuration
-TIMEZONE = pytz.timezone('Africa/Nairobi')
+    # Register blueprints
+    app.register_blueprint(auth_bp)  # Register auth_bp first for landing page
+    app.register_blueprint(main_bp)  # Remove url_prefix for simpler URLs
+    app.register_blueprint(user_management_bp)  # URL prefix is already in blueprint
+    app.register_blueprint(role_bp)  # Register the roles blueprint
+    app.register_blueprint(branch_bp, url_prefix='/branches')
+    app.register_blueprint(client_types_bp)
+    app.register_blueprint(modules_bp)
+    app.register_blueprint(admin_bp, url_prefix='/admin')  # Register admin blueprint
 
-def get_current_time():
-    """Get current time in UTC"""
-    return datetime.utcnow()
+    # Flask-Login configuration
+    @login_manager.user_loader
+    def load_user(user_id):
+        return Staff.query.get(int(user_id))
 
-def format_datetime(dt):
-    """Convert UTC datetime to local timezone and format it"""
-    if dt is None:
-        return ''
-    if dt.tzinfo is None:
-        dt = pytz.UTC.localize(dt)
-    local_dt = dt.astimezone(TIMEZONE)
-    return local_dt.strftime('%Y-%m-%d %H:%M:%S')
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        flash('Please log in to access this page.', 'error')
+        return redirect(url_for('auth.login', next=request.url))
 
-# Make format_datetime available to templates
-@app.context_processor
-def utility_processor():
-    return dict(format_datetime=format_datetime)
+    # Timezone configuration
+    TIMEZONE = pytz.timezone('Africa/Nairobi')
 
-# File upload configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+    def get_current_time():
+        """Get current time in UTC"""
+        return datetime.utcnow()
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    def format_datetime(dt):
+        """Convert UTC datetime to local timezone and format it"""
+        if dt is None:
+            return ''
+        if dt.tzinfo is None:
+            dt = pytz.UTC.localize(dt)
+        local_dt = dt.astimezone(TIMEZONE)
+        return local_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-@app.context_processor
-def inject_system_settings():
-    """Inject system settings into all templates"""
-    try:
-        return dict(
-            system_name=SystemSettings.get_setting('system_name', 'Loan System'),
-            system_description=SystemSettings.get_setting('system_description', ''),
-            system_logo=SystemSettings.get_setting('system_logo')
-        )
-    except Exception as e:
-        logger.error(f"Error injecting system settings: {e}")
-        return dict(
-            system_name="Loan System",
-            system_description="",
-            system_logo=None
-        )
+    # Make format_datetime available to templates
+    @app.context_processor
+    def utility_processor():
+        return dict(format_datetime=format_datetime)
 
-@app.context_processor
-def inject_theme_settings():
-    """Inject theme settings into all templates"""
-    try:
-        return dict(
-            theme_primary_color=SystemSettings.get_setting('theme_primary_color', '#3B82F6'),
-            theme_secondary_color=SystemSettings.get_setting('theme_secondary_color', '#1E40AF'),
-            theme_mode=SystemSettings.get_setting('theme_mode', 'light')
-        )
-    except Exception as e:
-        logger.error(f"Error injecting theme settings: {e}")
-        return dict(
-            theme_primary_color='#3B82F6',
-            theme_secondary_color='#1E40AF',
-            theme_mode='light'
-        )
+    # File upload configuration
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Error handlers
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('errors/404.html'), 404
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return render_template('errors/500.html'), 500
+    @app.context_processor
+    def inject_system_settings():
+        """Inject system settings into all templates"""
+        try:
+            return dict(
+                system_name=SystemSettings.get_setting('system_name', 'Loan System'),
+                system_description=SystemSettings.get_setting('system_description', ''),
+                system_logo=SystemSettings.get_setting('system_logo')
+            )
+        except Exception as e:
+            logger.error(f"Error injecting system settings: {e}")
+            return dict(
+                system_name="Loan System",
+                system_description="",
+                system_logo=None
+            )
 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
-    return render_template('errors/500.html'), 500
+    @app.context_processor
+    def inject_theme_settings():
+        """Inject theme settings into all templates"""
+        try:
+            return dict(
+                theme_primary_color=SystemSettings.get_setting('theme_primary_color', '#3B82F6'),
+                theme_secondary_color=SystemSettings.get_setting('theme_secondary_color', '#1E40AF'),
+                theme_mode=SystemSettings.get_setting('theme_mode', 'light')
+            )
+        except Exception as e:
+            logger.error(f"Error injecting theme settings: {e}")
+            return dict(
+                theme_primary_color='#3B82F6',
+                theme_secondary_color='#1E40AF',
+                theme_mode='light'
+            )
+
+    # Error handlers
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()
+        return render_template('errors/500.html'), 500
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+        return render_template('errors/500.html'), 500
+
+    return app
 
 if __name__ == '__main__':
+    app = create_app()
     app.run(debug=True, host='127.0.0.1', port=5002)

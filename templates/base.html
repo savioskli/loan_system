@@ -10,10 +10,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    {% block styles %}{% endblock %}
     <style>
         :root {
-            --color-primary: {{ theme_primary_color }};
-            --color-secondary: {{ theme_secondary_color }};
+            --color-primary: {{ primary_color }};
+            --color-secondary: {{ secondary_color }};
             --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
@@ -39,22 +40,69 @@
             line-height: 1.6;
             letter-spacing: -0.01em;
         }
-        /* Navigation icons */
-        .nav-icon {
-            margin-right: 0.5rem;
-            color: #9ca3af;
+
+        /* Link styles */
+        a:not(.no-style) {
+            color: var(--color-primary);
             transition: color 150ms ease-in-out;
         }
 
-        .dark .nav-icon {
-            color: #6b7280;
+        a:not(.no-style):hover {
+            color: var(--color-secondary);
         }
 
-        a:hover .nav-icon,
-        .group:hover .nav-icon {
+        .dark a:not(.no-style) {
+            color: var(--color-primary);
+            opacity: 0.9;
+        }
+
+        .dark a:not(.no-style):hover {
+            opacity: 1;
+        }
+
+        /* Navigation icons and links */
+        .nav-icon {
+            color: currentColor;
+            transition: all 150ms ease-in-out;
+        }
+
+        /* Navigation item styles */
+        .nav-item {
+            color: #6B7280;  /* text-gray-500 */
+            border-bottom-width: 2px;
+            border-color: transparent;
+            transition: all 150ms ease-in-out;
+        }
+
+        .dark .nav-item {
+            color: #D1D5DB;  /* dark:text-gray-300 */
+        }
+
+        .nav-item:hover {
+            color: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+
+        /* Active navigation item */
+        .nav-item-active {
+            color: var(--color-primary) !important;
+            border-color: var(--color-primary) !important;
+        }
+
+        .nav-item-active .nav-icon {
             color: var(--color-primary);
         }
-        
+
+        /* User menu button */
+        .user-menu-button {
+            background-color: var(--color-primary);
+            transition: all 150ms ease-in-out;
+        }
+
+        .user-menu-button:hover {
+            background-color: var(--color-secondary);
+        }
+
         /* Color utilities */
         .bg-primary { background-color: var(--color-primary) !important; }
         .bg-secondary { background-color: var(--color-secondary) !important; }
@@ -64,17 +112,44 @@
         .border-secondary { border-color: var(--color-secondary) !important; }
         .ring-primary { --tw-ring-color: var(--color-primary) !important; }
         .ring-secondary { --tw-ring-color: var(--color-secondary) !important; }
+        
+        /* Hover states */
         .hover\:bg-primary:hover { background-color: var(--color-primary) !important; }
         .hover\:bg-secondary:hover { background-color: var(--color-secondary) !important; }
+        .hover\:text-primary:hover { color: var(--color-primary) !important; }
+        .hover\:text-secondary:hover { color: var(--color-secondary) !important; }
+        .hover\:border-primary:hover { border-color: var(--color-primary) !important; }
+        .hover\:border-secondary:hover { border-color: var(--color-secondary) !important; }
+        
+        /* Focus states */
         .focus\:border-primary:focus { border-color: var(--color-primary) !important; }
         .focus\:border-secondary:focus { border-color: var(--color-secondary) !important; }
         .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary) !important; }
         .focus\:ring-secondary:focus { --tw-ring-color: var(--color-secondary) !important; }
         
+        /* Button styles */
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+            transition: all 150ms ease-in-out;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-secondary);
+        }
+
+        .dark .btn-primary {
+            opacity: 0.9;
+        }
+
+        .dark .btn-primary:hover {
+            opacity: 1;
+        }
+        
         /* Enhanced form elements */
-        input, select, textarea {
-            font-family: var(--font-inter);
-            font-size: 0.95rem;
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--color-primary);
+            --tw-ring-color: var(--color-primary);
         }
         
         /* Button enhancements */
@@ -82,6 +157,33 @@
             font-family: var(--font-inter);
             font-weight: 500;
             letter-spacing: -0.01em;
+        }
+
+        /* Logo styles */
+        .site-logo {
+            max-height: 40px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        /* Table styles */
+        .table-header {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .table-row:hover {
+            background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        }
+
+        /* Pagination */
+        .pagination-active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .pagination-link:hover {
+            color: var(--color-primary);
         }
     </style>
     <script>
@@ -105,27 +207,29 @@
 <body class="{{ 'dark:bg-gray-900 dark:text-white' if theme_mode == 'dark' else 'bg-gray-100' }}">
     <div class="min-h-screen">
         <!-- Navigation -->
-        <nav class="bg-white dark:bg-gray-800 shadow-lg border-b-2" style="border-color: var(--color-primary)">
+        <nav class="bg-white dark:bg-gray-800 shadow-lg border-b-2 border-primary">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16">
                     <div class="flex">
+                        <!-- Logo -->
                         <div class="flex-shrink-0 flex items-center">
-                            <a href="{{ url_for('auth.landing') }}" class="flex items-center">
-                                <img class="h-8 w-auto" src="{{ url_for('static', filename='images/logo.png') }}" alt="Loan System">
-                                <span class="ml-2 text-xl font-bold text-gray-900 dark:text-white">Loan System</span>
-                            </a>
+                            <div class="flex items-center space-x-3">
+                                {% if site_logo %}
+                                    <img src="{{ url_for('static', filename=site_logo) }}" alt="{{ site_name }}" class="site-logo">
+                                {% endif %}
+                                <span class="text-xl font-semibold text-gray-800 dark:text-white">{{ site_name }}</span>
+                            </div>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="{{ url_for('main.dashboard') }}" class="group border-transparent text-gray-500 dark:text-gray-300 hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                <i class="fas fa-chart-line nav-icon"></i>
-                                Dashboard
+                            <!-- Navigation Links -->
+                            {% for item in navigation_items %}
+                            <a href="{{ item.url }}" 
+                               class="nav-item {{ 'nav-item-active' if item.is_active else '' }} 
+                                      inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                <i class="fas fa-{{ item.icon }} nav-icon mr-2"></i>
+                                {{ item.text }}
                             </a>
-                            {% if current_user.is_authenticated and current_user.role == 'Admin' %}
-                            <a href="{{ url_for('main.admin_dashboard') }}" class="group border-transparent text-gray-500 dark:text-gray-300 hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                <i class="fas fa-tachometer-alt nav-icon"></i>
-                                Admin Dashboard
-                            </a>
-                            {% endif %}
+                            {% endfor %}
                         </div>
                     </div>
                     <div class="flex items-center">
@@ -144,22 +248,13 @@
                                         <div class="text-xs text-gray-500">{{ current_user.email }}</div>
                                     </div>
                                     <a href="{{ url_for('auth.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-key mr-2"></i>Change Password
+                                        Change Password
                                     </a>
                                     <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-sign-out-alt mr-2"></i>Sign out
+                                        Sign out
                                     </a>
                                 </div>
                             </div>
-                        </div>
-                        {% else %}
-                        <div class="hidden md:flex md:items-center md:space-x-6">
-                            <a href="{{ url_for('auth.login') }}" class="text-base font-medium text-gray-500 hover:text-gray-900">
-                                Sign in
-                            </a>
-                            <a href="{{ url_for('auth.register') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-dark">
-                                Sign up
-                            </a>
                         </div>
                         {% endif %}
                     </div>
@@ -167,24 +262,24 @@
             </div>
         </nav>
 
-        <!-- Page Content -->
+        <!-- Content -->
         <main class="py-10">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="mb-4 p-4 rounded-md {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}">
+                            <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
                                 {{ message }}
                             </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
-                
                 {% block content %}{% endblock %}
             </div>
         </main>
     </div>
 
     {% block extra_js %}{% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -69,48 +69,6 @@ def admin_dashboard():
         flash('An error occurred while loading the admin dashboard.', 'error')
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/settings', methods=['GET', 'POST'])
-@login_required
-def admin_settings():
-    try:
-        form = SystemSettingsForm()
-
-        if form.validate_on_submit():
-            # Update system settings
-            SystemSettings.set_setting('system_name', form.system_name.data, current_user.id)
-            SystemSettings.set_setting('system_description', form.system_description.data, current_user.id)
-            SystemSettings.set_setting('theme_mode', form.theme_mode.data, current_user.id)
-            SystemSettings.set_setting('theme_primary_color', form.theme_primary_color.data, current_user.id)
-            SystemSettings.set_setting('theme_secondary_color', form.theme_secondary_color.data, current_user.id)
-
-            # Handle logo upload
-            if form.system_logo.data:
-                file = form.system_logo.data
-                if file:
-                    filename = secure_filename(file.filename)
-                    upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    file_path = os.path.join(upload_dir, filename)
-                    file.save(file_path)
-                    SystemSettings.set_setting('system_logo', f'/static/uploads/{filename}', current_user.id)
-
-            flash('Settings updated successfully!', 'success')
-            return redirect(url_for('main.admin_settings'))
-
-        # Pre-fill form with existing settings
-        if request.method == 'GET':
-            form.system_name.data = SystemSettings.get_setting('system_name', 'Loan System')
-            form.system_description.data = SystemSettings.get_setting('system_description', '')
-            form.theme_mode.data = SystemSettings.get_setting('theme_mode', 'light')
-            form.theme_primary_color.data = SystemSettings.get_setting('theme_primary_color', '#3B82F6')
-            form.theme_secondary_color.data = SystemSettings.get_setting('theme_secondary_color', '#1E40AF')
-
-        return render_template('admin/settings.html', form=form)
-    except Exception as e:
-        logger.error(f"Error in admin settings: {str(e)}\n{traceback.format_exc()}")
-        flash('An error occurred while processing your request.', 'error')
-        return render_template('errors/500.html'), 500
-
 # User Management Routes
 @main_bp.route('/admin/users')
 @login_required

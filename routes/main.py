@@ -20,7 +20,7 @@ main_bp = Blueprint('main', __name__)
 @login_required
 def index():
     try:
-        if current_user.role == 'Admin':
+        if current_user.role.lower() == 'admin':
             return redirect(url_for('main.admin_dashboard'))
         return redirect(url_for('main.dashboard'))
     except Exception as e:
@@ -116,7 +116,7 @@ def admin_settings():
 @login_required
 def view_users():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/users.html')
@@ -128,7 +128,7 @@ def view_users():
 @login_required
 def pending_approvals():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/pending_approvals.html')
@@ -140,7 +140,7 @@ def pending_approvals():
 @login_required
 def user_roles():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/user_roles.html')
@@ -149,11 +149,11 @@ def user_roles():
         return render_template('errors/500.html'), 500
 
 # Loan Management Routes
-@main_bp.route('/admin/loans/types')
+@main_bp.route('/admin/loan-types')
 @login_required
 def loan_types():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_types.html')
@@ -161,11 +161,11 @@ def loan_types():
         logger.error(f"Error in loan types: {str(e)}\n{traceback.format_exc()}")
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/loans/settings')
+@main_bp.route('/admin/loan-settings')
 @login_required
 def loan_settings():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_settings.html')
@@ -173,11 +173,11 @@ def loan_settings():
         logger.error(f"Error in loan settings: {str(e)}\n{traceback.format_exc()}")
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/loans/reports')
+@main_bp.route('/admin/loan-reports')
 @login_required
 def loan_reports():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/loan_reports.html')
@@ -190,7 +190,7 @@ def loan_reports():
 @login_required
 def email_settings():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/email_settings.html')
@@ -202,7 +202,7 @@ def email_settings():
 @login_required
 def backup_settings():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/backup_settings.html')
@@ -211,11 +211,11 @@ def backup_settings():
         return render_template('errors/500.html'), 500
 
 # Client Management Routes
-@main_bp.route('/admin/clients/fields')
+@main_bp.route('/admin/client-management/fields')
 @login_required
 def client_fields():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/client_fields.html')
@@ -223,11 +223,11 @@ def client_fields():
         logger.error(f"Error in client fields: {str(e)}\n{traceback.format_exc()}")
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/clients/reports')
+@main_bp.route('/admin/client-management/reports')
 @login_required
 def client_reports():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/client_reports.html')
@@ -236,11 +236,11 @@ def client_reports():
         return render_template('errors/500.html'), 500
 
 # Activity Monitoring Routes
-@main_bp.route('/admin/activities')
+@main_bp.route('/admin/activity-monitoring/activities')
 @login_required
 def activity_logs():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/activity_logs.html')
@@ -248,11 +248,11 @@ def activity_logs():
         logger.error(f"Error in activity logs: {str(e)}\n{traceback.format_exc()}")
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/audit')
+@main_bp.route('/admin/activity-monitoring/audit')
 @login_required
 def audit_trail():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/audit_trail.html')
@@ -260,11 +260,11 @@ def audit_trail():
         logger.error(f"Error in audit trail: {str(e)}\n{traceback.format_exc()}")
         return render_template('errors/500.html'), 500
 
-@main_bp.route('/admin/system-logs')
+@main_bp.route('/admin/activity-monitoring/system-logs')
 @login_required
 def system_logs():
     try:
-        if not current_user.role == 'Admin':
+        if not current_user.role.lower() == 'admin':
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
         return render_template('admin/system_logs.html')

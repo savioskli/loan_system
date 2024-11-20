@@ -7,8 +7,13 @@ class Config:
     
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql://root:root@localhost/loan_system'
+        'mysql+mysqlconnector://root:@localhost:3306/loan_system?auth_plugin=mysql_native_password'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'pool_recycle': 3600,
+        'pool_pre_ping': True
+    }
     
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)

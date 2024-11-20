@@ -20,6 +20,8 @@ from routes.branch_routes import branch_bp
 from routes import client_types_bp
 from routes.main import main_bp
 from routes.auth import auth_bp
+from routes.user_management import bp as user_management_bp
+from routes.role_routes import bp as role_bp
 from decorators import admin_required
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
@@ -55,9 +57,11 @@ def format_datetime_filter(value):
 # Register blueprints
 app.register_blueprint(auth_bp)  # Register auth_bp first for landing page
 app.register_blueprint(main_bp)  # Remove url_prefix for simpler URLs
-app.register_blueprint(branch_bp)
+app.register_blueprint(user_management_bp, url_prefix='/user-management')
+app.register_blueprint(role_bp)  # Register the roles blueprint
+app.register_blueprint(branch_bp, url_prefix='/branches')
 app.register_blueprint(client_types_bp)
-app.register_blueprint(modules_bp, url_prefix='/admin/modules')
+app.register_blueprint(modules_bp)
 
 # Flask-Login configuration
 @login_manager.user_loader

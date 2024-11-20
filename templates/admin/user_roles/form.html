@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="bg-white shadow rounded-lg p-8 mb-8">
+        <div class="flex items-center space-x-4">
+            <div class="bg-purple-500 rounded-full p-3">
+                <i class="fas fa-user-tag text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2>
+                <p class="text-gray-600">{% if role %}Update{% else %}Create a new{% endif %} user role</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Form -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <form method="POST" class="p-8 space-y-8">
+            {{ form.csrf_token }}
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-4 rounded-md {% if category == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="space-y-6">
+                <!-- Name Field -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Role Name</label>
+                    <div class="mt-1">
+                        {{ form.name(class="shadow-sm focus:ring-purple-500 focus:border-purple-500 block w-full sm:text-sm border-gray-300 rounded-md p-2.5") }}
+                    </div>
+                    {% if form.name.errors %}
+                    <div class="mt-2 text-sm text-red-600">
+                        {% for error in form.name.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Description Field -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <div class="mt-1">
+                        {{ form.description(class="shadow-sm focus:ring-purple-500 focus:border-purple-500 block w-full sm:text-sm border-gray-300 rounded-md p-2.5", rows="4") }}
+                    </div>
+                    {% if form.description.errors %}
+                    <div class="mt-2 text-sm text-red-600">
+                        {% for error in form.description.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Is Active Field -->
+                <div class="flex items-center">
+                    <div class="flex items-center h-5">
+                        {{ form.is_active(class="focus:ring-purple-500 h-4 w-4 text-purple-600 border-gray-300 rounded") }}
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="is_active" class="font-medium text-gray-700">Active</label>
+                        <p class="text-gray-500">Enable or disable this role</p>
+                    </div>
+                    {% if form.is_active.errors %}
+                    <div class="mt-2 text-sm text-red-600">
+                        {% for error in form.is_active.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-5">
+                    <div class="flex justify-end">
+                        <button type="submit" class="ml-3 inline-flex justify-center py-2.5 px-5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                            Save Role
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-4 pt-8 mt-8 border-t border-gray-200">
+                <a href="{{ url_for('roles.list_roles') }}" class="inline-flex justify-center py-2.5 px-5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

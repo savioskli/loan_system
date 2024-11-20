@@ -173,10 +173,20 @@ class RoleService:
             if not role:
                 return f"Role with ID {role_id} not found"
             
+            # Check if role name is reserved
+            if role.name.lower() in ['admin', 'administrator', 'superadmin']:
+                return "Cannot delete system reserved roles"
+            
+            # Check if any staff members are using this role
+            staff_count = Staff.query.filter_by(role_id=role_id).count()
+            if staff_count > 0:
+                return f"Cannot delete role '{role.name}' as it is assigned to {staff_count} staff member(s)"
+            
             db.session.delete(role)
             db.session.commit()
             current_app.logger.info(f'Role deleted: {role.name}')
             return None
+            
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Error deleting role {role_id}: {str(e)}')

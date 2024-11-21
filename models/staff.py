@@ -50,7 +50,7 @@ class Staff(UserMixin, db.Model):
     @property
     def is_admin(self):
         """Check if the staff member is an admin."""
-        return self.role and self.role.name == 'Admin'
+        return self.role and self.role.name.lower() == 'admin'
     
     @property
     def full_name(self):

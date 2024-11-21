@@ -1,4 +1,4 @@
-{% extends "admin/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
@@ -43,12 +43,15 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for module in modules %}
-                    <tr>
+                    {% macro render_module(module, level=0) %}
+                    <tr class="hover:bg-gray-50">
                         <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                             <div class="flex items-center">
-                                <div class="ml-3">
-                                    <p class="text-gray-900 whitespace-no-wrap">
+                                <div class="ml-{{ level * 6 }}">
+                                    <p class="text-gray-900 whitespace-no-wrap flex items-center">
+                                        {% if level > 0 %}
+                                            <span class="text-gray-400 mr-2">└─</span>
+                                        {% endif %}
                                         {{ module.name }}
                                     </p>
                                 </div>
@@ -78,19 +81,103 @@
                                    class="text-blue-600 hover:text-blue-900" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <button onclick="deleteModule({{ module.id }}, '{{ module.name }}')"
+                                        class="text-red-600 hover:text-red-900 border-none bg-transparent cursor-pointer" 
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
+                    {% if module.children %}
+                        {% for child in module.children %}
+                            {{ render_module(child, level + 1) }}
+                        {% endfor %}
+                    {% endif %}
+                    {% endmacro %}
+
+                    {% if modules %}
+                        {% for module in modules %}
+                            {{ render_module(module) }}
+                        {% endfor %}
                     {% else %}
                     <tr>
                         <td colspan="5" class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
-                            No modules found. <a href="{{ url_for('modules.create') }}" class="text-indigo-600 hover:text-indigo-900">Create one</a>
+                            No modules found.
                         </td>
                     </tr>
-                    {% endfor %}
+                    {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script>
+function deleteModule(id, name) {
+    console.log('Attempting to delete module:', id, name); // Debug log
+    Swal.fire({
+        title: 'Delete Module?',
+        html: `Are you sure you want to delete <strong>${name}</strong>?<br><br>
+               <small class="text-red-500">This will also delete all form fields associated with this module.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            console.log('Delete confirmed, sending request...'); // Debug log
+            
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch(`/modules/delete/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('Response received:', response.status); // Debug log
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data); // Debug log
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Deleted!',
+                        text: data.message,
+                        icon: 'success'
+                    }).then(() => {
+                        console.log('Reloading page...'); // Debug log
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message,
+                        icon: 'error'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error); // Debug log
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while deleting the module. ' + error.message,
+                    icon: 'error'
+                });
+            });
+        }
+    });
+}
+</script>
 {% endblock %}

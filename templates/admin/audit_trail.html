@@ -6,26 +6,64 @@
 <div class="max-w-7xl mx-auto">
     <div class="bg-white shadow rounded-lg p-6 mb-6">
         <div class="flex items-center space-x-4">
-            <div class="bg-teal-500 rounded-full p-3">
+            <div class="bg-primary rounded-full p-3">
                 <i class="fas fa-shield-alt text-white text-xl"></i>
             </div>
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">Audit Trail</h2>
-                <p class="text-gray-600">Track system changes and user actions</p>
+                <p class="text-gray-600">Security and sensitive operations log</p>
             </div>
         </div>
     </div>
 
-    <!-- Audit Trail Table -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">System Changes</h3>
-                <button class="bg-teal-500 text-white px-4 py-2 rounded hover:bg-teal-600">
-                    <i class="fas fa-download mr-2"></i>Export Log
+    <!-- Filter Form -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label for="user_id" class="block text-sm font-medium text-gray-700">User</label>
+                <select name="user_id" id="user_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if request.args.get('user_id')|int == user.id %}selected{% endif %}>
+                        {{ user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="action" class="block text-sm font-medium text-gray-700">Action Type</label>
+                <select name="action" id="action" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                    <option value="">All Actions</option>
+                    {% for action_type in actions %}
+                    <option value="{{ action_type }}" {% if request.args.get('action') == action_type %}selected{% endif %}>
+                        {{ action_type|replace('_', ' ')|title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="date_from" class="block text-sm font-medium text-gray-700">From Date</label>
+                <input type="date" name="date_from" id="date_from" 
+                       value="{{ request.args.get('date_from', '') }}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+            </div>
+            <div>
+                <label for="date_to" class="block text-sm font-medium text-gray-700">To Date</label>
+                <input type="date" name="date_to" id="date_to" 
+                       value="{{ request.args.get('date_to', '') }}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+            </div>
+            <div class="lg:col-span-4 flex justify-end">
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    <i class="fas fa-filter mr-2"></i>
+                    Apply Filters
                 </button>
             </div>
-            
+        </form>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="p-6">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -40,23 +78,81 @@
                                 Action
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Entity
+                                Details
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Changes
+                                IP Address
                             </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <!-- Audit entries will be listed here -->
-                        <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
-                                Audit trail interface coming soon...
+                        {% for log in audit_logs.items %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">
+                                    {% set user = users|selectattr("id", "equalto", log.user_id)|first %}
+                                    {{ user.username if user else "Unknown" }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if log.action == 'login' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif log.action == 'password_change' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% elif log.action == 'role_change' %}
+                                        bg-purple-100 text-purple-800
+                                    {% elif log.action == 'user_create' %}
+                                        bg-green-100 text-green-800
+                                    {% elif log.action == 'user_delete' %}
+                                        bg-red-100 text-red-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ log.action | replace('_', ' ') | title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                                {{ log.details if log.details else "N/A" }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ log.ip_address if log.ip_address else "N/A" }}
                             </td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            {% if audit_logs.pages > 1 %}
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <nav class="flex items-center justify-between">
+                    <div class="flex-1 flex justify-between items-center">
+                        {% if audit_logs.has_prev %}
+                        <a href="{{ url_for('main.audit_trail', page=audit_logs.prev_num, **request.args) }}" 
+                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Previous
+                        </a>
+                        {% endif %}
+                        
+                        <span class="text-sm text-gray-700">
+                            Page {{ audit_logs.page }} of {{ audit_logs.pages }}
+                        </span>
+                        
+                        {% if audit_logs.has_next %}
+                        <a href="{{ url_for('main.audit_trail', page=audit_logs.next_num, **request.args) }}" 
+                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

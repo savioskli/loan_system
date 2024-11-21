@@ -5,7 +5,7 @@
     <div class="max-w-2xl mx-auto">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">{{ title }}</h1>
-            <a href="{{ url_for('modules.manage_modules') }}" class="text-blue-500 hover:text-blue-600">
+            <a href="{{ url_for('modules.index') }}" class="text-blue-500 hover:text-blue-600">
                 <i class="fas fa-arrow-left mr-2"></i>Back to Modules
             </a>
         </div>
@@ -63,15 +63,20 @@
                 {% endif %}
             </div>
 
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="flex items-center">
                     {{ form.is_active(class="mr-2") }}
-                    <span class="text-gray-700 text-sm font-bold">{{ form.is_active.label.text }}</span>
+                    {{ form.is_active.label(class="text-gray-700 text-sm font-bold") }}
                 </label>
+                {% if form.is_active.errors %}
+                    {% for error in form.is_active.errors %}
+                        <p class="text-red-500 text-xs italic">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
             </div>
 
             <div class="flex items-center justify-between">
-                <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
                     Save Module
                 </button>
             </div>

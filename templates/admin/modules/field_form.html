@@ -1,41 +1,41 @@
-{% extends "admin/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
         <h2 class="text-2xl font-bold mb-6">{{ title if title else 'Create Form Field' }}</h2>
         
-        <form method="POST" class="space-y-6">
+        <form method="POST" action="{% if field_id %}{{ url_for('modules.edit_field', id=module.id, field_id=field_id) }}{% else %}{{ url_for('modules.create_field', id=module.id) }}{% endif %}" class="space-y-6">
             {{ form.csrf_token }}
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
                     <div>
-                        {{ form.field_name.label(class="block text-sm font-medium text-gray-700") }}
-                        {{ form.field_name(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {{ form.field_name.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {{ form.field_name(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_name.errors %}
                             {% for error in form.field_name.errors %}
-                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
 
                     <div>
-                        {{ form.field_label.label(class="block text-sm font-medium text-gray-700") }}
-                        {{ form.field_label(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {{ form.field_label.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {{ form.field_label(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_label.errors %}
                             {% for error in form.field_label.errors %}
-                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
 
                     <div>
-                        {{ form.field_placeholder.label(class="block text-sm font-medium text-gray-700") }}
-                        {{ form.field_placeholder(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {{ form.field_placeholder.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {{ form.field_placeholder(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_placeholder.errors %}
                             {% for error in form.field_placeholder.errors %}
-                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -43,108 +43,152 @@
 
                 <div class="space-y-4">
                     <div>
-                        {{ form.field_type.label(class="block text-sm font-medium text-gray-700") }}
-                        {{ form.field_type(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {{ form.field_type.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {{ form.field_type(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_type.errors %}
                             {% for error in form.field_type.errors %}
-                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
 
                     <div>
-                        {{ form.validation_text.label(class="block text-sm font-medium text-gray-700") }}
-                        {{ form.validation_text(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {{ form.validation_text.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {{ form.validation_text(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.validation_text.errors %}
                             {% for error in form.validation_text.errors %}
-                                <p class="text-red-500 text-xs italic">{{ error }}</p>
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
-                        <p class="text-sm text-gray-500 mt-1">{{ form.validation_text.description }}</p>
+                        <p class="text-sm text-gray-500 mt-2">{{ form.validation_text.description }}</p>
                     </div>
 
-                    <div class="flex items-center">
-                        {{ form.is_required(class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
-                        {{ form.is_required.label(class="ml-2 block text-sm text-gray-900") }}
+                    <div class="flex items-center mt-6">
+                        {{ form.is_required(class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
+                        {{ form.is_required.label(class="ml-3 block text-sm text-gray-900") }}
                     </div>
                 </div>
             </div>
 
-            {% if form.__class__.__name__ == 'DynamicFormFieldForm' %}
-                <div class="mt-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Field Options</h3>
-                    <div id="options-container" class="space-y-4">
-                        {% for option in form.options %}
-                            <div class="option-row flex space-x-4">
-                                {{ option.label(class="w-1/2") }}
-                                {{ option.value(class="w-1/2") }}
-                                <button type="button" class="remove-option text-red-600 hover:text-red-800">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        {% endfor %}
-                    </div>
-                    <button type="button" id="add-option" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            <div class="field-options-section mt-8" style="display: none;">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Field Options</h3>
+                <div id="options-container" class="space-y-4">
+                    <!-- Options will be dynamically added here -->
+                </div>
+                <div class="mt-4">
+                    <button type="button" id="add-option" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Add Option
                     </button>
                 </div>
+            </div>
 
-                <div class="mt-6">
-                    {{ form.validation_rules.label(class="block text-sm font-medium text-gray-700") }}
-                    {{ form.validation_rules(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500", rows=4) }}
-                    {% if form.validation_rules.errors %}
-                        {% for error in form.validation_rules.errors %}
-                            <p class="text-red-500 text-xs italic">{{ error }}</p>
-                        {% endfor %}
-                    {% endif %}
-                    <p class="text-sm text-gray-500 mt-1">{{ form.validation_rules.description }}</p>
-                </div>
-            {% endif %}
-
-            <div class="flex justify-end space-x-4">
-                <a href="{{ url_for('modules.list_fields', id=module.id) }}" 
-                   class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <div class="mt-8 flex justify-end space-x-4">
+                <a href="{{ url_for('modules.list_fields', id=module.id) }}" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     Cancel
                 </a>
-                <button type="submit" 
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     Save Field
                 </button>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
 
-{% if form.__class__.__name__ == 'DynamicFormFieldForm' %}
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const optionsContainer = document.getElementById('options-container');
     const addOptionBtn = document.getElementById('add-option');
-    
-    function createOptionRow() {
-        const div = document.createElement('div');
-        div.className = 'option-row flex space-x-4';
-        div.innerHTML = `
-            <input type="text" name="options-label" class="w-1/2 rounded-md border-gray-300" placeholder="Label">
-            <input type="text" name="options-value" class="w-1/2 rounded-md border-gray-300" placeholder="Value">
-            <button type="button" class="remove-option text-red-600 hover:text-red-800">
-                <i class="fas fa-trash"></i>
+    const fieldTypeSelect = document.getElementById('field_type');
+    const optionsSection = document.querySelector('.field-options-section');
+
+    // Function to toggle options section visibility
+    function toggleOptionsSection() {
+        const fieldType = fieldTypeSelect.value;
+        const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
+        optionsSection.style.display = needsOptions ? 'block' : 'none';
+        
+        // If switching to a type that needs options and there are no options, add one
+        if (needsOptions && optionsContainer.children.length === 0) {
+            addOptionRow();
+        }
+    }
+
+    // Add event listener to field type select
+    if (fieldTypeSelect) {
+        fieldTypeSelect.addEventListener('change', toggleOptionsSection);
+        // Initial check
+        toggleOptionsSection();
+    }
+
+    function addOptionRow() {
+        const row = document.createElement('div');
+        row.className = 'option-row flex space-x-4 mb-4';
+        row.innerHTML = `
+            <input type="text" name="options-label[]" 
+                class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                placeholder="Option Label" required>
+            <input type="text" name="options-value[]" 
+                class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                placeholder="Option Value" required>
+            <button type="button" class="remove-option text-red-600 hover:text-red-800 px-2 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
             </button>
         `;
-        return div;
+        optionsContainer.appendChild(row);
     }
     
-    addOptionBtn.addEventListener('click', function() {
-        optionsContainer.appendChild(createOptionRow());
-    });
+    // Add option button handler
+    if (addOptionBtn) {
+        addOptionBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            addOptionRow();
+        });
+    }
     
-    optionsContainer.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-option') || e.target.closest('.remove-option')) {
-            const row = e.target.closest('.option-row');
-            row.remove();
-        }
-    });
+    // Remove option button handler
+    if (optionsContainer) {
+        optionsContainer.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-option')) {
+                const row = e.target.closest('.option-row');
+                // Don't remove if it's the last option
+                if (optionsContainer.children.length > 1) {
+                    row.remove();
+                }
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const fieldType = fieldTypeSelect.value;
+            const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
+            
+            if (needsOptions) {
+                const options = [];
+                const labels = form.querySelectorAll('input[name="options-label[]"]');
+                const values = form.querySelectorAll('input[name="options-value[]"]');
+                let hasValidOption = false;
+                
+                for (let i = 0; i < labels.length; i++) {
+                    if (labels[i].value.trim() && values[i].value.trim()) {
+                        hasValidOption = true;
+                        break;
+                    }
+                }
+                
+                if (!hasValidOption) {
+                    e.preventDefault();
+                    alert('Please add at least one option with both label and value for this field type.');
+                }
+            }
+        });
+    }
 });
 </script>
-{% endif %}
 {% endblock %}

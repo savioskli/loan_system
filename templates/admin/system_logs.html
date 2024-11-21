@@ -6,61 +6,98 @@
 <div class="max-w-7xl mx-auto">
     <div class="bg-white shadow rounded-lg p-6 mb-6">
         <div class="flex items-center space-x-4">
-            <div class="bg-indigo-500 rounded-full p-3">
+            <div class="bg-primary rounded-full p-3">
                 <i class="fas fa-terminal text-white text-xl"></i>
             </div>
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">System Logs</h2>
-                <p class="text-gray-600">View application and error logs</p>
+                <p class="text-gray-600">Application and system-level logs</p>
             </div>
         </div>
     </div>
 
-    <!-- Log Filter -->
-    <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
-        <div class="p-6">
-            <div class="flex space-x-4">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700">Log Level</label>
-                    <select class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option>All Levels</option>
-                        <option>Error</option>
-                        <option>Warning</option>
-                        <option>Info</option>
-                        <option>Debug</option>
-                    </select>
-                </div>
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700">Date Range</label>
-                    <input type="date" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700">Search</label>
-                    <input type="text" placeholder="Search logs..." class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Log Display -->
     <div class="bg-white shadow rounded-lg overflow-hidden">
         <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">Application Logs</h3>
-                <div class="space-x-2">
-                    <button class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
-                        <i class="fas fa-sync-alt mr-2"></i>Refresh
-                    </button>
-                    <button class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
-                        <i class="fas fa-download mr-2"></i>Download
-                    </button>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Timestamp
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Level
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Message
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% if logs %}
+                            {% for log in logs.items %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ log.timestamp }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if log.level == 'ERROR' %}
+                                            bg-red-100 text-red-800
+                                        {% elif log.level == 'WARNING' %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% elif log.level == 'INFO' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif log.level == 'DEBUG' %}
+                                            bg-gray-100 text-gray-800
+                                        {% else %}
+                                            bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ log.level }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">
+                                    <div class="whitespace-pre-wrap font-mono">{{ log.message }}</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                                    No system logs found
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
-            
-            <div class="bg-gray-100 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                <!-- Log entries will be displayed here -->
-                <p class="text-gray-600">System logs interface coming soon...</p>
+
+            <!-- Pagination -->
+            {% if logs and logs.pages > 1 %}
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <nav class="flex items-center justify-between">
+                    <div class="flex-1 flex justify-between items-center">
+                        {% if logs.has_prev %}
+                        <a href="{{ url_for('main.system_logs', page=logs.prev_num) }}" 
+                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Previous
+                        </a>
+                        {% endif %}
+                        
+                        <span class="text-sm text-gray-700">
+                            Page {{ logs.page }} of {{ logs.pages }}
+                        </span>
+                        
+                        {% if logs.has_next %}
+                        <a href="{{ url_for('main.system_logs', page=logs.next_num) }}" 
+                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
+                </nav>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

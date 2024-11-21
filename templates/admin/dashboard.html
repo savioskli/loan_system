@@ -94,6 +94,25 @@
             </div>
         </div>
 
+               <!-- Client Management Card -->
+               <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Client Management</h3>
+                        <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
+                    <div class="space-y-2">
+                        <a href="{{ url_for('client_types.manage_client_types') }}" class="block text-sm text-primary hover:text-secondary">
+                            <i class="fas fa-users-cog mr-2"></i>Client Types
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+
         <!-- Loan Management Card -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
@@ -114,48 +133,29 @@
                 </div>
             </div>
         </div>
-
-        <!-- System Settings Card -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">System Settings</h3>
-                    <div class="bg-primary bg-opacity-10 rounded-full p-3">
-                        <i class="fas fa-cogs text-white"></i>
+                <!-- System Settings Card -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">System Settings</h3>
+                            <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                                <i class="fas fa-cogs text-white"></i>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 dark:text-gray-300 mb-4">Configure system settings and preferences</p>
+                        <div class="space-y-2">
+                            <a href="{{ url_for('modules.index') }}" class="block text-sm text-primary hover:text-secondary">
+                                <i class="fas fa-cubes mr-2"></i>System Modules
+                            </a>
+                            <a href="{{ url_for('admin.system_settings') }}" class="block text-sm text-primary hover:text-secondary">
+                                <i class="fas fa-sliders-h mr-2"></i>General Settings
+                            </a>
+                            <a href="#" class="block text-sm text-primary hover:text-secondary">
+                                <i class="fas fa-bell mr-2"></i>Notification Settings
+                            </a>
+                        </div>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Configure system settings and preferences</p>
-                <div class="space-y-2">
-                    <a href="{{ url_for('admin.system_settings') }}" class="block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-sliders-h mr-2"></i>General Settings
-                    </a>
-                    <a href="#" class="block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-bell mr-2"></i>Notification Settings
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Client Management Card -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Client Management</h3>
-                    <div class="bg-primary bg-opacity-10 rounded-full p-3">
-                        <i class="fas fa-users text-white"></i>
-                    </div>
-                </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
-                <div class="space-y-2">
-                    <a href="{{ url_for('main.client_fields') }}" class="block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-list-alt mr-2"></i>Custom Fields
-                    </a>
-                    <a href="{{ url_for('main.client_reports') }}" class="block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-chart-bar mr-2"></i>Client Reports
-                    </a>
-                </div>
-            </div>
-        </div>
 
         <!-- Activity Monitoring Card -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
@@ -181,25 +181,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Recent Activities Section -->
-    {% if recent_activities %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mt-6 p-6">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Recent Activities</h3>
-        <div class="space-y-4">
-            {% for activity in recent_activities %}
-            <div class="flex items-center space-x-3 text-sm">
-                <div class="bg-primary bg-opacity-10 rounded-full p-2">
-                    <i class="fas fa-{{ activity.icon }} text-white"></i>
-                </div>
-                <div class="flex-1">
-                    <p class="text-gray-800 dark:text-white">{{ activity.description }}</p>
-                    <p class="text-gray-500 dark:text-gray-400 text-xs">{{ activity.timestamp }}</p>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

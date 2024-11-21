@@ -11,6 +11,7 @@ from models.staff import Staff
 from models.system_settings import SystemSettings
 from models.activity_log import ActivityLog
 from models.branch import Branch
+from models.role import Role
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, FileField, DateField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
@@ -23,15 +24,21 @@ from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
 from routes.admin import admin_bp
+from routes.modules import modules_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
-from routes.modules import modules_bp
 from flask_wtf.csrf import CSRFProtect
+from flask import g
+from models.activity_log import ActivityLog
 
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,15 @@ def create_app():
     # Load configuration
     app.config.from_object('config.Config')
 
+    # Configure Flask logger
+    app.logger.setLevel(logging.DEBUG)
+    if not app.logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+        handler.setFormatter(formatter)
+        app.logger.addHandler(handler)
+
     # Initialize extensions
     init_extensions(app)
     csrf.init_app(app)
@@ -70,6 +86,7 @@ def create_app():
             from models.settings import SystemSettings
             from models.staff import Staff
             from models.role import Role
+            from models.module import Module, FormField
             db.create_all()
 
     # Register template filters
@@ -80,14 +97,34 @@ def create_app():
         return value.strftime('%Y-%m-%d %H:%M:%S')
 
     # Register blueprints
-    app.register_blueprint(auth_bp)  # Register auth_bp first for landing page
-    app.register_blueprint(main_bp)  # Remove url_prefix for simpler URLs
-    app.register_blueprint(user_management_bp)  # URL prefix is already in blueprint
-    app.register_blueprint(role_bp)  # Register the roles blueprint
-    app.register_blueprint(branch_bp, url_prefix='/branches')
-    app.register_blueprint(client_types_bp)
-    app.register_blueprint(modules_bp)
-    app.register_blueprint(admin_bp, url_prefix='/admin')  # Register admin blueprint
+    app.register_blueprint(main_bp)  
+    app.register_blueprint(auth_bp, url_prefix='/auth')  
+    app.register_blueprint(user_management_bp, url_prefix='/users')  
+    app.register_blueprint(role_bp, url_prefix='/roles')  
+    app.register_blueprint(admin_bp, url_prefix='/admin')  
+    app.register_blueprint(branch_bp, url_prefix='/branches')  
+    app.register_blueprint(client_types_bp)  
+    app.register_blueprint(modules_bp, url_prefix='/modules')  
+
+    # Activity logging for admin routes
+    @app.before_request
+    def log_request():
+        """Log all requests to admin routes"""
+        app.logger.info(f"Before request: {request.endpoint}")  # Debug log
+        if request.endpoint and 'admin' in request.endpoint:
+            app.logger.info(f"Processing admin route: {request.endpoint}")  # Debug log
+            try:
+                if current_user.is_authenticated:
+                    action = f"access_{request.endpoint.split('.')[-1]}"
+                    details = f"Accessed {request.path} via {request.method}"
+                    app.logger.info(f"Logging activity: {action} - {details}")  # Debug log
+                    log_activity(current_user.id, action, details)
+                    app.logger.info("Activity logged successfully")  # Debug log
+            except Exception as e:
+                app.logger.error(f"Error logging activity: {str(e)}", exc_info=True)
+
+    # Exempt CSRF for certain routes
+    csrf.exempt(modules_bp)  
 
     # Flask-Login configuration
     @login_manager.user_loader

@@ -26,6 +26,7 @@ from routes.role_routes import bp as role_bp
 from routes.admin import admin_bp
 from routes.modules import modules_bp
 from routes.user import user_bp
+from routes.products import products_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -107,6 +108,7 @@ def create_app():
     app.register_blueprint(client_types_bp)  
     app.register_blueprint(modules_bp, url_prefix='/modules')  
     app.register_blueprint(user_bp, url_prefix='/user')
+    app.register_blueprint(products_bp)  
 
     # Activity logging for admin routes
     @app.before_request

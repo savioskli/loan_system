@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product %}Edit{% else %}Add{% endif %} Product{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center space-x-4">
+            <div class="bg-primary rounded-full p-3">
+                <i class="fas fa-box text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">
+                    {% if product %}Edit{% else %}Add{% endif %} Product
+                </h2>
+                <p class="text-gray-600 dark:text-gray-300">
+                    {% if product %}Update{% else %}Create{% endif %} loan product details
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Form -->
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700">
+        <form method="POST" class="p-8 space-y-8">
+            <!-- Basic Information -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Name</label>
+                        <input type="text" name="name" value="{{ product.name if product else '' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Code</label>
+                        <input type="text" name="code" value="{{ product.code if product else '' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interest and Status -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Interest & Status</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interest Rate (%)</label>
+                        <input type="text" name="interest_rate" value="{{ product.interest_rate if product else '' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rate Method</label>
+                        <select name="rate_method" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                            <option value="Flat Rate" {% if product and product.rate_method == 'Flat Rate' %}selected{% endif %}>Flat Rate</option>
+                            <option value="Reducing Balance" {% if product and product.rate_method == 'Reducing Balance' %}selected{% endif %}>Reducing Balance</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                        <select name="status" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                            <option value="Active" {% if product and product.status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Inactive" {% if product and product.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fees -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Fee Structure</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Processing Fee</label>
+                        <input type="text" name="processing_fee" value="{{ product.processing_fee if product else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Maintenance Fee</label>
+                        <input type="text" name="maintenance_fee" value="{{ product.maintenance_fee if product else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Insurance Fee</label>
+                        <input type="text" name="insurance_fee" value="{{ product.insurance_fee if product else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loan Terms -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Loan Terms</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Frequency</label>
+                        <select name="frequency" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                            <option value="Daily" {% if product and product.frequency == 'Daily' %}selected{% endif %}>Daily</option>
+                            <option value="Weekly" {% if product and product.frequency == 'Weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="Monthly" {% if product and product.frequency == 'Monthly' %}selected{% endif %}>Monthly</option>
+                            <option value="Quarterly" {% if product and product.frequency == 'Quarterly' %}selected{% endif %}>Quarterly</option>
+                            <option value="Yearly" {% if product and product.frequency == 'Yearly' %}selected{% endif %}>Yearly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Minimum Term</label>
+                        <input type="number" name="min_term" value="{{ product.min_term if product else '' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Maximum Term</label>
+                        <input type="number" name="max_term" value="{{ product.max_term if product else '' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amount Range -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Amount Range</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Minimum Amount</label>
+                        <input type="number" name="min_amount" value="{{ product.min_amount if product else '' }}" required step="0.01"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Maximum Amount</label>
+                        <input type="number" name="max_amount" value="{{ product.max_amount if product else '' }}" required step="0.01"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requirements -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Requirements</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Collateral Requirements</label>
+                        <textarea name="collateral" rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">{{ product.collateral if product else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Income Statement Requirements</label>
+                        <textarea name="income_statement" rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white">{{ product.income_statement if product else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-4 pt-6">
+                <a href="{{ url_for('products.manage_products') }}"
+                   class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg inline-flex items-center transition-colors duration-150">
+                    <i class="fas fa-times mr-2"></i>
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="bg-primary hover:bg-primary-dark text-white font-bold py-3 px-6 rounded-lg inline-flex items-center transition-colors duration-150">
+                    <i class="fas fa-save mr-2"></i>
+                    {% if product %}Update{% else %}Create{% endif %} Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

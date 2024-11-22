@@ -3,99 +3,92 @@
 {% block title %}{{ module.name }}{% endblock %}
 
 {% block content %}
-<div class="container mx-auto max-w-6xl py-5">
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <div class="flex items-center space-x-4 mb-6">
-            <div class="bg-primary rounded-full p-3">
-                <i class="fas fa-file-alt text-white text-xl"></i>
-            </div>
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ module.name }}</h2>
-                <p class="text-gray-600 dark:text-gray-300">{{ module.description or 'Fill in the form details below' }}</p>
-            </div>
+<div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-gray-900">
+                {{ module.name }}
+            </h2>
         </div>
 
-        <!-- Dynamic Form Content -->
-        <form method="POST" class="space-y-6" id="dynamic-form" enctype="multipart/form-data">
+        <form id="dynamicForm" method="POST" enctype="multipart/form-data" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {% for field in form_fields %}
-                <div class="form-group">
-                    <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {{ field.field_label }}
-                        {% if field.is_required %}
-                        <span class="text-red-500">*</span>
-                        {% endif %}
-                    </label>
-                    
-                    {% if field.field_type == 'text' %}
-                        <input type="text" 
-                               id="{{ field.field_name }}" 
-                               name="{{ field.field_name }}" 
-                               class="form-input block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                               {% if field.is_required %}required{% endif %}
-                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}>
-                    
-                    {% elif field.field_type == 'number' %}
-                        <input type="number" 
-                               id="{{ field.field_name }}" 
-                               name="{{ field.field_name }}" 
-                               class="form-input block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                               {% if field.is_required %}required{% endif %}
-                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}>
-                    
-                    {% elif field.field_type == 'textarea' %}
-                        <textarea id="{{ field.field_name }}" 
-                                  name="{{ field.field_name }}" 
-                                  class="form-textarea block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                                  rows="4"
-                                  {% if field.is_required %}required{% endif %}
-                                  {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}></textarea>
-                    
-                    {% elif field.field_type == 'select' %}
-                        <select id="{{ field.field_name }}" 
-                                name="{{ field.field_name }}" 
-                                class="select2 form-select block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                {% if field.is_required %}required{% endif %}>
-                            <option value="">Select {{ field.field_label }}</option>
-                            {% if field.options %}
-                                {% for option in field.options %}
-                                    <option value="{{ option.value }}">{{ option.label }}</option>
-                                {% endfor %}
+                    <div class="form-group space-y-2" 
+                         data-field-name="{{ field.field_name }}"
+                         {% if field.client_type_restrictions %}
+                         data-client-types='{{ field.client_type_restrictions|tojson }}'
+                         {% endif %}
+                         style="display: {% if field.client_type_restrictions %}none{% else %}block{% endif %};">
+                        <label for="{{ field.field_name }}" 
+                               class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ field.field_label }}
+                            {% if field.is_required %}
+                                <span class="text-red-500">*</span>
                             {% endif %}
-                        </select>
-                    
-                    {% elif field.field_type == 'date' %}
-                        <input type="date" 
-                               id="{{ field.field_name }}" 
-                               name="{{ field.field_name }}" 
-                               class="form-input block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                               {% if field.is_required %}required{% endif %}>
-                    
-                    {% elif field.field_type == 'file' %}
-                        <input type="file" 
-                               id="{{ field.field_name }}" 
-                               name="{{ field.field_name }}" 
-                               class="form-input block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                               {% if field.is_required %}required{% endif %}
-                               {% if field.validation_rules and field.validation_rules.accept %}
-                               accept="{{ field.validation_rules.accept }}"
-                               {% endif %}>
-                    {% endif %}
-                    
-                    {% if field.validation_text %}
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.validation_text }}</p>
-                    {% endif %}
-                </div>
+                        </label>
+
+                        {% if field.field_type == 'text' or field.field_type == 'email' or field.field_type == 'tel' or field.field_type == 'number' %}
+                            <input type="{{ field.field_type }}" 
+                                   id="{{ field.field_name }}" 
+                                   name="{{ field.field_name }}" 
+                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                   {% if field.is_required %}required{% endif %}>
+                        
+                        {% elif field.field_type == 'textarea' %}
+                            <textarea id="{{ field.field_name }}" 
+                                      name="{{ field.field_name }}" 
+                                      class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                      rows="4"
+                                      {% if field.is_required %}required{% endif %}
+                                      {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}></textarea>
+                        
+                        {% elif field.field_type == 'select' %}
+                            <select id="{{ field.field_name }}" 
+                                    name="{{ field.field_name }}" 
+                                    class="select2 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    {% if field.is_required %}required{% endif %}>
+                                <option value="">Select {{ field.field_label }}</option>
+                                {% if field.options %}
+                                    {% for option in field.options %}
+                                        <option value="{{ option.value }}">{{ option.label }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        
+                        {% elif field.field_type == 'date' %}
+                            <input type="date" 
+                                   id="{{ field.field_name }}" 
+                                   name="{{ field.field_name }}" 
+                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   {% if field.is_required %}required{% endif %}>
+                        
+                        {% elif field.field_type == 'file' %}
+                            <input type="file" 
+                                   id="{{ field.field_name }}" 
+                                   name="{{ field.field_name }}" 
+                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   {% if field.is_required %}required{% endif %}
+                                   {% if field.validation_rules and field.validation_rules.accept %}
+                                   accept="{{ field.validation_rules.accept }}"
+                                   {% endif %}>
+                        {% endif %}
+                        
+                        {% if field.validation_text %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.validation_text }}</p>
+                        {% endif %}
+                    </div>
                 {% endfor %}
             </div>
-
-            <div class="flex justify-end space-x-4 mt-6">
+            
+            <div class="flex justify-end space-x-4 mt-8">
                 <a href="{{ url_for('user.dashboard') }}" 
-                   class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     Cancel
                 </a>
                 <button type="submit" 
-                        class="px-4 py-2 bg-primary border border-transparent rounded-md text-sm font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                     Submit
                 </button>
             </div>
@@ -263,80 +256,146 @@
 </style>
 
 <script>
-$(document).ready(function() {
-    // Initialize Select2 on all select elements
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2 for all select elements
     $('.select2').select2({
         width: '100%',
-        theme: 'classic',
-        placeholder: 'Select an option'
+        placeholder: function() {
+            return $(this).attr('placeholder') || 'Select an option';
+        },
+        allowClear: true
     });
 
-    // Handle county change
-    $('#county').on('change', function() {
-        var selectedCounty = $(this).val();
-        var subCountySelect = $('#sub_county');
-        
-        // Clear and disable sub-county if no county is selected
-        if (!selectedCounty) {
-            subCountySelect.empty().append('<option value="">First select a county...</option>');
-            subCountySelect.prop('disabled', true).trigger('change');
-            return;
-        }
+    // Get all form groups and client type select
+    const formGroups = document.querySelectorAll('.form-group');
+    const clientTypeSelect = document.querySelector('#client_type');
 
-        // Fetch sub-counties
-        $.ajax({
-            url: `/user/get_sub_counties/${encodeURIComponent(selectedCounty)}`,
-            method: 'GET',
-            success: function(data) {
-                subCountySelect.empty().append('<option value="">Select Sub County</option>');
-                
-                if (Array.isArray(data)) {
-                    data.forEach(function(subCounty) {
-                        subCountySelect.append(new Option(subCounty, subCounty));
-                    });
-                    subCountySelect.prop('disabled', false).trigger('change');
+    function updateFieldVisibility(selectedClientTypeId) {
+        console.log('------- Field Visibility Update -------');
+        console.log('Selected Client Type ID:', selectedClientTypeId);
+        
+        // Convert selectedClientTypeId to number if it's a string
+        selectedClientTypeId = selectedClientTypeId ? parseInt(selectedClientTypeId) : null;
+        console.log('Parsed Client Type ID:', selectedClientTypeId);
+        
+        formGroups.forEach(group => {
+            const fieldName = group.dataset.fieldName;
+            console.log(`\nProcessing field: ${fieldName}`);
+            
+            // Get client type restrictions
+            let allowedTypes = null;
+            try {
+                const restrictionsStr = group.dataset.clientTypes;
+                if (restrictionsStr) {
+                    allowedTypes = JSON.parse(restrictionsStr).map(Number); // Convert to numbers
+                    console.log('- Has restrictions:', allowedTypes);
                 } else {
-                    console.error('Invalid data format received:', data);
-                    subCountySelect.append('<option value="">Error loading sub-counties</option>');
+                    console.log('- No restrictions');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching sub-counties:', error);
-                subCountySelect.empty()
-                    .append('<option value="">Error loading sub-counties</option>')
-                    .prop('disabled', true)
-                    .trigger('change');
+            } catch (e) {
+                console.error('Error parsing client types for field:', fieldName, e);
+                return;
+            }
+            
+            // Get input element
+            const input = group.querySelector('input, select, textarea');
+            const isRequired = group.querySelector('.text-red-500') !== null;
+            
+            // Determine visibility
+            let shouldShow = true;
+            
+            // If field has restrictions
+            if (allowedTypes !== null) {
+                if (!selectedClientTypeId) {
+                    // When no client type is selected, hide restricted fields
+                    shouldShow = false;
+                    console.log('- Hiding because no client type selected');
+                } else {
+                    // When a client type is selected, show only if it's in the allowed types
+                    shouldShow = allowedTypes.includes(selectedClientTypeId);
+                    console.log(`- Client type ${selectedClientTypeId} ${shouldShow ? 'is' : 'is not'} in allowed types:`, allowedTypes);
+                }
+            } else {
+                console.log('- Always visible (no restrictions)');
+            }
+            
+            console.log(`- Final visibility: ${shouldShow ? 'SHOW' : 'HIDE'}`);
+            
+            // Update visibility and required status
+            if (shouldShow) {
+                group.style.display = '';  // Use default display value
+                if (input) {
+                    input.required = isRequired;
+                }
+            } else {
+                group.style.display = 'none';
+                if (input) {
+                    input.required = false;
+                    
+                    // Clear value when hiding the field
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        input.checked = false;
+                    } else if (input.tagName === 'SELECT') {
+                        input.value = '';
+                        $(input).trigger('change'); // Trigger change for Select2
+                    } else {
+                        input.value = '';
+                    }
+                }
             }
         });
-    });
-
-    // Initialize sub-county as disabled
-    $('#sub_county').prop('disabled', true);
-
-    // Handle form submission
-    $('#dynamic-form').on('submit', function(e) {
-        e.preventDefault();
-        var formData = new FormData(this);
+        console.log('------- End Field Visibility Update -------');
+    }
+    
+    // Initialize fields visibility
+    if (clientTypeSelect) {
+        console.log('Initial Client Type Value:', clientTypeSelect.value);
         
-        $.ajax({
-            url: window.location.href,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.success) {
-                    window.location.href = response.redirect;
-                } else {
-                    alert(response.message || 'Error submitting form');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error:', error);
-                alert('Error submitting form');
+        // Initial update
+        updateFieldVisibility(clientTypeSelect.value);
+        
+        // Update on change
+        clientTypeSelect.addEventListener('change', function() {
+            console.log('Client Type Changed:', this.value);
+            updateFieldVisibility(this.value);
+        });
+        
+        // Also update on Select2 change event
+        $(clientTypeSelect).on('select2:select select2:unselect', function(e) {
+            console.log('Select2 Change Event:', this.value);
+            updateFieldVisibility(this.value);
+        });
+    }
+    
+    // Handle sub-county population when county changes
+    const countySelect = document.querySelector('#county');
+    const subCountySelect = document.querySelector('#sub_county');
+    
+    if (countySelect && subCountySelect) {
+        countySelect.addEventListener('change', function() {
+            const county = this.value;
+            if (county) {
+                fetch(`/user/get_sub_counties/${encodeURIComponent(county)}`)
+                    .then(response => response.json())
+                    .then(subCounties => {
+                        // Clear current options
+                        subCountySelect.innerHTML = '<option value="">Select Sub-County</option>';
+                        
+                        // Add new options
+                        subCounties.forEach(subCounty => {
+                            const option = document.createElement('option');
+                            option.value = subCounty;
+                            option.textContent = subCounty;
+                            subCountySelect.appendChild(option);
+                        });
+                        
+                        // Refresh Select2
+                        $(subCountySelect).trigger('change');
+                    })
+                    .catch(error => console.error('Error fetching sub-counties:', error));
             }
         });
-    });
+    }
 });
 </script>
 {% endblock %}

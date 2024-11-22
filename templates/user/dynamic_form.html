@@ -54,7 +54,7 @@
                     {% elif field.field_type == 'select' %}
                         <select id="{{ field.field_name }}" 
                                 name="{{ field.field_name }}" 
-                                class="select2 form-select block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                                class="select2 form-select block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 {% if field.is_required %}required{% endif %}>
                             <option value="">Select {{ field.field_label }}</option>
                             {% if field.options %}
@@ -207,6 +207,58 @@
 .select2-container--default.select2-container--disabled .select2-selection--single {
     background-color: #F3F4F6 !important;
     cursor: not-allowed;
+}
+
+/* Dark Mode */
+.select2-container--default.select2-container--dark {
+    background-color: #2d3748;
+    border-color: #4a5568;
+}
+
+.select2-container--default.select2-container--dark .select2-selection--single {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #f7fafc;
+}
+
+.select2-container--default.select2-container--dark .select2-selection--single .select2-selection__rendered {
+    color: #f7fafc;
+}
+
+.select2-container--default.select2-container--dark .select2-selection--single .select2-selection__placeholder {
+    color: #a0aec0;
+}
+
+.select2-container--default.select2-container--dark .select2-dropdown {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #f7fafc;
+}
+
+.select2-container--default.select2-container--dark .select2-search--dropdown .select2-search__field {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #f7fafc;
+}
+
+.select2-container--default.select2-container--dark .select2-search--dropdown .select2-search__field:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.select2-container--default.select2-container--dark .select2-results__option {
+    background-color: #2d3748;
+    color: #f7fafc;
+}
+
+.select2-container--default.select2-container--dark .select2-results__option--highlighted[aria-selected] {
+    background-color: #4F46E5;
+    color: white;
+}
+
+.select2-container--default.select2-container--dark .select2-results__option[aria-selected=true] {
+    background-color: #EEF2FF;
+    color: #4F46E5;
 }
 </style>
 

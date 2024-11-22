@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from models.module import Module, FormField
+from models.product import Product
+from models.client_type import ClientType
 from extensions import db
 import os
 import json
@@ -126,18 +128,21 @@ def dynamic_form(module_code):
             # Process fields
             for field in form_fields:
                 if field.field_type == 'select':
-                    if field.field_name == 'county':
-                        # For county field, always use the complete list from KENYA_COUNTIES
+                    if field.field_name == 'county' or field.field_name == 'postal_town':
+                        # For county and postal town fields, use the complete list from KENYA_COUNTIES
                         counties = sorted(list(KENYA_COUNTIES.keys()))
                         field.options = [{'value': county, 'label': county} for county in counties]
-                    elif field.options:
-                        try:
-                            if isinstance(field.options, str):
-                                field.options = json.loads(field.options)
-                        except json.JSONDecodeError:
-                            # If it's a comma-separated string, convert to list of dicts
-                            options = [x.strip() for x in field.options.split(',')]
-                            field.options = [{'value': opt, 'label': opt} for opt in options]
+                    elif field.field_name == 'product':
+                        # For product field, get all active products
+                        products = Product.query.filter_by(status='Active').all()
+                        field.options = [{'value': str(product.id), 'label': product.name} for product in products]
+                    elif field.field_name == 'client_type':
+                        # For client type field, get all active client types
+                        client_types = ClientType.query.filter_by(status=True).all()
+                        field.options = [{'value': str(client_type.id), 'label': client_type.client_name} for client_type in client_types]
+                    elif field.field_name == 'sub_county':
+                        # Sub-county field will be populated via AJAX
+                        field.options = []
             
             return render_template('user/dynamic_form.html', 
                                 module=module,

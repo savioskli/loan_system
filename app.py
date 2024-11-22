@@ -25,6 +25,7 @@ from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
 from routes.admin import admin_bp
 from routes.modules import modules_bp
+from routes.user import user_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -105,6 +106,7 @@ def create_app():
     app.register_blueprint(branch_bp, url_prefix='/branches')  
     app.register_blueprint(client_types_bp)  
     app.register_blueprint(modules_bp, url_prefix='/modules')  
+    app.register_blueprint(user_bp, url_prefix='/user')
 
     # Activity logging for admin routes
     @app.before_request
@@ -202,19 +204,56 @@ def create_app():
             )
 
     # Error handlers
-    @app.errorhandler(404)
-    def not_found_error(error):
-        return render_template('errors/404.html'), 404
-
     @app.errorhandler(500)
     def internal_error(error):
-        db.session.rollback()
+        db.session.rollback()  # Roll back any failed transactions
+        
+        # Check if the request wants JSON by looking at the Content-Type header
+        wants_json = (
+            request.headers.get('Content-Type', '').startswith('application/json') or
+            request.headers.get('Accept', '').startswith('application/json') or
+            request.is_xhr or
+            request.path.startswith('/api/')
+        )
+        
+        if wants_json:
+            # Get the original error message if available
+            error_msg = getattr(error, 'description', str(error))
+            if hasattr(error, 'original_exception'):
+                error_msg = str(error.original_exception)
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg or 'Internal server error occurred. Please check the logs.'
+            }), 500
+        
+        # Otherwise return the HTML error page
         return render_template('errors/500.html'), 500
 
     @app.errorhandler(Exception)
     def handle_exception(e):
+        # Log the error
         logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+        
+        # Check if the request wants JSON
+        wants_json = (
+            request.headers.get('Content-Type', '').startswith('application/json') or
+            request.headers.get('Accept', '').startswith('application/json') or
+            request.is_xhr or
+            request.path.startswith('/api/')
+        )
+        
+        if wants_json:
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+            
         return render_template('errors/500.html'), 500
+
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return render_template('errors/404.html'), 404
 
     return app
 

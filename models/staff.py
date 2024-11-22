@@ -47,6 +47,10 @@ class Staff(UserMixin, db.Model):
         self.approved_by_id = approver.id
         self.approved_at = datetime.utcnow()
     
+    def has_role(self, role_name):
+        """Check if the staff member has a specific role."""
+        return self.role.name.lower() == role_name.lower()
+    
     @property
     def is_admin(self):
         """Check if the staff member is an admin."""

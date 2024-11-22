@@ -4,6 +4,7 @@ from models.module import Module, FormField
 from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
 from models.role import Role
+from utils.module_utils import generate_module_code
 import json
 
 modules_bp = Blueprint('modules', __name__)
@@ -56,11 +57,15 @@ def create():
     if form.validate_on_submit():
         try:
             print("Form validated")
+            # Generate the module code
+            parent_id = form.parent_id.data if form.parent_id.data != 0 else None
+            code = generate_module_code(form.name.data, parent_id)
+            
             module = Module(
                 name=form.name.data,
-                code=form.code.data,
+                code=code,
                 description=form.description.data,
-                parent_id=form.parent_id.data if form.parent_id.data != 0 else None,
+                parent_id=parent_id,
                 is_active=form.is_active.data
             )
             print(f"Module created: {module}")
@@ -90,10 +95,16 @@ def edit(id):
     
     if form.validate_on_submit():
         try:
+            # Update basic info
             module.name = form.name.data
-            module.code = form.code.data
             module.description = form.description.data
-            module.parent_id = form.parent_id.data if form.parent_id.data != 0 else None
+            new_parent_id = form.parent_id.data if form.parent_id.data != 0 else None
+            
+            # If parent changed, regenerate code
+            if new_parent_id != module.parent_id:
+                module.code = generate_module_code(module.name, new_parent_id)
+                module.parent_id = new_parent_id
+            
             module.is_active = form.is_active.data
             
             db.session.commit()
@@ -336,8 +347,6 @@ def edit_field(id, field_id):
             try:
                 current_app.logger.debug("Attempting to update field in database")
                 db.session.add(field)  # Explicitly add the field to the session
-                db.session.flush()     # Flush changes to get any SQL errors before commit
-                current_app.logger.debug(f"After flush - Field data: {field.__dict__}")
                 db.session.commit()
                 current_app.logger.debug("Database commit successful")
                 flash('Field updated successfully.', 'success')
@@ -422,55 +431,80 @@ def delete_field(id, field_id):
 @modules_bp.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete(id):
-    print(f"Delete request received for module ID: {id}")  # Debug log
+    print(f"\n=== Starting module deletion process ===")
+    print(f"Delete request received for module ID: {id}")
+    print(f"Request method: {request.method}")
+    print(f"Request headers: {dict(request.headers)}")
     
-    if not current_user.has_role('admin'):
-        print(f"Permission denied for user: {current_user}")  # Debug log
+    if not current_user.is_admin:
+        print(f"Permission denied for user: {current_user}")
         return jsonify({
             'success': False,
             'message': 'You do not have permission to delete modules.'
         }), 403
 
     try:
-        module = Module.query.get_or_404(id)
-        print(f"Found module to delete: {module.name} (ID: {module.id})")  # Debug log
+        # Get the module first to check if it exists
+        module = Module.query.get(id)
+        if not module:
+            print(f"Module not found: {id}")
+            return jsonify({
+                'success': False,
+                'message': f'Module with ID {id} not found.'
+            }), 404
+            
+        module_name = module.name
+        print(f"\nModule found: {module_name} (ID: {id})")
         
-        # Delete all form fields first
-        form_fields = FormField.query.filter_by(module_id=id).all()
-        print(f"Found {len(form_fields)} form fields to delete")  # Debug log
-        for field in form_fields:
-            print(f"Deleting form field: {field.field_name}")  # Debug log
-            db.session.delete(field)
+        # Get counts for logging
+        child_form_fields = db.session.query(FormField).join(Module, Module.id == FormField.module_id)\
+            .filter(Module.parent_id == id).count()
+        main_form_fields = db.session.query(FormField).filter(FormField.module_id == id).count()
+        child_modules = db.session.query(Module).filter(Module.parent_id == id).count()
         
-        # Delete all child modules recursively
-        children = Module.query.filter_by(parent_id=id).all()
-        print(f"Found {len(children)} child modules to delete")  # Debug log
-        for child in children:
-            child_fields = FormField.query.filter_by(module_id=child.id).all()
-            print(f"Deleting {len(child_fields)} form fields for child module: {child.name}")  # Debug log
-            for field in child_fields:
-                db.session.delete(field)
-            print(f"Deleting child module: {child.name}")  # Debug log
-            db.session.delete(child)
+        print(f"Found {child_form_fields} child form fields, {main_form_fields} main form fields, {child_modules} child modules")
         
-        # Finally delete the module itself
-        print(f"Deleting main module: {module.name}")  # Debug log
+        # Delete form fields first
+        print("1. Deleting form fields...")
+        FormField.query.filter_by(module_id=id).delete(synchronize_session=False)
+        
+        # Delete child form fields
+        print("2. Deleting child form fields...")
+        child_modules_ids = [m.id for m in Module.query.filter_by(parent_id=id).all()]
+        if child_modules_ids:
+            FormField.query.filter(FormField.module_id.in_(child_modules_ids)).delete(synchronize_session=False)
+        
+        # Delete child modules
+        print("3. Deleting child modules...")
+        Module.query.filter_by(parent_id=id).delete(synchronize_session=False)
+        
+        # Finally delete the main module
+        print("4. Deleting main module...")
         db.session.delete(module)
-        db.session.commit()
-        print("Successfully committed all deletions")  # Debug log
         
-        return jsonify({
+        # Commit the transaction
+        db.session.commit()
+        print("All deletions committed successfully")
+        
+        response_data = {
             'success': True,
-            'message': f'Module {module.name} has been deleted successfully.'
-        })
+            'message': f'Successfully deleted module "{module_name}" and all its dependencies ({child_modules} child modules, {child_form_fields + main_form_fields} form fields).'
+        }
+        print(f"Sending success response: {response_data}")
+        return jsonify(response_data)
         
     except Exception as e:
-        db.session.rollback()
-        print(f"Error deleting module: {str(e)}")  # Debug log
-        print(f"Error type: {type(e)}")  # Debug log
+        print("\n=== Exception Details ===")
+        print(f"Error type: {type(e)}")
+        print(f"Error message: {str(e)}")
+        print("\nTraceback:")
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")  # Debug log
+        traceback.print_exc()
+        
+        # Ensure we have a clean session
+        db.session.rollback()
+        
         return jsonify({
             'success': False,
-            'message': f'An error occurred while deleting the module: {str(e)}'
+            'message': f"Failed to delete module: {str(e)}"
         }), 500

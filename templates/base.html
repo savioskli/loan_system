@@ -7,7 +7,7 @@
     <title>{% block title %}{% endblock %} - {{ system_name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     {% block styles %}{% endblock %}
@@ -224,14 +224,24 @@
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
                             <!-- Navigation Links -->
-                            {% for item in navigation_items %}
-                            <a href="{{ item.url }}" 
-                               class="nav-item {{ 'nav-item-active' if item.is_active else '' }} 
-                                      inline-flex items-center px-1 pt-1 text-sm font-medium">
-                                <i class="fas fa-{{ item.icon }} nav-icon mr-2"></i>
-                                {{ item.text }}
-                            </a>
-                            {% endfor %}
+                            {% if current_user.is_authenticated %}
+                                <a href="{{ url_for('main.index') }}" class="nav-item {{ 'nav-item-active' if request.endpoint == 'main.index' else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                    <i class="fas fa-home nav-icon mr-2"></i>Landing Page
+                                </a>
+                                {% if current_user.is_admin %}
+                                    <a href="{{ url_for('admin.dashboard') }}" class="nav-item {{ 'nav-item-active' if request.endpoint == 'admin.dashboard' else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                        <i class="fas fa-cogs nav-icon mr-2"></i>Admin Dashboard
+                                    </a>
+                                {% endif %}
+                                <a href="{{ url_for('user.dashboard') }}" class="nav-item {{ 'nav-item-active' if request.endpoint == 'user.dashboard' else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                    <i class="fas fa-columns nav-icon mr-2"></i>User Dashboard
+                                </a>
+                                {% for item in navigation_items %}
+                                <a href="{{ item.url }}" class="nav-item {{ 'nav-item-active' if item.is_active else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                    <i class="fas fa-{{ item.icon }} nav-icon mr-2"></i>{{ item.text }}
+                                </a>
+                                {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     <div class="flex items-center">

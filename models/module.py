@@ -18,13 +18,15 @@ class Module(db.Model):
                            remote_side=[id], 
                            backref=db.backref('children', 
                                             lazy='dynamic',
-                                            cascade='all, delete-orphan'))
+                                            cascade='all, delete-orphan',
+                                            passive_deletes=True))
     
     # Relationship with form fields
     form_fields = db.relationship('FormField', 
                                 backref='parent_module', 
                                 lazy='dynamic',
                                 cascade='all, delete-orphan',
+                                passive_deletes=True,
                                 order_by='FormField.field_order')
     
     def __repr__(self):

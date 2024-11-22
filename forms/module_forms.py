@@ -5,7 +5,6 @@ from models.module import Module
 
 class ModuleForm(FlaskForm):
     name = StringField('Module Name', validators=[DataRequired(), Length(max=100)])
-    code = StringField('Module Code', validators=[DataRequired(), Length(max=50)])
     description = TextAreaField('Description', validators=[Optional()])
     parent_id = SelectField('Parent Module', coerce=int, validators=[Optional()])
     is_active = BooleanField('Active', default=True)

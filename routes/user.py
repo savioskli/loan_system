@@ -19,15 +19,17 @@ def dashboard():
     rejected_loans = 0   # TODO: Implement rejected loans count
     portfolio_value = 0  # TODO: Implement portfolio value calculation
     
-    # Get client management modules
-    client_mgmt = Module.query.filter_by(code='CLT00').first()
-    client_modules = []
-    if client_mgmt:
-        client_modules = Module.query.filter(
-            Module.code.like('CLT%'),
-            Module.code != 'CLT00',
-            Module.is_active == True
-        ).order_by(Module.code).all()
+    # Get client management modules (excluding parent modules)
+    client_modules = Module.query.join(FormField).filter(
+        Module.code.like('CLT%'),
+        Module.is_active == True
+    ).group_by(Module.id).order_by(Module.code).all()
+    
+    # Get loan management modules (excluding parent modules)
+    loan_modules = Module.query.join(FormField).filter(
+        Module.code.like('LN%'),
+        Module.is_active == True
+    ).group_by(Module.id).order_by(Module.code).all()
     
     return render_template('user/dashboard.html',
                          pending_clients=pending_clients,
@@ -35,7 +37,8 @@ def dashboard():
                          approved_loans=approved_loans,
                          rejected_loans=rejected_loans,
                          portfolio_value=portfolio_value,
-                         client_modules=client_modules)
+                         client_modules=client_modules,
+                         loan_modules=loan_modules)
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions

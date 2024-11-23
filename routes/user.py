@@ -180,16 +180,31 @@ def dynamic_form(module_code):
 def get_sub_counties(county):
     """Get sub-counties for a given county."""
     try:
+        # Clean the county name
         county = county.strip()
+        
+        # Check if county exists in our data
         if county in KENYA_COUNTIES:
-            sub_counties = KENYA_COUNTIES[county]
-            return jsonify(sub_counties)
+            sub_counties = sorted(KENYA_COUNTIES[county])  # Sort alphabetically
+            return jsonify({
+                'success': True,
+                'data': sub_counties
+            })
         else:
             print(f"County not found: {county}")
-            return jsonify([])
+            return jsonify({
+                'success': False,
+                'message': f'County "{county}" not found',
+                'data': []
+            }), 404
+            
     except Exception as e:
         print(f"Error getting sub-counties for {county}: {str(e)}")
-        return jsonify([])
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error',
+            'data': []
+        }), 500
 
 @user_bp.route('/reports')
 @login_required

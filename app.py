@@ -85,7 +85,7 @@ def create_app():
         inspector = inspect(db.engine)
         if inspector.has_table("system_settings"):
             db.Model.metadata.clear()
-            from models.settings import SystemSettings
+            from models.system_settings import SystemSettings
             from models.staff import Staff
             from models.role import Role
             from models.module import Module, FormField
@@ -214,7 +214,7 @@ def create_app():
         wants_json = (
             request.headers.get('Content-Type', '').startswith('application/json') or
             request.headers.get('Accept', '').startswith('application/json') or
-            request.is_xhr or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
             request.path.startswith('/api/')
         )
         
@@ -241,7 +241,7 @@ def create_app():
         wants_json = (
             request.headers.get('Content-Type', '').startswith('application/json') or
             request.headers.get('Accept', '').startswith('application/json') or
-            request.is_xhr or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
             request.path.startswith('/api/')
         )
         

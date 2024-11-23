@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from models.module import Module, FormField
+from models.client_type import ClientType
 from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
 from models.role import Role
@@ -141,10 +142,13 @@ def create_field(id):
         # Use basic form for GET requests
         if request.method == 'GET':
             form = FormFieldForm()
+            current_app.logger.info("GET request - Creating new form")
+            current_app.logger.info(f"Client type choices: {form.client_type_restrictions.choices}")
             return render_template('admin/modules/field_form.html', form=form, module=module)
         
         # For POST requests
         current_app.logger.debug(f"Form Data: {request.form}")
+        current_app.logger.debug(f"Client Type Restrictions: {request.form.getlist('client_type_restrictions')}")
         
         # Get the field data
         field_data = {
@@ -153,7 +157,8 @@ def create_field(id):
             'field_placeholder': request.form.get('field_placeholder'),
             'field_type': field_type,
             'validation_text': request.form.get('validation_text'),
-            'is_required': request.form.get('is_required') == 'y'
+            'is_required': request.form.get('is_required') == 'y',
+            'client_type_restrictions': request.form.getlist('client_type_restrictions') if request.form.getlist('client_type_restrictions') else []
         }
         
         # Create the appropriate form based on field type
@@ -191,8 +196,14 @@ def create_field(id):
                 field_type=form.field_type.data,
                 validation_text=form.validation_text.data or '',
                 is_required=form.is_required.data,
-                field_order=max_order + 1
+                field_order=max_order + 1,
+                client_type_restrictions=list(map(int, form.client_type_restrictions.data)) if form.client_type_restrictions.data else []
             )
+            
+            current_app.logger.debug(f"Creating field with data:")
+            current_app.logger.debug(f"- Name: {field.field_name}")
+            current_app.logger.debug(f"- Type: {field.field_type}")
+            current_app.logger.debug(f"- Client Type Restrictions: {field.client_type_restrictions}")
             
             # Handle options for select, radio, checkbox fields
             if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):
@@ -214,12 +225,15 @@ def create_field(id):
             
             try:
                 current_app.logger.debug("Attempting to add field to database")
+                current_app.logger.debug(f"Field data: {field.__dict__}")
+                current_app.logger.debug(f"Client type restrictions: {field.client_type_restrictions}")
                 db.session.add(field)
                 db.session.commit()
                 flash('Field created successfully.', 'success')
                 return redirect(url_for('modules.list_fields', id=module.id))
             except Exception as db_error:
                 current_app.logger.error(f"Database error: {str(db_error)}")
+                current_app.logger.error(traceback.format_exc())
                 db.session.rollback()
                 flash(f'Database error: {str(db_error)}', 'error')
         else:
@@ -252,13 +266,30 @@ def edit_field(id, field_id):
         # For GET requests, initialize the form with field data
         if request.method == 'GET':
             current_app.logger.debug(f"GET request - Current field data: {field.__dict__}")
+            current_app.logger.debug(f"Client type restrictions before conversion: {field.client_type_restrictions}")
+            
+            # Ensure client_type_restrictions is a list of integers
+            client_type_restrictions = []
+            if field.client_type_restrictions:
+                if isinstance(field.client_type_restrictions, list):
+                    client_type_restrictions = [int(x) for x in field.client_type_restrictions]
+                elif isinstance(field.client_type_restrictions, str):
+                    try:
+                        import json
+                        client_type_restrictions = [int(x) for x in json.loads(field.client_type_restrictions)]
+                    except (json.JSONDecodeError, ValueError) as e:
+                        current_app.logger.error(f"Error parsing client_type_restrictions: {e}")
+            
+            current_app.logger.debug(f"Client type restrictions after conversion: {client_type_restrictions}")
+            
             form_data = {
                 'field_name': field.field_name,
                 'field_label': field.field_label,
                 'field_placeholder': field.field_placeholder,
                 'field_type': field.field_type,
                 'validation_text': field.validation_text,
-                'is_required': field.is_required
+                'is_required': field.is_required,
+                'client_type_restrictions': client_type_restrictions
             }
             
             if field.field_type in ['select', 'radio', 'checkbox']:
@@ -270,12 +301,22 @@ def edit_field(id, field_id):
                         form.options.append_entry(option)
             else:
                 form = FormFieldForm(data=form_data)
-                
+            
             return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
         
         # For POST requests
         current_app.logger.debug(f"POST request - Form Data: {request.form}")
         field_type = request.form.get('field_type', '')
+        
+        # Get client type restrictions from form
+        client_type_restrictions = request.form.getlist('client_type_restrictions')
+        current_app.logger.debug(f"Received client type restrictions: {client_type_restrictions}")
+        
+        # Convert to integers and handle empty list
+        if client_type_restrictions:
+            client_type_restrictions = [int(x) for x in client_type_restrictions]
+        else:
+            client_type_restrictions = None
         
         # Get the field data
         field_data = {
@@ -284,7 +325,8 @@ def edit_field(id, field_id):
             'field_placeholder': request.form.get('field_placeholder'),
             'field_type': field_type,
             'validation_text': request.form.get('validation_text'),
-            'is_required': request.form.get('is_required') == 'y'
+            'is_required': request.form.get('is_required') == 'y',
+            'client_type_restrictions': client_type_restrictions
         }
         current_app.logger.debug(f"Field data to be updated: {field_data}")
         

@@ -1,4 +1,4 @@
-from models.settings import SystemSettings
+from models.system_settings import SystemSettings
 from werkzeug.utils import secure_filename
 import os
 from extensions import db

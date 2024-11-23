@@ -28,7 +28,7 @@
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ client_type.client_code }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ client_type.client_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ client_type.effective_from.strftime('%Y-%m-%d') }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ client_type.effective_from.strftime('%Y-%m-%d') if client_type.effective_from else 'N/A' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ client_type.effective_to.strftime('%Y-%m-%d') if client_type.effective_to else 'N/A' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if client_type.status else 'bg-red-100 text-red-800' }}">

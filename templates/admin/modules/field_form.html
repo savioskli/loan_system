@@ -1,5 +1,89 @@
 {% extends "base.html" %}
 
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<style>
+    /* Choices.js Custom Styles */
+    .choices {
+        margin-bottom: 0;
+    }
+    .choices__inner {
+        background-color: #fff;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        min-height: 42px;
+        padding: 0.5rem;
+        width: 100%;
+    }
+    .choices__input {
+        background-color: transparent;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        width: 100% !important;
+    }
+    .choices__list--multiple {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 2px;
+    }
+    .choices__list--multiple .choices__item {
+        background-color: #EEF2FF;
+        border: 1px solid #6366F1;
+        color: #4F46E5;
+        border-radius: 0.375rem;
+        margin: 0;
+        padding: 4px 8px;
+    }
+    .choices__list--multiple .choices__item.is-highlighted {
+        background-color: #6366F1;
+        border: 1px solid #4F46E5;
+    }
+    .choices__list--dropdown {
+        border-color: #D1D5DB;
+        border-radius: 0.375rem;
+        margin-top: 2px;
+    }
+    .choices__list--dropdown .choices__item {
+        padding: 8px 12px;
+    }
+    .choices__list--dropdown .choices__item--selectable.is-highlighted {
+        background-color: #EEF2FF;
+        color: #4F46E5;
+    }
+    .choices[data-type*="select-multiple"] .choices__button {
+        border-left: 1px solid #4F46E5;
+        padding-left: 16px;
+        margin-left: 8px;
+        background-image: url("data:image/svg+xml,%3Csvg width='21' height='21' viewBox='0 0 21 21' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%234F46E5' fill-rule='evenodd'%3E%3Cpath d='M2.592.044l18.364 18.364-2.548 2.548L.044 2.592z'/%3E%3Cpath d='M0 18.364L18.364 0l2.548 2.548L2.548 20.912z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    /* Fix input height and alignment */
+    .choices__inner .choices__input--cloned {
+        font-size: 14px;
+        padding: 4px !important;
+        min-height: 28px !important;
+        width: 100% !important;
+    }
+    /* Match other form fields style */
+    .choices {
+        font-size: 14px;
+    }
+    .choices__inner {
+        padding: 4px 8px;
+        min-height: 42px;
+    }
+    .choices__list--dropdown .choices__item {
+        font-size: 14px;
+    }
+    /* Fix dropdown width */
+    .choices__list--dropdown {
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
@@ -53,6 +137,23 @@
                     </div>
 
                     <div>
+                        {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        <div class="mt-1">
+                            <select name="client_type_restrictions" id="client_type_restrictions" class="block w-full" multiple>
+                                {% for value, label in form.client_type_restrictions.choices %}
+                                    <option value="{{ value }}" {% if value in form.client_type_restrictions.data %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if form.client_type_restrictions.errors %}
+                            {% for error in form.client_type_restrictions.errors %}
+                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                        <p class="text-sm text-gray-500 mt-2">Select which client types can access this field</p>
+                    </div>
+
+                    <div>
                         {{ form.validation_text.label(class="block text-sm font-medium text-gray-700 mb-2") }}
                         {{ form.validation_text(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.validation_text.errors %}
@@ -96,99 +197,133 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const optionsContainer = document.getElementById('options-container');
-    const addOptionBtn = document.getElementById('add-option');
-    const fieldTypeSelect = document.getElementById('field_type');
-    const optionsSection = document.querySelector('.field-options-section');
-
-    // Function to toggle options section visibility
-    function toggleOptionsSection() {
-        const fieldType = fieldTypeSelect.value;
-        const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
-        optionsSection.style.display = needsOptions ? 'block' : 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Choices.js for client type restrictions
+        const clientTypeSelect = document.getElementById('client_type_restrictions');
         
-        // If switching to a type that needs options and there are no options, add one
-        if (needsOptions && optionsContainer.children.length === 0) {
-            addOptionRow();
-        }
-    }
-
-    // Add event listener to field type select
-    if (fieldTypeSelect) {
-        fieldTypeSelect.addEventListener('change', toggleOptionsSection);
-        // Initial check
-        toggleOptionsSection();
-    }
-
-    function addOptionRow() {
-        const row = document.createElement('div');
-        row.className = 'option-row flex space-x-4 mb-4';
-        row.innerHTML = `
-            <input type="text" name="options-label[]" 
-                class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
-                placeholder="Option Label" required>
-            <input type="text" name="options-value[]" 
-                class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
-                placeholder="Option Value" required>
-            <button type="button" class="remove-option text-red-600 hover:text-red-800 px-2 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                </svg>
-            </button>
-        `;
-        optionsContainer.appendChild(row);
-    }
-    
-    // Add option button handler
-    if (addOptionBtn) {
-        addOptionBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            addOptionRow();
+        // Initialize Choices
+        const choices = new Choices(clientTypeSelect, {
+            removeItemButton: true,
+            placeholder: true,
+            placeholderValue: 'Select client types',
+            searchPlaceholderValue: 'Type to search...',
+            searchEnabled: true,
+            searchChoices: true,
+            searchResultLimit: 10,
+            searchFields: ['label', 'value'],
+            position: 'bottom',
+            itemSelectText: '',
+            shouldSort: false,
+            loadingText: 'Loading...',
+            noResultsText: 'No client types found',
+            noChoicesText: 'No client types available',
+            maxItemCount: -1,
+            removeItemButton: true
         });
-    }
-    
-    // Remove option button handler
-    if (optionsContainer) {
-        optionsContainer.addEventListener('click', function(e) {
-            if (e.target.closest('.remove-option')) {
-                const row = e.target.closest('.option-row');
-                // Don't remove if it's the last option
-                if (optionsContainer.children.length > 1) {
-                    row.remove();
-                }
-            }
+        
+        // Log any changes to client type selection
+        clientTypeSelect.addEventListener('change', function(e) {
+            console.log('Client type selection changed:', choices.getValue(true));
         });
-    }
 
-    // Form validation
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
+        const optionsContainer = document.getElementById('options-container');
+        const addOptionBtn = document.getElementById('add-option');
+        const fieldTypeSelect = document.getElementById('field_type');
+        const optionsSection = document.querySelector('.field-options-section');
+        const formElement = document.querySelector('form');
+
+        // Function to toggle options section visibility
+        function toggleOptionsSection() {
             const fieldType = fieldTypeSelect.value;
             const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
+            optionsSection.style.display = needsOptions ? 'block' : 'none';
             
-            if (needsOptions) {
-                const options = [];
-                const labels = form.querySelectorAll('input[name="options-label[]"]');
-                const values = form.querySelectorAll('input[name="options-value[]"]');
-                let hasValidOption = false;
-                
-                for (let i = 0; i < labels.length; i++) {
-                    if (labels[i].value.trim() && values[i].value.trim()) {
-                        hasValidOption = true;
-                        break;
+            // If switching to a type that needs options and there are no options, add one
+            if (needsOptions && optionsContainer.children.length === 0) {
+                addOptionRow();
+            }
+        }
+
+        // Add event listener to field type select
+        if (fieldTypeSelect) {
+            fieldTypeSelect.addEventListener('change', toggleOptionsSection);
+            // Initial check
+            toggleOptionsSection();
+        }
+
+        function addOptionRow() {
+            const row = document.createElement('div');
+            row.className = 'option-row flex space-x-4 mb-4';
+            row.innerHTML = `
+                <input type="text" name="options-label[]" 
+                    class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                    placeholder="Option Label" required>
+                <input type="text" name="options-value[]" 
+                    class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                    placeholder="Option Value" required>
+                <button type="button" class="remove-option text-red-600 hover:text-red-800 px-2 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            `;
+            optionsContainer.appendChild(row);
+        }
+        
+        // Add option button handler
+        if (addOptionBtn) {
+            addOptionBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                addOptionRow();
+            });
+        }
+        
+        // Remove option button handler
+        if (optionsContainer) {
+            optionsContainer.addEventListener('click', function(e) {
+                if (e.target.closest('.remove-option')) {
+                    const row = e.target.closest('.option-row');
+                    // Don't remove if it's the last option
+                    if (optionsContainer.children.length > 1) {
+                        row.remove();
                     }
                 }
+            });
+        }
+
+        // Form validation and submission handling
+        if (formElement) {
+            formElement.addEventListener('submit', function(e) {
+                const fieldType = fieldTypeSelect.value;
+                const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
                 
-                if (!hasValidOption) {
-                    e.preventDefault();
-                    alert('Please add at least one option with both label and value for this field type.');
+                // Log client type selections before submission
+                const selectedTypes = choices.getValue(true);
+                console.log('Form submission - Selected client types:', selectedTypes);
+                
+                if (needsOptions) {
+                    const options = [];
+                    const labels = formElement.querySelectorAll('input[name="options-label[]"]');
+                    const values = formElement.querySelectorAll('input[name="options-value[]"]');
+                    let hasValidOption = false;
+                    
+                    for (let i = 0; i < labels.length; i++) {
+                        if (labels[i].value.trim() && values[i].value.trim()) {
+                            hasValidOption = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!hasValidOption) {
+                        e.preventDefault();
+                        alert('Please add at least one option with both label and value for this field type.');
+                    }
                 }
-            }
-        });
-    }
-});
+            });
+        }
+    });
 </script>
 {% endblock %}

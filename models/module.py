@@ -46,6 +46,7 @@ class FormField(db.Model):
     field_order = db.Column(db.Integer, default=0)
     options = db.Column(db.JSON)
     validation_rules = db.Column(db.JSON)
+    client_type_restrictions = db.Column(db.JSON, comment='List of client type IDs that can see this field')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

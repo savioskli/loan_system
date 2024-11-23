@@ -8,6 +8,7 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from data.kenya_locations import KENYA_COUNTIES
+from sqlalchemy import and_
 
 user_bp = Blueprint('user', __name__)
 
@@ -21,17 +22,32 @@ def dashboard():
     rejected_loans = 0   # TODO: Implement rejected loans count
     portfolio_value = 0  # TODO: Implement portfolio value calculation
     
-    # Get client management modules (excluding parent modules)
+    # Get client management modules (only child modules)
     client_modules = Module.query.join(FormField).filter(
-        Module.code.like('CLT%'),
-        Module.is_active == True
+        and_(
+            Module.code.like('CLM%'),
+            Module.code != 'CLM00',  # Exclude parent module
+            Module.is_active == True
+        )
     ).group_by(Module.id).order_by(Module.code).all()
     
-    # Get loan management modules (excluding parent modules)
+    # Get loan management modules (only child modules)
     loan_modules = Module.query.join(FormField).filter(
-        Module.code.like('LN%'),
-        Module.is_active == True
+        and_(
+            Module.code.like('LN%'),
+            ~Module.code.endswith('00'),  # Exclude parent modules
+            Module.is_active == True
+        )
     ).group_by(Module.id).order_by(Module.code).all()
+    
+    # Get parent modules for organization
+    client_parent = Module.query.filter_by(code='CLM00').first()
+    loan_parent = Module.query.filter(
+        and_(
+            Module.code.like('LN%'),
+            Module.code.endswith('00')
+        )
+    ).first()
     
     return render_template('user/dashboard.html',
                          pending_clients=pending_clients,
@@ -40,7 +56,9 @@ def dashboard():
                          rejected_loans=rejected_loans,
                          portfolio_value=portfolio_value,
                          client_modules=client_modules,
-                         loan_modules=loan_modules)
+                         loan_modules=loan_modules,
+                         client_parent=client_parent,
+                         loan_parent=loan_parent)
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -60,8 +78,16 @@ def dynamic_form(module_code):
             form_fields = FormField.query.filter_by(module_id=module.id).all()
             field_dict = {field.field_name: field for field in form_fields}
             
+            # Get selected client type
+            client_type_id = request.form.get('client_type')
+            
             # Process each form field
             for field_name, field in field_dict.items():
+                # Check client type restrictions
+                if field.client_type_restrictions and client_type_id:
+                    if int(client_type_id) not in field.client_type_restrictions:
+                        continue  # Skip fields not allowed for this client type
+                
                 if field.field_type == 'file':
                     # Handle file upload
                     if field_name in request.files:
@@ -140,16 +166,10 @@ def dynamic_form(module_code):
                         # For client type field, get all active client types
                         client_types = ClientType.query.filter_by(status=True).all()
                         field.options = [{'value': str(client_type.id), 'label': client_type.client_name} for client_type in client_types]
-                    elif field.field_name == 'sub_county':
-                        # Sub-county field will be populated via AJAX
-                        field.options = []
             
-            return render_template('user/dynamic_form.html', 
-                                module=module,
-                                form_fields=form_fields)
-                             
+            return render_template('user/dynamic_form.html', module=module, form_fields=form_fields)
+            
     except Exception as e:
-        print(f"Error in dynamic_form route: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}'

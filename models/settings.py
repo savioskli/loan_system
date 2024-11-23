@@ -1,7 +1,11 @@
 from extensions import db
 from datetime import datetime
+from models.system_settings import SystemSettings
 
-class SystemSettings(db.Model):
+__all__ = ['SystemSettings']
+
+# For backward compatibility
+class SystemSettings(SystemSettings):
     """System settings model for storing configuration values."""
     __tablename__ = 'system_settings'
     
@@ -12,8 +16,11 @@ class SystemSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Core fields
-    key = db.Column('key', db.String(100), unique=True, nullable=False)
-    value = db.Column('value', db.Text)
+    setting_key = db.Column('setting_key', db.String(100), unique=True, nullable=False)
+    setting_value = db.Column('setting_value', db.Text)
+    setting_type = db.Column('setting_type', db.String(20))
+    category = db.Column('category', db.String(50))
+    description = db.Column('description', db.String(200))
     
     # Audit fields
     created_at = db.Column('created_at', db.DateTime, default=datetime.utcnow)
@@ -23,33 +30,36 @@ class SystemSettings(db.Model):
 
     # Explicitly exclude old columns from mapping
     __mapper_args__ = {
-        'include_properties': ['id', 'key', 'value', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        'include_properties': ['id', 'setting_key', 'setting_value', 'setting_type', 'category', 'description', 'created_at', 'updated_at', 'created_by', 'updated_by']
     }
 
     @staticmethod
     def get_setting(key, default=None):
         """Get a setting value by key."""
         try:
-            setting = SystemSettings.query.filter_by(key=key).first()
-            return setting.value if setting else default
+            setting = SystemSettings.query.filter_by(setting_key=key).first()
+            return setting.setting_value if setting else default
         except Exception as e:
             print(f"Error getting setting {key}: {str(e)}")
             return default
 
     @staticmethod
-    def set_setting(key, value, user_id=None):
+    def set_setting(key, value, user_id=None, setting_type='string', category='general', description=None):
         """Set a setting value by key."""
         try:
-            setting = SystemSettings.query.filter_by(key=key).first()
+            setting = SystemSettings.query.filter_by(setting_key=key).first()
             if setting:
-                setting.value = value
+                setting.setting_value = value
                 if user_id:
                     setting.updated_by = user_id
                 setting.updated_at = datetime.utcnow()
             else:
                 setting = SystemSettings(
-                    key=key,
-                    value=value,
+                    setting_key=key,
+                    setting_value=value,
+                    setting_type=setting_type,
+                    category=category,
+                    description=description,
                     created_by=user_id,
                     updated_by=user_id
                 )

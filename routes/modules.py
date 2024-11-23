@@ -117,15 +117,25 @@ def edit(id):
             
     return render_template('admin/modules/form.html', form=form, title='Edit Module')
 
-@modules_bp.route('/<int:id>/fields')
+@modules_bp.route('/<int:id>/fields', methods=['GET'])
 @login_required
 def list_fields(id):
-    if not current_user.role or current_user.role.name.lower() != 'admin':
+    if not current_user.is_admin:
         flash('Access denied.', 'error')
         return redirect(url_for('main.index'))
-        
+    
     module = Module.query.get_or_404(id)
-    fields = module.form_fields.order_by(FormField.field_order).all()
+    fields = FormField.query.filter_by(module_id=id).order_by(FormField.field_order).all()
+    
+    # Get client type names for each field's restrictions
+    for field in fields:
+        if field.client_type_restrictions:
+            client_types = ClientType.query.filter(ClientType.id.in_(field.client_type_restrictions)).all()
+            field.client_type_names = [ct.client_name for ct in client_types]
+        else:
+            field.client_type_names = []
+        current_app.logger.debug(f"Field {field.field_name} restrictions: {field.client_type_restrictions}, Names: {field.client_type_names}")
+    
     return render_template('admin/modules/fields.html', module=module, fields=fields)
 
 @modules_bp.route('/<int:id>/fields/create', methods=['GET', 'POST'])
@@ -363,6 +373,9 @@ def edit_field(id, field_id):
             field.field_type = form.field_type.data
             field.validation_text = form.validation_text.data
             field.is_required = form.is_required.data
+            field.client_type_restrictions = list(map(int, form.client_type_restrictions.data)) if form.client_type_restrictions.data else []
+            
+            current_app.logger.debug(f"Updated client type restrictions: {field.client_type_restrictions}")
             
             # Handle options for select, radio, checkbox fields
             if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):

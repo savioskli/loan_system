@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container max-w-[95%] mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-800">Form Fields - {{ module.name }}</h1>
@@ -27,52 +27,66 @@
         {% endif %}
     {% endwith %}
 
-    <div class="bg-white shadow-md rounded-lg overflow-hidden">
-        <table class="min-w-full">
+    <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+        <table class="min-w-full table-fixed">
             <thead>
                 <tr class="bg-gray-100">
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                    <th class="w-1/8 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="w-1/8 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
+                    <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Types</th>
+                    <th class="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                    <th class="w-1/8 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody id="sortable-fields" class="bg-white divide-y divide-gray-200">
                 {% for field in fields %}
                 <tr data-id="{{ field.id }}" class="cursor-move hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4">
                         <div class="flex items-center">
                             <span class="drag-handle mr-2 text-gray-400 hover:text-gray-600 cursor-grab">
                                 <i class="fas fa-grip-vertical"></i>
                             </span>
-                            <div class="text-sm font-medium text-gray-900">{{ field.field_name }}</div>
+                            <div class="text-sm font-medium text-gray-900 truncate">{{ field.field_name }}</div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ field.field_label }}
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-500 truncate">{{ field.field_label }}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td class="px-6 py-4">
                         <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
                             {{ field.field_type }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if field.is_required %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
                             {{ 'Required' if field.is_required else 'Optional' }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 field-order">
+                    <td class="px-6 py-4">
+                        {% if field.client_type_names %}
+                            <div class="flex flex-wrap gap-1">
+                                {% for type_name in field.client_type_names %}
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        {{ type_name }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400">All Types</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500 field-order">
                         {{ field.field_order }}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div class="flex space-x-4">
+                    <td class="px-6 py-4">
+                        <div class="flex space-x-2">
                             <a href="{{ url_for('modules.edit_field', id=module.id, field_id=field.id) }}" class="text-blue-500 hover:text-blue-700">
-                                <i class="fas fa-edit mr-1"></i>Edit
+                                <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ url_for('modules.delete_field', id=module.id, field_id=field.id) }}" class="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded" onclick="return confirm('Are you sure you want to delete this field?')">
-                                <i class="fas fa-trash mr-1"></i>Delete
+                            <a href="{{ url_for('modules.delete_field', id=module.id, field_id=field.id) }}" class="text-red-500 hover:text-red-700" onclick="return confirm('Are you sure you want to delete this field?')">
+                                <i class="fas fa-trash"></i>
                             </a>
                         </div>
                     </td>
@@ -80,7 +94,7 @@
                 {% endfor %}
                 {% if not fields %}
                 <tr>
-                    <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                    <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
                         No form fields defined yet. Click "New Field" to add one.
                     </td>
                 </tr>
@@ -89,59 +103,39 @@
         </table>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<!-- Include Sortable.js -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const sortableList = document.getElementById('sortable-fields');
-    if (sortableList) {
-        new Sortable(sortableList, {
+    if (document.getElementById('sortable-fields')) {
+        new Sortable(document.getElementById('sortable-fields'), {
             handle: '.drag-handle',
             animation: 150,
             onEnd: function(evt) {
-                const fields = Array.from(sortableList.querySelectorAll('tr[data-id]')).map((row, index) => ({
-                    id: row.dataset.id,
+                const fields = Array.from(evt.to.children).map((tr, index) => ({
+                    id: tr.dataset.id,
                     order: index + 1
                 }));
-                
-                // Update the displayed order numbers
-                fields.forEach(field => {
-                    const row = sortableList.querySelector(`tr[data-id="${field.id}"]`);
-                    const orderCell = row.querySelector('.field-order');
-                    orderCell.textContent = field.order;
-                });
 
-                // Send the new order to the server
-                fetch('{{ url_for("modules.update_field_order", id=module.id) }}', {
+                fetch(`{{ url_for('modules.update_field_order', id=module.id) }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({ fields: fields })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Show success message
-                        const message = document.createElement('div');
-                        message.className = 'fixed bottom-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4';
-                        message.innerHTML = '<i class="fas fa-check mr-2"></i>Field order updated successfully';
-                        document.body.appendChild(message);
-                        setTimeout(() => message.remove(), 3000);
+                        // Update the order numbers in the UI
+                        document.querySelectorAll('.field-order').forEach((td, index) => {
+                            td.textContent = index + 1;
+                        });
+                    } else {
+                        console.error('Error updating field order');
                     }
                 })
                 .catch(error => {
-                    console.error('Error updating field order:', error);
-                    // Show error message
-                    const message = document.createElement('div');
-                    message.className = 'fixed bottom-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4';
-                    message.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error updating field order';
-                    document.body.appendChild(message);
-                    setTimeout(() => message.remove(), 3000);
+                    console.error('Error:', error);
                 });
             }
         });

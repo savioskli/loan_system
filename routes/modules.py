@@ -6,7 +6,9 @@ from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
 from models.role import Role
 from utils.module_utils import generate_module_code
+from utils.dynamic_tables import create_or_update_module_table
 import json
+import traceback
 
 modules_bp = Blueprint('modules', __name__)
 
@@ -239,6 +241,14 @@ def create_field(id):
                 current_app.logger.debug(f"Client type restrictions: {field.client_type_restrictions}")
                 db.session.add(field)
                 db.session.commit()
+                current_app.logger.debug("Database commit successful")
+                
+                # Update the module's table schema
+                current_app.logger.info(f"Updating table schema for module {module.code}")
+                if not create_or_update_module_table(module.code):
+                    raise Exception("Failed to update table schema")
+                current_app.logger.info("Table schema updated successfully")
+                
                 flash('Field created successfully.', 'success')
                 return redirect(url_for('modules.list_fields', id=module.id))
             except Exception as db_error:
@@ -404,6 +414,13 @@ def edit_field(id, field_id):
                 db.session.add(field)  # Explicitly add the field to the session
                 db.session.commit()
                 current_app.logger.debug("Database commit successful")
+                
+                # Update the module's table schema
+                current_app.logger.info(f"Updating table schema for module {field.parent_module.code}")
+                if not create_or_update_module_table(field.parent_module.code):
+                    raise Exception("Failed to update table schema")
+                current_app.logger.info("Table schema updated successfully")
+                
                 flash('Field updated successfully.', 'success')
                 return redirect(url_for('modules.list_fields', id=id))
             except Exception as db_error:
@@ -469,11 +486,24 @@ def delete_field(id, field_id):
         # Store module_id before deletion for redirect
         module_id = field.module_id
         
+        # Get the module
+        module = Module.query.get_or_404(id)
+        
+        # Store module code before deletion
+        module_code = module.code
+        
         # Delete the field
         db.session.delete(field)
         db.session.commit()
         
         current_app.logger.info(f"Field {field_id} deleted successfully")
+        
+        # Update the module's table schema to remove the column
+        current_app.logger.info(f"Updating table schema for module {module_code}")
+        if not create_or_update_module_table(module_code):
+            raise Exception("Failed to update table schema")
+        current_app.logger.info("Table schema updated successfully")
+        
         flash('Field deleted successfully.', 'success')
         return redirect(url_for('modules.list_fields', id=module_id))
         

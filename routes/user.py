@@ -9,6 +9,8 @@ import json
 from werkzeug.utils import secure_filename
 from data.kenya_locations import KENYA_COUNTIES
 from sqlalchemy import and_
+from datetime import datetime
+from sqlalchemy import Table, MetaData
 
 user_bp = Blueprint('user', __name__)
 
@@ -71,9 +73,6 @@ def dynamic_form(module_code):
         module = Module.query.filter_by(code=module_code).first_or_404()
         
         if request.method == 'POST':
-            # Create a dictionary to store form data
-            form_data = {}
-            
             # Get form fields for validation
             form_fields = FormField.query.filter_by(module_id=module.id).all()
             field_dict = {field.field_name: field for field in form_fields}
@@ -81,71 +80,58 @@ def dynamic_form(module_code):
             # Get selected client type
             client_type_id = request.form.get('client_type')
             
+            # Create data dictionary for database insertion
+            data = {
+                'user_id': current_user.id,
+                'submission_date': datetime.utcnow(),
+                'status': 'pending',
+                'client_type_id': client_type_id if client_type_id else None
+            }
+            
             # Process each form field
             for field_name, field in field_dict.items():
                 # Check client type restrictions
                 if field.client_type_restrictions and client_type_id:
                     if int(client_type_id) not in field.client_type_restrictions:
-                        continue  # Skip fields not allowed for this client type
+                        continue
                 
                 if field.field_type == 'file':
-                    # Handle file upload
                     if field_name in request.files:
                         file = request.files[field_name]
                         if file and file.filename:
-                            # Get allowed extensions from validation rules
-                            allowed_extensions = set()
-                            if field.validation_rules and 'accept' in field.validation_rules:
-                                extensions = field.validation_rules['accept'].split(',')
-                                allowed_extensions = {ext.strip('.') for ext in extensions}
-                            
-                            if allowed_file(file.filename, allowed_extensions):
-                                filename = secure_filename(file.filename)
-                                # Create upload directory if it doesn't exist
-                                upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], module_code)
-                                os.makedirs(upload_dir, exist_ok=True)
-                                
-                                # Save the file
-                                file_path = os.path.join(upload_dir, filename)
-                                file.save(file_path)
-                                form_data[field_name] = filename
-                            else:
-                                return jsonify({
-                                    'success': False,
-                                    'message': f'Invalid file type for {field.field_label}. Allowed types: {", ".join(allowed_extensions)}'
-                                })
-                    elif field.is_required:
-                        return jsonify({
-                            'success': False,
-                            'message': f'Required file missing: {field.field_label}'
-                        })
+                            filename = secure_filename(file.filename)
+                            # Save file and store path
+                            upload_folder = current_app.config['UPLOAD_FOLDER']
+                            file_path = os.path.join(upload_folder, filename)
+                            file.save(file_path)
+                            data[field_name.lower()] = filename
                 else:
-                    # Handle other form fields
                     value = request.form.get(field_name)
-                    if field.is_required and not value:
-                        return jsonify({
-                            'success': False,
-                            'message': f'Required field missing: {field.field_label}'
-                        })
-                    form_data[field_name] = value
+                    if value:
+                        if field.field_type == 'checkbox':
+                            value = value.lower() == 'true'
+                        elif field.field_type == 'number':
+                            value = float(value)
+                        data[field_name.lower()] = value
             
             try:
-                # TODO: Save form data to appropriate table based on module_code
-                # For now, just log the form data
-                print(f"Form data for module {module_code}:", json.dumps(form_data, indent=2))
+                # Get the dynamic table
+                table_name = f"form_data_{module_code.lower()}"
+                metadata = MetaData()
+                table = Table(table_name, metadata, extend_existing=True)
+                metadata.reflect(only=[table_name], bind=db.engine)
                 
-                return jsonify({
-                    'success': True,
-                    'message': 'Form submitted successfully',
-                    'redirect': url_for('user.dashboard')
-                })
+                # Insert data
+                with db.engine.connect() as conn:
+                    conn.execute(table.insert().values(**data))
+                    conn.commit()
+                
+                flash('Form submitted successfully!', 'success')
+                return redirect(url_for('user.dashboard'))
                 
             except Exception as e:
-                print(f"Error saving form data: {str(e)}")
-                return jsonify({
-                    'success': False,
-                    'message': 'Error saving form data'
-                })
+                flash(f'Error submitting form: {str(e)}', 'error')
+                return redirect(url_for('user.dynamic_form', module_code=module_code))
         
         else:
             # Get form fields

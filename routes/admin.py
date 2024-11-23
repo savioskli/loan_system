@@ -4,6 +4,7 @@ import traceback
 from forms.general_settings import GeneralSettingsForm
 from services.settings_service import SettingsService
 from extensions import db
+from utils.dynamic_tables import create_or_update_module_table
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -62,3 +63,25 @@ def system_settings():
         flash(f'Error: {str(e)}', 'error')
         traceback.print_exc()  # Print the full traceback for debugging
         return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/modules/fields/add', methods=['GET', 'POST'])
+@login_required
+def add_field():
+    if request.method == 'POST':
+        # Existing field creation code...
+        
+        try:
+            db.session.add(new_field)
+            db.session.commit()
+            
+            # Update the dynamic table for this module
+            module = Module.query.get(module_id)
+            if module:
+                create_or_update_module_table(module.code)
+            
+            flash('Field added successfully!', 'success')
+            return redirect(url_for('admin.list_fields', module_id=module_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding field: {str(e)}', 'error')
+            return redirect(url_for('admin.list_fields', module_id=module_id))

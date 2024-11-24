@@ -13,6 +13,10 @@ class FormSection(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Add new columns for client type and product dependencies
+    client_type_restrictions = db.Column(db.JSON, nullable=True)  # List of client type IDs
+    product_restrictions = db.Column(db.JSON, nullable=True)  # List of product IDs
+    
     # Relationships
     module = db.relationship('Module', backref=db.backref('sections', lazy='dynamic', order_by='FormSection.order'))
     fields = db.relationship('FormField', 

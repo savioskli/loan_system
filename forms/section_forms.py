@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, IntegerField, BooleanField
+from wtforms import StringField, TextAreaField, IntegerField, BooleanField, SelectMultipleField
 from wtforms.validators import DataRequired, Length, Optional
 
 class FormSectionForm(FlaskForm):
@@ -19,3 +19,13 @@ class FormSectionForm(FlaskForm):
     is_active = BooleanField('Active',
                             default=True,
                             render_kw={"class": "form-check-input"})
+    
+    client_type_restrictions = SelectMultipleField('Client Types',
+                                                 validators=[Optional()],
+                                                 coerce=int,
+                                                 render_kw={"class": "form-control"})
+    
+    product_restrictions = SelectMultipleField('Products',
+                                             validators=[Optional()],
+                                             coerce=int,
+                                             render_kw={"class": "form-control"})

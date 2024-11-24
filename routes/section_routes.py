@@ -2,9 +2,12 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from models.form_section import FormSection
 from models.module import Module
+from models.client_type import ClientType
+from models.product import Product
 from forms.section_forms import FormSectionForm
 from extensions import db
 from utils.decorators import admin_required
+import json
 
 sections_bp = Blueprint('sections', __name__, url_prefix='/sections')
 
@@ -23,14 +26,24 @@ def create(module_id):
     module = Module.query.get_or_404(module_id)
     form = FormSectionForm()
     
+    # Populate choices for client types and products
+    form.client_type_restrictions.choices = [(ct.id, ct.client_name) for ct in ClientType.query.all()]
+    form.product_restrictions.choices = [(p.id, p.name) for p in Product.query.all()]
+    
     if form.validate_on_submit():
         try:
+            # Convert lists to JSON for storage
+            client_type_restrictions = json.dumps(form.client_type_restrictions.data) if form.client_type_restrictions.data else None
+            product_restrictions = json.dumps(form.product_restrictions.data) if form.product_restrictions.data else None
+            
             section = FormSection(
                 module_id=module.id,
                 name=form.name.data,
                 description=form.description.data,
                 order=form.order.data,
-                is_active=form.is_active.data
+                is_active=form.is_active.data,
+                client_type_restrictions=client_type_restrictions,
+                product_restrictions=product_restrictions
             )
             db.session.add(section)
             db.session.commit()
@@ -52,12 +65,28 @@ def edit(id):
     section = FormSection.query.get_or_404(id)
     form = FormSectionForm(obj=section)
     
+    # Populate choices for client types and products
+    form.client_type_restrictions.choices = [(ct.id, ct.client_name) for ct in ClientType.query.all()]
+    form.product_restrictions.choices = [(p.id, p.name) for p in Product.query.all()]
+    
+    if request.method == 'GET':
+        # Set initial values for multi-select fields
+        if section.client_type_restrictions:
+            form.client_type_restrictions.data = json.loads(section.client_type_restrictions)
+        if section.product_restrictions:
+            form.product_restrictions.data = json.loads(section.product_restrictions)
+    
     if form.validate_on_submit():
         try:
             section.name = form.name.data
             section.description = form.description.data
             section.order = form.order.data
             section.is_active = form.is_active.data
+            
+            # Convert lists to JSON for storage
+            section.client_type_restrictions = json.dumps(form.client_type_restrictions.data) if form.client_type_restrictions.data else None
+            section.product_restrictions = json.dumps(form.product_restrictions.data) if form.product_restrictions.data else None
+            
             db.session.commit()
             flash('Form section updated successfully.', 'success')
             return redirect(url_for('sections.index'))

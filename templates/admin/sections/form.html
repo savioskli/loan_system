@@ -22,7 +22,12 @@
     .input-field:focus + .help-text {
         color: #6366F1;
     }
+
+    .select2-container {
+        width: 100% !important;
+    }
 </style>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
@@ -110,6 +115,24 @@
                         {% endif %}
                     </div>
 
+                    <!-- Client Type Restrictions -->
+                    <div class="space-y-2">
+                        {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                        <div class="relative rounded-md shadow-sm">
+                            {{ form.client_type_restrictions(class="select2 input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                            <p class="mt-1 text-sm text-gray-500 help-text">Select which client types can access this section. Leave empty to allow all client types.</p>
+                        </div>
+                    </div>
+
+                    <!-- Product Restrictions -->
+                    <div class="space-y-2">
+                        {{ form.product_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                        <div class="relative rounded-md shadow-sm">
+                            {{ form.product_restrictions(class="select2 input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                            <p class="mt-1 text-sm text-gray-500 help-text">Select which products this section applies to. Leave empty to apply to all products.</p>
+                        </div>
+                    </div>
+
                     <!-- Order Field -->
                     <div class="space-y-2">
                         {{ form.order.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
@@ -162,4 +185,20 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Initialize Select2 for multiple select fields
+    document.addEventListener('DOMContentLoaded', function() {
+        $('.select2').select2({
+            theme: 'classic',
+            placeholder: 'Select options...',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+</script>
 {% endblock %}

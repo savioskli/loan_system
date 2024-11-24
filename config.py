@@ -1,6 +1,15 @@
 import os
 from datetime import timedelta
 
+# Database configuration for direct MySQL connections
+db_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'loan_system',
+    'auth_plugin': 'mysql_native_password'
+}
+
 class Config:
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'

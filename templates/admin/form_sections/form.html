@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Back button and title -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <a href="{{ url_for('admin.form_sections') }}" class="flex items-center text-gray-600 hover:text-gray-900">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Back to List
+                    </a>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ 'Edit' if section else 'Add New' }} Form Section</h1>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 rounded-lg p-4 {% if category == 'success' %}bg-green-50 text-green-800 border border-green-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                {% if category == 'success' %}
+                                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                {% endif %}
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm">{{ message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Form Card -->
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-8">
+                <form method="POST" class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- Section Name -->
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700">Section Name</label>
+                        <div class="mt-1">
+                            <input type="text" name="name" id="name" required
+                                value="{{ section.name if section else '' }}"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-3 px-4"
+                                placeholder="Enter section name">
+                        </div>
+                    </div>
+
+                    <!-- Module Selection -->
+                    <div>
+                        <label for="module" class="block text-sm font-medium text-gray-700">Module</label>
+                        <div class="mt-1">
+                            <select name="module" id="module" required
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-3 px-4">
+                                <option value="">Select a Module</option>
+                                {% for module in modules %}
+                                    <option value="{{ module }}" {{ 'selected' if section and section.module == module else '' }}>
+                                        {{ module }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Submodule Selection -->
+                    <div>
+                        <label for="submodule" class="block text-sm font-medium text-gray-700">Submodule</label>
+                        <div class="mt-1">
+                            <select name="submodule" id="submodule" required
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-3 px-4">
+                                <option value="">Select a Submodule</option>
+                                {% for submodule in submodules %}
+                                    <option value="{{ submodule }}" {{ 'selected' if section and section.submodule == submodule else '' }}>
+                                        {{ submodule }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Active Status -->
+                    <div class="relative flex items-start">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" name="is_active" id="is_active"
+                                {{ 'checked' if not section or section.is_active else '' }}
+                                class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="is_active" class="font-medium text-gray-700">Active Status</label>
+                            <p class="text-gray-500">Enable or disable this form section</p>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end pt-6 border-t border-gray-200">
+                        <a href="{{ url_for('admin.form_sections') }}" 
+                           class="bg-white py-3 px-6 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            {{ 'Update' if section else 'Create' }} Section
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -134,39 +134,26 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                        {% if client_parent %}
-                            {{ client_parent.name }}
-                        {% else %}
-                            Client Management
-                        {% endif %}
-                    </h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Client Management</h3>
                     <div class="bg-primary rounded-full p-3">
                         <i class="fas fa-users text-white text-xl"></i>
                     </div>
                 </div>
-                {% if client_parent %}
-                    <p class="text-gray-600 dark:text-gray-300 mb-4">{{ client_parent.description }}</p>
-                {% else %}
-                    <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
-                {% endif %}
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
                 <div class="space-y-2">
-                    {% for module in client_modules %}
-                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
+                    <a href="{{ url_for('user.prospects') }}" 
                        class="module-item block text-sm text-primary hover:text-secondary">
-                        {% if 'prospect' in module.name.lower() %}
-                            <i class="fas fa-user-plus mr-2"></i>
-                        {% elif 'client' in module.name.lower() %}
-                            <i class="fas fa-user-check mr-2"></i>
-                        {% else %}
-                            <i class="fas fa-user-cog mr-2"></i>
-                        {% endif %}
-                        {{ module.name }}
+                        <i class="fas fa-user-plus mr-2"></i>
+                        Manage Prospects
                     </a>
-                    {% endfor %}
-                    {% if not client_modules %}
-                    <p class="text-gray-500 dark:text-gray-400 text-sm italic">No client forms available</p>
-                    {% endif %}
+                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-users mr-2"></i>
+                        View Clients
+                    </a>
+                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-user-edit mr-2"></i>
+                        Update Client Information
+                    </a>
                 </div>
             </div>
         </div>
@@ -175,41 +162,25 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                        {% if loan_parent %}
-                            {{ loan_parent.name }}
-                        {% else %}
-                            Loan Management
-                        {% endif %}
-                    </h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Loan Management</h3>
                     <div class="bg-primary rounded-full p-3">
                         <i class="fas fa-file-invoice-dollar text-white text-xl"></i>
                     </div>
                 </div>
-                {% if loan_parent %}
-                    <p class="text-gray-600 dark:text-gray-300 mb-4">{{ loan_parent.description }}</p>
-                {% else %}
-                    <p class="text-gray-600 dark:text-gray-300 mb-4">Process and track loans</p>
-                {% endif %}
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Process and track loans</p>
                 <div class="space-y-2">
-                    {% for module in loan_modules %}
-                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
-                       class="module-item block text-sm text-primary hover:text-secondary">
-                        {% if 'application' in module.name.lower() %}
-                            <i class="fas fa-plus-circle mr-2"></i>
-                        {% elif 'approval' in module.name.lower() %}
-                            <i class="fas fa-check-circle mr-2"></i>
-                        {% elif 'disbursement' in module.name.lower() %}
-                            <i class="fas fa-money-bill-wave mr-2"></i>
-                        {% else %}
-                            <i class="fas fa-file-invoice mr-2"></i>
-                        {% endif %}
-                        {{ module.name }}
+                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-plus-circle mr-2"></i>
+                        New Loan Application
                     </a>
-                    {% endfor %}
-                    {% if not loan_modules %}
-                    <p class="text-gray-500 dark:text-gray-400 text-sm italic">No loan forms available</p>
-                    {% endif %}
+                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-tasks mr-2"></i>
+                        Active Loans
+                    </a>
+                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-history mr-2"></i>
+                        Loan History
+                    </a>
                 </div>
             </div>
         </div>

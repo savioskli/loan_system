@@ -37,7 +37,7 @@ class FormFieldForm(FlaskForm):
         ('phone', 'Phone Input'),
         ('password', 'Password Input'),
         ('file', 'File Upload')
-    ], validators=[DataRequired()])
+    ], validators=[DataRequired()], coerce=str)
     is_required = BooleanField('Required Field', default=False)
     client_type_restrictions = SelectMultipleField('Client Type Restrictions', 
                                                  coerce=int,

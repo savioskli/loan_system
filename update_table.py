@@ -7,5 +7,5 @@ logging.basicConfig(level=logging.INFO)
 
 app = create_app()
 with app.app_context():
-    success = create_or_update_module_table('CLM01')
+    success = create_or_update_module_table('CLM02')
     print(f"Table update {'succeeded' if success else 'failed'}")

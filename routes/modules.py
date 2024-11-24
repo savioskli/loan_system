@@ -75,7 +75,15 @@ def create():
             db.session.add(module)
             db.session.commit()
             print("Module saved to database")
-            flash('Module created successfully.', 'success')
+            
+            # Create the dynamic form data table
+            if create_or_update_module_table(code):
+                print(f"Created dynamic form data table for module {code}")
+                flash('Module and form data table created successfully.', 'success')
+            else:
+                print(f"Failed to create dynamic form data table for module {code}")
+                flash('Module created but form data table creation failed.', 'error')
+            
             return redirect(url_for('modules.index'))
         except Exception as e:
             print(f"Error creating module: {str(e)}")

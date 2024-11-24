@@ -34,12 +34,15 @@ from flask import g
 from models.activity_log import ActivityLog
 
 # Configure logging
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('app.log')
+        logging.FileHandler('logs/loan_system.log', mode='a')
     ]
 )
 logger = logging.getLogger(__name__)

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
+from utils.decorators import admin_required
 import traceback
 from forms.general_settings import GeneralSettingsForm
 from services.settings_service import SettingsService
@@ -7,6 +8,8 @@ from extensions import db
 from utils.dynamic_tables import create_or_update_module_table
 import mysql.connector
 from config import db_config
+from models.staff import Staff
+from models.branch import Branch
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
@@ -15,11 +18,25 @@ admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/dashboard')
 @login_required
+@admin_required
 def dashboard():
-    return render_template('admin/dashboard.html')
+    # Get user statistics
+    total_users = Staff.query.count()
+    active_users = Staff.query.filter_by(is_active=True).count()
+    
+    # Get branch statistics
+    total_branches = Branch.query.count()
+    active_branches = Branch.query.filter_by(is_active=True).count()
+    
+    return render_template('admin/dashboard.html',
+                         total_users=total_users,
+                         active_users=active_users,
+                         total_branches=total_branches,
+                         active_branches=active_branches)
 
 @admin_bp.route('/system-settings', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def system_settings():
     form = GeneralSettingsForm()
     current_logo = None
@@ -71,6 +88,7 @@ def system_settings():
 
 @admin_bp.route('/modules/fields/add', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def add_field():
     if request.method == 'POST':
         # Existing field creation code...
@@ -93,6 +111,7 @@ def add_field():
 
 @admin_bp.route('/form-sections')
 @login_required
+@admin_required
 def form_sections():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -104,6 +123,7 @@ def form_sections():
 
 @admin_bp.route('/form-sections/add', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def add_form_section():
     if request.method == 'POST':
         name = request.form['name']
@@ -151,6 +171,7 @@ def add_form_section():
 
 @admin_bp.route('/form-sections/edit/<int:section_id>', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_form_section(section_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -212,6 +233,7 @@ def edit_form_section(section_id):
 
 @admin_bp.route('/form-sections/delete/<int:section_id>', methods=['POST'])
 @login_required
+@admin_required
 def delete_form_section(section_id):
     conn = get_db_connection()
     cursor = conn.cursor()

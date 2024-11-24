@@ -20,10 +20,19 @@
             <div class="p-8">
                 <form id="dynamicForm" method="POST" enctype="multipart/form-data" class="space-y-8">
                     {{ form.hidden_tag() }}
-                    <!-- Form Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        {% for field in form_fields %}
-                            <div class="form-group space-y-2 bg-gray-50 p-4 rounded-lg transition-all duration-200 hover:bg-gray-100" 
+                    
+                    {% for section in module.sections if section.is_active %}
+                    <!-- Section: {{ section.name }} -->
+                    <div class="bg-gray-50 p-6 rounded-lg mb-8">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">{{ section.name }}</h3>
+                        {% if section.description %}
+                        <p class="text-gray-600 mb-6">{{ section.description }}</p>
+                        {% endif %}
+                        
+                        <!-- Form Grid for Section Fields -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            {% for field in section.fields if field.is_active %}
+                            <div class="form-group space-y-2 bg-white p-4 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md" 
                                  data-field-name="{{ field.field_name }}"
                                  {% if field.client_type_restrictions %}
                                  data-client-types='{{ field.client_type_restrictions|tojson }}'
@@ -74,95 +83,25 @@
                                             {% endfor %}
                                         {% endif %}
                                     </select>
-                                
-                                {% elif field.field_type == 'radio' %}
-                                    <div class="mt-2 space-y-3">
-                                        {% if field.options %}
-                                            {% for option in field.options %}
-                                                <div class="flex items-center">
-                                                    <input type="radio"
-                                                           id="{{ field.field_name }}_{{ option.value }}"
-                                                           name="{{ field.field_name }}"
-                                                           value="{{ option.value }}"
-                                                           class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary border-gray-300 transition-colors duration-200"
-                                                           {% if field.is_required %}required{% endif %}
-                                                           {% if form_data and field.field_name in form_data and form_data[field.field_name] == option.value|string %}checked{% endif %}>
-                                                    <label for="{{ field.field_name }}_{{ option.value }}"
-                                                           class="ml-3 text-sm font-medium text-gray-900">
-                                                        {{ option.label }}
-                                                    </label>
-                                                </div>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </div>
-
-                                {% elif field.field_type == 'checkbox' %}
-                                    <div class="mt-2 space-y-3">
-                                        {% if field.options %}
-                                            {% for option in field.options %}
-                                                <div class="flex items-center">
-                                                    <input type="checkbox"
-                                                           id="{{ field.field_name }}_{{ option.value }}"
-                                                           name="{{ field.field_name }}[]"
-                                                           value="{{ option.value }}"
-                                                           class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary border-gray-300 rounded transition-colors duration-200"
-                                                           {% if field.is_required %}required{% endif %}
-                                                           {% if form_data and field.field_name in form_data and option.value in form_data[field.field_name] %}checked{% endif %}>
-                                                    <label for="{{ field.field_name }}_{{ option.value }}"
-                                                           class="ml-3 text-sm font-medium text-gray-900">
-                                                        {{ option.label }}
-                                                    </label>
-                                                </div>
-                                            {% endfor %}
-                                        {% else %}
-                                            <div class="flex items-center">
-                                                <input type="checkbox"
-                                                       id="{{ field.field_name }}"
-                                                       name="{{ field.field_name }}"
-                                                       value="1"
-                                                       class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary border-gray-300 rounded transition-colors duration-200"
-                                                       {% if field.is_required %}required{% endif %}
-                                                       {% if form_data and field.field_name in form_data and form_data[field.field_name] == '1' %}checked{% endif %}>
-                                                <label for="{{ field.field_name }}"
-                                                       class="ml-3 text-sm font-medium text-gray-900">
-                                                    {{ field.field_label }}
-                                                </label>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                
-                                {% elif field.field_type == 'date' %}
-                                    <input type="date" 
-                                           id="{{ field.field_name }}" 
-                                           name="{{ field.field_name }}" 
-                                           class="mt-1 block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                           {% if field.is_required %}required{% endif %}
-                                           value="{{ form_data[field.field_name] if form_data and field.field_name in form_data }}">
-                                
-                                {% elif field.field_type == 'file' %}
-                                    <input type="file" 
-                                           id="{{ field.field_name }}" 
-                                           name="{{ field.field_name }}" 
-                                           class="mt-1 block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                           {% if field.is_required %}required{% endif %}
-                                           {% if form_data and field.field_name in form_data %}value="{{ form_data[field.field_name] }}"{% endif %}>
                                 {% endif %}
-                                
+
                                 {% if field.validation_text %}
-                                    <p class="mt-2 text-sm text-gray-500">{{ field.validation_text }}</p>
+                                    <p class="mt-1 text-sm text-gray-500">{{ field.validation_text }}</p>
                                 {% endif %}
                             </div>
-                        {% endfor %}
+                            {% endfor %}
+                        </div>
                     </div>
+                    {% endfor %}
                     
                     <!-- Form Actions -->
                     <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
                         <a href="{{ url_for('user.dashboard') }}" 
-                           class="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                           class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Cancel
                         </a>
-                        <button type="submit"
-                                class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                        <button type="submit" 
+                                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Submit
                         </button>
                     </div>
@@ -175,326 +114,34 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<style>
-/* Select2 Container Styling */
-.select2-container {
-    width: 100% !important;
-}
-
-/* Main Select Box Styling */
-.select2-container--default .select2-selection--single {
-    height: 42px;
-    padding: 6px 12px;
-    background-color: white;
-    border: 1px solid #E5E7EB;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease;
-}
-
-/* Hover effect */
-.select2-container--default .select2-selection--single:hover {
-    border-color: #D1D5DB;
-}
-
-/* Focus effect */
-.select2-container--default.select2-container--focus .select2-selection--single,
-.select2-container--default.select2-container--open .select2-selection--single {
-    border-color: #4F46E5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
-}
-
-/* Dropdown Arrow Styling */
-.select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 40px;
-    right: 8px;
-}
-
-/* Text Styling */
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 28px;
-    color: #374151;
-    font-size: 0.875rem;
-}
-
-.select2-container--default .select2-selection--single .select2-selection__placeholder {
-    color: #9CA3AF;
-}
-
-/* Dropdown Styling */
-.select2-dropdown {
-    border: 1px solid #E5E7EB;
-    border-radius: 0.5rem;
-    background-color: white;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    margin-top: 4px;
-}
-
-/* Search Field Styling */
-.select2-container--default .select2-search--dropdown .select2-search__field {
-    border: 1px solid #E5E7EB;
-    border-radius: 0.375rem;
-    padding: 8px 12px;
-    margin: 8px;
-    width: calc(100% - 16px);
-}
-
-.select2-container--default .select2-search--dropdown .select2-search__field:focus {
-    outline: none;
-    border-color: #4F46E5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
-}
-
-/* Options Styling */
-.select2-results__option {
-    padding: 10px 16px;
-    color: #374151;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-}
-
-.select2-container--default .select2-results__option--highlighted[aria-selected] {
-    background-color: #4F46E5;
-    color: white;
-}
-
-/* Fix for option visibility */
-.select2-container--default .select2-results__option[aria-selected=false] {
-    color: #374151;
-    background-color: white;
-}
-
-.select2-container--default .select2-results__option[aria-selected=true] {
-    background-color: #F3F4F6;
-    color: #374151;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .select2-dropdown {
-        background-color: #1F2937;
-        border-color: #374151;
-    }
-    
-    .select2-container--default .select2-results__option {
-        color: #E5E7EB;
-    }
-    
-    .select2-container--default .select2-results__option[aria-selected=false] {
-        color: #E5E7EB;
-        background-color: #1F2937;
-    }
-    
-    .select2-container--default .select2-results__option[aria-selected=true] {
-        background-color: #374151;
-        color: #E5E7EB;
-    }
-    
-    .select2-container--default .select2-results__option--highlighted[aria-selected] {
-        background-color: #4F46E5;
-        color: white;
-    }
-    
-    .select2-container--default .select2-search--dropdown .select2-search__field {
-        background-color: #1F2937;
-        color: #E5E7EB;
-        border-color: #374151;
-    }
-}
-</style>
-
 <script>
-$(document).ready(function() {
-    // Initialize Select2 for all select elements
-    $('.select2').select2({
-        theme: 'classic',
-        width: '100%',
-        allowClear: true
-    });
-
-    // Handle county change
-    $('#county').on('change', function() {
-        const selectedCounty = $(this).val();
-        const subCountySelect = $('#sub_county');
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('dynamicForm');
+        const clientTypeSelect = document.querySelector('select[name="client_type"]');
         
-        // Clear and disable sub-county field initially
-        subCountySelect.empty().prop('disabled', true);
-        subCountySelect.append(new Option('Select Sub-County', '', true, true));
-        
-        if (selectedCounty) {
-            // Show loading state
-            subCountySelect.append(new Option('Loading...', ''));
+        // Function to update field visibility based on client type
+        function updateFieldVisibility(selectedClientTypeId) {
+            const formGroups = document.querySelectorAll('.form-group[data-client-types]');
             
-            // Fetch sub-counties for selected county
-            $.ajax({
-                url: `/user/get_sub_counties/${encodeURIComponent(selectedCounty)}`,
-                method: 'GET',
-                success: function(response) {
-                    // Clear loading state
-                    subCountySelect.empty();
-                    subCountySelect.append(new Option('Select Sub-County', '', true, true));
-                    
-                    if (response.success) {
-                        // Enable sub-county field
-                        subCountySelect.prop('disabled', false);
-                        
-                        // Add sub-county options
-                        response.data.forEach(function(subCounty) {
-                            subCountySelect.append(new Option(subCounty, subCounty));
-                        });
-                    } else {
-                        console.error('Error:', response.message);
-                        subCountySelect.append(new Option('Error loading sub-counties', ''));
-                    }
-                    
-                    // Trigger change for Select2
-                    subCountySelect.trigger('change');
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching sub-counties:', error);
-                    // Show error in dropdown
-                    subCountySelect.empty();
-                    subCountySelect.append(new Option('Error loading sub-counties', ''));
-                    subCountySelect.prop('disabled', true);
-                    subCountySelect.trigger('change');
+            formGroups.forEach(group => {
+                const allowedTypes = JSON.parse(group.dataset.clientTypes || '[]');
+                if (allowedTypes.length === 0 || allowedTypes.includes(parseInt(selectedClientTypeId))) {
+                    group.style.display = 'block';
+                } else {
+                    group.style.display = 'none';
                 }
             });
         }
+        
+        // Initialize field visibility
+        if (clientTypeSelect) {
+            updateFieldVisibility(clientTypeSelect.value);
+            
+            // Update visibility when client type changes
+            clientTypeSelect.addEventListener('change', function() {
+                updateFieldVisibility(this.value);
+            });
+        }
     });
-
-    // Get all form groups and client type select
-    const formGroups = document.querySelectorAll('.form-group');
-    const clientTypeSelect = document.querySelector('#client_type');
-
-    function updateFieldVisibility(selectedClientTypeId) {
-        console.log('------- Field Visibility Update -------');
-        console.log('Selected Client Type ID:', selectedClientTypeId);
-        
-        // Convert selectedClientTypeId to number if it's a string
-        selectedClientTypeId = selectedClientTypeId ? parseInt(selectedClientTypeId) : null;
-        console.log('Parsed Client Type ID:', selectedClientTypeId);
-        
-        formGroups.forEach(group => {
-            const fieldName = group.dataset.fieldName;
-            console.log(`\nProcessing field: ${fieldName}`);
-            
-            // Get client type restrictions
-            let allowedTypes = null;
-            try {
-                const restrictionsStr = group.dataset.clientTypes;
-                if (restrictionsStr) {
-                    allowedTypes = JSON.parse(restrictionsStr).map(Number); // Convert to numbers
-                    console.log('- Has restrictions:', allowedTypes);
-                } else {
-                    console.log('- No restrictions');
-                }
-            } catch (e) {
-                console.error('Error parsing client types for field:', fieldName, e);
-                return;
-            }
-            
-            // Get input element
-            const input = group.querySelector('input, select, textarea');
-            const isRequired = group.querySelector('.text-red-500') !== null;
-            
-            // Determine visibility
-            let shouldShow = true;
-            
-            // If field has restrictions
-            if (allowedTypes !== null) {
-                if (!selectedClientTypeId) {
-                    // When no client type is selected, hide restricted fields
-                    shouldShow = false;
-                    console.log('- Hiding because no client type selected');
-                } else {
-                    // When a client type is selected, show only if it's in the allowed types
-                    shouldShow = allowedTypes.includes(selectedClientTypeId);
-                    console.log(`- Client type ${selectedClientTypeId} ${shouldShow ? 'is' : 'is not'} in allowed types:`, allowedTypes);
-                }
-            } else {
-                console.log('- Always visible (no restrictions)');
-            }
-            
-            console.log(`- Final visibility: ${shouldShow ? 'SHOW' : 'HIDE'}`);
-            
-            // Update visibility and required status
-            if (shouldShow) {
-                group.style.display = '';  // Use default display value
-                if (input) {
-                    input.required = isRequired;
-                }
-            } else {
-                group.style.display = 'none';
-                if (input) {
-                    input.required = false;
-                    
-                    // Clear value when hiding the field
-                    if (input.type === 'checkbox' || input.type === 'radio') {
-                        input.checked = false;
-                    } else if (input.tagName === 'SELECT') {
-                        input.value = '';
-                        $(input).trigger('change'); // Trigger change for Select2
-                    } else {
-                        input.value = '';
-                    }
-                }
-            }
-        });
-        console.log('------- End Field Visibility Update -------');
-    }
-    
-    // Initialize fields visibility
-    if (clientTypeSelect) {
-        console.log('Initial Client Type Value:', clientTypeSelect.value);
-        
-        // Initial update
-        updateFieldVisibility(clientTypeSelect.value);
-        
-        // Update on change
-        clientTypeSelect.addEventListener('change', function() {
-            console.log('Client Type Changed:', this.value);
-            updateFieldVisibility(this.value);
-        });
-        
-        // Also update on Select2 change event
-        $(clientTypeSelect).on('select2:select select2:unselect', function(e) {
-            console.log('Select2 Change Event:', this.value);
-            updateFieldVisibility(this.value);
-        });
-    }
-    
-    // Handle sub-county population when county changes
-    const countySelect = document.querySelector('#county');
-    const subCountySelect = document.querySelector('#sub_county');
-    
-    if (countySelect && subCountySelect) {
-        countySelect.addEventListener('change', function() {
-            const county = this.value;
-            if (county) {
-                fetch(`/user/get_sub_counties/${encodeURIComponent(county)}`)
-                    .then(response => response.json())
-                    .then(subCounties => {
-                        // Clear current options
-                        subCountySelect.innerHTML = '<option value="">Select Sub-County</option>';
-                        
-                        // Add new options
-                        subCounties.forEach(subCounty => {
-                            const option = document.createElement('option');
-                            option.value = subCounty;
-                            option.textContent = subCounty;
-                            subCountySelect.appendChild(option);
-                        });
-                        
-                        // Refresh Select2
-                        $(subCountySelect).trigger('change');
-                    })
-                    .catch(error => console.error('Error fetching sub-counties:', error));
-            }
-        });
-    }
-});
 </script>
 {% endblock %}

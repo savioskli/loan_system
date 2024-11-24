@@ -37,6 +37,7 @@ class FormField(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     module_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
+    section_id = db.Column(db.Integer, db.ForeignKey('form_sections.id', ondelete='CASCADE'))
     field_name = db.Column(db.String(100), nullable=False)
     field_label = db.Column(db.String(100), nullable=False)
     field_placeholder = db.Column(db.String(200))

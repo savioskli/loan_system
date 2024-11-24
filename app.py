@@ -5,6 +5,7 @@ from extensions import db, migrate, login_manager, init_extensions
 from datetime import datetime, timedelta
 import logging
 import os
+import traceback
 from werkzeug.utils import secure_filename
 from functools import wraps
 from models.staff import Staff
@@ -12,6 +13,7 @@ from models.system_settings import SystemSettings
 from models.activity_log import ActivityLog
 from models.branch import Branch
 from models.role import Role
+from models.module import Module, FormField
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, FileField, DateField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
@@ -27,11 +29,12 @@ from routes.admin import admin_bp
 from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
+from routes.section_routes import sections_bp
+from routes.settings import settings_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
 from flask import g
-from models.activity_log import ActivityLog
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -53,6 +56,12 @@ csrf = CSRFProtect()
 # Initialize application
 def create_app():
     app = Flask(__name__)
+
+    @app.errorhandler(Exception)
+    def handle_error(error):
+        app.logger.error(f'Unhandled exception: {str(error)}', exc_info=True)
+        traceback.print_exc()
+        return 'An error occurred', 500
 
     # Configuration
     app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -112,6 +121,8 @@ def create_app():
     app.register_blueprint(modules_bp, url_prefix='/modules')  
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(products_bp)  
+    app.register_blueprint(sections_bp)  
+    app.register_blueprint(settings_bp)
 
     # Activity logging for admin routes
     @app.before_request

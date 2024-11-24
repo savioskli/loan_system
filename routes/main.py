@@ -9,6 +9,7 @@ from models.role import Role
 from forms.admin_forms import SystemSettingsForm
 from extensions import db
 from utils.logging_utils import log_activity
+from utils.decorators import admin_required
 import logging
 import traceback
 from werkzeug.utils import secure_filename
@@ -226,171 +227,68 @@ def client_reports():
         return render_template('errors/500.html'), 500
 
 # Activity Monitoring Routes
-class Pagination:
-    def __init__(self, items, page, per_page, total, activities):
-        self.items = items
-        self.page = page
-        self.per_page = per_page
-        self.total = total
-        self.activities = activities
-        self.pages = (total + per_page - 1) // per_page
-
-    def iter_pages(self):
-        for i in range(1, self.pages + 1):
-            yield i
-
 @main_bp.route('/admin/activity-monitoring/activities')
 @login_required
+@admin_required
 def activity_logs():
-    try:
-        logger.info("Starting activity_logs route")
-        
-        if not current_user.role.name.lower() == 'admin':
-            flash('You do not have permission to access this page.', 'error')
-            return redirect(url_for('main.dashboard'))
-        
-        logger.info("User has admin permission")
-        
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
-        
-        # Get filter parameters
-        user_id = request.args.get('user_id', type=int)
-        action = request.args.get('action')
-        date_from = request.args.get('date_from')
-        date_to = request.args.get('date_to')
-        
-        logger.info(f"Filter params - user_id: {user_id}, action: {action}, date_from: {date_from}, date_to: {date_to}")
-        
-        try:
-            # Build base query with staff relationship
-            stmt = select(ActivityLog).options(
-                joinedload(ActivityLog.staff)
-            ).order_by(ActivityLog.timestamp.desc())
-            
-            # Apply filters
-            if user_id:
-                stmt = stmt.where(ActivityLog.user_id == user_id)
-            if action:
-                stmt = stmt.where(ActivityLog.action == action)
-            if date_from:
-                try:
-                    from_date = datetime.strptime(date_from, '%Y-%m-%d')
-                    stmt = stmt.where(ActivityLog.timestamp >= from_date)
-                except ValueError as e:
-                    logger.error(f"Invalid date_from format: {e}")
-                    flash('Invalid date format for From Date', 'error')
-            if date_to:
-                try:
-                    to_date = datetime.strptime(date_to, '%Y-%m-%d')
-                    to_date = to_date.replace(hour=23, minute=59, second=59)
-                    stmt = stmt.where(ActivityLog.timestamp <= to_date)
-                except ValueError as e:
-                    logger.error(f"Invalid date_to format: {e}")
-                    flash('Invalid date format for To Date', 'error')
-            
-            # Execute query to get total count
-            total = db.session.scalar(select(func.count()).select_from(stmt.subquery()))
-            logger.info(f"Total records found: {total}")
-            
-            # Get paginated results
-            logger.info("Attempting pagination")
-            offset = (page - 1) * per_page
-            activities = db.session.execute(
-                stmt.offset(offset).limit(per_page)
-            ).scalars().all()
-            
-            # Create pagination object manually
-            pagination = Pagination(None, page, per_page, total, activities)
-            logger.info(f"Pagination successful - total items: {len(activities)}")
-            
-            # Get distinct actions for filter dropdown (excluding sensitive actions)
-            sensitive_actions = ['login', 'password_change', 'role_change', 'user_create', 'user_delete']
-            actions_query = select(ActivityLog.action).where(
-                ~ActivityLog.action.in_(sensitive_actions)
-            ).distinct()
-            
-            actions = [action[0] for action in db.session.execute(actions_query).all()]
-            logger.info(f"Found {len(actions)} distinct actions")
-            
-            # Get users for filter dropdown
-            users = db.session.execute(select(Staff)).scalars().all()
-            logger.info(f"Found {len(users)} users for dropdown")
-            
-            return render_template('admin/activity_logs.html',
-                                activities=pagination,
-                                actions=actions,
-                                users=users)
-                                
-        except Exception as e:
-            logger.error(f"Database error: {str(e)}\n{traceback.format_exc()}")
-            db.session.rollback()
-            flash('Error accessing activity logs data', 'error')
-            return render_template('admin/activity_logs.html',
-                                activities=None,
-                                actions=[],
-                                users=[])
-            
-    except Exception as e:
-        logger.error(f"Error in activity logs: {str(e)}\n{traceback.format_exc()}")
-        flash('An error occurred while loading activity logs', 'error')
-        return render_template('admin/activity_logs.html',
-                             activities=None,
-                             actions=[],
-                             users=[])
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # Get filter parameters
+    user_id = request.args.get('user_id', type=int)
+    action = request.args.get('action')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    # Build query
+    query = ActivityLog.query
+
+    if user_id:
+        query = query.filter(ActivityLog.user_id == user_id)
+    if action:
+        query = query.filter(ActivityLog.action == action)
+    if date_from:
+        query = query.filter(ActivityLog.created_at >= datetime.strptime(date_from, '%Y-%m-%d'))
+    if date_to:
+        query = query.filter(ActivityLog.created_at <= datetime.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+
+    # Get unique actions for filter dropdown
+    actions = db.session.query(ActivityLog.action).distinct().all()
+    actions = [action[0] for action in actions]
+
+    # Get users for filter dropdown
+    users = Staff.query.all()
+
+    # Paginate results
+    activities = query.order_by(desc(ActivityLog.created_at)).paginate(page=page, per_page=per_page)
+
+    return render_template('admin/activity_logs.html',
+                         activities=activities,
+                         users=users,
+                         actions=actions)
 
 @main_bp.route('/admin/activity-monitoring/audit')
 @login_required
+@admin_required
 def audit_trail():
     try:
-        if not current_user.role.name.lower() == 'admin':
-            flash('You do not have permission to access this page.', 'error')
-            return redirect(url_for('main.dashboard'))
-        
         page = request.args.get('page', 1, type=int)
         per_page = 20
         
         # Get filter parameters
         user_id = request.args.get('user_id', type=int)
-        action = request.args.get('action')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
-        # Build query for sensitive operations only
-        sensitive_actions = ['login', 'password_change', 'role_change', 'user_create', 'user_delete']
-        query = select(ActivityLog).where(ActivityLog.action.in_(sensitive_actions))
+        flash('Audit trail feature is not yet fully implemented.', 'info')
+        return redirect(url_for('admin.dashboard'))
         
-        if user_id:
-            query = query.where(ActivityLog.user_id == user_id)
-        if action:
-            query = query.where(ActivityLog.action == action)
-        if date_from:
-            query = query.where(ActivityLog.timestamp >= datetime.strptime(date_from, '%Y-%m-%d'))
-        if date_to:
-            query = query.where(ActivityLog.timestamp <= datetime.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
-            
-        # Get distinct actions for filter dropdown
-        actions = db.session.execute(select(ActivityLog.action).where(ActivityLog.action.in_(sensitive_actions)).distinct()).all()
-        actions = [action[0] for action in actions]
-        
-        # Get users for filter dropdown
-        users = db.session.execute(select(Staff)).scalars().all()
-        
-        # Execute paginated query
-        audit_logs = db.paginate(
-            query.order_by(ActivityLog.timestamp.desc()),
-            page=page,
-            per_page=per_page,
-            error_out=False
-        )
-        
-        return render_template('admin/audit_trail.html',
-                             audit_logs=audit_logs,
-                             actions=actions,
-                             users=users)
     except Exception as e:
         logger.error(f"Error in audit trail: {str(e)}\n{traceback.format_exc()}")
-        return render_template('errors/500.html'), 500
+        flash('An error occurred while loading audit trail', 'error')
+        return render_template('admin/audit_trail.html',
+                             logs=None,
+                             users=[])
 
 @main_bp.route('/admin/activity-monitoring/system-logs')
 @login_required

@@ -1,0 +1,6363 @@
+{
+  "schema": {
+    "activity_logs": "\nCREATE TABLE activity_logs (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tuser_id INTEGER NOT NULL, \n\taction VARCHAR(50) NOT NULL, \n\tdetails VARCHAR(255), \n\tip_address VARCHAR(45), \n\ttimestamp DATETIME, \n\tPRIMARY KEY (id), \n\tCONSTRAINT activity_logs_ibfk_1 FOREIGN KEY(user_id) REFERENCES staff (id) ON DELETE CASCADE\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "staff": "\nCREATE TABLE staff (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tusername VARCHAR(50) NOT NULL, \n\temail VARCHAR(100) NOT NULL, \n\tfirst_name VARCHAR(50) NOT NULL, \n\tlast_name VARCHAR(50) NOT NULL, \n\tphone VARCHAR(20), \n\tpassword_hash VARCHAR(255) NOT NULL, \n\trole_id INTEGER NOT NULL, \n\tstatus VARCHAR(20) NOT NULL DEFAULT 'pending', \n\tis_active TINYINT(1) NOT NULL DEFAULT '1', \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tapproved_by_id INTEGER, \n\tapproved_at DATETIME, \n\tlast_login DATETIME, \n\tbranch_id INTEGER, \n\tPRIMARY KEY (id), \n\tCONSTRAINT fk_staff_branch FOREIGN KEY(branch_id) REFERENCES branches (id) ON DELETE RESTRICT, \n\tCONSTRAINT staff_ibfk_1 FOREIGN KEY(role_id) REFERENCES roles (id) ON DELETE RESTRICT, \n\tCONSTRAINT staff_ibfk_2 FOREIGN KEY(approved_by_id) REFERENCES staff (id) ON DELETE RESTRICT\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "branches": "\nCREATE TABLE branches (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tname VARCHAR(100) NOT NULL, \n\tcode VARCHAR(20) NOT NULL, \n\taddress VARCHAR(200), \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tcreated_by INTEGER, \n\tupdated_by INTEGER, \n\tis_active TINYINT(1) DEFAULT '1', \n\tPRIMARY KEY (id), \n\tCONSTRAINT branches_ibfk_1 FOREIGN KEY(created_by) REFERENCES staff (id) ON DELETE RESTRICT, \n\tCONSTRAINT branches_ibfk_2 FOREIGN KEY(updated_by) REFERENCES staff (id) ON DELETE RESTRICT\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "roles": "\nCREATE TABLE roles (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tname VARCHAR(50) NOT NULL, \n\tcode VARCHAR(20) NOT NULL, \n\tdescription VARCHAR(200), \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tcreated_by INTEGER, \n\tupdated_by INTEGER, \n\tis_active TINYINT(1) NOT NULL DEFAULT '1', \n\tPRIMARY KEY (id), \n\tCONSTRAINT fk_roles_created_by FOREIGN KEY(created_by) REFERENCES staff (id) ON DELETE RESTRICT, \n\tCONSTRAINT fk_roles_updated_by FOREIGN KEY(updated_by) REFERENCES staff (id) ON DELETE RESTRICT\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "alembic_version": "\nCREATE TABLE alembic_version (\n\tversion_num VARCHAR(32) NOT NULL, \n\tPRIMARY KEY (version_num)\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "client_types": "\nCREATE TABLE client_types (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tclient_name VARCHAR(100), \n\tclient_code VARCHAR(20), \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tcreated_by INTEGER NOT NULL, \n\tupdated_by INTEGER NOT NULL, \n\teffective_from DATE, \n\teffective_to DATE, \n\tstatus TINYINT(1) DEFAULT '1', \n\tPRIMARY KEY (id), \n\tCONSTRAINT client_types_ibfk_1 FOREIGN KEY(created_by) REFERENCES staff (id) ON DELETE RESTRICT, \n\tCONSTRAINT client_types_ibfk_2 FOREIGN KEY(updated_by) REFERENCES staff (id) ON DELETE RESTRICT\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "clients": "\nCREATE TABLE clients (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tclient_type_id INTEGER NOT NULL, \n\tform_data JSON NOT NULL, \n\tfiles JSON, \n\tstatus VARCHAR(20) DEFAULT 'Pending', \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tcreated_by INTEGER NOT NULL, \n\tupdated_by INTEGER NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT clients_ibfk_1 FOREIGN KEY(client_type_id) REFERENCES client_types (id) ON DELETE RESTRICT, \n\tCONSTRAINT clients_ibfk_2 FOREIGN KEY(created_by) REFERENCES staff (id) ON DELETE RESTRICT, \n\tCONSTRAINT clients_ibfk_3 FOREIGN KEY(updated_by) REFERENCES staff (id) ON DELETE RESTRICT\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "form_data_clm01": "\nCREATE TABLE form_data_clm01 (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tuser_id INTEGER NOT NULL, \n\tsubmission_date DATETIME NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tclient_type_id INTEGER, \n\tclient_type VARCHAR(255) NOT NULL, \n\tpurpose_of_visit VARCHAR(255) NOT NULL, \n\tpurpose_description VARCHAR(1000), \n\tproduct VARCHAR(255) NOT NULL, \n\tfirst_name VARCHAR(255) NOT NULL, \n\tmiddle_name VARCHAR(255), \n\tlast_name VARCHAR(255) NOT NULL, \n\tgender VARCHAR(255) NOT NULL, \n\tid_type VARCHAR(255) NOT NULL, \n\tid_number VARCHAR(255) NOT NULL, \n\tserial_number VARCHAR(255), \n\tcompany_name VARCHAR(255), \n\tbirth_date DATETIME, \n\tmember_count FLOAT, \n\tpostal_address VARCHAR(255) NOT NULL, \n\tpostal_code VARCHAR(255) NOT NULL, \n\tpostal_town VARCHAR(255) NOT NULL, \n\tmobile_phone VARCHAR(20) NOT NULL, \n\temail VARCHAR(255), \n\tcounty VARCHAR(255) NOT NULL, \n\tsub_county VARCHAR(255) NOT NULL, \n\tward VARCHAR(255), \n\tvillage VARCHAR(255), \n\ttrade_center VARCHAR(255), \n\tkra_pin VARCHAR(255), \n\tPRIMARY KEY (id), \n\tCONSTRAINT form_data_clm01_ibfk_1 FOREIGN KEY(user_id) REFERENCES staff (id), \n\tCONSTRAINT form_data_clm01_ibfk_2 FOREIGN KEY(client_type_id) REFERENCES client_types (id)\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "form_data_clm02": "\nCREATE TABLE form_data_clm02 (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tuser_id INTEGER NOT NULL, \n\tsubmission_date DATETIME NOT NULL, \n\tstatus VARCHAR(20) NOT NULL DEFAULT 'pending', \n\tclient_type_id INTEGER, \n\tclient_type VARCHAR(255), \n\tmarital_status VARCHAR(255) NOT NULL, \n\tspouse_name VARCHAR(255), \n\tspouse_id_type VARCHAR(255), \n\tspouse_id_number VARCHAR(255), \n\tchildren_below_12 FLOAT, \n\tchildren_13_to_18 FLOAT, \n\tchildren_above_18 FLOAT, \n\tdependants FLOAT, \n\tnok_first_name VARCHAR(255) NOT NULL, \n\tnok_middle_name VARCHAR(255), \n\tnok_last_name VARCHAR(255) NOT NULL, \n\tnok_id_type VARCHAR(255) NOT NULL, \n\tnok_id_number VARCHAR(255) NOT NULL, \n\tnok_postal_address VARCHAR(255) NOT NULL, \n\tnok_postal_code VARCHAR(255) NOT NULL, \n\tnok_postal_town VARCHAR(255), \n\tnok_mobile_phone VARCHAR(20) NOT NULL, \n\toccupation VARCHAR(255) NOT NULL, \n\toccupation_type VARCHAR(255) NOT NULL, \n\temployer_name VARCHAR(255), \n\tbusiness_address VARCHAR(255), \n\tbusiness_phone VARCHAR(20), \n\tbusiness_email VARCHAR(255), \n\tprofessional_membership VARCHAR(255), \n\tclub_membership VARCHAR(255), \n\tPRIMARY KEY (id), \n\tCONSTRAINT form_data_clm02_ibfk_1 FOREIGN KEY(user_id) REFERENCES staff (id), \n\tCONSTRAINT form_data_clm02_ibfk_2 FOREIGN KEY(client_type_id) REFERENCES client_types (id)\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "form_fields": "\nCREATE TABLE form_fields (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tmodule_id INTEGER NOT NULL, \n\tfield_name VARCHAR(100) NOT NULL, \n\tfield_label VARCHAR(100) NOT NULL, \n\tfield_placeholder VARCHAR(200), \n\tfield_type VARCHAR(50) NOT NULL, \n\tvalidation_text VARCHAR(200), \n\tis_required TINYINT(1), \n\tfield_order INTEGER, \n\toptions JSON, \n\tvalidation_rules JSON, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tclient_type_restrictions JSON COMMENT 'List of client type IDs that can see this field', \n\tsection_id INTEGER, \n\tPRIMARY KEY (id), \n\tCONSTRAINT fk_form_fields_section FOREIGN KEY(section_id) REFERENCES form_sections (id) ON DELETE CASCADE, \n\tCONSTRAINT form_fields_ibfk_1 FOREIGN KEY(module_id) REFERENCES modules (id) ON DELETE CASCADE\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "form_sections": "\nCREATE TABLE form_sections (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tmodule_id INTEGER NOT NULL, \n\tname VARCHAR(100) NOT NULL, \n\tdescription TEXT, \n\t`order` INTEGER NOT NULL DEFAULT '0', \n\tis_active TINYINT(1) NOT NULL DEFAULT '1', \n\tcreated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tPRIMARY KEY (id), \n\tCONSTRAINT form_sections_ibfk_1 FOREIGN KEY(module_id) REFERENCES modules (id) ON DELETE CASCADE\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "modules": "\nCREATE TABLE modules (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tname VARCHAR(100) NOT NULL, \n\tcode VARCHAR(50) NOT NULL, \n\tdescription TEXT, \n\tparent_id INTEGER, \n\tis_active TINYINT(1), \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tCONSTRAINT modules_ibfk_1 FOREIGN KEY(parent_id) REFERENCES modules (id) ON DELETE CASCADE\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "products": "\nCREATE TABLE products (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tname VARCHAR(100) NOT NULL, \n\tcode VARCHAR(10) NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tinterest_rate VARCHAR(10) NOT NULL, \n\trate_method VARCHAR(20), \n\tprocessing_fee VARCHAR(50), \n\tmaintenance_fee VARCHAR(50), \n\tinsurance_fee VARCHAR(20), \n\tfrequency VARCHAR(10), \n\tmin_amount DECIMAL(20, 2) NOT NULL, \n\tmax_amount DECIMAL(20, 2) NOT NULL, \n\tmin_term INTEGER NOT NULL, \n\tmax_term INTEGER NOT NULL, \n\tcollateral TEXT, \n\tincome_statement TEXT, \n\tcreated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, \n\tupdated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \n\tPRIMARY KEY (id)\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n",
+    "system_settings": "\nCREATE TABLE system_settings (\n\tid INTEGER NOT NULL AUTO_INCREMENT, \n\tsetting_key VARCHAR(100) NOT NULL, \n\tsetting_value TEXT, \n\tsetting_type VARCHAR(20), \n\tcategory VARCHAR(50), \n\tdescription VARCHAR(200), \n\tupdated_at DATETIME, \n\tupdated_by INTEGER, \n\tcreated_at DATETIME, \n\tcreated_by INTEGER, \n\tPRIMARY KEY (id), \n\tCONSTRAINT system_settings_ibfk_1 FOREIGN KEY(created_by) REFERENCES staff (id), \n\tCONSTRAINT system_settings_ibfk_2 FOREIGN KEY(updated_by) REFERENCES staff (id)\n)ENGINE=InnoDB COLLATE utf8mb4_0900_ai_ci DEFAULT CHARSET=utf8mb4\n\n"
+  },
+  "data": {
+    "activity_logs": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:33:31"
+      },
+      {
+        "id": 2,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:33:31"
+      },
+      {
+        "id": 3,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:33:44"
+      },
+      {
+        "id": 4,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:33:44"
+      },
+      {
+        "id": 5,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:35:28"
+      },
+      {
+        "id": 6,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:35:38"
+      },
+      {
+        "id": 7,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:35:42"
+      },
+      {
+        "id": 8,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 9,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 10,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 11,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 12,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 13,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 14,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 15,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 16,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 17,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:16"
+      },
+      {
+        "id": 18,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:17"
+      },
+      {
+        "id": 19,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:17"
+      },
+      {
+        "id": 20,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:17"
+      },
+      {
+        "id": 21,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:17"
+      },
+      {
+        "id": 22,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 23,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 24,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 25,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 26,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 27,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:18"
+      },
+      {
+        "id": 28,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 29,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 30,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 31,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 32,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 33,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 34,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 35,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 36,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:20"
+      },
+      {
+        "id": 37,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:21"
+      },
+      {
+        "id": 38,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 39,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 40,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 41,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 42,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 43,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 44,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 45,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 46,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 47,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:26"
+      },
+      {
+        "id": 48,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 49,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 50,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 51,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 52,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 53,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 54,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 55,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 56,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 57,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:34"
+      },
+      {
+        "id": 58,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:54"
+      },
+      {
+        "id": 59,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:54"
+      },
+      {
+        "id": 60,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 61,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 62,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 63,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 64,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 65,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 66,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 67,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:37:55"
+      },
+      {
+        "id": 68,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 69,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 70,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 71,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 72,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 73,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 74,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 75,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 76,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 77,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:38:25"
+      },
+      {
+        "id": 78,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:39:26"
+      },
+      {
+        "id": 79,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:39:31"
+      },
+      {
+        "id": 80,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:39:33"
+      },
+      {
+        "id": 81,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:40:09"
+      },
+      {
+        "id": 82,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:40:13"
+      },
+      {
+        "id": 83,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:40:15"
+      },
+      {
+        "id": 84,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:40:15"
+      },
+      {
+        "id": 85,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:41:56"
+      },
+      {
+        "id": 86,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:41:59"
+      },
+      {
+        "id": 87,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:42:01"
+      },
+      {
+        "id": 88,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:42:04"
+      },
+      {
+        "id": 89,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:42:09"
+      },
+      {
+        "id": 90,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:43:00"
+      },
+      {
+        "id": 91,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:43:10"
+      },
+      {
+        "id": 92,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:43:16"
+      },
+      {
+        "id": 93,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:43:18"
+      },
+      {
+        "id": 94,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:43:20"
+      },
+      {
+        "id": 95,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:46:22"
+      },
+      {
+        "id": 96,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:48:04"
+      },
+      {
+        "id": 97,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:48:04"
+      },
+      {
+        "id": 98,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:48:46"
+      },
+      {
+        "id": 99,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:48:46"
+      },
+      {
+        "id": 100,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:49:08"
+      },
+      {
+        "id": 101,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:49:08"
+      },
+      {
+        "id": 102,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:49:51"
+      },
+      {
+        "id": 103,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:49:51"
+      },
+      {
+        "id": 104,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:49:54"
+      },
+      {
+        "id": 105,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:50:37"
+      },
+      {
+        "id": 106,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:50:37"
+      },
+      {
+        "id": 107,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:50:37"
+      },
+      {
+        "id": 108,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:14"
+      },
+      {
+        "id": 109,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:14"
+      },
+      {
+        "id": 110,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:20"
+      },
+      {
+        "id": 111,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:20"
+      },
+      {
+        "id": 112,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:25"
+      },
+      {
+        "id": 113,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:25"
+      },
+      {
+        "id": 114,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:52:31"
+      },
+      {
+        "id": 115,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:53:50"
+      },
+      {
+        "id": 116,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:53:59"
+      },
+      {
+        "id": 117,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:53:59"
+      },
+      {
+        "id": 118,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:53:59"
+      },
+      {
+        "id": 119,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:56:51"
+      },
+      {
+        "id": 120,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:00"
+      },
+      {
+        "id": 121,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:00"
+      },
+      {
+        "id": 122,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:09"
+      },
+      {
+        "id": 123,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:09"
+      },
+      {
+        "id": 124,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:14"
+      },
+      {
+        "id": 125,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:14"
+      },
+      {
+        "id": 126,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:20"
+      },
+      {
+        "id": 127,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:20"
+      },
+      {
+        "id": 128,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:24"
+      },
+      {
+        "id": 129,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T10:57:24"
+      },
+      {
+        "id": 130,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:14"
+      },
+      {
+        "id": 131,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:14"
+      },
+      {
+        "id": 132,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:25"
+      },
+      {
+        "id": 133,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:25"
+      },
+      {
+        "id": 134,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:36"
+      },
+      {
+        "id": 135,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:01:36"
+      },
+      {
+        "id": 136,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:09"
+      },
+      {
+        "id": 137,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:09"
+      },
+      {
+        "id": 138,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:13"
+      },
+      {
+        "id": 139,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:13"
+      },
+      {
+        "id": 140,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:17"
+      },
+      {
+        "id": 141,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:17"
+      },
+      {
+        "id": 142,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:45"
+      },
+      {
+        "id": 143,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:04:45"
+      },
+      {
+        "id": 144,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:05:06"
+      },
+      {
+        "id": 145,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:05:08"
+      },
+      {
+        "id": 146,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:05:08"
+      },
+      {
+        "id": 147,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:05:23"
+      },
+      {
+        "id": 148,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:05:23"
+      },
+      {
+        "id": 149,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:06:19"
+      },
+      {
+        "id": 150,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:06:21"
+      },
+      {
+        "id": 151,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:06:21"
+      },
+      {
+        "id": 152,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:09:37"
+      },
+      {
+        "id": 153,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:09:37"
+      },
+      {
+        "id": 154,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:09:38"
+      },
+      {
+        "id": 155,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:09:38"
+      },
+      {
+        "id": 156,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:11:11"
+      },
+      {
+        "id": 157,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:11:11"
+      },
+      {
+        "id": 158,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:12:47"
+      },
+      {
+        "id": 159,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:12:47"
+      },
+      {
+        "id": 160,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:12:53"
+      },
+      {
+        "id": 161,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:12:53"
+      },
+      {
+        "id": 162,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:13:13"
+      },
+      {
+        "id": 163,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:13:13"
+      },
+      {
+        "id": 164,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:15"
+      },
+      {
+        "id": 165,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:16"
+      },
+      {
+        "id": 166,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:21"
+      },
+      {
+        "id": 167,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:21"
+      },
+      {
+        "id": 168,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:57"
+      },
+      {
+        "id": 169,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:14:57"
+      },
+      {
+        "id": 170,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:16:12"
+      },
+      {
+        "id": 171,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:16:12"
+      },
+      {
+        "id": 172,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:19:48"
+      },
+      {
+        "id": 173,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:19:48"
+      },
+      {
+        "id": 174,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:24:27"
+      },
+      {
+        "id": 175,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:24:27"
+      },
+      {
+        "id": 176,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:24:32"
+      },
+      {
+        "id": 177,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:24:32"
+      },
+      {
+        "id": 178,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:03"
+      },
+      {
+        "id": 179,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:03"
+      },
+      {
+        "id": 180,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:06"
+      },
+      {
+        "id": 181,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:10"
+      },
+      {
+        "id": 182,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:10"
+      },
+      {
+        "id": 183,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:23"
+      },
+      {
+        "id": 184,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:23"
+      },
+      {
+        "id": 185,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:27"
+      },
+      {
+        "id": 186,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:29"
+      },
+      {
+        "id": 187,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:25:29"
+      },
+      {
+        "id": 188,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:29:20"
+      },
+      {
+        "id": 189,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:29:20"
+      },
+      {
+        "id": 190,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:34:26"
+      },
+      {
+        "id": 191,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:34:26"
+      },
+      {
+        "id": 192,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:40:47"
+      },
+      {
+        "id": 193,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:40:47"
+      },
+      {
+        "id": 194,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:41:36"
+      },
+      {
+        "id": 195,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:41:36"
+      },
+      {
+        "id": 196,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:43:17"
+      },
+      {
+        "id": 197,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:43:17"
+      },
+      {
+        "id": 198,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:44:39"
+      },
+      {
+        "id": 199,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:44:39"
+      },
+      {
+        "id": 200,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:54:14"
+      },
+      {
+        "id": 201,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:54:14"
+      },
+      {
+        "id": 202,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:55:07"
+      },
+      {
+        "id": 203,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:55:07"
+      },
+      {
+        "id": 204,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:56:25"
+      },
+      {
+        "id": 205,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:56:25"
+      },
+      {
+        "id": 206,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:57:39"
+      },
+      {
+        "id": 207,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:57:39"
+      },
+      {
+        "id": 208,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:58:32"
+      },
+      {
+        "id": 209,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T11:58:32"
+      },
+      {
+        "id": 210,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:00:57"
+      },
+      {
+        "id": 211,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:00:57"
+      },
+      {
+        "id": 212,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:02:26"
+      },
+      {
+        "id": 213,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:02:26"
+      },
+      {
+        "id": 214,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:04:12"
+      },
+      {
+        "id": 215,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:04:12"
+      },
+      {
+        "id": 216,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:05:27"
+      },
+      {
+        "id": 217,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:05:27"
+      },
+      {
+        "id": 218,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:08:01"
+      },
+      {
+        "id": 219,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:08:01"
+      },
+      {
+        "id": 220,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:09:41"
+      },
+      {
+        "id": 221,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:09:41"
+      },
+      {
+        "id": 222,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:10:28"
+      },
+      {
+        "id": 223,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:10:28"
+      },
+      {
+        "id": 224,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:13:19"
+      },
+      {
+        "id": 225,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:13:19"
+      },
+      {
+        "id": 226,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:23:14"
+      },
+      {
+        "id": 227,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:23:14"
+      },
+      {
+        "id": 228,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:32:11"
+      },
+      {
+        "id": 229,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:32:11"
+      },
+      {
+        "id": 230,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:45:41"
+      },
+      {
+        "id": 231,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:45:41"
+      },
+      {
+        "id": 232,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:07"
+      },
+      {
+        "id": 233,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:07"
+      },
+      {
+        "id": 234,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:25"
+      },
+      {
+        "id": 235,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:25"
+      },
+      {
+        "id": 236,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:45"
+      },
+      {
+        "id": 237,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:48:45"
+      },
+      {
+        "id": 238,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:58:16"
+      },
+      {
+        "id": 239,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:58:16"
+      },
+      {
+        "id": 240,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:58:20"
+      },
+      {
+        "id": 241,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T12:58:20"
+      },
+      {
+        "id": 242,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:04:43"
+      },
+      {
+        "id": 243,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:04:43"
+      },
+      {
+        "id": 244,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:10:30"
+      },
+      {
+        "id": 245,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:10:30"
+      },
+      {
+        "id": 246,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:11:08"
+      },
+      {
+        "id": 247,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:11:08"
+      },
+      {
+        "id": 248,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:14:39"
+      },
+      {
+        "id": 249,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:14:39"
+      },
+      {
+        "id": 250,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:16:15"
+      },
+      {
+        "id": 251,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:16:15"
+      },
+      {
+        "id": 252,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:17:36"
+      },
+      {
+        "id": 253,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:17:37"
+      },
+      {
+        "id": 254,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:20:13"
+      },
+      {
+        "id": 255,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:20:13"
+      },
+      {
+        "id": 256,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:35:04"
+      },
+      {
+        "id": 257,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:35:04"
+      },
+      {
+        "id": 258,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:37:37"
+      },
+      {
+        "id": 259,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:37:37"
+      },
+      {
+        "id": 260,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:39:09"
+      },
+      {
+        "id": 261,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:39:09"
+      },
+      {
+        "id": 262,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:40:54"
+      },
+      {
+        "id": 263,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:40:54"
+      },
+      {
+        "id": 264,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:44:38"
+      },
+      {
+        "id": 265,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:44:38"
+      },
+      {
+        "id": 266,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:45:13"
+      },
+      {
+        "id": 267,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:45:13"
+      },
+      {
+        "id": 268,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:47:36"
+      },
+      {
+        "id": 269,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:47:36"
+      },
+      {
+        "id": 270,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:49:31"
+      },
+      {
+        "id": 271,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:49:31"
+      },
+      {
+        "id": 272,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:51:02"
+      },
+      {
+        "id": 273,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:51:02"
+      },
+      {
+        "id": 274,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:54:19"
+      },
+      {
+        "id": 275,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:54:19"
+      },
+      {
+        "id": 276,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:59:33"
+      },
+      {
+        "id": 277,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:59:33"
+      },
+      {
+        "id": 278,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:59:35"
+      },
+      {
+        "id": 279,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T13:59:35"
+      },
+      {
+        "id": 280,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:00:31"
+      },
+      {
+        "id": 281,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:00:31"
+      },
+      {
+        "id": 282,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:01:10"
+      },
+      {
+        "id": 283,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:01:10"
+      },
+      {
+        "id": 284,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:01:50"
+      },
+      {
+        "id": 285,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:01:50"
+      },
+      {
+        "id": 286,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:04:52"
+      },
+      {
+        "id": 287,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:04:52"
+      },
+      {
+        "id": 288,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:05:24"
+      },
+      {
+        "id": 289,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:05:24"
+      },
+      {
+        "id": 290,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:12:35"
+      },
+      {
+        "id": 291,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:12:35"
+      },
+      {
+        "id": 292,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:15:57"
+      },
+      {
+        "id": 293,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:15:57"
+      },
+      {
+        "id": 294,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:18:00"
+      },
+      {
+        "id": 295,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:18:00"
+      },
+      {
+        "id": 296,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:18:19"
+      },
+      {
+        "id": 297,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:18:19"
+      },
+      {
+        "id": 298,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:20:54"
+      },
+      {
+        "id": 299,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:20:54"
+      },
+      {
+        "id": 300,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:20:59"
+      },
+      {
+        "id": 301,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:20:59"
+      },
+      {
+        "id": 302,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:25:18"
+      },
+      {
+        "id": 303,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:25:18"
+      },
+      {
+        "id": 304,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:27:37"
+      },
+      {
+        "id": 305,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:27:37"
+      },
+      {
+        "id": 306,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:27:55"
+      },
+      {
+        "id": 307,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:27:55"
+      },
+      {
+        "id": 308,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:30:54"
+      },
+      {
+        "id": 309,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:30:54"
+      },
+      {
+        "id": 310,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:34:40"
+      },
+      {
+        "id": 311,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:34:40"
+      },
+      {
+        "id": 312,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:34:52"
+      },
+      {
+        "id": 313,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:34:52"
+      },
+      {
+        "id": 314,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:36:58"
+      },
+      {
+        "id": 315,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:36:58"
+      },
+      {
+        "id": 316,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:41:22"
+      },
+      {
+        "id": 317,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:41:22"
+      },
+      {
+        "id": 318,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:57:53"
+      },
+      {
+        "id": 319,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T14:57:53"
+      },
+      {
+        "id": 320,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:01:20"
+      },
+      {
+        "id": 321,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:01:20"
+      },
+      {
+        "id": 322,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:03:30"
+      },
+      {
+        "id": 323,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:03:30"
+      },
+      {
+        "id": 324,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:13:53"
+      },
+      {
+        "id": 325,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T15:13:53"
+      },
+      {
+        "id": 326,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:34:52"
+      },
+      {
+        "id": 327,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:34:52"
+      },
+      {
+        "id": 328,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:35:30"
+      },
+      {
+        "id": 329,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:35:30"
+      },
+      {
+        "id": 330,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:35:54"
+      },
+      {
+        "id": 331,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:35:54"
+      },
+      {
+        "id": 332,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:48:51"
+      },
+      {
+        "id": 333,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:48:51"
+      },
+      {
+        "id": 334,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:49:53"
+      },
+      {
+        "id": 335,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:49:53"
+      },
+      {
+        "id": 336,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:53:35"
+      },
+      {
+        "id": 337,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:53:35"
+      },
+      {
+        "id": 338,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:57:36"
+      },
+      {
+        "id": 339,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T19:57:36"
+      },
+      {
+        "id": 340,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T20:12:14"
+      },
+      {
+        "id": 341,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T20:12:14"
+      },
+      {
+        "id": 342,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T20:22:28"
+      },
+      {
+        "id": 343,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T20:22:28"
+      },
+      {
+        "id": 344,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:06:27"
+      },
+      {
+        "id": 345,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:06:27"
+      },
+      {
+        "id": 346,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:10:53"
+      },
+      {
+        "id": 347,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:10:53"
+      },
+      {
+        "id": 348,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:10:55"
+      },
+      {
+        "id": 349,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:10:55"
+      },
+      {
+        "id": 350,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:16:59"
+      },
+      {
+        "id": 351,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:16:59"
+      },
+      {
+        "id": 352,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:18:38"
+      },
+      {
+        "id": 353,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:18:38"
+      },
+      {
+        "id": 354,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:18:59"
+      },
+      {
+        "id": 355,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:18:59"
+      },
+      {
+        "id": 356,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:16"
+      },
+      {
+        "id": 357,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:16"
+      },
+      {
+        "id": 358,
+        "user_id": 1,
+        "action": "logout",
+        "details": "User logged out",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:20"
+      },
+      {
+        "id": 359,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:45"
+      },
+      {
+        "id": 360,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:45"
+      },
+      {
+        "id": 361,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:47"
+      },
+      {
+        "id": 362,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:23:47"
+      },
+      {
+        "id": 363,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:41:16"
+      },
+      {
+        "id": 364,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:41:16"
+      },
+      {
+        "id": 365,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:44:44"
+      },
+      {
+        "id": 366,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T21:44:44"
+      },
+      {
+        "id": 367,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:27:29"
+      },
+      {
+        "id": 368,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:27:29"
+      },
+      {
+        "id": 369,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:31:33"
+      },
+      {
+        "id": 370,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:31:33"
+      },
+      {
+        "id": 371,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:32:27"
+      },
+      {
+        "id": 372,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:32:27"
+      },
+      {
+        "id": 373,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:35:33"
+      },
+      {
+        "id": 374,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:35:33"
+      },
+      {
+        "id": 375,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:39:14"
+      },
+      {
+        "id": 376,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:39:14"
+      },
+      {
+        "id": 377,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:41:29"
+      },
+      {
+        "id": 378,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:41:29"
+      },
+      {
+        "id": 379,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:41:56"
+      },
+      {
+        "id": 380,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T22:41:56"
+      },
+      {
+        "id": 381,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:01:04"
+      },
+      {
+        "id": 382,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:01:04"
+      },
+      {
+        "id": 383,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:07:51"
+      },
+      {
+        "id": 384,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:07:52"
+      },
+      {
+        "id": 385,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:07:57"
+      },
+      {
+        "id": 386,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:07:57"
+      },
+      {
+        "id": 387,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:02"
+      },
+      {
+        "id": 388,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:02"
+      },
+      {
+        "id": 389,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:16"
+      },
+      {
+        "id": 390,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:16"
+      },
+      {
+        "id": 391,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:22"
+      },
+      {
+        "id": 392,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:08:22"
+      },
+      {
+        "id": 393,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:20:56"
+      },
+      {
+        "id": 394,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:20:56"
+      },
+      {
+        "id": 395,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:23:32"
+      },
+      {
+        "id": 396,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:23:32"
+      },
+      {
+        "id": 397,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:37:36"
+      },
+      {
+        "id": 398,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:37:36"
+      },
+      {
+        "id": 399,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:44:14"
+      },
+      {
+        "id": 400,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:44:15"
+      },
+      {
+        "id": 401,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:51:06"
+      },
+      {
+        "id": 402,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:51:06"
+      },
+      {
+        "id": 403,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:56:55"
+      },
+      {
+        "id": 404,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:56:55"
+      },
+      {
+        "id": 405,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:57:28"
+      },
+      {
+        "id": 406,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:57:29"
+      },
+      {
+        "id": 407,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:57:40"
+      },
+      {
+        "id": 408,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:57:40"
+      },
+      {
+        "id": 409,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:59:04"
+      },
+      {
+        "id": 410,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-23T23:59:04"
+      },
+      {
+        "id": 411,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:15"
+      },
+      {
+        "id": 412,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:15"
+      },
+      {
+        "id": 413,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:21"
+      },
+      {
+        "id": 414,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:28"
+      },
+      {
+        "id": 415,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:28"
+      },
+      {
+        "id": 416,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:55"
+      },
+      {
+        "id": 417,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:55"
+      },
+      {
+        "id": 418,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:30:58"
+      },
+      {
+        "id": 419,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:31"
+      },
+      {
+        "id": 420,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:31"
+      },
+      {
+        "id": 421,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:37"
+      },
+      {
+        "id": 422,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:37"
+      },
+      {
+        "id": 423,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:40"
+      },
+      {
+        "id": 424,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:42"
+      },
+      {
+        "id": 425,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:59"
+      },
+      {
+        "id": 426,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:33:59"
+      },
+      {
+        "id": 427,
+        "user_id": 1,
+        "action": "access_delete_form_section",
+        "details": "Accessed /admin/form-sections/delete/1 via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:34:05"
+      },
+      {
+        "id": 428,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:34:06"
+      },
+      {
+        "id": 429,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:34:15"
+      },
+      {
+        "id": 430,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:34:26"
+      },
+      {
+        "id": 431,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:34:26"
+      },
+      {
+        "id": 432,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:39:00"
+      },
+      {
+        "id": 433,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:39:00"
+      },
+      {
+        "id": 434,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:39:02"
+      },
+      {
+        "id": 435,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:39:11"
+      },
+      {
+        "id": 436,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:41:50"
+      },
+      {
+        "id": 437,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:41:50"
+      },
+      {
+        "id": 438,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:41:52"
+      },
+      {
+        "id": 439,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:41:55"
+      },
+      {
+        "id": 440,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:46:00"
+      },
+      {
+        "id": 441,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:46:00"
+      },
+      {
+        "id": 442,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:46:04"
+      },
+      {
+        "id": 443,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:46:06"
+      },
+      {
+        "id": 444,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:48:35"
+      },
+      {
+        "id": 445,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:48:35"
+      },
+      {
+        "id": 446,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:48:37"
+      },
+      {
+        "id": 447,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:48:39"
+      },
+      {
+        "id": 448,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:52:00"
+      },
+      {
+        "id": 449,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:52:00"
+      },
+      {
+        "id": 450,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:52:08"
+      },
+      {
+        "id": 451,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:52:10"
+      },
+      {
+        "id": 452,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:55:09"
+      },
+      {
+        "id": 453,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:55:09"
+      },
+      {
+        "id": 454,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:55:11"
+      },
+      {
+        "id": 455,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:55:13"
+      },
+      {
+        "id": 456,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:03"
+      },
+      {
+        "id": 457,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:21"
+      },
+      {
+        "id": 458,
+        "user_id": 1,
+        "action": "access_delete_form_section",
+        "details": "Accessed /admin/form-sections/delete/2 via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:26"
+      },
+      {
+        "id": 459,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:26"
+      },
+      {
+        "id": 460,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:28"
+      },
+      {
+        "id": 461,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:57:39"
+      },
+      {
+        "id": 462,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:59:08"
+      },
+      {
+        "id": 463,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via POST",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:59:20"
+      },
+      {
+        "id": 464,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T13:59:20"
+      },
+      {
+        "id": 465,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:06:46"
+      },
+      {
+        "id": 466,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:06:46"
+      },
+      {
+        "id": 467,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:06:49"
+      },
+      {
+        "id": 468,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:06:52"
+      },
+      {
+        "id": 469,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:09:02"
+      },
+      {
+        "id": 470,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:09:32"
+      },
+      {
+        "id": 471,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:09:32"
+      },
+      {
+        "id": 472,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:09:34"
+      },
+      {
+        "id": 473,
+        "user_id": 1,
+        "action": "access_edit_form_section",
+        "details": "Accessed /admin/form-sections/edit/3 via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:09:36"
+      },
+      {
+        "id": 474,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:14:43"
+      },
+      {
+        "id": 475,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:14:43"
+      },
+      {
+        "id": 476,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:14:46"
+      },
+      {
+        "id": 477,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:14:48"
+      },
+      {
+        "id": 478,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:17:20"
+      },
+      {
+        "id": 479,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:17:21"
+      },
+      {
+        "id": 480,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:17:23"
+      },
+      {
+        "id": 481,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:17:24"
+      },
+      {
+        "id": 482,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:18:58"
+      },
+      {
+        "id": 483,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:18:58"
+      },
+      {
+        "id": 484,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:19:00"
+      },
+      {
+        "id": 485,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:19:02"
+      },
+      {
+        "id": 486,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:22:38"
+      },
+      {
+        "id": 487,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:22:38"
+      },
+      {
+        "id": 488,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:22:41"
+      },
+      {
+        "id": 489,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:22:43"
+      },
+      {
+        "id": 490,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:25:29"
+      },
+      {
+        "id": 491,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:25:29"
+      },
+      {
+        "id": 492,
+        "user_id": 1,
+        "action": "access_form_sections",
+        "details": "Accessed /admin/form-sections via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:25:31"
+      },
+      {
+        "id": 493,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:25:33"
+      },
+      {
+        "id": 494,
+        "user_id": 1,
+        "action": "access_add_form_section",
+        "details": "Accessed /admin/form-sections/add via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:25:49"
+      },
+      {
+        "id": 495,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:30:05"
+      },
+      {
+        "id": 496,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:30:05"
+      },
+      {
+        "id": 497,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:30:29"
+      },
+      {
+        "id": 498,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:30:29"
+      },
+      {
+        "id": 499,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:40:51"
+      },
+      {
+        "id": 500,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:40:51"
+      },
+      {
+        "id": 501,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:41:12"
+      },
+      {
+        "id": 502,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:41:12"
+      },
+      {
+        "id": 503,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:20"
+      },
+      {
+        "id": 504,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:21"
+      },
+      {
+        "id": 505,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:26"
+      },
+      {
+        "id": 506,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:26"
+      },
+      {
+        "id": 507,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:45"
+      },
+      {
+        "id": 508,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:42:45"
+      },
+      {
+        "id": 509,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:46:17"
+      },
+      {
+        "id": 510,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:46:17"
+      },
+      {
+        "id": 511,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:55"
+      },
+      {
+        "id": 512,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:55"
+      },
+      {
+        "id": 513,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:56"
+      },
+      {
+        "id": 514,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:56"
+      },
+      {
+        "id": 515,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:59"
+      },
+      {
+        "id": 516,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:47:59"
+      },
+      {
+        "id": 517,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:20"
+      },
+      {
+        "id": 518,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:20"
+      },
+      {
+        "id": 519,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:23"
+      },
+      {
+        "id": 520,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:23"
+      },
+      {
+        "id": 521,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:25"
+      },
+      {
+        "id": 522,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:51:26"
+      },
+      {
+        "id": 523,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:48"
+      },
+      {
+        "id": 524,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:48"
+      },
+      {
+        "id": 525,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:53"
+      },
+      {
+        "id": 526,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:53"
+      },
+      {
+        "id": 527,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:58"
+      },
+      {
+        "id": 528,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T14:59:58"
+      },
+      {
+        "id": 529,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:00:00"
+      },
+      {
+        "id": 530,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:00:00"
+      },
+      {
+        "id": 531,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:00:08"
+      },
+      {
+        "id": 532,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:00:08"
+      },
+      {
+        "id": 533,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:37"
+      },
+      {
+        "id": 534,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:37"
+      },
+      {
+        "id": 535,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:40"
+      },
+      {
+        "id": 536,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:45"
+      },
+      {
+        "id": 537,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:45"
+      },
+      {
+        "id": 538,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:49"
+      },
+      {
+        "id": 539,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:49"
+      },
+      {
+        "id": 540,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:52"
+      },
+      {
+        "id": 541,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:03:52"
+      },
+      {
+        "id": 542,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:04:01"
+      },
+      {
+        "id": 543,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:04:01"
+      },
+      {
+        "id": 544,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:04:09"
+      },
+      {
+        "id": 545,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:04:09"
+      },
+      {
+        "id": 546,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:06:47"
+      },
+      {
+        "id": 547,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:06:47"
+      },
+      {
+        "id": 548,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:09:58"
+      },
+      {
+        "id": 549,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:09:58"
+      },
+      {
+        "id": 550,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:11:26"
+      },
+      {
+        "id": 551,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:11:26"
+      },
+      {
+        "id": 552,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:12:57"
+      },
+      {
+        "id": 553,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:12:57"
+      },
+      {
+        "id": 554,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:13:06"
+      },
+      {
+        "id": 555,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:13:06"
+      },
+      {
+        "id": 556,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:02"
+      },
+      {
+        "id": 557,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:02"
+      },
+      {
+        "id": 558,
+        "user_id": 1,
+        "action": "access_system_settings",
+        "details": "Accessed /admin/system-settings via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:07"
+      },
+      {
+        "id": 559,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:10"
+      },
+      {
+        "id": 560,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:10"
+      },
+      {
+        "id": 561,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:14"
+      },
+      {
+        "id": 562,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:15:14"
+      },
+      {
+        "id": 563,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:21:12"
+      },
+      {
+        "id": 564,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:21:12"
+      },
+      {
+        "id": 565,
+        "user_id": 1,
+        "action": "access_admin_dashboard",
+        "details": "Accessed /admin/dashboard via GET",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:24:17"
+      },
+      {
+        "id": 566,
+        "user_id": 1,
+        "action": "view_admin_dashboard",
+        "details": "Viewed admin dashboard",
+        "ip_address": "127.0.0.1",
+        "timestamp": "2024-11-24T15:24:17"
+      }
+    ],
+    "staff": [
+      {
+        "id": 1,
+        "username": "admin",
+        "email": "admin@example.com",
+        "first_name": "System",
+        "last_name": "Administrator",
+        "phone": null,
+        "password_hash": "pbkdf2:sha256:600000$YOW4Dl2Jgej9O4z0$595a8b0c04431cd196ded1db15621ed65557ae4957794aeb404f3af978a20f98",
+        "role_id": 1,
+        "status": "active",
+        "is_active": 1,
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T13:29:10",
+        "approved_by_id": null,
+        "approved_at": null,
+        "last_login": null,
+        "branch_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": 1,
+        "name": "Main Branch",
+        "code": "MAIN",
+        "address": "Main Street, City",
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T13:29:10",
+        "created_by": 1,
+        "updated_by": null,
+        "is_active": 1
+      }
+    ],
+    "roles": [
+      {
+        "id": 1,
+        "name": "admin",
+        "code": "ADMIN",
+        "description": "System Administrator",
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T13:34:57",
+        "created_by": null,
+        "updated_by": null,
+        "is_active": 1
+      },
+      {
+        "id": 2,
+        "name": "Branch Manager",
+        "code": "BRANCH_MANAGER",
+        "description": "Branch Manager",
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T13:29:10",
+        "created_by": null,
+        "updated_by": null,
+        "is_active": 1
+      },
+      {
+        "id": 3,
+        "name": "Loan Officer",
+        "code": "LOAN_OFFICER",
+        "description": "Loan Officer",
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T13:29:10",
+        "created_by": null,
+        "updated_by": null,
+        "is_active": 1
+      }
+    ],
+    "alembic_version": [
+      {
+        "version_num": "update_admin_role_name"
+      }
+    ],
+    "client_types": [
+      {
+        "id": 1,
+        "client_name": "Individual Client",
+        "client_code": "IND",
+        "created_at": "2024-11-23T13:29:10",
+        "updated_at": "2024-11-23T11:16:49",
+        "created_by": 1,
+        "updated_by": 1,
+        "effective_from": "2024-01-01",
+        "effective_to": "2027-12-31",
+        "status": 1
+      },
+      {
+        "id": 2,
+        "client_name": "Limited Liability Company",
+        "client_code": "LLP",
+        "created_at": "2024-11-23T11:24:07",
+        "updated_at": "2024-11-23T11:24:25",
+        "created_by": 1,
+        "updated_by": 1,
+        "effective_from": "2024-01-01",
+        "effective_to": "2027-12-31",
+        "status": 1
+      }
+    ],
+    "clients": [],
+    "form_data_clm01": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "submission_date": "2024-11-24T02:05:49",
+        "status": "Pending",
+        "client_type_id": 1,
+        "client_type": "Individual Client",
+        "purpose_of_visit": "Loan Inquiry",
+        "purpose_description": null,
+        "product": "1",
+        "first_name": "Martin",
+        "middle_name": null,
+        "last_name": "Sheen",
+        "gender": "M",
+        "id_type": "national_id",
+        "id_number": "787987",
+        "serial_number": null,
+        "company_name": null,
+        "birth_date": null,
+        "member_count": null,
+        "postal_address": "990022",
+        "postal_code": "00200",
+        "postal_town": "Mombasa",
+        "mobile_phone": "2548892398",
+        "email": null,
+        "county": "Kwale",
+        "sub_county": "Lunga Lunga",
+        "ward": null,
+        "village": null,
+        "trade_center": null,
+        "kra_pin": null
+      }
+    ],
+    "form_data_clm02": [],
+    "form_fields": [
+      {
+        "id": 1,
+        "module_id": 8,
+        "field_name": "client_type",
+        "field_label": "Client Type",
+        "field_placeholder": "Choose Client Type",
+        "field_type": "select",
+        "validation_text": "Please select a client type",
+        "is_required": 1,
+        "field_order": 1,
+        "options": [
+          {
+            "label": "Individual Client",
+            "value": "1"
+          },
+          {
+            "label": "Limited Liability Company",
+            "value": "2"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 2,
+        "module_id": 8,
+        "field_name": "purpose_of_visit",
+        "field_label": "Purpose of Visit",
+        "field_placeholder": "Loan Inquiry",
+        "field_type": "text",
+        "validation_text": "Please enter purpose of visit",
+        "is_required": 1,
+        "field_order": 2,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 3,
+        "module_id": 8,
+        "field_name": "purpose_description",
+        "field_label": "Purpose Description",
+        "field_placeholder": null,
+        "field_type": "textarea",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 3,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 4,
+        "module_id": 8,
+        "field_name": "product",
+        "field_label": "Product",
+        "field_placeholder": "Choose Product",
+        "field_type": "select",
+        "validation_text": "Please select a product",
+        "is_required": 1,
+        "field_order": 4,
+        "options": [
+          {
+            "label": "Business Loan",
+            "value": "1"
+          },
+          {
+            "label": "Personal Loan",
+            "value": "2"
+          },
+          {
+            "label": "Agriculture Loan",
+            "value": "3"
+          },
+          {
+            "label": "SME Loan",
+            "value": "4"
+          },
+          {
+            "label": "Emergency Loan",
+            "value": "5"
+          },
+          {
+            "label": "Education Loan",
+            "value": "6"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T23:05:49",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 5,
+        "module_id": 8,
+        "field_name": "first_name",
+        "field_label": "First Name",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": "Please enter first name",
+        "is_required": 1,
+        "field_order": 5,
+        "options": null,
+        "validation_rules": {
+          "minLength": 2
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 6,
+        "module_id": 8,
+        "field_name": "middle_name",
+        "field_label": "Middle Name",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 6,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 7,
+        "module_id": 8,
+        "field_name": "last_name",
+        "field_label": "Last Name",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": "Please enter last name",
+        "is_required": 1,
+        "field_order": 7,
+        "options": null,
+        "validation_rules": {
+          "minLength": 2
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 8,
+        "module_id": 8,
+        "field_name": "gender",
+        "field_label": "Gender",
+        "field_placeholder": "",
+        "field_type": "radio",
+        "validation_text": "Please select gender",
+        "is_required": 1,
+        "field_order": 8,
+        "options": [
+          {
+            "label": "Male",
+            "value": "M"
+          },
+          {
+            "label": "Female",
+            "value": "F"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T22:42:20",
+        "client_type_restrictions": [],
+        "section_id": null
+      },
+      {
+        "id": 9,
+        "module_id": 8,
+        "field_name": "id_type",
+        "field_label": "ID Type",
+        "field_placeholder": "Choose ID Type",
+        "field_type": "select",
+        "validation_text": "Please select ID type",
+        "is_required": 1,
+        "field_order": 9,
+        "options": [
+          {
+            "label": "National ID",
+            "value": "national_id"
+          },
+          {
+            "label": "Military ID",
+            "value": "military_id"
+          },
+          {
+            "label": "Alien ID",
+            "value": "alien_id"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T12:10:05",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 10,
+        "module_id": 8,
+        "field_name": "id_number",
+        "field_label": "ID Number / Company Registration",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": "Please enter ID number",
+        "is_required": 1,
+        "field_order": 10,
+        "options": null,
+        "validation_rules": {
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 11,
+        "module_id": 8,
+        "field_name": "serial_number",
+        "field_label": "Serial Number (for National ID)",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 11,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 12,
+        "module_id": 8,
+        "field_name": "company_name",
+        "field_label": "Group / Company Name / JV Name",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": "",
+        "is_required": 0,
+        "field_order": 12,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T19:49:26",
+        "client_type_restrictions": [
+          2
+        ],
+        "section_id": null
+      },
+      {
+        "id": 13,
+        "module_id": 8,
+        "field_name": "birth_date",
+        "field_label": "Birth Date / Company Registration Date",
+        "field_placeholder": null,
+        "field_type": "date",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 13,
+        "options": null,
+        "validation_rules": {
+          "maxDate": "today"
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 14,
+        "module_id": 8,
+        "field_name": "member_count",
+        "field_label": "Number of Members / Partners / Directors",
+        "field_placeholder": "Enter Number",
+        "field_type": "number",
+        "validation_text": "",
+        "is_required": 0,
+        "field_order": 14,
+        "options": null,
+        "validation_rules": {
+          "min": 1
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T19:49:44",
+        "client_type_restrictions": [
+          2
+        ],
+        "section_id": null
+      },
+      {
+        "id": 15,
+        "module_id": 8,
+        "field_name": "postal_address",
+        "field_label": "Postal Address",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": "Please enter postal address",
+        "is_required": 1,
+        "field_order": 15,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 16,
+        "module_id": 8,
+        "field_name": "postal_code",
+        "field_label": "Postal Code",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": "Please enter postal code",
+        "is_required": 1,
+        "field_order": 16,
+        "options": null,
+        "validation_rules": {
+          "pattern": "^[0-9]+$"
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 17,
+        "module_id": 8,
+        "field_name": "postal_town",
+        "field_label": "Postal Town",
+        "field_placeholder": "Choose Town",
+        "field_type": "select",
+        "validation_text": "Please select postal town",
+        "is_required": 1,
+        "field_order": 17,
+        "options": [
+          {
+            "label": "Mombasa",
+            "value": "Mombasa"
+          },
+          {
+            "label": "Kwale",
+            "value": "Kwale"
+          },
+          {
+            "label": "Kilifi",
+            "value": "Kilifi"
+          },
+          {
+            "label": "Tana River",
+            "value": "Tana River"
+          },
+          {
+            "label": "Lamu",
+            "value": "Lamu"
+          },
+          {
+            "label": "Taita Taveta",
+            "value": "Taita Taveta"
+          },
+          {
+            "label": "Garissa",
+            "value": "Garissa"
+          },
+          {
+            "label": "Wajir",
+            "value": "Wajir"
+          },
+          {
+            "label": "Mandera",
+            "value": "Mandera"
+          },
+          {
+            "label": "Marsabit",
+            "value": "Marsabit"
+          },
+          {
+            "label": "Isiolo",
+            "value": "Isiolo"
+          },
+          {
+            "label": "Meru",
+            "value": "Meru"
+          },
+          {
+            "label": "Tharaka Nithi",
+            "value": "Tharaka Nithi"
+          },
+          {
+            "label": "Embu",
+            "value": "Embu"
+          },
+          {
+            "label": "Kitui",
+            "value": "Kitui"
+          },
+          {
+            "label": "Machakos",
+            "value": "Machakos"
+          },
+          {
+            "label": "Makueni",
+            "value": "Makueni"
+          },
+          {
+            "label": "Nyandarua",
+            "value": "Nyandarua"
+          },
+          {
+            "label": "Nyeri",
+            "value": "Nyeri"
+          },
+          {
+            "label": "Kirinyaga",
+            "value": "Kirinyaga"
+          },
+          {
+            "label": "Murang'a",
+            "value": "Murang'a"
+          },
+          {
+            "label": "Kiambu",
+            "value": "Kiambu"
+          },
+          {
+            "label": "Turkana",
+            "value": "Turkana"
+          },
+          {
+            "label": "West Pokot",
+            "value": "West Pokot"
+          },
+          {
+            "label": "Samburu",
+            "value": "Samburu"
+          },
+          {
+            "label": "Trans Nzoia",
+            "value": "Trans Nzoia"
+          },
+          {
+            "label": "Uasin Gishu",
+            "value": "Uasin Gishu"
+          },
+          {
+            "label": "Elgeyo Marakwet",
+            "value": "Elgeyo Marakwet"
+          },
+          {
+            "label": "Nandi",
+            "value": "Nandi"
+          },
+          {
+            "label": "Baringo",
+            "value": "Baringo"
+          },
+          {
+            "label": "Laikipia",
+            "value": "Laikipia"
+          },
+          {
+            "label": "Nakuru",
+            "value": "Nakuru"
+          },
+          {
+            "label": "Narok",
+            "value": "Narok"
+          },
+          {
+            "label": "Kajiado",
+            "value": "Kajiado"
+          },
+          {
+            "label": "Kericho",
+            "value": "Kericho"
+          },
+          {
+            "label": "Bomet",
+            "value": "Bomet"
+          },
+          {
+            "label": "Kakamega",
+            "value": "Kakamega"
+          },
+          {
+            "label": "Vihiga",
+            "value": "Vihiga"
+          },
+          {
+            "label": "Bungoma",
+            "value": "Bungoma"
+          },
+          {
+            "label": "Busia",
+            "value": "Busia"
+          },
+          {
+            "label": "Siaya",
+            "value": "Siaya"
+          },
+          {
+            "label": "Kisumu",
+            "value": "Kisumu"
+          },
+          {
+            "label": "Homa Bay",
+            "value": "Homa Bay"
+          },
+          {
+            "label": "Migori",
+            "value": "Migori"
+          },
+          {
+            "label": "Kisii",
+            "value": "Kisii"
+          },
+          {
+            "label": "Nyamira",
+            "value": "Nyamira"
+          },
+          {
+            "label": "Nairobi",
+            "value": "Nairobi"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T23:05:49",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 18,
+        "module_id": 8,
+        "field_name": "mobile_phone",
+        "field_label": "Mobile Phone",
+        "field_placeholder": "254-###-######",
+        "field_type": "tel",
+        "validation_text": "Please enter valid mobile number",
+        "is_required": 1,
+        "field_order": 18,
+        "options": null,
+        "validation_rules": {
+          "pattern": "^254[0-9]{9}$"
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 19,
+        "module_id": 8,
+        "field_name": "email",
+        "field_label": "Email Address",
+        "field_placeholder": null,
+        "field_type": "email",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 19,
+        "options": null,
+        "validation_rules": {
+          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$"
+        },
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 20,
+        "module_id": 8,
+        "field_name": "county",
+        "field_label": "County",
+        "field_placeholder": "Choose County",
+        "field_type": "select",
+        "validation_text": "Please select county",
+        "is_required": 1,
+        "field_order": 20,
+        "options": [
+          {
+            "label": "Mombasa",
+            "value": "Mombasa"
+          },
+          {
+            "label": "Kwale",
+            "value": "Kwale"
+          },
+          {
+            "label": "Kilifi",
+            "value": "Kilifi"
+          },
+          {
+            "label": "Tana River",
+            "value": "Tana River"
+          },
+          {
+            "label": "Lamu",
+            "value": "Lamu"
+          },
+          {
+            "label": "Taita Taveta",
+            "value": "Taita Taveta"
+          },
+          {
+            "label": "Garissa",
+            "value": "Garissa"
+          },
+          {
+            "label": "Wajir",
+            "value": "Wajir"
+          },
+          {
+            "label": "Mandera",
+            "value": "Mandera"
+          },
+          {
+            "label": "Marsabit",
+            "value": "Marsabit"
+          },
+          {
+            "label": "Isiolo",
+            "value": "Isiolo"
+          },
+          {
+            "label": "Meru",
+            "value": "Meru"
+          },
+          {
+            "label": "Tharaka Nithi",
+            "value": "Tharaka Nithi"
+          },
+          {
+            "label": "Embu",
+            "value": "Embu"
+          },
+          {
+            "label": "Kitui",
+            "value": "Kitui"
+          },
+          {
+            "label": "Machakos",
+            "value": "Machakos"
+          },
+          {
+            "label": "Makueni",
+            "value": "Makueni"
+          },
+          {
+            "label": "Nyandarua",
+            "value": "Nyandarua"
+          },
+          {
+            "label": "Nyeri",
+            "value": "Nyeri"
+          },
+          {
+            "label": "Kirinyaga",
+            "value": "Kirinyaga"
+          },
+          {
+            "label": "Murang'a",
+            "value": "Murang'a"
+          },
+          {
+            "label": "Kiambu",
+            "value": "Kiambu"
+          },
+          {
+            "label": "Turkana",
+            "value": "Turkana"
+          },
+          {
+            "label": "West Pokot",
+            "value": "West Pokot"
+          },
+          {
+            "label": "Samburu",
+            "value": "Samburu"
+          },
+          {
+            "label": "Trans Nzoia",
+            "value": "Trans Nzoia"
+          },
+          {
+            "label": "Uasin Gishu",
+            "value": "Uasin Gishu"
+          },
+          {
+            "label": "Elgeyo Marakwet",
+            "value": "Elgeyo Marakwet"
+          },
+          {
+            "label": "Nandi",
+            "value": "Nandi"
+          },
+          {
+            "label": "Baringo",
+            "value": "Baringo"
+          },
+          {
+            "label": "Laikipia",
+            "value": "Laikipia"
+          },
+          {
+            "label": "Nakuru",
+            "value": "Nakuru"
+          },
+          {
+            "label": "Narok",
+            "value": "Narok"
+          },
+          {
+            "label": "Kajiado",
+            "value": "Kajiado"
+          },
+          {
+            "label": "Kericho",
+            "value": "Kericho"
+          },
+          {
+            "label": "Bomet",
+            "value": "Bomet"
+          },
+          {
+            "label": "Kakamega",
+            "value": "Kakamega"
+          },
+          {
+            "label": "Vihiga",
+            "value": "Vihiga"
+          },
+          {
+            "label": "Bungoma",
+            "value": "Bungoma"
+          },
+          {
+            "label": "Busia",
+            "value": "Busia"
+          },
+          {
+            "label": "Siaya",
+            "value": "Siaya"
+          },
+          {
+            "label": "Kisumu",
+            "value": "Kisumu"
+          },
+          {
+            "label": "Homa Bay",
+            "value": "Homa Bay"
+          },
+          {
+            "label": "Migori",
+            "value": "Migori"
+          },
+          {
+            "label": "Kisii",
+            "value": "Kisii"
+          },
+          {
+            "label": "Nyamira",
+            "value": "Nyamira"
+          },
+          {
+            "label": "Nairobi",
+            "value": "Nairobi"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T23:05:49",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 21,
+        "module_id": 8,
+        "field_name": "sub_county",
+        "field_label": "Sub-County",
+        "field_placeholder": "Choose SubCounty",
+        "field_type": "select",
+        "validation_text": "Please select sub-county",
+        "is_required": 1,
+        "field_order": 21,
+        "options": [],
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T23:05:49",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 22,
+        "module_id": 8,
+        "field_name": "ward",
+        "field_label": "Ward",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 22,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 23,
+        "module_id": 8,
+        "field_name": "village",
+        "field_label": "Village",
+        "field_placeholder": null,
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 23,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T14:38:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 24,
+        "module_id": 8,
+        "field_name": "trade_center",
+        "field_label": "Nearest Trade Center",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": "",
+        "is_required": 0,
+        "field_order": 24,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T14:38:57",
+        "updated_at": "2024-11-23T15:14:07",
+        "client_type_restrictions": [
+          1
+        ],
+        "section_id": null
+      },
+      {
+        "id": 33,
+        "module_id": 8,
+        "field_name": "kra_pin",
+        "field_label": "KRA PIN",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": "",
+        "is_required": 0,
+        "field_order": 25,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:01:32",
+        "updated_at": "2024-11-23T23:01:32",
+        "client_type_restrictions": [
+          1
+        ],
+        "section_id": null
+      },
+      {
+        "id": 34,
+        "module_id": 9,
+        "field_name": "marital_status",
+        "field_label": "Marital Status",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 2,
+        "options": [
+          {
+            "label": "Single",
+            "value": "single"
+          },
+          {
+            "label": "Married",
+            "value": "married"
+          },
+          {
+            "label": "Divorced",
+            "value": "divorced"
+          },
+          {
+            "label": "Widowed",
+            "value": "widowed"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 35,
+        "module_id": 9,
+        "field_name": "spouse_name",
+        "field_label": "Spouse Name",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 3,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 36,
+        "module_id": 9,
+        "field_name": "spouse_id_type",
+        "field_label": "ID Type",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 4,
+        "options": [
+          {
+            "label": "National ID",
+            "value": "national_id"
+          },
+          {
+            "label": "Passport",
+            "value": "passport"
+          },
+          {
+            "label": "Military ID",
+            "value": "military_id"
+          },
+          {
+            "label": "Alien ID",
+            "value": "alien_id"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 37,
+        "module_id": 9,
+        "field_name": "spouse_id_number",
+        "field_label": "ID Number / Passport",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 5,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 38,
+        "module_id": 9,
+        "field_name": "children_below_12",
+        "field_label": "Children (Below 12 Yrs)",
+        "field_placeholder": "1",
+        "field_type": "number",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 6,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 39,
+        "module_id": 9,
+        "field_name": "children_13_to_18",
+        "field_label": "Children (Between 13 to 18 Yrs)",
+        "field_placeholder": "1",
+        "field_type": "number",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 7,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 40,
+        "module_id": 9,
+        "field_name": "children_above_18",
+        "field_label": "Children (Above 18 Yrs)",
+        "field_placeholder": "1",
+        "field_type": "number",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 8,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 41,
+        "module_id": 9,
+        "field_name": "dependants",
+        "field_label": "Dependants",
+        "field_placeholder": "1",
+        "field_type": "number",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 9,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 42,
+        "module_id": 9,
+        "field_name": "nok_first_name",
+        "field_label": "First Name",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 10,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 43,
+        "module_id": 9,
+        "field_name": "nok_middle_name",
+        "field_label": "Middle Name",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 11,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 44,
+        "module_id": 9,
+        "field_name": "nok_last_name",
+        "field_label": "Last Name",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 12,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 45,
+        "module_id": 9,
+        "field_name": "nok_id_type",
+        "field_label": "ID Type",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 13,
+        "options": [
+          {
+            "label": "National ID",
+            "value": "national_id"
+          },
+          {
+            "label": "Passport",
+            "value": "passport"
+          },
+          {
+            "label": "Military ID",
+            "value": "military_id"
+          },
+          {
+            "label": "Alien ID",
+            "value": "alien_id"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 46,
+        "module_id": 9,
+        "field_name": "nok_id_number",
+        "field_label": "ID Number / Passport",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 14,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 47,
+        "module_id": 9,
+        "field_name": "nok_postal_address",
+        "field_label": "Postal Address",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 15,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 48,
+        "module_id": 9,
+        "field_name": "nok_postal_code",
+        "field_label": "Postal Code",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 16,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 49,
+        "module_id": 9,
+        "field_name": "nok_postal_town",
+        "field_label": "Postal Town",
+        "field_placeholder": "Choose Town",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 17,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 50,
+        "module_id": 9,
+        "field_name": "nok_mobile_phone",
+        "field_label": "Mobile Phone",
+        "field_placeholder": "254_________",
+        "field_type": "tel",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 18,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 51,
+        "module_id": 9,
+        "field_name": "occupation",
+        "field_label": "Occupation",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 19,
+        "options": [
+          {
+            "label": "Employed",
+            "value": "employed"
+          },
+          {
+            "label": "Self Employed",
+            "value": "self_employed"
+          },
+          {
+            "label": "Business Owner",
+            "value": "business_owner"
+          },
+          {
+            "label": "Retired",
+            "value": "retired"
+          },
+          {
+            "label": "Student",
+            "value": "student"
+          },
+          {
+            "label": "Other",
+            "value": "other"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 52,
+        "module_id": 9,
+        "field_name": "occupation_type",
+        "field_label": "Occupation Type",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 1,
+        "field_order": 20,
+        "options": [
+          {
+            "label": "Full Time",
+            "value": "full_time"
+          },
+          {
+            "label": "Part Time",
+            "value": "part_time"
+          },
+          {
+            "label": "Contract",
+            "value": "contract"
+          },
+          {
+            "label": "Casual",
+            "value": "casual"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 53,
+        "module_id": 9,
+        "field_name": "employer_name",
+        "field_label": "Name of Employer / Business",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 21,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 54,
+        "module_id": 9,
+        "field_name": "business_address",
+        "field_label": "Address / Location",
+        "field_placeholder": "",
+        "field_type": "text",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 22,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 55,
+        "module_id": 9,
+        "field_name": "business_phone",
+        "field_label": "Phone Number",
+        "field_placeholder": "",
+        "field_type": "tel",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 23,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 56,
+        "module_id": 9,
+        "field_name": "business_email",
+        "field_label": "Email Address",
+        "field_placeholder": "",
+        "field_type": "email",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 24,
+        "options": null,
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 57,
+        "module_id": 9,
+        "field_name": "professional_membership",
+        "field_label": "Professional Membership",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 25,
+        "options": [
+          {
+            "label": "None",
+            "value": "none"
+          },
+          {
+            "label": "Engineering",
+            "value": "engineering"
+          },
+          {
+            "label": "Medical",
+            "value": "medical"
+          },
+          {
+            "label": "Legal",
+            "value": "legal"
+          },
+          {
+            "label": "Accounting",
+            "value": "accounting"
+          },
+          {
+            "label": "Other",
+            "value": "other"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      },
+      {
+        "id": 58,
+        "module_id": 9,
+        "field_name": "club_membership",
+        "field_label": "Club Membership",
+        "field_placeholder": "",
+        "field_type": "select",
+        "validation_text": null,
+        "is_required": 0,
+        "field_order": 26,
+        "options": [
+          {
+            "label": "None",
+            "value": "none"
+          },
+          {
+            "label": "Sports Club",
+            "value": "sports"
+          },
+          {
+            "label": "Social Club",
+            "value": "social"
+          },
+          {
+            "label": "Professional Club",
+            "value": "professional"
+          },
+          {
+            "label": "Other",
+            "value": "other"
+          }
+        ],
+        "validation_rules": null,
+        "created_at": "2024-11-23T23:42:57",
+        "updated_at": "2024-11-23T23:42:57",
+        "client_type_restrictions": null,
+        "section_id": null
+      }
+    ],
+    "form_sections": [],
+    "modules": [
+      {
+        "id": 7,
+        "name": "Client Management",
+        "code": "CLM00",
+        "description": "Parent module for all client management functions",
+        "parent_id": null,
+        "is_active": 1,
+        "created_at": "2024-11-23T14:32:17",
+        "updated_at": "2024-11-23T14:32:17"
+      },
+      {
+        "id": 8,
+        "name": "Prospect Registration",
+        "code": "CLM01",
+        "description": "Register new prospects before they become clients",
+        "parent_id": 7,
+        "is_active": 1,
+        "created_at": "2024-11-23T14:32:36",
+        "updated_at": "2024-11-23T14:32:36"
+      },
+      {
+        "id": 9,
+        "name": "Client Registration",
+        "code": "CLM02",
+        "description": "Register new clients with full KYC details",
+        "parent_id": 7,
+        "is_active": 1,
+        "created_at": "2024-11-23T14:32:36",
+        "updated_at": "2024-11-23T14:32:36"
+      }
+    ],
+    "products": [
+      {
+        "id": 1,
+        "name": "Business Loan",
+        "code": "BL001",
+        "status": "Active",
+        "interest_rate": "15%",
+        "rate_method": null,
+        "processing_fee": null,
+        "maintenance_fee": null,
+        "insurance_fee": null,
+        "frequency": null,
+        "min_amount": "10000.00",
+        "max_amount": "1000000.00",
+        "min_term": 1,
+        "max_term": 12,
+        "collateral": null,
+        "income_statement": null,
+        "created_at": "2024-11-23T22:38:13",
+        "updated_at": "2024-11-23T22:38:13"
+      },
+      {
+        "id": 2,
+        "name": "Personal Loan",
+        "code": "PL001",
+        "status": "Active",
+        "interest_rate": "18%",
+        "rate_method": "Reducing Balance",
+        "processing_fee": "2%",
+        "maintenance_fee": "1%",
+        "insurance_fee": "0.5%",
+        "frequency": "Monthly",
+        "min_amount": "5000.00",
+        "max_amount": "500000.00",
+        "min_term": 3,
+        "max_term": 36,
+        "collateral": "Salary, Assets",
+        "income_statement": "Required",
+        "created_at": "2024-11-23T22:40:03",
+        "updated_at": "2024-11-23T22:40:03"
+      },
+      {
+        "id": 3,
+        "name": "Agriculture Loan",
+        "code": "AG001",
+        "status": "Active",
+        "interest_rate": "12%",
+        "rate_method": "Flat Rate",
+        "processing_fee": "1.5%",
+        "maintenance_fee": "0.5%",
+        "insurance_fee": "1%",
+        "frequency": "Seasonal",
+        "min_amount": "50000.00",
+        "max_amount": "2000000.00",
+        "min_term": 6,
+        "max_term": 24,
+        "collateral": "Land Title, Machinery",
+        "income_statement": "Required",
+        "created_at": "2024-11-23T22:40:03",
+        "updated_at": "2024-11-23T22:40:03"
+      },
+      {
+        "id": 4,
+        "name": "SME Loan",
+        "code": "SM001",
+        "status": "Active",
+        "interest_rate": "16%",
+        "rate_method": "Reducing Balance",
+        "processing_fee": "2.5%",
+        "maintenance_fee": "1%",
+        "insurance_fee": "0.75%",
+        "frequency": "Monthly",
+        "min_amount": "100000.00",
+        "max_amount": "5000000.00",
+        "min_term": 12,
+        "max_term": 60,
+        "collateral": "Business Assets, Guarantors",
+        "income_statement": "Required",
+        "created_at": "2024-11-23T22:40:03",
+        "updated_at": "2024-11-23T22:40:03"
+      },
+      {
+        "id": 5,
+        "name": "Emergency Loan",
+        "code": "EM001",
+        "status": "Active",
+        "interest_rate": "20%",
+        "rate_method": "Flat Rate",
+        "processing_fee": "3%",
+        "maintenance_fee": "0%",
+        "insurance_fee": "0.5%",
+        "frequency": "Monthly",
+        "min_amount": "1000.00",
+        "max_amount": "50000.00",
+        "min_term": 1,
+        "max_term": 6,
+        "collateral": "Salary",
+        "income_statement": "Optional",
+        "created_at": "2024-11-23T22:40:03",
+        "updated_at": "2024-11-23T22:40:03"
+      },
+      {
+        "id": 6,
+        "name": "Education Loan",
+        "code": "ED001",
+        "status": "Active",
+        "interest_rate": "14%",
+        "rate_method": "Reducing Balance",
+        "processing_fee": "1%",
+        "maintenance_fee": "0.5%",
+        "insurance_fee": "0.5%",
+        "frequency": "Semester",
+        "min_amount": "10000.00",
+        "max_amount": "1000000.00",
+        "min_term": 12,
+        "max_term": 48,
+        "collateral": "Parent/Guardian Guarantee",
+        "income_statement": "Required",
+        "created_at": "2024-11-23T22:40:03",
+        "updated_at": "2024-11-23T22:40:03"
+      }
+    ],
+    "system_settings": [
+      {
+        "id": 1,
+        "setting_key": "site_name",
+        "setting_value": "Loan Origination & Appraisal System",
+        "setting_type": "string",
+        "category": "general",
+        "description": "Site name displayed in the header",
+        "updated_at": "2024-11-23T10:53:17",
+        "updated_by": 1,
+        "created_at": "2024-11-23T10:53:17",
+        "created_by": null
+      },
+      {
+        "id": 2,
+        "setting_key": "site_description",
+        "setting_value": "",
+        "setting_type": null,
+        "category": null,
+        "description": null,
+        "updated_at": "2024-11-23T10:57:00",
+        "updated_by": 1,
+        "created_at": null,
+        "created_by": null
+      },
+      {
+        "id": 3,
+        "setting_key": "theme_mode",
+        "setting_value": "light",
+        "setting_type": null,
+        "category": null,
+        "description": null,
+        "updated_at": "2024-11-23T10:57:00",
+        "updated_by": 1,
+        "created_at": null,
+        "created_by": null
+      },
+      {
+        "id": 4,
+        "setting_key": "primary_color",
+        "setting_value": "#3B82F6",
+        "setting_type": null,
+        "category": null,
+        "description": null,
+        "updated_at": "2024-11-23T10:57:00",
+        "updated_by": 1,
+        "created_at": null,
+        "created_by": null
+      },
+      {
+        "id": 5,
+        "setting_key": "secondary_color",
+        "setting_value": "#1E40AF",
+        "setting_type": null,
+        "category": null,
+        "description": null,
+        "updated_at": "2024-11-23T10:57:00",
+        "updated_by": 1,
+        "created_at": null,
+        "created_by": null
+      },
+      {
+        "id": 6,
+        "setting_key": "site_logo",
+        "setting_value": "uploads/logos/Amica-Savings-Credit-tender.jpg",
+        "setting_type": null,
+        "category": null,
+        "description": null,
+        "updated_at": "2024-11-23T10:57:00",
+        "updated_by": 1,
+        "created_at": null,
+        "created_by": null
+      }
+    ]
+  }
+}

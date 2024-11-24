@@ -25,6 +25,10 @@ class ModuleService:
         return Module.query.get(module_id)
 
     @staticmethod
+    def get_field_by_id(field_id: int) -> Optional[ModuleField]:
+        return ModuleField.query.get(field_id)
+
+    @staticmethod
     def get_modules_by_type(module_type: str) -> List[Module]:
         return Module.query.filter_by(module_type=module_type, is_active=True).all()
 
@@ -41,7 +45,9 @@ class ModuleService:
         required: bool = False,
         options: Dict = None,
         validation_rules: Dict = None,
-        order: int = 0
+        order: int = 0,
+        section_id: int = None,
+        client_type_restrictions: List[int] = None
     ) -> Optional[ModuleField]:
         try:
             field = ModuleField(
@@ -52,13 +58,37 @@ class ModuleService:
                 required=required,
                 options=options,
                 validation_rules=validation_rules,
-                order=order
+                order=order,
+                section_id=section_id,
+                client_type_restrictions=client_type_restrictions
             )
             db.session.add(field)
             db.session.commit()
             return field
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             db.session.rollback()
+            print(f"Error adding field to module: {str(e)}")
+            return None
+
+    @staticmethod
+    def update_field(
+        field_id: int,
+        data: Dict[str, Any]
+    ) -> Optional[ModuleField]:
+        try:
+            field = ModuleField.query.get(field_id)
+            if not field:
+                return None
+            
+            for key, value in data.items():
+                if hasattr(field, key):
+                    setattr(field, key, value)
+            
+            db.session.commit()
+            return field
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"Error updating field: {str(e)}")
             return None
 
     @staticmethod

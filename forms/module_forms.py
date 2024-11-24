@@ -3,6 +3,7 @@ from wtforms import StringField, TextAreaField, SelectField, BooleanField, Field
 from wtforms.validators import DataRequired, Length, Optional
 from models.module import Module
 from models.client_type import ClientType
+from models.form_section import FormSection
 from flask import current_app
 import traceback
 
@@ -39,14 +40,23 @@ class FormFieldForm(FlaskForm):
         ('file', 'File Upload')
     ], validators=[DataRequired()], coerce=str)
     is_required = BooleanField('Required Field', default=False)
+    section_id = SelectField('Form Section', coerce=int, validators=[Optional()], 
+                           description='Select the section this field belongs to')
     client_type_restrictions = SelectMultipleField('Client Type Restrictions', 
                                                  coerce=int,
                                                  validators=[Optional()],
                                                  description='Select client types that can access this field')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, module_id=None, **kwargs):
         super(FormFieldForm, self).__init__(*args, **kwargs)
         try:
+            # Populate section choices if module_id is provided
+            if module_id:
+                sections = FormSection.query.filter_by(module_id=module_id, is_active=True).order_by(FormSection.order).all()
+                self.section_id.choices = [(0, 'None')] + [(s.id, s.name) for s in sections]
+            else:
+                self.section_id.choices = [(0, 'None')]
+
             # Populate client type choices
             client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
             current_app.logger.info(f"Found {len(client_types)} active client types")
@@ -89,7 +99,19 @@ class FieldOptionForm(FlaskForm):
     label = StringField('Option Label', validators=[DataRequired()])
     value = StringField('Option Value', validators=[DataRequired()])
 
+    def process_formdata(self, valuelist):
+        if valuelist:
+            self.data = []
+            for i in range(0, len(valuelist), 2):
+                if i + 1 < len(valuelist):
+                    label = valuelist[i].strip()
+                    value = valuelist[i + 1].strip()
+                    if label or value:  # Only add if either label or value is not empty
+                        self.data.append({
+                            'label': label or value,  # Use value as label if label is empty
+                            'value': value or label   # Use label as value if value is empty
+                        })
+
 class DynamicFormFieldForm(FormFieldForm):
     options = FieldList(FormField(FieldOptionForm), min_entries=1)
-    validation_rules = TextAreaField('Validation Rules (JSON)', validators=[Optional()],
-                                   description='Example: {"min": 0, "max": 100, "pattern": "^[A-Za-z]+$"}')
+    validation_rules = TextAreaField('Validation Rules (JSON)', validators=[Optional()])

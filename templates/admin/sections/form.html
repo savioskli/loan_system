@@ -4,6 +4,7 @@
 
 {% block styles %}
 {{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
 <style>
     .form-card {
         background: linear-gradient(to right bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
@@ -190,15 +191,27 @@
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script>
-    // Initialize Select2 for multiple select fields
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Select2 for multiple select fields
         $('.select2').select2({
             theme: 'classic',
             placeholder: 'Select options...',
             allowClear: true,
             width: '100%'
         });
+
+        // Initialize Choices.js for sections
+        const sectionSelect = document.querySelector('select[name="sections"]');
+        if (sectionSelect) {
+            new Choices(sectionSelect, {
+                removeItemButton: true,
+                searchEnabled: true,
+                placeholder: true,
+                placeholderValue: 'Select sections...'
+            });
+        }
     });
 </script>
 {% endblock %}

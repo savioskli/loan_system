@@ -99,7 +99,7 @@
                         {{ form.field_name(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_name.errors %}
                             {% for error in form.field_name.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -109,7 +109,7 @@
                         {{ form.field_label(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_label.errors %}
                             {% for error in form.field_label.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -119,7 +119,20 @@
                         {{ form.field_placeholder(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_placeholder.errors %}
                             {% for error in form.field_placeholder.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {{ form.validation_text.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {% if form.validation_text.description %}
+                            <p class="text-sm text-gray-500 mb-2">{{ form.validation_text.description }}</p>
+                        {% endif %}
+                        {{ form.validation_text(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.validation_text.errors %}
+                            {% for error in form.validation_text.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -131,84 +144,96 @@
                         {{ form.field_type(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.field_type.errors %}
                             {% for error in form.field_type.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {{ form.section_id.label(class="block text-sm font-medium text-gray-700 mb-2") }}
+                        {% if form.section_id.description %}
+                            <p class="text-sm text-gray-500 mb-2">{{ form.section_id.description }}</p>
+                        {% endif %}
+                        {{ form.section_id(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
+                        {% if form.section_id.errors %}
+                            {% for error in form.section_id.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
 
                     <div>
                         {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 mb-2") }}
-                        <div class="mt-1">
-                            <select name="client_type_restrictions" id="client_type_restrictions" class="block w-full" multiple>
-                                {% for value, label in form.client_type_restrictions.choices %}
-                                    <option value="{{ value }}" {% if value in form.client_type_restrictions.data %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        {% if form.client_type_restrictions.description %}
+                            <p class="text-sm text-gray-500 mb-2">{{ form.client_type_restrictions.description }}</p>
+                        {% endif %}
+                        {{ form.client_type_restrictions(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
                         {% if form.client_type_restrictions.errors %}
                             {% for error in form.client_type_restrictions.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
-                        <p class="text-sm text-gray-500 mt-2">Select which client types can access this field</p>
                     </div>
 
-                    <div>
-                        {{ form.validation_text.label(class="block text-sm font-medium text-gray-700 mb-2") }}
-                        {{ form.validation_text(class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500") }}
-                        {% if form.validation_text.errors %}
-                            {% for error in form.validation_text.errors %}
-                                <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                        <p class="text-sm text-gray-500 mt-2">{{ form.validation_text.description }}</p>
-                    </div>
-
-                    <div class="flex items-center mt-6">
-                        {{ form.is_required(class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
-                        {{ form.is_required.label(class="ml-3 block text-sm text-gray-900") }}
+                    <div class="flex items-center mt-4">
+                        <div class="flex items-center h-5">
+                            {{ form.is_required(class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
+                        </div>
+                        <div class="ml-3 text-sm">
+                            {{ form.is_required.label(class="font-medium text-gray-700") }}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="field-options-section mt-8" style="display: none;">
+            <div class="field-options-section mt-8" {% if form.field_type.data not in ['select', 'radio', 'checkbox'] %}style="display: none;"{% endif %}>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Field Options</h3>
                 <div id="options-container" class="space-y-4">
-                    {% if form.options and form.options.data %}
-                        {% for option in form.options.data %}
-                            <div class="flex space-x-4 items-start option-row">
-                                <div class="flex-1">
+                    {% if form.options %}
+                        {% for option in form.options %}
+                            <div class="option-row grid grid-cols-2 gap-4">
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Option Label</label>
-                                    <input type="text" name="options-label[]" value="{{ option.label }}" class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                    <input type="text" 
+                                           name="{{ option.label.name }}"
+                                           value="{{ option.label.data or option.value.data or '' }}"
+                                           class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    {% if option.label.errors %}
+                                        {% for error in option.label.errors %}
+                                            <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                        {% endfor %}
+                                    {% endif %}
                                 </div>
-                                <div class="flex-1">
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Option Value</label>
-                                    <input type="text" name="options-value[]" value="{{ option.value }}" class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                    <input type="text"
+                                           name="{{ option.value.name }}"
+                                           value="{{ option.value.data or option.label.data or '' }}"
+                                           class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    {% if option.value.errors %}
+                                        {% for error in option.value.errors %}
+                                            <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                        {% endfor %}
+                                    {% endif %}
                                 </div>
-                                <div class="pt-8">
-                                    <button type="button" class="remove-option inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                </div>
+                                <button type="button" class="remove-option text-red-600 hover:text-red-800">
+                                    <span class="text-sm">Remove Option</span>
+                                </button>
                             </div>
                         {% endfor %}
                     {% endif %}
                 </div>
-                <div class="mt-4">
-                    <button type="button" id="add-option" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Add Option
-                    </button>
-                </div>
+                <button type="button" id="add-option" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Add Option
+                </button>
             </div>
 
-            <div class="mt-8 flex justify-end space-x-4">
-                <a href="{{ url_for('modules.list_fields', id=module.id) }}" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            <div class="mt-6 flex justify-end space-x-3">
+                <a href="{{ url_for('modules.list_fields', id=module.id) }}" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
                     Cancel
                 </a>
-                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Save Field
+                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Save
                 </button>
             </div>
         </form>
@@ -221,83 +246,68 @@
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Choices.js for client type restrictions
-        const clientTypeSelect = document.getElementById('client_type_restrictions');
-        
-        // Initialize Choices
-        const choices = new Choices(clientTypeSelect, {
-            removeItemButton: true,
-            placeholder: true,
-            placeholderValue: 'Select client types',
-            searchPlaceholderValue: 'Type to search...',
-            searchEnabled: true,
-            searchChoices: true,
-            searchResultLimit: 10,
-            searchFields: ['label', 'value'],
-            position: 'bottom',
-            itemSelectText: '',
-            shouldSort: false,
-            loadingText: 'Loading...',
-            noResultsText: 'No client types found',
-            noChoicesText: 'No client types available',
-            maxItemCount: -1,
-            removeItemButton: true
-        });
-        
-        // Log any changes to client type selection
-        clientTypeSelect.addEventListener('change', function(e) {
-            console.log('Client type selection changed:', choices.getValue(true));
-        });
-
-        const optionsContainer = document.getElementById('options-container');
-        const addOptionBtn = document.getElementById('add-option');
-        const fieldTypeSelect = document.getElementById('field_type');
+        const fieldTypeSelect = document.querySelector('select[name="field_type"]');
         const optionsSection = document.querySelector('.field-options-section');
-        const formElement = document.querySelector('form');
-
+        const addOptionBtn = document.getElementById('add-option');
+        
         // Function to toggle options section visibility
         function toggleOptionsSection() {
-            const fieldType = fieldTypeSelect.value;
-            const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
-            optionsSection.style.display = needsOptions ? 'block' : 'none';
+            if (!fieldTypeSelect || !optionsSection) return;
             
-            // If switching to a type that needs options and there are no options, add one
-            if (needsOptions && optionsContainer.children.length === 0) {
-                // If we have existing options in the form data, add them
-                {% if form.options and form.options.data %}
-                    {% for option in form.options.data %}
-                        addOptionRow('{{ option.label }}', '{{ option.value }}');
-                    {% endfor %}
-                {% else %}
-                    addOptionRow();
-                {% endif %}
+            const selectedType = fieldTypeSelect.value;
+            if (['select', 'radio', 'checkbox'].includes(selectedType)) {
+                optionsSection.style.display = 'block';
+            } else {
+                optionsSection.style.display = 'none';
             }
         }
-
-        // Add event listener to field type select
+        
+        // Initial toggle on page load
+        toggleOptionsSection();
+        
+        // Add change event listener to field type select
         if (fieldTypeSelect) {
             fieldTypeSelect.addEventListener('change', toggleOptionsSection);
-            // Initial check
-            toggleOptionsSection();
         }
-
+        
+        // Function to add a new option row
         function addOptionRow(label = '', value = '') {
-            const row = document.createElement('div');
-            row.className = 'option-row flex space-x-4 mb-4';
-            row.innerHTML = `
-                <input type="text" name="options-label[]" 
-                    class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
-                    placeholder="Option Label" required value="${label}">
-                <input type="text" name="options-value[]" 
-                    class="w-1/2 px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
-                    placeholder="Option Value" required value="${value}">
-                <button type="button" class="remove-option text-red-600 hover:text-red-800 px-2 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    </svg>
+            const optionsContainer = document.getElementById('options-container');
+            if (!optionsContainer) return;
+            
+            const index = optionsContainer.children.length;
+            const optionRow = document.createElement('div');
+            optionRow.className = 'option-row grid grid-cols-2 gap-4';
+            optionRow.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Option Label</label>
+                    <input type="text" name="options-${index}-label" value="${label}"
+                           class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Option Value</label>
+                    <input type="text" name="options-${index}-value" value="${value}"
+                           class="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <button type="button" class="remove-option text-red-600 hover:text-red-800 ml-2">
+                    <span class="text-sm">Remove Option</span>
                 </button>
             `;
-            optionsContainer.appendChild(row);
+            optionsContainer.appendChild(optionRow);
+            updateOptionIndices();
+        }
+        
+        function updateOptionIndices() {
+            const optionsContainer = document.getElementById('options-container');
+            if (!optionsContainer) return;
+            
+            const optionRows = optionsContainer.querySelectorAll('.option-row');
+            optionRows.forEach((row, index) => {
+                const labelInput = row.querySelector('input[name*="-label"]');
+                const valueInput = row.querySelector('input[name*="-value"]');
+                if (labelInput) labelInput.name = `options-${index}-label`;
+                if (valueInput) valueInput.name = `options-${index}-value`;
+            });
         }
         
         // Add option button handler
@@ -309,48 +319,29 @@
         }
         
         // Remove option button handler
+        const optionsContainer = document.getElementById('options-container');
         if (optionsContainer) {
             optionsContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.remove-option')) {
-                    const row = e.target.closest('.option-row');
-                    // Don't remove if it's the last option
-                    if (optionsContainer.children.length > 1) {
-                        row.remove();
-                    }
+                    const optionRow = e.target.closest('.option-row');
+                    optionsContainer.removeChild(optionRow);
+                    updateOptionIndices();
                 }
             });
         }
-
-        // Form validation and submission handling
-        if (formElement) {
-            formElement.addEventListener('submit', function(e) {
-                const fieldType = fieldTypeSelect.value;
-                const needsOptions = ['select', 'radio', 'checkbox'].includes(fieldType);
-                
-                // Log client type selections before submission
-                const selectedTypes = clientTypeSelect.choices.getValue(true);
-                console.log('Form submission - Selected client types:', selectedTypes);
-                
-                if (needsOptions) {
-                    const options = [];
-                    const labels = formElement.querySelectorAll('input[name="options-label[]"]');
-                    const values = formElement.querySelectorAll('input[name="options-value[]"]');
-                    let hasValidOption = false;
-                    
-                    for (let i = 0; i < labels.length; i++) {
-                        if (labels[i].value.trim() && values[i].value.trim()) {
-                            hasValidOption = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!hasValidOption) {
-                        e.preventDefault();
-                        alert('Please add at least one option with both label and value for this field type.');
-                    }
-                }
-            });
-        }
+        
+        // Initialize Choices.js for select elements
+        const selectElements = document.querySelectorAll('select:not(.choices-hidden)');
+        selectElements.forEach(select => {
+            if (!select.classList.contains('choices-initialized')) {
+                new Choices(select, {
+                    removeItemButton: true,
+                    searchEnabled: true,
+                    itemSelectText: ''
+                });
+                select.classList.add('choices-initialized');
+            }
+        });
     });
 </script>
 {% endblock %}

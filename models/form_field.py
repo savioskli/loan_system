@@ -16,11 +16,13 @@ class FormField(db.Model):
     field_order = db.Column(db.Integer, nullable=False)
     options = db.Column(JSON)
     client_type_restrictions = db.Column(JSON)
+    section_id = db.Column(db.Integer, db.ForeignKey('form_sections.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     parent_module = db.relationship('Module', backref=db.backref('form_fields', lazy=True))
+    parent_section = db.relationship('FormSection', backref=db.backref('form_fields', lazy=True))
 
     def __repr__(self):
         return f'<FormField {self.field_name}>'

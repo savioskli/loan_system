@@ -9,6 +9,7 @@ from utils.module_utils import generate_module_code
 from utils.dynamic_tables import create_or_update_module_table
 import json
 import traceback
+from datetime import datetime
 
 modules_bp = Blueprint('modules', __name__)
 
@@ -182,24 +183,48 @@ def create_field(id):
             'section_id': request.form.get('section_id', type=int)
         }
         
+        # Get options from the form with the template's naming convention
+        options = []
+        
+        # Collect all options from the form data
+        i = 0
+        while True:
+            label_key = f'options-{i}-form-label'
+            value_key = f'options-{i}-form-value'
+            
+            if label_key not in request.form and f'options-{i}-label' not in request.form:  # No more options
+                break
+                    
+            label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
+            value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
+            
+            current_app.logger.debug(f"Processing option {i} - Label: {label}, Value: {value}")
+            
+            if label and value:  # Only add if both label and value are non-empty
+                options.append({
+                    'label': label,
+                    'value': value
+                })
+                current_app.logger.debug(f"Added option {i}")
+            
+            i += 1
+        
+        current_app.logger.debug(f"Final collected options: {options}")
+        field_data['options'] = options  # Add options to field_data
+        
         # Create the appropriate form based on field type
         if field_type in ['select', 'radio', 'checkbox']:
             form = DynamicFormFieldForm(data=field_data, module_id=id)
             
-            # Get options from the form
-            option_labels = request.form.getlist('options-label[]')
-            option_values = request.form.getlist('options-value[]')
+            # Debug logging for form data
+            current_app.logger.debug("Form Data:")
+            for key, value in request.form.items():
+                current_app.logger.debug(f"{key}: {value}")
             
-            # Clear any existing options and add new ones
-            while len(form.options) > 0:
-                form.options.pop_entry()
-            
-            for label, value in zip(option_labels, option_values):
-                if label.strip() and value.strip():
-                    form.options.append_entry({
-                        'label': label.strip(),
-                        'value': value.strip()
-                    })
+            # Validate that we have at least one option for select/radio/checkbox fields
+            if not options and field_type in ['select', 'radio', 'checkbox']:
+                flash('Please add at least one option for this field type.', 'error')
+                return render_template('admin/modules/field_form.html', form=form, module=module)
         else:
             form = FormFieldForm(data=field_data, module_id=id)
         
@@ -229,29 +254,40 @@ def create_field(id):
             
             # Handle options for select, radio, checkbox fields
             if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):
+                current_app.logger.debug(f"Processing options for field type: {field.field_type}")
+                current_app.logger.debug(f"Form options data: {form.options.data}")
+                
                 options = []
                 for option in form.options.data:
-                    if option['label'].strip() and option['value'].strip():
+                    current_app.logger.debug(f"Processing option: {option}")
+                    if isinstance(option, dict) and option.get('label', '').strip() and option.get('value', '').strip():
                         options.append({
                             'label': option['label'].strip(),
                             'value': option['value'].strip()
                         })
+                        current_app.logger.debug(f"Added option: {options[-1]}")
                 
                 if options:
+                    current_app.logger.debug(f"Setting field options to: {options}")
                     field.options = options
-                    current_app.logger.debug(f"Setting options: {options}")
                 else:
                     current_app.logger.debug("No valid options found")
                     flash('Please add at least one option for this field type.', 'error')
                     return render_template('admin/modules/field_form.html', form=form, module=module)
+            else:
+                field.options = None
+            
+            current_app.logger.debug(f"After update - Field data: {field.__dict__}")
             
             try:
                 current_app.logger.debug("Attempting to add field to database")
                 current_app.logger.debug(f"Field data: {field.__dict__}")
-                current_app.logger.debug(f"Client type restrictions: {field.client_type_restrictions}")
                 db.session.add(field)
+                db.session.flush()  # Flush changes to get any DB-generated values
+                current_app.logger.debug(f"After flush - Field options: {field.options}")
                 db.session.commit()
                 current_app.logger.debug("Database commit successful")
+                current_app.logger.debug(f"Final field options: {field.options}")
                 
                 # Update the module's table schema
                 current_app.logger.info(f"Updating table schema for module {module.code}")
@@ -342,34 +378,37 @@ def edit_field(id, field_id):
                 # Add existing options
                 if field.options:
                     try:
-                        # Handle list of strings
-                        if isinstance(field.options, list) and all(isinstance(x, str) for x in field.options):
-                            current_app.logger.info("Processing list of strings")
-                            for option in field.options:
-                                form.options.append_entry({
-                                    'label': option,
-                                    'value': option
-                                })
-                        # Handle list of dicts
-                        elif isinstance(field.options, list) and all(isinstance(x, dict) for x in field.options):
+                        # Handle list of dicts (our standard format)
+                        if isinstance(field.options, list) and all(isinstance(x, dict) for x in field.options):
                             current_app.logger.info("Processing list of dicts")
                             for option in field.options:
                                 form.options.append_entry({
-                                    'label': option.get('label', option.get('value', '')),
-                                    'value': option.get('value', option.get('label', ''))
+                                    'label': option.get('label', ''),
+                                    'value': option.get('value', '')
                                 })
                         # Handle string-keyed dict
                         elif isinstance(field.options, dict):
                             current_app.logger.info("Processing dict")
                             for value, label in field.options.items():
                                 form.options.append_entry({
-                                    'label': label if isinstance(label, str) else value,
-                                    'value': value
+                                    'label': label if isinstance(label, str) else str(value),
+                                    'value': str(value)
                                 })
-                        else:
-                            current_app.logger.warning(f"Unhandled options format: {type(field.options)}")
-                            current_app.logger.debug(f"Options content: {field.options}")
-                            
+                        # Handle list of strings
+                        elif isinstance(field.options, list):
+                            current_app.logger.info("Processing list of strings")
+                            for option in field.options:
+                                if isinstance(option, str):
+                                    form.options.append_entry({
+                                        'label': option,
+                                        'value': option
+                                    })
+                                elif isinstance(option, dict):
+                                    form.options.append_entry({
+                                        'label': option.get('label', ''),
+                                        'value': option.get('value', '')
+                                    })
+                        
                         # Log the processed options
                         current_app.logger.info("Processed options:")
                         for option in form.options:
@@ -410,25 +449,48 @@ def edit_field(id, field_id):
         }
         current_app.logger.debug(f"Field data to be updated: {field_data}")
         
+        # Get options from the form with the template's naming convention
+        options = []
+        
+        # Collect all options from the form data
+        i = 0
+        while True:
+            label_key = f'options-{i}-form-label'
+            value_key = f'options-{i}-form-value'
+            
+            if label_key not in request.form and f'options-{i}-label' not in request.form:  # No more options
+                break
+                    
+            label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
+            value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
+            
+            current_app.logger.debug(f"Processing option {i} - Label: {label}, Value: {value}")
+            
+            if label and value:  # Only add if both label and value are non-empty
+                options.append({
+                    'label': label,
+                    'value': value
+                })
+                current_app.logger.debug(f"Added option {i}")
+            
+            i += 1
+        
+        current_app.logger.debug(f"Final collected options: {options}")
+        field_data['options'] = options  # Add options to field_data
+        
         # Create the appropriate form based on field type
         if field_type in ['select', 'radio', 'checkbox']:
             form = DynamicFormFieldForm(data=field_data, module_id=id)
             
-            # Get options from the form
-            option_labels = request.form.getlist('options-label[]')
-            option_values = request.form.getlist('options-value[]')
-            current_app.logger.debug(f"Option data received - Labels: {option_labels}, Values: {option_values}")
+            # Debug logging for form data
+            current_app.logger.debug("Form Data:")
+            for key, value in request.form.items():
+                current_app.logger.debug(f"{key}: {value}")
             
-            # Clear any existing options and add new ones
-            while len(form.options) > 0:
-                form.options.pop_entry()
-            
-            for label, value in zip(option_labels, option_values):
-                if label.strip() and value.strip():
-                    form.options.append_entry({
-                        'label': label.strip(),
-                        'value': value.strip()
-                    })
+            # Validate that we have at least one option for select/radio/checkbox fields
+            if not options and field_type in ['select', 'radio', 'checkbox']:
+                flash('Please add at least one option for this field type.', 'error')
+                return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
         else:
             form = FormFieldForm(data=field_data, module_id=id)
         
@@ -450,17 +512,23 @@ def edit_field(id, field_id):
             
             # Handle options for select, radio, checkbox fields
             if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):
+                current_app.logger.debug(f"Processing options for field type: {field.field_type}")
+                current_app.logger.debug(f"Form options data: {form.options.data}")
+                
                 options = []
                 for option in form.options.data:
-                    if option['label'].strip() and option['value'].strip():
+                    current_app.logger.debug(f"Processing option: {option}")
+                    if isinstance(option, dict) and option.get('label', '').strip() and option.get('value', '').strip():
                         options.append({
                             'label': option['label'].strip(),
                             'value': option['value'].strip()
                         })
+                        current_app.logger.debug(f"Added option: {options[-1]}")
                 
                 if options:
+                    current_app.logger.debug(f"Setting field options to: {options}")
                     field.options = options
-                    current_app.logger.debug(f"Setting options: {options}")
+                    current_app.logger.debug(f"Field options after setting: {field.options}")
                 else:
                     current_app.logger.debug("No valid options found")
                     flash('Please add at least one option for this field type.', 'error')
@@ -473,9 +541,20 @@ def edit_field(id, field_id):
             try:
                 current_app.logger.debug("Attempting to update field in database")
                 current_app.logger.debug(f"Field data: {field.__dict__}")
+                
+                # Force SQLAlchemy to recognize the options change
+                field.updated_at = datetime.utcnow()
+                
                 db.session.add(field)  # Explicitly add the field to the session
+                db.session.flush()  # Flush changes to get any DB-generated values
+                current_app.logger.debug(f"After flush - Field options: {field.options}")
                 db.session.commit()
                 current_app.logger.debug("Database commit successful")
+                current_app.logger.debug(f"Final field options: {field.options}")
+                
+                # Verify the save by reloading the field
+                db.session.refresh(field)
+                current_app.logger.debug(f"After refresh - Field options: {field.options}")
                 
                 # Update the module's table schema
                 current_app.logger.info(f"Updating table schema for module {field.parent_module.code}")

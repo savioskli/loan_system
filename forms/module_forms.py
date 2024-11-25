@@ -99,19 +99,39 @@ class FieldOptionForm(FlaskForm):
     label = StringField('Option Label', validators=[DataRequired()])
     value = StringField('Option Value', validators=[DataRequired()])
 
+    def __init__(self, *args, **kwargs):
+        super(FieldOptionForm, self).__init__(*args, **kwargs)
+        if isinstance(kwargs.get('data'), dict):
+            self.label.data = kwargs['data'].get('label', '')
+            self.value.data = kwargs['data'].get('value', '')
+
     def process_formdata(self, valuelist):
-        if valuelist:
-            self.data = []
-            for i in range(0, len(valuelist), 2):
-                if i + 1 < len(valuelist):
-                    label = valuelist[i].strip()
-                    value = valuelist[i + 1].strip()
-                    if label or value:  # Only add if either label or value is not empty
-                        self.data.append({
-                            'label': label or value,  # Use value as label if label is empty
-                            'value': value or label   # Use label as value if value is empty
-                        })
+        super(FieldOptionForm, self).process_formdata(valuelist)
+        # Only store non-empty options
+        if self.label.data and self.value.data:
+            self.data = {
+                'label': self.label.data,
+                'value': self.value.data
+            }
+        else:
+            self.data = None
 
 class DynamicFormFieldForm(FormFieldForm):
     options = FieldList(FormField(FieldOptionForm), min_entries=1)
     validation_rules = TextAreaField('Validation Rules (JSON)', validators=[Optional()])
+
+    def __init__(self, *args, module_id=None, **kwargs):
+        # Extract options from data if present
+        data = kwargs.get('data', {})
+        options_data = data.pop('options', []) if isinstance(data, dict) else []
+        
+        super(DynamicFormFieldForm, self).__init__(*args, module_id=module_id, **kwargs)
+        
+        # Clear any existing options
+        while len(self.options) > 0:
+            self.options.pop_entry()
+            
+        # Add options from data
+        for option in options_data:
+            if isinstance(option, dict) and option.get('label') and option.get('value'):
+                self.options.append_entry(option)

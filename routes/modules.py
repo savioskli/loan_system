@@ -158,20 +158,17 @@ def create_field(id):
     
     try:
         module = Module.query.get_or_404(id)
-        field_type = request.form.get('field_type', '')
         
         # Use basic form for GET requests
         if request.method == 'GET':
             form = FormFieldForm(module_id=id)
             current_app.logger.info("GET request - Creating new form")
-            current_app.logger.info(f"Client type choices: {form.client_type_restrictions.choices}")
             return render_template('admin/modules/field_form.html', form=form, module=module)
         
         # For POST requests
         current_app.logger.debug(f"Form Data: {request.form}")
-        current_app.logger.debug(f"Client Type Restrictions: {request.form.getlist('client_type_restrictions')}")
         
-        # Get the field data
+        field_type = request.form.get('field_type', '')
         field_data = {
             'field_name': request.form.get('field_name'),
             'field_label': request.form.get('field_label'),
@@ -183,142 +180,75 @@ def create_field(id):
             'section_id': request.form.get('section_id', type=int)
         }
         
-        # Get options from the form with the template's naming convention
+        # Get options from the form
         options = []
-        
-        # Collect all options from the form data
         i = 0
         while True:
             label_key = f'options-{i}-form-label'
             value_key = f'options-{i}-form-value'
             
-            if label_key not in request.form and f'options-{i}-label' not in request.form:  # No more options
+            if label_key not in request.form and f'options-{i}-label' not in request.form:
                 break
-                    
+                
             label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
             value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
             
-            current_app.logger.debug(f"Processing option {i} - Label: {label}, Value: {value}")
-            
-            if label and value:  # Only add if both label and value are non-empty
+            if label and value:
                 options.append({
                     'label': label,
                     'value': value
                 })
-                current_app.logger.debug(f"Added option {i}")
             
             i += 1
         
-        current_app.logger.debug(f"Final collected options: {options}")
-        field_data['options'] = options  # Add options to field_data
-        
-        # Create the appropriate form based on field type
-        if field_type in ['select', 'radio', 'checkbox']:
-            form = DynamicFormFieldForm(data=field_data, module_id=id)
-            
-            # Debug logging for form data
-            current_app.logger.debug("Form Data:")
-            for key, value in request.form.items():
-                current_app.logger.debug(f"{key}: {value}")
-            
-            # Validate that we have at least one option for select/radio/checkbox fields
-            if not options and field_type in ['select', 'radio', 'checkbox']:
-                flash('Please add at least one option for this field type.', 'error')
-                return render_template('admin/modules/field_form.html', form=form, module=module)
-        else:
+        if field_type in ['select', 'radio', 'checkbox'] and not options:
+            flash('Please add at least one option for this field type.', 'error')
             form = FormFieldForm(data=field_data, module_id=id)
+            return render_template('admin/modules/field_form.html', form=form, module=module)
         
-        if form.validate_on_submit():
-            current_app.logger.debug("Form validated successfully")
-            
-            # Get the highest current order
-            max_order = db.session.query(db.func.max(FormField.field_order)).filter_by(module_id=id).scalar() or 0
-            
-            field = FormField(
-                module_id=id,
-                field_name=form.field_name.data,
-                field_label=form.field_label.data,
-                field_placeholder=form.field_placeholder.data or '',
-                field_type=form.field_type.data,
-                validation_text=form.validation_text.data or '',
-                is_required=form.is_required.data,
-                field_order=max_order + 1,
-                client_type_restrictions=list(map(int, form.client_type_restrictions.data)) if form.client_type_restrictions.data else [],
-                section_id=form.section_id.data if form.section_id.data != 0 else None
-            )
-            
-            current_app.logger.debug(f"Creating field with data:")
-            current_app.logger.debug(f"- Name: {field.field_name}")
-            current_app.logger.debug(f"- Type: {field.field_type}")
-            current_app.logger.debug(f"- Client Type Restrictions: {field.client_type_restrictions}")
-            
-            # Handle options for select, radio, checkbox fields
-            if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):
-                current_app.logger.debug(f"Processing options for field type: {field.field_type}")
-                current_app.logger.debug(f"Form options data: {form.options.data}")
-                
-                options = []
-                for option in form.options.data:
-                    current_app.logger.debug(f"Processing option: {option}")
-                    if isinstance(option, dict) and option.get('label', '').strip() and option.get('value', '').strip():
-                        options.append({
-                            'label': option['label'].strip(),
-                            'value': option['value'].strip()
-                        })
-                        current_app.logger.debug(f"Added option: {options[-1]}")
-                
-                if options:
-                    current_app.logger.debug(f"Setting field options to: {options}")
-                    field.options = options
-                else:
-                    current_app.logger.debug("No valid options found")
-                    flash('Please add at least one option for this field type.', 'error')
-                    return render_template('admin/modules/field_form.html', form=form, module=module)
-            else:
-                field.options = None
-            
-            current_app.logger.debug(f"After update - Field data: {field.__dict__}")
-            
-            try:
-                current_app.logger.debug("Attempting to add field to database")
-                current_app.logger.debug(f"Field data: {field.__dict__}")
-                db.session.add(field)
-                db.session.flush()  # Flush changes to get any DB-generated values
-                current_app.logger.debug(f"After flush - Field options: {field.options}")
-                db.session.commit()
-                current_app.logger.debug("Database commit successful")
-                current_app.logger.debug(f"Final field options: {field.options}")
-                
-                # Update the module's table schema
-                current_app.logger.info(f"Updating table schema for module {module.code}")
-                if not create_or_update_module_table(module.code):
-                    raise Exception("Failed to update table schema")
-                current_app.logger.info("Table schema updated successfully")
-                
-                flash('Field created successfully.', 'success')
-                return redirect(url_for('modules.list_fields', id=module.id))
-            except Exception as db_error:
-                current_app.logger.error(f"Database error: {str(db_error)}")
-                current_app.logger.error(traceback.format_exc())
-                db.session.rollback()
-                flash(f'Database error: {str(db_error)}', 'error')
-        else:
-            current_app.logger.debug(f"Form validation failed. Errors: {form.errors}")
-            for field_name, errors in form.errors.items():
-                for error in errors:
-                    field_label = field_name
-                    if hasattr(form, field_name):
-                        field = getattr(form, field_name)
-                        if hasattr(field, 'label') and hasattr(field.label, 'text'):
-                            field_label = field.label.text
-                    flash(f'{field_label}: {error}', 'error')
+        # Get the highest current order
+        max_order = db.session.query(db.func.max(FormField.field_order)).filter_by(module_id=id).scalar() or 0
         
-        return render_template('admin/modules/field_form.html', form=form, module=module)
+        # Create new field
+        field = FormField(
+            module_id=id,
+            field_name=field_data['field_name'],
+            field_label=field_data['field_label'],
+            field_placeholder=field_data['field_placeholder'],
+            field_type=field_data['field_type'],
+            validation_text=field_data['validation_text'],
+            is_required=field_data['is_required'],
+            field_order=max_order + 1,
+            client_type_restrictions=[int(x) for x in field_data['client_type_restrictions']],
+            section_id=field_data['section_id'] if field_data['section_id'] != 0 else None
+        )
+        
+        if field_type in ['select', 'radio', 'checkbox']:
+            field.options = options
+        
+        current_app.logger.debug(f"Creating field with data:")
+        current_app.logger.debug(f"- Name: {field.field_name}")
+        current_app.logger.debug(f"- Type: {field.field_type}")
+        current_app.logger.debug(f"- Client Type Restrictions: {field.client_type_restrictions}")
+        
+        db.session.add(field)
+        db.session.commit()
+        
+        # Update the module's table schema
+        current_app.logger.info(f"Updating table schema for module {module.code}")
+        if not create_or_update_module_table(module.code):
+            raise Exception("Failed to update table schema")
+        current_app.logger.info("Table schema updated successfully")
+        
+        flash('Field created successfully!', 'success')
+        return redirect(url_for('modules.list_fields', id=id))
         
     except Exception as e:
-        current_app.logger.error(f"Unexpected error in create_field: {str(e)}")
-        flash(f'An unexpected error occurred: {str(e)}', 'error')
-        return redirect(url_for('modules.list_fields', id=id))
+        db.session.rollback()
+        current_app.logger.error(f"Error creating field: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while creating the field', 'error')
+        form = FormFieldForm(data=field_data, module_id=id) if 'field_data' in locals() else FormFieldForm(module_id=id)
+        return render_template('admin/modules/field_form.html', form=form, module=module)
 
 @modules_bp.route('/<int:id>/fields/<int:field_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -328,115 +258,16 @@ def edit_field(id, field_id):
         return redirect(url_for('main.index'))
     
     try:
-        # Get the field and verify it belongs to the module
+        module = Module.query.get_or_404(id)
         field = FormField.query.get_or_404(field_id)
-        if field.module_id != id:
-            flash('Invalid field ID.', 'error')
-            return redirect(url_for('modules.list_fields', id=id))
         
-        # For GET requests, initialize the form with field data
         if request.method == 'GET':
-            current_app.logger.debug(f"GET request - Current field data: {field.__dict__}")
-            current_app.logger.debug(f"Client type restrictions before conversion: {field.client_type_restrictions}")
-            
-            # Ensure client_type_restrictions is a list of integers
-            client_type_restrictions = []
-            if field.client_type_restrictions:
-                if isinstance(field.client_type_restrictions, list):
-                    client_type_restrictions = [int(x) for x in field.client_type_restrictions]
-                elif isinstance(field.client_type_restrictions, str):
-                    try:
-                        import json
-                        client_type_restrictions = [int(x) for x in json.loads(field.client_type_restrictions)]
-                    except (json.JSONDecodeError, ValueError) as e:
-                        current_app.logger.error(f"Error parsing client_type_restrictions: {e}")
-            
-            current_app.logger.debug(f"Client type restrictions after conversion: {client_type_restrictions}")
-            
-            form_data = {
-                'field_name': field.field_name,
-                'field_label': field.field_label,
-                'field_placeholder': field.field_placeholder,
-                'field_type': field.field_type,
-                'validation_text': field.validation_text,
-                'is_required': field.is_required,
-                'client_type_restrictions': client_type_restrictions,
-                'section_id': field.section_id if field.section_id is not None else 0
-            }
-            
-            if field.field_type in ['select', 'radio', 'checkbox']:
-                form = DynamicFormFieldForm(data=form_data, module_id=id)
-                # Clear any existing options and add new ones
-                while len(form.options) > 0:
-                    form.options.pop_entry()
-                
-                # Debug logging for options
-                current_app.logger.info(f"Field type: {field.field_type}")
-                current_app.logger.info(f"Raw options data: {field.options}")
-                current_app.logger.info(f"Options type: {type(field.options)}")
-                
-                # Add existing options
-                if field.options:
-                    try:
-                        # Handle list of dicts (our standard format)
-                        if isinstance(field.options, list) and all(isinstance(x, dict) for x in field.options):
-                            current_app.logger.info("Processing list of dicts")
-                            for option in field.options:
-                                form.options.append_entry({
-                                    'label': option.get('label', ''),
-                                    'value': option.get('value', '')
-                                })
-                        # Handle string-keyed dict
-                        elif isinstance(field.options, dict):
-                            current_app.logger.info("Processing dict")
-                            for value, label in field.options.items():
-                                form.options.append_entry({
-                                    'label': label if isinstance(label, str) else str(value),
-                                    'value': str(value)
-                                })
-                        # Handle list of strings
-                        elif isinstance(field.options, list):
-                            current_app.logger.info("Processing list of strings")
-                            for option in field.options:
-                                if isinstance(option, str):
-                                    form.options.append_entry({
-                                        'label': option,
-                                        'value': option
-                                    })
-                                elif isinstance(option, dict):
-                                    form.options.append_entry({
-                                        'label': option.get('label', ''),
-                                        'value': option.get('value', '')
-                                    })
-                        
-                        # Log the processed options
-                        current_app.logger.info("Processed options:")
-                        for option in form.options:
-                            current_app.logger.info(f"Label: {option.label.data}, Value: {option.value.data}")
-                            
-                    except Exception as e:
-                        current_app.logger.error(f"Error processing options: {str(e)}")
-                        current_app.logger.debug(f"Options data: {field.options}")
-            else:
-                form = FormFieldForm(data=form_data, module_id=id)
-            
-            return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
+            form = FormFieldForm(obj=field, module_id=id)
+            return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
         
         # For POST requests
-        current_app.logger.debug(f"POST request - Form Data: {request.form}")
+        form = FormFieldForm(module_id=id)
         field_type = request.form.get('field_type', '')
-        
-        # Get client type restrictions from form
-        client_type_restrictions = request.form.getlist('client_type_restrictions')
-        current_app.logger.debug(f"Received client type restrictions: {client_type_restrictions}")
-        
-        # Convert to integers and handle empty list
-        if client_type_restrictions:
-            client_type_restrictions = [int(x) for x in client_type_restrictions]
-        else:
-            client_type_restrictions = None
-        
-        # Get the field data
         field_data = {
             'field_name': request.form.get('field_name'),
             'field_label': request.form.get('field_label'),
@@ -444,147 +275,67 @@ def edit_field(id, field_id):
             'field_type': field_type,
             'validation_text': request.form.get('validation_text'),
             'is_required': request.form.get('is_required') == 'y',
-            'client_type_restrictions': client_type_restrictions,
+            'client_type_restrictions': request.form.getlist('client_type_restrictions') if request.form.getlist('client_type_restrictions') else [],
             'section_id': request.form.get('section_id', type=int)
         }
-        current_app.logger.debug(f"Field data to be updated: {field_data}")
         
-        # Get options from the form with the template's naming convention
+        # Get options from the form
         options = []
-        
-        # Collect all options from the form data
         i = 0
         while True:
             label_key = f'options-{i}-form-label'
             value_key = f'options-{i}-form-value'
             
-            if label_key not in request.form and f'options-{i}-label' not in request.form:  # No more options
+            if label_key not in request.form and f'options-{i}-label' not in request.form:
                 break
-                    
+                
             label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
             value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
             
-            current_app.logger.debug(f"Processing option {i} - Label: {label}, Value: {value}")
-            
-            if label and value:  # Only add if both label and value are non-empty
+            if label and value:
                 options.append({
                     'label': label,
                     'value': value
                 })
-                current_app.logger.debug(f"Added option {i}")
             
             i += 1
         
-        current_app.logger.debug(f"Final collected options: {options}")
-        field_data['options'] = options  # Add options to field_data
-        
-        # Create the appropriate form based on field type
-        if field_type in ['select', 'radio', 'checkbox']:
-            form = DynamicFormFieldForm(data=field_data, module_id=id)
-            
-            # Debug logging for form data
-            current_app.logger.debug("Form Data:")
-            for key, value in request.form.items():
-                current_app.logger.debug(f"{key}: {value}")
-            
-            # Validate that we have at least one option for select/radio/checkbox fields
-            if not options and field_type in ['select', 'radio', 'checkbox']:
-                flash('Please add at least one option for this field type.', 'error')
-                return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
-        else:
+        if field_type in ['select', 'radio', 'checkbox'] and not options:
+            flash('Please add at least one option for this field type.', 'error')
             form = FormFieldForm(data=field_data, module_id=id)
+            return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
         
-        if form.validate_on_submit():
-            current_app.logger.debug("Form validated successfully")
-            current_app.logger.debug(f"Before update - Field data: {field.__dict__}")
-            
-            # Update field data
-            field.field_name = form.field_name.data
-            field.field_label = form.field_label.data
-            field.field_placeholder = form.field_placeholder.data
-            field.field_type = form.field_type.data
-            field.validation_text = form.validation_text.data
-            field.is_required = form.is_required.data
-            field.client_type_restrictions = list(map(int, form.client_type_restrictions.data)) if form.client_type_restrictions.data else []
-            field.section_id = form.section_id.data if form.section_id.data != 0 else None
-            
-            current_app.logger.debug(f"Updated client type restrictions: {field.client_type_restrictions}")
-            
-            # Handle options for select, radio, checkbox fields
-            if field.field_type in ['select', 'radio', 'checkbox'] and hasattr(form, 'options'):
-                current_app.logger.debug(f"Processing options for field type: {field.field_type}")
-                current_app.logger.debug(f"Form options data: {form.options.data}")
-                
-                options = []
-                for option in form.options.data:
-                    current_app.logger.debug(f"Processing option: {option}")
-                    if isinstance(option, dict) and option.get('label', '').strip() and option.get('value', '').strip():
-                        options.append({
-                            'label': option['label'].strip(),
-                            'value': option['value'].strip()
-                        })
-                        current_app.logger.debug(f"Added option: {options[-1]}")
-                
-                if options:
-                    current_app.logger.debug(f"Setting field options to: {options}")
-                    field.options = options
-                    current_app.logger.debug(f"Field options after setting: {field.options}")
-                else:
-                    current_app.logger.debug("No valid options found")
-                    flash('Please add at least one option for this field type.', 'error')
-                    return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
-            else:
-                field.options = None
-            
-            current_app.logger.debug(f"After update - Field data: {field.__dict__}")
-            
-            try:
-                current_app.logger.debug("Attempting to update field in database")
-                current_app.logger.debug(f"Field data: {field.__dict__}")
-                
-                # Force SQLAlchemy to recognize the options change
-                field.updated_at = datetime.utcnow()
-                
-                db.session.add(field)  # Explicitly add the field to the session
-                db.session.flush()  # Flush changes to get any DB-generated values
-                current_app.logger.debug(f"After flush - Field options: {field.options}")
-                db.session.commit()
-                current_app.logger.debug("Database commit successful")
-                current_app.logger.debug(f"Final field options: {field.options}")
-                
-                # Verify the save by reloading the field
-                db.session.refresh(field)
-                current_app.logger.debug(f"After refresh - Field options: {field.options}")
-                
-                # Update the module's table schema
-                current_app.logger.info(f"Updating table schema for module {field.parent_module.code}")
-                if not create_or_update_module_table(field.parent_module.code):
-                    raise Exception("Failed to update table schema")
-                current_app.logger.info("Table schema updated successfully")
-                
-                flash('Field updated successfully.', 'success')
-                return redirect(url_for('modules.list_fields', id=id))
-            except Exception as db_error:
-                current_app.logger.error(f"Database error: {str(db_error)}")
-                db.session.rollback()
-                flash(f'Database error: {str(db_error)}', 'error')
+        # Update field
+        field.field_name = field_data['field_name']
+        field.field_label = field_data['field_label']
+        field.field_placeholder = field_data['field_placeholder']
+        field.field_type = field_data['field_type']
+        field.validation_text = field_data['validation_text']
+        field.is_required = field_data['is_required']
+        field.section_id = field_data['section_id'] if field_data['section_id'] != 0 else None
+        field.client_type_restrictions = [int(x) for x in field_data['client_type_restrictions']]
+        
+        if field_type in ['select', 'radio', 'checkbox']:
+            field.options = options
         else:
-            current_app.logger.debug(f"Form validation failed. Errors: {form.errors}")
-            for field_name, errors in form.errors.items():
-                for error in errors:
-                    field_label = field_name
-                    if hasattr(form, field_name):
-                        field = getattr(form, field_name)
-                        if hasattr(field, 'label') and hasattr(field.label, 'text'):
-                            field_label = field.label.text
-                    flash(f'{field_label}: {error}', 'error')
+            field.options = None
         
-        return render_template('admin/modules/field_form.html', form=form, module=field.parent_module, title='Edit Field', field_id=field_id)
+        db.session.commit()
+        
+        # Update the module's table schema
+        current_app.logger.info(f"Updating table schema for module {module.code}")
+        if not create_or_update_module_table(module.code):
+            raise Exception("Failed to update table schema")
+        current_app.logger.info("Table schema updated successfully")
+        
+        flash('Field updated successfully.', 'success')
+        return redirect(url_for('modules.list_fields', id=module.id))
         
     except Exception as e:
-        current_app.logger.error(f"Unexpected error in edit_field: {str(e)}")
-        flash(f'An unexpected error occurred: {str(e)}', 'error')
-        return redirect(url_for('modules.list_fields', id=id))
+        db.session.rollback()
+        current_app.logger.error(f"Error updating field: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while updating the field', 'error')
+        return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
 
 @modules_bp.route('/<int:id>/fields/order', methods=['POST'])
 @login_required

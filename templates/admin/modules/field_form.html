@@ -114,7 +114,7 @@
             <div class="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600">
                 <h1 class="text-2xl font-bold text-white">{{ title }}</h1>
                 <p class="mt-2 text-indigo-100">
-                    {% if field_id %}
+                    {% if field %}
                     Edit field for module: {{ module.name }}
                     {% else %}
                     Create new field for module: {{ module.name }}
@@ -123,7 +123,7 @@
             </div>
 
             <!-- Form -->
-            <form method="POST" action="{% if field_id %}{{ url_for('modules.edit_field', id=module.id, field_id=field_id) }}{% else %}{{ url_for('modules.create_field', id=module.id) }}{% endif %}" class="p-6">
+            <form method="POST" action="{% if field %}{{ url_for('modules.edit_field', id=module.id, field_id=field.id) }}{% else %}{{ url_for('modules.create_field', id=module.id) }}{% endif %}" class="p-6">
                 {{ form.csrf_token }}
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,16 +214,16 @@
                             {% endif %}
                         </div>
 
-                        <!-- Section ID -->
+                        <!-- Client Type Restrictions -->
                         <div class="space-y-2">
-                            {{ form.section_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                            {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
-                                {{ form.section_id(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
-                                <p class="mt-1 text-sm text-gray-500 help-text">Choose which section this field belongs to.</p>
+                                {{ form.client_type_restrictions(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                                <p class="mt-1 text-sm text-gray-500 help-text">{{ form.client_type_restrictions.description }}</p>
                             </div>
-                            {% if form.section_id.errors %}
+                            {% if form.client_type_restrictions.errors %}
                             <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                {% for error in form.section_id.errors %}
+                                {% for error in form.client_type_restrictions.errors %}
                                 <p class="flex items-center">
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -235,16 +235,16 @@
                             {% endif %}
                         </div>
 
-                        <!-- Client Type Restrictions -->
+                        <!-- Section ID -->
                         <div class="space-y-2">
-                            {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                            {{ form.section_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
-                                {{ form.client_type_restrictions(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
-                                <p class="mt-1 text-sm text-gray-500 help-text">Select which client types can access this field.</p>
+                                {{ form.section_id(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                                <p class="mt-1 text-sm text-gray-500 help-text">Choose which section this field belongs to.</p>
                             </div>
-                            {% if form.client_type_restrictions.errors %}
+                            {% if form.section_id.errors %}
                             <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                {% for error in form.client_type_restrictions.errors %}
+                                {% for error in form.section_id.errors %}
                                 <p class="flex items-center">
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -345,8 +345,8 @@
                         Cancel
                     </a>
                     <button type="submit"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        {{ 'Save Changes' if field_id else 'Create Field' }}
+                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        {% if field %}Save{% else %}Create Field{% endif %}
                     </button>
                 </div>
             </form>
@@ -359,18 +359,43 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script>
-    // Initialize Choices.js for select elements
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize choices.js for client type restrictions
+        const clientTypeSelect = document.querySelector('[name="client_type_restrictions"]');
+        if (clientTypeSelect) {
+            const choices = new Choices(clientTypeSelect, {
+                removeItemButton: true,
+                maxItemCount: -1,
+                searchEnabled: true,
+                renderChoiceLimit: -1,
+                placeholder: true,
+                placeholderValue: 'Select client types...',
+                classNames: {
+                    containerOuter: 'choices',
+                    containerInner: 'choices__inner',
+                    input: 'choices__input',
+                    inputCloned: 'choices__input--cloned',
+                    list: 'choices__list',
+                    listItems: 'choices__list--multiple',
+                    listSingle: 'choices__list--single',
+                    listDropdown: 'choices__list--dropdown',
+                    item: 'choices__item',
+                    itemSelectable: 'choices__item--selectable',
+                    itemDisabled: 'choices__item--disabled',
+                    itemChoice: 'choices__item--choice',
+                    placeholder: 'choices__placeholder',
+                    group: 'choices__group',
+                    groupHeading: 'choices__heading',
+                    button: 'choices__button',
+                }
+            });
+        }
+
+        // Initialize Choices.js for select elements
         const selects = document.querySelectorAll('select');
         selects.forEach(select => {
             if (select.id === 'client_type_restrictions') {
-                new Choices(select, {
-                    removeItemButton: true,
-                    maxItemCount: -1,
-                    searchEnabled: true,
-                    placeholder: true,
-                    placeholderValue: 'Select client types...',
-                });
+                // Already initialized above
             } else {
                 new Choices(select, {
                     searchEnabled: false,

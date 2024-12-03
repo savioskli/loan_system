@@ -77,24 +77,18 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for prospect in prospects %}
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50" data-prospect-id="{{ prospect.id }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">
                                     {{ prospect.first_name }} {{ prospect.middle_name if prospect.middle_name else '' }} {{ prospect.last_name }}
                                 </div>
                                 <div class="text-sm text-gray-500">
-                                    ID: {{ prospect.id_type }} - {{ prospect.id_number }}
+                                    ID: {{ prospect.id_number }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    {% if prospect.client_type == 'Individual Client' %}
-                                        bg-green-100 text-green-800
-                                    {% else %}
-                                        bg-blue-100 text-blue-800
-                                    {% endif %}">
-                                    {{ prospect.client_type }}
-                                </span>
+                                <div class="text-sm text-gray-900">{{ prospect.client_type_name }}</div>
+                                <div class="text-sm text-gray-500">{{ prospect.submission_date.strftime('%Y-%m-%d') }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">{{ prospect.mobile_phone }}</div>
@@ -104,11 +98,9 @@
                                 <div class="text-sm text-gray-900">{{ prospect.county }}</div>
                                 <div class="text-sm text-gray-500">{{ prospect.sub_county }}</div>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">{{ prospect.purpose_of_visit }}</div>
-                                <div class="text-sm text-gray-500 truncate max-w-xs" title="{{ prospect.purpose_description if prospect.purpose_description else '' }}">
-                                    {{ prospect.purpose_description if prospect.purpose_description else '' }}
-                                </div>
+                                <div class="text-sm text-gray-500">{{ prospect.purpose_description if prospect.purpose_description else '' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -116,33 +108,23 @@
                                         bg-yellow-100 text-yellow-800
                                     {% elif prospect.status == 'Approved' %}
                                         bg-green-100 text-green-800
-                                    {% else %}
+                                    {% elif prospect.status == 'Rejected' %}
                                         bg-red-100 text-red-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
                                     {% endif %}">
                                     {{ prospect.status }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {% set user = Staff.query.get(prospect.user_id) %}
-                                <div class="text-sm text-gray-900">{{ user.username if user else 'Unknown' }}</div>
-                                <div class="text-sm text-gray-500">{{ prospect.submission_date.strftime('%Y-%m-%d %H:%M') }}</div>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ prospect.staff_username if prospect.staff_username else 'Unknown' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                {% if prospect.status == 'Pending' %}
-                                <a href="{{ url_for('user.convert_to_client', prospect_id=prospect.id) }}" 
-                                   class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                    <i class="fas fa-user-check mr-1"></i>Convert to Client
-                                </a>
-                                {% else %}
-                                <form action="{{ url_for('user.update_prospect_status', prospect_id=prospect.id) }}" method="POST" class="inline">
-                                    <button type="submit" class="text-yellow-600 hover:text-yellow-900 mr-3">
-                                        <i class="fas fa-redo mr-1"></i>Set as Pending
-                                    </button>
-                                </form>
-                                {% endif %}
-                                <a href="#" class="text-blue-600 hover:text-blue-900">
-                                    <i class="fas fa-eye mr-1"></i>View
-                                </a>
+                                <div class="flex space-x-2">
+                                    <a href="#" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                    <a href="{{ url_for('user.convert_to_client', prospect_id=prospect.id) }}" class="text-blue-600 hover:text-blue-900">Convert</a>
+                                    <button onclick="deleteProspect({{ prospect.id }})" class="text-red-600 hover:text-red-900">Delete</button>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -151,7 +133,7 @@
                                 {% if search_query %}
                                     No prospects found matching "{{ search_query }}". <a href="{{ url_for('user.prospects') }}" class="text-blue-600 hover:text-blue-900">Clear search</a> or <a href="{{ url_for('user.dynamic_form', module_code='CLM01') }}" class="text-blue-600 hover:text-blue-900">register a new prospect</a>
                                 {% else %}
-                                    No prospects found. <a href="{{ url_for('user.dynamic_form', module_code='CLM01') }}" class="text-blue-600 hover:text-blue-900">Register a new prospect</a>
+                                    No prospects registered yet. <a href="{{ url_for('user.dynamic_form', module_code='CLM01') }}" class="text-blue-600 hover:text-blue-900">Register your first prospect</a>
                                 {% endif %}
                             </td>
                         </tr>
@@ -167,38 +149,58 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const itemsPerPage = 10;
-    let currentPage = 1;
-    let filteredRows = [];
-    const prospectRows = Array.from(document.querySelectorAll('tbody tr'));
     const searchInput = document.getElementById('searchInput');
+    const rows = document.querySelectorAll('tbody tr');
     
-    // Initialize
-    filteredRows = prospectRows;
-    displayRows();
-
-    // Search functionality
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        filteredRows = prospectRows.filter(row => {
-            const text = row.textContent.toLowerCase();
-            return text.includes(searchTerm);
-        });
-        currentPage = 1;
-        displayRows();
-    });
-
     function displayRows() {
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        const pageRows = filteredRows.slice(start, end);
-
-        // Hide all rows
-        prospectRows.forEach(row => row.style.display = 'none');
-        
-        // Show only rows for current page
-        pageRows.forEach(row => row.style.display = '');
+        const searchTerm = searchInput.value.toLowerCase();
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
     }
+    
+    searchInput.addEventListener('input', displayRows);
+    displayRows();
 });
+
+function deleteProspect(id) {
+    if (confirm('Are you sure you want to delete this prospect?')) {
+        fetch(`/user/prospects/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the row from the table
+                const row = document.querySelector(`tr[data-prospect-id="${id}"]`);
+                if (row) {
+                    row.remove();
+                }
+                // Show success message
+                showNotification('Prospect deleted successfully', 'success');
+            } else {
+                showNotification('Failed to delete prospect', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while deleting the prospect', 'error');
+        });
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} shadow-lg z-50`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
 </script>
 {% endblock %}

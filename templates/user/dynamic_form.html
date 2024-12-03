@@ -25,9 +25,9 @@
 
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form id="dynamicForm" method="POST" class="divide-y divide-gray-200">
-                {{ form.csrf_token }}
-                
+            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_code=module.code) }}" class="divide-y divide-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 {% for section in sections %}
                 <div class="px-8 py-6">
                     <div class="space-y-8">
@@ -41,7 +41,28 @@
                         
                         <!-- Form Fields Grid -->
                         <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
+                            {% if loop.first %}
+                            <!-- Client Type Selection (only in first section) -->
+                            <div class="form-group">
+                                <label for="client_type" class="block text-sm font-medium text-gray-900 mb-1">
+                                    Client Type <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <select id="client_type" 
+                                            name="client_type" 
+                                            required
+                                            class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                        <option value="">Select Client Type</option>
+                                        {% for client_type in client_types %}
+                                        <option value="{{ client_type.id }}">{{ client_type.client_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
                             {% for field in section.fields %}
+                            {% if field.field_name != 'client_type' %}
                             <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
                                  data-field-name="{{ field.field_name }}"
                                  {% if field.client_type_restrictions %}
@@ -55,15 +76,15 @@
                                     {% endif %}
                                 </label>
                                 
-                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date', 'phone'] %}
+                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date'] %}
                                     <div class="relative rounded-md shadow-sm">
-                                        <input type="{% if field.field_type == 'tel' or field.field_type == 'phone' %}tel{% else %}{{ field.field_type }}{% endif %}"
+                                        <input type="{{ field.field_type }}"
                                                id="{{ field.field_name }}"
                                                name="{{ field.field_name }}"
                                                class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                                {% if field.is_required %}required{% endif %}
-                                               {% if field.field_type == 'tel' or field.field_type == 'phone' %}pattern="[0-9]{10,}"{% endif %}
+                                               {% if field.field_type == 'tel' %}pattern="[0-9]{10,}"{% endif %}
                                                {% if field.field_type == 'number' %}step="any"{% endif %}>
                                     </div>
                                 
@@ -84,36 +105,24 @@
                                                 class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                 {% if field.is_required %}required{% endif %}>
                                             <option value="">Select {{ field.field_label }}</option>
-                                            {% if field.options %}
-                                                {% for option in field.options %}
-                                                    <option value="{{ option.value }}">{{ option.label }}</option>
+                                            {% if field.field_name == 'product' %}
+                                                {% for product in products %}
+                                                <option value="{{ product.id }}">{{ product.name }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'county' %}
+                                                {% for county in counties %}
+                                                <option value="{{ county }}">{{ county }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'postal_town' %}
+                                                {% for town in postal_towns %}
+                                                <option value="{{ town }}">{{ town }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'id_type' %}
+                                                {% for id_type in id_types %}
+                                                <option value="{{ id_type.value }}">{{ id_type.label }}</option>
                                                 {% endfor %}
                                             {% endif %}
                                         </select>
-                                    </div>
-                                
-                                {% elif field.field_type == 'checkbox' %}
-                                    <div class="mt-1 space-y-2">
-                                        <div class="bg-gray-50 px-4 py-3 rounded-md border border-gray-200">
-                                            <div class="flex flex-col gap-3">
-                                                {% if field.options %}
-                                                    {% for option in field.options %}
-                                                        <div class="flex items-center">
-                                                            <input type="checkbox"
-                                                                   id="{{ field.field_name }}_{{ option.value }}"
-                                                                   name="{{ field.field_name }}[]"
-                                                                   value="{{ option.value }}"
-                                                                   class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                                                   {% if field.is_required %}required{% endif %}>
-                                                            <label for="{{ field.field_name }}_{{ option.value }}"
-                                                                   class="ml-3 block text-sm font-medium text-gray-700">
-                                                                {{ option.label }}
-                                                            </label>
-                                                        </div>
-                                                    {% endfor %}
-                                                {% endif %}
-                                            </div>
-                                        </div>
                                     </div>
                                 
                                 {% elif field.field_type == 'radio' %}
@@ -126,7 +135,7 @@
                                                                id="{{ field.field_name }}_male" 
                                                                name="{{ field.field_name }}" 
                                                                value="Male"
-                                                               class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 transition-colors duration-200"
+                                                               class="h-4 w-4 text-primary border-gray-300 focus:ring-primary transition-colors duration-200"
                                                                {% if field.is_required %}required{% endif %}>
                                                         <label for="{{ field.field_name }}_male" 
                                                                class="ml-3 block text-sm font-medium text-gray-700">Male</label>
@@ -136,65 +145,12 @@
                                                                id="{{ field.field_name }}_female" 
                                                                name="{{ field.field_name }}" 
                                                                value="Female"
-                                                               class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 transition-colors duration-200"
+                                                               class="h-4 w-4 text-primary border-gray-300 focus:ring-primary transition-colors duration-200"
                                                                {% if field.is_required %}required{% endif %}>
                                                         <label for="{{ field.field_name }}_female" 
                                                                class="ml-3 block text-sm font-medium text-gray-700">Female</label>
                                                     </div>
-                                                {% elif field.options %}
-                                                    {% for option in field.options %}
-                                                        <div class="flex items-center">
-                                                            <input type="radio" 
-                                                                   id="{{ field.field_name }}_{{ option.value }}" 
-                                                                   name="{{ field.field_name }}" 
-                                                                   value="{{ option.value }}"
-                                                                   class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 transition-colors duration-200"
-                                                                   {% if field.is_required %}required{% endif %}>
-                                                            <label for="{{ field.field_name }}_{{ option.value }}" 
-                                                                   class="ml-3 block text-sm font-medium text-gray-700">{{ option.label }}</label>
-                                                        </div>
-                                                    {% endfor %}
                                                 {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                
-                                {% elif field.field_type == 'file' %}
-                                    <div class="relative">
-                                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-500 transition-colors duration-200">
-                                            <div class="space-y-1 text-center">
-                                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                                </svg>
-                                                <div class="flex text-sm text-gray-600">
-                                                    <label for="{{ field.field_name }}" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                                        <span>Upload a file</span>
-                                                        <input id="{{ field.field_name }}"
-                                                               name="{{ field.field_name }}"
-                                                               type="file"
-                                                               class="sr-only"
-                                                               {% if field.is_required %}required{% endif %}>
-                                                    </label>
-                                                    <p class="pl-1">or drag and drop</p>
-                                                </div>
-                                                <p class="text-xs text-gray-500">
-                                                    PNG, JPG, PDF up to 10MB
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2 hidden">
-                                            <div class="flex items-center justify-between p-2 bg-indigo-50 rounded-md">
-                                                <div class="flex items-center">
-                                                    <svg class="h-5 w-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z" clip-rule="evenodd" />
-                                                    </svg>
-                                                    <span class="ml-2 text-sm text-indigo-600 file-name"></span>
-                                                </div>
-                                                <button type="button" class="text-indigo-600 hover:text-indigo-900 remove-file">
-                                                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -204,6 +160,7 @@
                                     <p class="mt-2 text-sm text-gray-500">{{ field.validation_text }}</p>
                                 {% endif %}
                             </div>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -232,111 +189,12 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('dynamicForm');
-        const clientTypeSelect = document.querySelector('select[name="client_type"]');
-        
-        // Function to update field visibility based on client type
-        function updateFieldVisibility(selectedClientTypeId) {
-            console.log('Selected client type:', selectedClientTypeId);
-            const formGroups = document.querySelectorAll('.form-group[data-client-types]');
-            
-            formGroups.forEach(group => {
-                const allowedTypes = JSON.parse(group.dataset.clientTypes || '[]');
-                console.log('Field:', group.dataset.fieldName, 'Allowed types:', allowedTypes);
-                
-                if (allowedTypes.length === 0 || allowedTypes.includes(parseInt(selectedClientTypeId))) {
-                    group.style.display = 'block';
-                    // Enable all form elements within this group
-                    group.querySelectorAll('input, select, textarea').forEach(element => {
-                        element.disabled = false;
-                    });
-                } else {
-                    group.style.display = 'none';
-                    // Disable all form elements within this group
-                    group.querySelectorAll('input, select, textarea').forEach(element => {
-                        element.disabled = true;
-                    });
-                }
-            });
-        }
-        
-        // Initialize field visibility
-        if (clientTypeSelect) {
-            // Initial update
-            updateFieldVisibility(clientTypeSelect.value);
-            
-            // Update visibility when client type changes
-            clientTypeSelect.addEventListener('change', function() {
-                updateFieldVisibility(this.value);
-            });
-        }
-        
-        // File upload handling
-        const fileInputs = document.querySelectorAll('input[type="file"]');
-        fileInputs.forEach(input => {
-            const dropZone = input.closest('.relative').querySelector('.border-dashed');
-            const fileNameDisplay = input.closest('.relative').querySelector('.file-name');
-            const filePreview = input.closest('.relative').querySelector('.mt-2');
-            
-            // Handle file selection
-            function handleFile(file) {
-                if (file) {
-                    // Update file input
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(file);
-                    input.files = dataTransfer.files;
-                    
-                    // Update UI
-                    fileNameDisplay.textContent = file.name;
-                    filePreview.classList.remove('hidden');
-                    
-                    // Trigger change event
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-            
-            // Handle file input change
-            input.addEventListener('change', function(e) {
-                const file = this.files[0];
-                if (file) {
-                    handleFile(file);
-                }
-            });
-            
-            // Handle drag and drop
-            dropZone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('border-indigo-500', 'bg-indigo-50');
-            });
-            
-            dropZone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('border-indigo-500', 'bg-indigo-50');
-            });
-            
-            dropZone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('border-indigo-500', 'bg-indigo-50');
-                
-                const file = e.dataTransfer.files[0];
-                if (file) {
-                    handleFile(file);
-                }
-            });
-        });
-        
-        // Remove file handling
-        document.querySelectorAll('.remove-file').forEach(button => {
-            button.addEventListener('click', function() {
-                const fileInput = this.closest('.relative').querySelector('input[type="file"]');
-                const filePreview = this.closest('.mt-2');
-                
-                // Reset file input
-                fileInput.value = '';
-                filePreview.classList.add('hidden');
-            });
-        });
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize form validation
+    initFormValidation();
+    
+    // Initialize location fields
+    initLocationFields();
+});
 </script>
 {% endblock %}

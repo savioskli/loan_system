@@ -4,17 +4,16 @@ from models.module import Module, FormField
 from models.form_section import FormSection
 from models.product import Product
 from models.client_type import ClientType
-from extensions import db
+from extensions import db, csrf
+from flask_wtf import FlaskForm
 import os
 import json
 from werkzeug.utils import secure_filename
 from data.kenya_locations import KENYA_COUNTIES
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, text, MetaData, Table
 from datetime import datetime
-from sqlalchemy import Table, MetaData
-from flask_wtf import FlaskForm
 import traceback
-from models.staff import Staff  # Import Staff model
+from models.staff import Staff
 
 user_bp = Blueprint('user', __name__)
 
@@ -77,62 +76,56 @@ def dynamic_form(module_code):
         module = Module.query.filter_by(code=module_code).first_or_404()
         
         # Get module sections with fields
-        sections = module.sections.filter_by(is_active=True).order_by(FormSection.order).all()
+        sections = FormSection.query.filter_by(
+            module_id=module.id,
+            is_active=True
+        ).order_by(FormSection.order).all()
         
         # Get client types and products
-        client_types = ClientType.query.filter(ClientType.status == True).all()
-        products = Product.query.filter(Product.status == 'Active').all()
-        
-        # Kenya counties for postal town
-        counties = KENYA_COUNTIES if 'KENYA_COUNTIES' in globals() else [
-            'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika',
-            'Kitale', 'Malindi', 'Garissa', 'Kakamega'
+        client_types = ClientType.query.filter_by(status=True).all()
+        products = Product.query.filter_by(status='Active').all()
+
+        # ID types configuration
+        ID_TYPES = [
+            {'value': 'National ID', 'label': 'National ID'},
+            {'value': 'Passport', 'label': 'Passport'},
+            {'value': 'Alien ID', 'label': 'Alien ID'},
+            {'value': 'Military ID', 'label': 'Military ID'}
         ]
-        
-        # Create a dynamic form with CSRF protection
-        class DynamicForm(FlaskForm):
-            pass
-        form = DynamicForm()
-        
-        if request.method == 'POST':
-            form_data = request.form.to_dict()
-            
-            # Get the client type from the form
-            client_type_id = form_data.get('client_type')
-            if client_type_id:
-                client_type_id = int(client_type_id)
-                
-                # Validate fields based on client type restrictions
-                for section in sections:
-                    for field in section.fields:
-                        field_name = field.field_name
-                        if field_name in form_data:
-                            restrictions = field.client_type_restrictions or []
-                            if restrictions and client_type_id not in restrictions:
-                                del form_data[field_name]
-            
-            # Process the validated form data
-            try:
-                # Here you would typically save the form data to your database
-                flash('Form submitted successfully!', 'success')
-                return redirect(url_for('user.dashboard'))
-                
-            except Exception as e:
-                current_app.logger.error(f"Error processing form: {str(e)}")
-                flash('An error occurred while processing your form. Please try again.', 'error')
-        
-        # Return the template with all necessary data
+
+        # Postal towns list - Comprehensive list of Kenya's major postal towns
+        POSTAL_TOWNS = [
+            'Baringo', 'Bomet', 'Bondo', 'Bungoma', 'Busia', 'Butere',
+            'Chogoria', 'Chuka', 'Dandora', 'Eastleigh', 'Eldama Ravine', 'Eldoret', 
+            'Emali', 'Embu', 'Garissa', 'Gatundu', 'Gede', 'Gilgil', 'Githunguri',
+            'Hola', 'Homabay', 'Industrial Area', 'Isiolo', 'Kabarnet', 'Kajiado',
+            'Kakamega', 'Kakuma', 'Kaloleni', 'Kandara', 'Kangema', 'Kangundo', 'Karen',
+            'Karatina', 'Kericho', 'Keroka', 'Kerugoya', 'Kiambu', 'Kibwezi', 'Kilifi',
+            'Kimilili', 'Kinango', 'Kipkelion', 'Kisii', 'Kisumu', 'Kitale', 'Kitengela',
+            'Kitui', 'Kwale', 'Lamu', 'Langata', 'Lare', 'Limuru', 'Lodwar', 'Lokichoggio',
+            'Londiani', 'Luanda', 'Lugari', 'Machakos', 'Makindu', 'Malaba', 'Malindi',
+            'Maragoli', 'Maralal', 'Mariakani', 'Maseno', 'Maua', 'Mbale', 'Meru',
+            'Migori', 'Mombasa', 'Moyale', 'Mpeketoni', 'Mtito Andei', 'Muhoroni',
+            'Mumias', 'Muranga', 'Mwatate', 'Mwingi', 'Nairobi GPO', 'Naivasha',
+            'Nakuru', 'Namanga', 'Nandi Hills', 'Nanyuki', 'Narok', 'Ngong',
+            'Nyahururu', 'Nyamira', 'Nyeri', 'Olenguruone', 'Oyugis', 'Parklands',
+            'Rongo', 'Ruiru', 'Sagana', 'Sarit Centre', 'Shimoni', 'Siaya', 'Sidindi',
+            'Suba', 'Taveta', 'Thika', 'Timau', 'Ukunda', 'Vihiga', 'Voi', 'Wajir',
+            'Watamu', 'Webuye', 'Westlands', 'Witu', 'Wote', 'Wundanyi', 'Yala'
+        ]
+
+        # Render the form template
         return render_template('user/dynamic_form.html',
                             module=module,
                             sections=sections,
-                            form=form,
-                            form_data={},
                             client_types=client_types,
                             products=products,
-                            counties=counties)
+                            counties=KENYA_COUNTIES,
+                            id_types=ID_TYPES,
+                            postal_towns=sorted(POSTAL_TOWNS))  # Sort alphabetically
                             
     except Exception as e:
-        current_app.logger.error(f"Error in dynamic_form: {str(e)}\n{traceback.format_exc()}")
+        current_app.logger.error(f"Error loading form: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading the form. Please try again.', 'error')
         return redirect(url_for('user.dashboard'))
 
@@ -144,51 +137,28 @@ def prospects():
         # Get search parameters
         search_query = request.args.get('search', '').strip()
         
-        # Get all prospect registrations
-        metadata = MetaData()
-        metadata.reflect(bind=db.engine, only=['form_data_clm01'])
-        if 'form_data_clm01' not in metadata.tables:
-            flash('Prospect registration table not found.', 'error')
-            return redirect(url_for('user.dashboard'))
-            
-        # Get the table
-        table = metadata.tables['form_data_clm01']
+        # Create a query to fetch prospects
+        sql = text("""
+            SELECT 
+                fd.*,
+                s.username as staff_username,
+                COALESCE(ct.client_name, fd.client_type) as client_type_name
+            FROM form_data_clm01 fd
+            LEFT JOIN staff s ON s.id = fd.user_id
+            LEFT JOIN client_types ct ON ct.id = fd.client_type_id AND ct.status = 1
+            ORDER BY fd.submission_date DESC
+        """)
         
-        # Build base query
-        query = db.session.query(table).join(
-            Staff, Staff.id == table.c.user_id
-        ).join(
-            ClientType, ClientType.id == table.c.client_type_id
-        )
-
-        # Apply search filter if search query exists
-        if search_query:
-            search_filter = or_(
-                table.c.first_name.ilike(f'%{search_query}%'),
-                table.c.last_name.ilike(f'%{search_query}%'),
-                table.c.mobile_phone.ilike(f'%{search_query}%'),
-                table.c.email.ilike(f'%{search_query}%'),
-                table.c.id_number.ilike(f'%{search_query}%'),
-                table.c.county.ilike(f'%{search_query}%'),
-                table.c.purpose_of_visit.ilike(f'%{search_query}%'),
-                Staff.username.ilike(f'%{search_query}%')
-            )
-            query = query.filter(search_filter)
-        
-        # Order by submission date
-        query = query.order_by(table.c.submission_date.desc())
-        
-        prospects = query.all()
+        # Execute query
+        result = db.session.execute(sql)
+        prospects = result.fetchall()
         
         return render_template('user/prospects.html', 
                             prospects=prospects,
-                            Staff=Staff,
-                            ClientType=ClientType,
                             search_query=search_query)
                             
     except Exception as e:
-        print(f"Error loading prospects: {str(e)}")
-        print(f"Full traceback: {traceback.format_exc()}")
+        current_app.logger.error(f"Error loading prospects: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading prospects.', 'error')
         return redirect(url_for('user.dashboard'))
 
@@ -226,6 +196,36 @@ def get_sub_counties(county):
         print(f"URL: {request.url}")
         print(f"Method: {request.method}")
         print(f"Headers: {dict(request.headers)}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@user_bp.route('/get_postal_towns/<county>')
+@login_required
+def get_postal_towns(county):
+    """Get postal towns for a given county."""
+    try:
+        # Clean the county name
+        county = county.strip()
+        
+        # Check if county exists in our data
+        if county in KENYA_COUNTIES:
+            # Use the sub-counties as postal towns
+            towns = sorted(KENYA_COUNTIES[county])  # Sort alphabetically
+            return jsonify({
+                'success': True,
+                'data': towns
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'County "{county}" not found',
+                'data': []
+            }), 404
+            
+    except Exception as e:
+        current_app.logger.error(f"Error fetching postal towns: {str(e)}\n{traceback.format_exc()}")
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}'
@@ -317,6 +317,126 @@ def update_prospect_status(prospect_id):
         print(f"Full traceback: {traceback.format_exc()}")
         flash('An error occurred while updating prospect status.', 'error')
         return redirect(url_for('user.prospects'))
+
+@user_bp.route('/prospects/<int:prospect_id>', methods=['DELETE'])
+@login_required
+def delete_prospect(prospect_id):
+    """Delete a prospect registration."""
+    try:
+        # Verify CSRF token
+        token = request.headers.get('X-CSRFToken')
+        if not token or not csrf.validate_csrf(token):
+            return jsonify({'success': False, 'message': 'Invalid CSRF token'}), 400
+            
+        # Delete the prospect
+        sql = text("""
+            DELETE FROM form_data_clm01
+            WHERE id = :prospect_id AND user_id = :user_id
+        """)
+        
+        result = db.session.execute(sql, {
+            'prospect_id': prospect_id,
+            'user_id': current_user.id
+        })
+        db.session.commit()
+        
+        if result.rowcount > 0:
+            return jsonify({'success': True, 'message': 'Prospect deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Prospect not found or you do not have permission to delete it'}), 404
+            
+    except Exception as e:
+        current_app.logger.error(f"Error deleting prospect: {str(e)}\n{traceback.format_exc()}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while deleting the prospect'}), 500
+
+@user_bp.route('/submit_form/<module_code>', methods=['POST'])
+@login_required
+def submit_form(module_code):
+    """Handle form submission."""
+    try:
+        # Get form data
+        form_data = request.form.to_dict()
+        
+        # Get client type
+        client_type_id = form_data.get('client_type')
+        if not client_type_id:
+            raise ValueError('Client type is required')
+            
+        client_type_id = int(client_type_id)
+        client_type = ClientType.query.get(client_type_id)
+        if not client_type:
+            raise ValueError('Invalid client type')
+            
+        if module_code == 'CLM01':  # Prospect Registration
+            # Prepare SQL query
+            sql = text("""
+                INSERT INTO form_data_clm01 (
+                    user_id, submission_date, status, client_type_id, client_type,
+                    purpose_of_visit, purpose_description, product, first_name,
+                    middle_name, last_name, gender, id_type, id_number,
+                    serial_number, company_name, birth_date, member_count,
+                    postal_address, postal_code, postal_town, mobile_phone,
+                    email, county, sub_county, ward, village, trade_center
+                ) VALUES (
+                    :user_id, :submission_date, :status, :client_type_id, :client_type,
+                    :purpose_of_visit, :purpose_description, :product, :first_name,
+                    :middle_name, :last_name, :gender, :id_type, :id_number,
+                    :serial_number, :company_name, :birth_date, :member_count,
+                    :postal_address, :postal_code, :postal_town, :mobile_phone,
+                    :email, :county, :sub_county, :ward, :village, :trade_center
+                )
+            """)
+            
+            # Prepare data
+            data = {
+                'user_id': current_user.id,
+                'submission_date': datetime.utcnow(),
+                'status': 'Pending',
+                'client_type_id': client_type_id,
+                'client_type': client_type.client_name,
+                'purpose_of_visit': form_data.get('purpose_of_visit', ''),
+                'purpose_description': form_data.get('purpose_description'),
+                'product': form_data.get('product', ''),
+                'first_name': form_data.get('first_name', ''),
+                'middle_name': form_data.get('middle_name'),
+                'last_name': form_data.get('last_name', ''),
+                'gender': form_data.get('gender', ''),
+                'id_type': form_data.get('id_type', ''),
+                'id_number': form_data.get('id_number', ''),
+                'serial_number': form_data.get('serial_number'),
+                'company_name': form_data.get('company_name'),
+                'birth_date': form_data.get('birth_date'),
+                'member_count': form_data.get('member_count'),
+                'postal_address': form_data.get('postal_address', ''),
+                'postal_code': form_data.get('postal_code', ''),
+                'postal_town': form_data.get('postal_town', ''),
+                'mobile_phone': form_data.get('mobile_phone', ''),
+                'email': form_data.get('email'),
+                'county': form_data.get('county', ''),
+                'sub_county': form_data.get('sub_county', ''),
+                'ward': form_data.get('ward'),
+                'village': form_data.get('village'),
+                'trade_center': form_data.get('trade_center')
+            }
+            
+            # Execute query
+            db.session.execute(sql, data)
+            db.session.commit()
+            
+            flash('Prospect registered successfully!', 'success')
+            return redirect(url_for('user.prospects'))
+        else:
+            flash('Form submitted successfully!', 'success')
+            return redirect(url_for('user.dashboard'))
+            
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('user.dynamic_form', module_code=module_code))
+    except Exception as e:
+        current_app.logger.error(f"Error processing form: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while processing your form. Please try again.', 'error')
+        return redirect(url_for('user.dynamic_form', module_code=module_code))
 
 @user_bp.route('/reports')
 @login_required

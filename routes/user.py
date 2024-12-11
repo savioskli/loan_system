@@ -28,31 +28,42 @@ def dashboard():
     portfolio_value = 0  # TODO: Implement portfolio value calculation
     
     # Get client management modules (only child modules)
-    client_modules = Module.query.join(FormField).filter(
+    client_modules = Module.query.filter(
         and_(
             Module.code.like('CLM%'),
             Module.code != 'CLM00',  # Exclude parent module
             Module.is_active == True
         )
-    ).group_by(Module.id).order_by(Module.code).all()
+    ).order_by(Module.code).all()
     
     # Get loan management modules (only child modules)
-    loan_modules = Module.query.join(FormField).filter(
+    loan_modules = Module.query.filter(
         and_(
             Module.code.like('LN%'),
             ~Module.code.endswith('00'),  # Exclude parent modules
             Module.is_active == True
         )
-    ).group_by(Module.id).order_by(Module.code).all()
+    ).order_by(Module.code).all()
     
     # Get parent modules for organization
-    client_parent = Module.query.filter_by(code='CLM00').first()
+    client_parent = Module.query.filter_by(code='CLM00', is_active=True).first()
     loan_parent = Module.query.filter(
         and_(
             Module.code.like('LN%'),
-            Module.code.endswith('00')
+            Module.code.endswith('00'),
+            Module.is_active == True
         )
     ).first()
+    
+    # Get additional modules (not CLM or LN)
+    additional_modules = Module.query.filter(
+        and_(
+            ~Module.code.like('CLM%'),
+            ~Module.code.like('LN%'),
+            Module.parent_id == None,
+            Module.is_active == True
+        )
+    ).order_by(Module.code).all()
     
     return render_template('user/dashboard.html',
                          pending_clients=pending_clients,
@@ -63,7 +74,9 @@ def dashboard():
                          client_modules=client_modules,
                          loan_modules=loan_modules,
                          client_parent=client_parent,
-                         loan_parent=loan_parent)
+                         loan_parent=loan_parent,
+                         additional_modules=additional_modules,
+                         Module=Module)  # Pass Module class for querying additional modules
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -127,39 +140,6 @@ def dynamic_form(module_code):
     except Exception as e:
         current_app.logger.error(f"Error loading form: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading the form. Please try again.', 'error')
-        return redirect(url_for('user.dashboard'))
-
-@user_bp.route('/prospects')
-@login_required
-def prospects():
-    """List all prospect registrations."""
-    try:
-        # Get search parameters
-        search_query = request.args.get('search', '').strip()
-        
-        # Create a query to fetch prospects
-        sql = text("""
-            SELECT 
-                fd.*,
-                s.username as staff_username,
-                COALESCE(ct.client_name, fd.client_type) as client_type_name
-            FROM form_data_clm01 fd
-            LEFT JOIN staff s ON s.id = fd.user_id
-            LEFT JOIN client_types ct ON ct.id = fd.client_type_id AND ct.status = 1
-            ORDER BY fd.submission_date DESC
-        """)
-        
-        # Execute query
-        result = db.session.execute(sql)
-        prospects = result.fetchall()
-        
-        return render_template('user/prospects.html', 
-                            prospects=prospects,
-                            search_query=search_query)
-                            
-    except Exception as e:
-        current_app.logger.error(f"Error loading prospects: {str(e)}\n{traceback.format_exc()}")
-        flash('An error occurred while loading prospects.', 'error')
         return redirect(url_for('user.dashboard'))
 
 @user_bp.route('/get_sub_counties/<county>')
@@ -230,125 +210,6 @@ def get_postal_towns(county):
             'success': False,
             'message': f'Server error: {str(e)}'
         }), 500
-
-@user_bp.route('/convert_to_client/<int:prospect_id>')
-@login_required
-def convert_to_client(prospect_id):
-    """Convert a prospect to a client by pre-populating CLM02 form."""
-    try:
-        # Get the prospect's data
-        metadata = MetaData()
-        metadata.reflect(bind=db.engine, only=['form_data_clm01'])
-        if 'form_data_clm01' not in metadata.tables:
-            flash('Prospect data not found.', 'error')
-            return redirect(url_for('user.prospects'))
-            
-        # Get the prospect's data
-        table = metadata.tables['form_data_clm01']
-        prospect = db.session.query(table).filter(table.c.id == prospect_id).first()
-        
-        if not prospect:
-            flash('Prospect not found.', 'error')
-            return redirect(url_for('user.prospects'))
-            
-        if prospect.status != 'Pending':
-            flash('This prospect has already been processed.', 'error')
-            return redirect(url_for('user.prospects'))
-        
-        # Prepare data for CLM02 form
-        form_data = {
-            'first_name': getattr(prospect, 'first_name', ''),
-            'middle_name': getattr(prospect, 'middle_name', ''),
-            'last_name': getattr(prospect, 'last_name', ''),
-            'id_type': getattr(prospect, 'id_type', ''),
-            'id_number': getattr(prospect, 'id_number', ''),
-            'mobile_phone': getattr(prospect, 'mobile_phone', ''),
-            'email': getattr(prospect, 'email', ''),
-            'county': getattr(prospect, 'county', ''),
-            'sub_county': getattr(prospect, 'sub_county', ''),
-            'client_type': getattr(prospect, 'client_type_id', ''),
-            'prospect_id': prospect_id  # Reference to original prospect
-        }
-        
-        # Filter out empty values
-        form_data = {k: v for k, v in form_data.items() if v}
-        
-        # Redirect to CLM02 form with pre-populated data
-        return redirect(url_for('user.dynamic_form', 
-                              module_code='CLM02',
-                              **form_data))
-                              
-    except Exception as e:
-        print(f"Error converting prospect to client: {str(e)}")
-        print(f"Full traceback: {traceback.format_exc()}")
-        flash('An error occurred while converting prospect to client.', 'error')
-        return redirect(url_for('user.prospects'))
-
-@user_bp.route('/update_prospect_status/<int:prospect_id>', methods=['POST'])
-@login_required
-def update_prospect_status(prospect_id):
-    """Update the status of a prospect."""
-    try:
-        # Get the prospect's data
-        metadata = MetaData()
-        metadata.reflect(bind=db.engine, only=['form_data_clm01'])
-        if 'form_data_clm01' not in metadata.tables:
-            flash('Prospect data not found.', 'error')
-            return redirect(url_for('user.prospects'))
-            
-        # Get the prospect's data
-        table = metadata.tables['form_data_clm01']
-        prospect = db.session.query(table).filter(table.c.id == prospect_id).first()
-        
-        if not prospect:
-            flash('Prospect not found.', 'error')
-            return redirect(url_for('user.prospects'))
-        
-        # Update status to Pending
-        stmt = table.update().where(table.c.id == prospect_id).values(status='Pending')
-        db.session.execute(stmt)
-        db.session.commit()
-        
-        flash('Prospect status updated successfully.', 'success')
-        return redirect(url_for('user.prospects'))
-                              
-    except Exception as e:
-        print(f"Error updating prospect status: {str(e)}")
-        print(f"Full traceback: {traceback.format_exc()}")
-        flash('An error occurred while updating prospect status.', 'error')
-        return redirect(url_for('user.prospects'))
-
-@user_bp.route('/prospects/<int:prospect_id>', methods=['DELETE'])
-@login_required
-def delete_prospect(prospect_id):
-    """Delete a prospect registration."""
-    try:
-        # Verify CSRF token
-        token = request.headers.get('X-CSRFToken')
-        if not token or not csrf.validate_csrf(token):
-            return jsonify({'success': False, 'message': 'Invalid CSRF token'}), 400
-            
-        # Delete the prospect
-        sql = text("""
-            DELETE FROM form_data_clm01
-            WHERE id = :prospect_id AND user_id = :user_id
-        """)
-        
-        result = db.session.execute(sql, {
-            'prospect_id': prospect_id,
-            'user_id': current_user.id
-        })
-        db.session.commit()
-        
-        if result.rowcount > 0:
-            return jsonify({'success': True, 'message': 'Prospect deleted successfully'})
-        else:
-            return jsonify({'success': False, 'message': 'Prospect not found or you do not have permission to delete it'}), 404
-            
-    except Exception as e:
-        current_app.logger.error(f"Error deleting prospect: {str(e)}\n{traceback.format_exc()}")
-        db.session.rollback()
-        return jsonify({'success': False, 'message': 'An error occurred while deleting the prospect'}), 500
 
 @user_bp.route('/submit_form/<module_code>', methods=['POST'])
 @login_required
@@ -425,7 +286,7 @@ def submit_form(module_code):
             db.session.commit()
             
             flash('Prospect registered successfully!', 'success')
-            return redirect(url_for('user.prospects'))
+            return redirect(url_for('user.dashboard'))
         else:
             flash('Form submitted successfully!', 'success')
             return redirect(url_for('user.dashboard'))

@@ -85,8 +85,16 @@
                                                {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                                {% if field.is_required %}required{% endif %}
                                                {% if field.field_type == 'tel' %}pattern="[0-9]{10,}"{% endif %}
-                                               {% if field.field_type == 'number' %}step="any"{% endif %}>
+                                               {% if field.field_type == 'number' %}step="any"{% endif %}
+                                               {% if field.field_type == 'date' %}max="{{ '2024-12-11' }}"{% endif %}
+                                               {% if field.field_name == 'id_number' %}maxlength="8"{% endif %}
+                                               aria-describedby="{{ field.field_name }}-description">
+                                    {% if field.field_type == 'tel' %}
+                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
+                                        Format: +254XXXXXXXXX or 07XXXXXXXX
                                     </div>
+                                    {% endif %}
+                                </div>
                                 
                                 {% elif field.field_type == 'textarea' %}
                                     <div class="relative rounded-md shadow-sm">
@@ -95,31 +103,32 @@
                                                   rows="4"
                                                   class="block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                   {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                                  {% if field.is_required %}required{% endif %}></textarea>
+                                                  {% if field.is_required %}required{% endif %}
+                                                  aria-describedby="{{ field.field_name }}-description"></textarea>
+                                    {% if field.field_name == 'address' %}
+                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
+                                        Enter complete physical address including landmarks
                                     </div>
+                                    {% endif %}
+                                </div>
                                 
                                 {% elif field.field_type == 'select' %}
                                     <div class="relative rounded-md shadow-sm">
                                         <select id="{{ field.field_name }}"
                                                 name="{{ field.field_name }}"
+                                                {% if field.depends_on %}
+                                                data-depends-on="{{ field.depends_on }}"
+                                                data-options='{{ field.options|tojson }}'
+                                                {% endif %}
                                                 class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                 {% if field.is_required %}required{% endif %}>
-                                            <option value="">Select {{ field.field_label }}</option>
-                                            {% if field.field_name == 'product' %}
-                                                {% for product in products %}
-                                                <option value="{{ product.id }}">{{ product.name }}</option>
-                                                {% endfor %}
-                                            {% elif field.field_name == 'county' %}
-                                                {% for county in counties %}
-                                                <option value="{{ county }}">{{ county }}</option>
-                                                {% endfor %}
-                                            {% elif field.field_name == 'postal_town' %}
-                                                {% for town in postal_towns %}
-                                                <option value="{{ town }}">{{ town }}</option>
-                                                {% endfor %}
-                                            {% elif field.field_name == 'id_type' %}
-                                                {% for id_type in id_types %}
-                                                <option value="{{ id_type.value }}">{{ id_type.label }}</option>
+                                            <option value="">{{ field.field_placeholder or 'Select an option' }}</option>
+                                            {% if not field.depends_on %}
+                                                {% for option in field.options %}
+                                                <option value="{{ option.value }}"
+                                                        {% if option.client_types %}data-client-types='{{ option.client_types|tojson }}'{% endif %}>
+                                                    {{ option.label }}
+                                                </option>
                                                 {% endfor %}
                                             {% endif %}
                                         </select>
@@ -169,15 +178,27 @@
                 
                 <!-- Form Actions -->
                 <div class="px-8 py-4 bg-gray-50 sm:px-8">
-                    <div class="flex justify-end space-x-4">
+                    <div class="flex justify-between items-center">
                         <a href="{{ url_for('user.dashboard') }}" 
-                           class="inline-flex justify-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                            Cancel
+                           class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Back
                         </a>
-                        <button type="submit" 
-                                class="inline-flex justify-center px-6 py-3 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                            Submit
-                        </button>
+                        <div class="flex space-x-3">
+                            <button type="reset" 
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Clear Form
+                            </button>
+                            <button type="submit" 
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                                Submit
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>

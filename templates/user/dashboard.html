@@ -130,87 +130,77 @@
     </div>
     
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Client Management Card -->
+        {% if client_parent %}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Client Management</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ client_parent.name }}</h3>
                     <div class="bg-primary rounded-full p-3">
                         <i class="fas fa-users text-white text-xl"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ client_parent.description or 'Manage client information' }}</p>
                 <div class="space-y-2">
-                    <a href="{{ url_for('user.prospects') }}" 
+                    {% for module in client_modules %}
+                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
                        class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-user-plus mr-2"></i>
-                        Manage Prospects
+                        <i class="fas fa-file-alt mr-2"></i>
+                        {{ module.name }}
                     </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-users mr-2"></i>
-                        View Clients
-                    </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-user-edit mr-2"></i>
-                        Update Client Information
-                    </a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        <!-- Loan Management Card -->
+        {% if loan_parent %}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Loan Management</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ loan_parent.name }}</h3>
                     <div class="bg-primary rounded-full p-3">
                         <i class="fas fa-file-invoice-dollar text-white text-xl"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Process and track loans</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ loan_parent.description or 'Process and track loans' }}</p>
                 <div class="space-y-2">
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-plus-circle mr-2"></i>
-                        New Loan Application
+                    {% for module in loan_modules %}
+                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
+                       class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-file-alt mr-2"></i>
+                        {{ module.name }}
                     </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-tasks mr-2"></i>
-                        Active Loans
-                    </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-history mr-2"></i>
-                        Loan History
-                    </a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        <!-- Reports Card -->
+        <!-- Additional Modules -->
+        {% for module in additional_modules %}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Reports</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ module.name }}</h3>
                     <div class="bg-primary rounded-full p-3">
-                        <i class="fas fa-chart-bar text-white text-xl"></i>
+                        <i class="fas fa-puzzle-piece text-white text-xl"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">View and generate reports</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ module.description or 'Module functions' }}</p>
                 <div class="space-y-2">
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-users mr-2"></i>
-                        Client Reports
+                    {% for child in module.children %}
+                    {% if child.is_active %}
+                    <a href="{{ url_for('user.dynamic_form', module_code=child.code) }}" 
+                       class="module-item block text-sm text-primary hover:text-secondary">
+                        <i class="fas fa-file-alt mr-2"></i>
+                        {{ child.name }}
                     </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-file-invoice-dollar mr-2"></i>
-                        Loan Reports
-                    </a>
-                    <a href="#" class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-chart-pie mr-2"></i>
-                        Performance Reports
-                    </a>
+                    {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

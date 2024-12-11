@@ -48,6 +48,7 @@ class FormField(db.Model):
     options = db.Column(db.JSON)
     validation_rules = db.Column(db.JSON)
     client_type_restrictions = db.Column(db.JSON, comment='List of client type IDs that can see this field')
+    depends_on = db.Column(db.String(50))  # Name of the field this field depends on
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

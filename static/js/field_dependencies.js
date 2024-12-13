@@ -133,11 +133,7 @@ class FieldDependencyManager {
     }
 
     async saveDependency() {
-        if (!this.dependentFieldSelect || !this.showValuesSelect) return;
-
-        // Get Choices instances
         const showValuesChoices = this.showValuesSelect.choices || this.showValuesChoices;
-
         const dependentFieldId = this.dependentFieldSelect.value;
         const showValues = showValuesChoices ? showValuesChoices.getValue().map(choice => choice.value) : [];
 
@@ -147,10 +143,14 @@ class FieldDependencyManager {
         }
 
         try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
             const response = await fetch('/api/field-dependencies', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     parent_field_id: this.fieldId,
@@ -160,11 +160,34 @@ class FieldDependencyManager {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to save dependency');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to save dependency');
             }
 
-            await this.loadExistingDependencies();
+            const data = await response.json();
+            
+            // Close modal first
             this.closeModal();
+            
+            // Then load dependencies and show success message
+            await this.loadExistingDependencies();
+            
+            // Show success message
+            const successMessage = document.createElement('div');
+            successMessage.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-[9999] flex items-center shadow-lg toast-enter';
+            successMessage.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span>Dependency added successfully!</span>
+            `;
+            document.body.appendChild(successMessage);
+
+            // Remove the message after 3 seconds
+            setTimeout(() => {
+                successMessage.classList.add('toast-exit');
+                setTimeout(() => successMessage.remove(), 300);
+            }, 3000);
         } catch (error) {
             console.error('Error saving dependency:', error);
             alert('Failed to save dependency. Please try again.');
@@ -261,13 +284,37 @@ async function deleteDependency(dependencyId) {
     }
 
     try {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         const response = await fetch(`/api/field-dependencies/${dependencyId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
         });
 
         if (!response.ok) {
-            throw new Error('Failed to delete dependency');
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to delete dependency');
         }
+
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-[9999] flex items-center shadow-lg toast-enter';
+        successMessage.innerHTML = `
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span>Dependency deleted successfully!</span>
+        `;
+        document.body.appendChild(successMessage);
+
+        // Remove the message after 3 seconds
+        setTimeout(() => {
+            successMessage.classList.add('toast-exit');
+            setTimeout(() => successMessage.remove(), 300);
+        }, 3000);
 
         // Reload the dependencies list
         const fieldIdElement = document.querySelector('#field-id');
@@ -282,6 +329,6 @@ async function deleteDependency(dependencyId) {
         }
     } catch (error) {
         console.error('Error deleting dependency:', error);
-        alert('Failed to delete dependency. Please try again.');
+        alert(error.message || 'Failed to delete dependency. Please try again.');
     }
 }

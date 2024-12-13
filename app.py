@@ -144,7 +144,8 @@ def create_app():
                 app.logger.error(f"Error logging activity: {str(e)}", exc_info=True)
 
     # Exempt CSRF for certain routes
-    csrf.exempt(modules_bp)  
+    csrf.exempt(modules_bp)
+    csrf.exempt(dependencies_bp)  # Add CSRF exemption for field dependencies API
 
     # Flask-Login configuration
     @login_manager.user_loader

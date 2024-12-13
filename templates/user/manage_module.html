@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module.name }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .action-buttons {
+        white-space: nowrap;
+    }
+    .table-responsive {
+        margin-top: 20px;
+    }
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-pending {
+        background-color: #fbbf24;
+        color: #fff;
+    }
+    
+    .status-approved {
+        background-color: #10b981;
+        color: #fff;
+    }
+    
+    .status-rejected {
+        background-color: #dc3545;
+        color: #fff;
+    }
+    .no-style {
+        text-decoration: none;
+        color: inherit;
+    }
+    .no-style:hover {
+        text-decoration: none;
+        color: inherit;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ module.name }}</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">{{ module.description }}</p>
+        </div>
+        {% if module.code == 'CLM01' %}
+        <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
+           class="no-style inline-flex items-center px-4 py-2 bg-primary text-white border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            <svg class="w-5 h-5 mr-2 -ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add New Prospect
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Client Type Tabs -->
+    <div class="mb-4">
+        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+            <a href="{{ url_for('user.manage_module', module_code=module.code, client_type='all') }}"
+               class="no-style whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium {{ 'border-primary text-primary' if selected_type == 'all' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+                {% if module.code == 'CLM01' %}All Prospects{% elif module.code == 'CLM02' %}All Clients{% endif %}
+            </a>
+            {% for client_type in client_types %}
+            <a href="{{ url_for('user.manage_module', module_code=module.code, client_type=client_type.client_code) }}"
+               class="no-style whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium {{ 'border-primary text-primary' if selected_type == client_type.client_code else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+                {{ client_type.client_name }}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <!-- Search Field -->
+    <div class="mb-4 flex items-center space-x-2">
+        <div class="relative flex-grow max-w-md">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <input type="text" id="tableSearch" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" 
+                   placeholder="{% if module.code == 'CLM01' %}Search prospects...{% elif module.code == 'CLM02' %}Search clients...{% endif %}">
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            {% if module.code == 'CLM01' %}Prospect Info{% elif module.code == 'CLM02' %}Client Info{% endif %}
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            ID Number
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Type
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Product
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Purpose of Visit
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Date
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for submission in submissions %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                {% if submission.client_type.client_code == 'IND' %}
+                                    {% set first_name = submission.form_data.get('first_name', '') %}
+                                    {% set middle_name = submission.form_data.get('middle_name', '') %}
+                                    {% set last_name = submission.form_data.get('last_name', '') %}
+                                    {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
+                                {% else %}
+                                    {{ submission.form_data.get('company_name', '') }}
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ submission.form_data.get('email', '') }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900 dark:text-white">
+                                {% if submission.client_type.client_code == 'IND' %}
+                                    {{ submission.form_data.get('id_number', 'N/A') }}
+                                    {% if submission.form_data.get('id_type') %}
+                                        <div class="text-xs text-gray-500">
+                                            {{ submission.form_data.get('id_type')|replace('_', ' ')|title }}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    {{ submission.form_data.get('id_number', 'N/A') }}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900 dark:text-white">{{ submission.client_type.client_name }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% set product_id = submission.form_data.get('product')|int %}
+                            <div class="text-sm text-gray-900 dark:text-white">
+                                {% for product in products %}
+                                    {% if product.id == product_id %}
+                                        {{ product.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% set purpose = submission.form_data.get('purpose_of_visit', '') %}
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ purpose|replace('_', ' ')|title }}
+                            </div>
+                            {% if submission.form_data.get('purpose_description') %}
+                            <div class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ submission.form_data.get('purpose_description', '') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if submission.status == 'pending' %}
+                                    bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100
+                                {% elif submission.status == 'approved' %}
+                                    bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                                {% elif submission.status == 'rejected' %}
+                                    bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
+                                {% endif %}">
+                                {{ submission.status|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{ submission.created_at.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex items-center justify-end space-x-3">
+                                <a href="{{ url_for('user.view_prospect', submission_id=submission.id) }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                   title="View Details">
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </a>
+                                {% if module.code != 'CLM02' %}
+                                <a href="{{ url_for('user.edit_prospect', submission_id=submission.id) }}"
+                                   class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                   title="Edit">
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </a>
+                                <button onclick="deleteSubmission('{{ submission.id }}')"
+                                        class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                        title="Delete">
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                {% endif %}
+                                {% if submission.status == 'approved' and not submission.is_converted %}
+                                <button onclick="convertToClient('{{ submission.id }}')"
+                                        class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-3"
+                                        title="Convert to Client">
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                {% endif %}
+                                {% if module.code == 'CLM02' %}
+                                <a href="{{ url_for('user.register_client', submission_id=submission.id) }}"
+                                   class="inline-flex items-center px-2.5 py-1.5 ml-3 border border-transparent text-xs font-medium rounded-full shadow-sm text-green-800 bg-green-100 cursor-pointer"
+                                   style="pointer-events: auto; -webkit-text-fill-color: rgb(22 101 52);"
+                                   title="Register Client">
+                                    Register
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No prospects found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- View Submission Modal -->
+<div id="viewModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Submission Details</h3>
+                <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="submissionDetails" class="px-6 py-4">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4">
+        <div class="px-6 py-4">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-red-600 text-5xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Confirm Deletion</h3>
+                <p class="text-gray-500 dark:text-gray-400">Are you sure you want to delete this submission? This action cannot be undone.</p>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700 flex justify-end space-x-3 rounded-b-lg">
+            <button onclick="closeModal('deleteModal')" 
+                    class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
+                Cancel
+            </button>
+            <button id="confirmDelete" 
+                    class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Convert to Client Modal -->
+<div id="convertModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Convert to Client</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to convert this prospect to a client? This action cannot be undone.</p>
+        <input type="hidden" id="convertSubmissionId">
+        <div class="flex justify-end space-x-4">
+            <button onclick="closeModal('convertModal')"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                Cancel
+            </button>
+            <button onclick="convertToClient()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Convert
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentDeleteId = null;
+
+function viewSubmission(id) {
+    fetch(`/api/submission/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            const details = document.getElementById('submissionDetails');
+            details.innerHTML = formatSubmissionDetails(data);
+            document.getElementById('viewModal').classList.remove('hidden');
+        });
+}
+
+function formatSubmissionDetails(data) {
+    let html = '<div class="space-y-4">';
+    
+    // Format each field in the form_data
+    for (const [key, value] of Object.entries(data.form_data)) {
+        if (value) {
+            const formattedKey = key.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+            
+            html += `
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">${formattedKey}</label>
+                    <div class="mt-1 text-sm text-gray-900 dark:text-white">${value}</div>
+                </div>
+            `;
+        }
+    }
+    
+    html += `
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                    <div class="mt-1 text-sm text-gray-900 dark:text-white">${data.status}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Submission Date</label>
+                    <div class="mt-1 text-sm text-gray-900 dark:text-white">${data.created_at}</div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    return html;
+}
+
+function deleteSubmission(id) {
+    currentDeleteId = id;
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function showConvertModal(submissionId) {
+    document.getElementById('convertSubmissionId').value = submissionId;
+    document.getElementById('convertModal').classList.remove('hidden');
+}
+
+function convertToClient() {
+    const submissionId = document.getElementById('convertSubmissionId').value;
+    fetch(`/user/convert_to_client/${submissionId}`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Reload the page to reflect changes
+            window.location.reload();
+        } else {
+            alert('Failed to convert prospect to client: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while converting the prospect to client');
+    })
+    .finally(() => {
+        closeModal('convertModal');
+    });
+}
+
+document.getElementById('confirmDelete').addEventListener('click', function() {
+    if (currentDeleteId) {
+        fetch(`/delete_submission/${currentDeleteId}`, {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting submission: ' + data.error);
+            }
+        });
+    }
+    closeModal('deleteModal');
+});
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+    if (modalId === 'deleteModal') {
+        currentDeleteId = null;
+    }
+}
+
+// Close modals when clicking outside
+window.addEventListener('click', function(event) {
+    document.querySelectorAll('.modal').forEach(modal => {
+        if (event.target === modal) {
+            closeModal(modal.id);
+        }
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('tableSearch');
+    const tableRows = document.querySelectorAll('table tbody tr');
+
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+
+        tableRows.forEach(row => {
+            if (row.querySelector('td[colspan]')) {
+                // Skip the "No prospects found" row
+                return;
+            }
+
+            const text = row.textContent.toLowerCase();
+            const shouldShow = text.includes(searchTerm);
+            row.style.display = shouldShow ? '' : 'none';
+        });
+
+        // Show/hide "No results" message
+        let visibleRows = 0;
+        tableRows.forEach(row => {
+            if (row.style.display !== 'none' && !row.querySelector('td[colspan]')) {
+                visibleRows++;
+            }
+        });
+
+        // Get or create the "No results" row
+        let noResultsRow = document.querySelector('.no-results-row');
+        if (!noResultsRow) {
+            noResultsRow = document.createElement('tr');
+            noResultsRow.className = 'no-results-row';
+            noResultsRow.innerHTML = `<td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No matching prospects found</td>`;
+            document.querySelector('table tbody').appendChild(noResultsRow);
+        }
+
+        noResultsRow.style.display = visibleRows === 0 ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

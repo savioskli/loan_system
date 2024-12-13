@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Convert to Client - {{ submission.id }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+        <!-- Form Header -->
+        <div class="md:flex md:items-center md:justify-between mb-10">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Convert Prospect to Client
+                </h2>
+                <p class="mt-2 text-sm text-gray-500">
+                    Please review and complete the client registration form. Fields marked with an asterisk (*) are required.
+                </p>
+            </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <a href="{{ url_for('user.manage_module', module_code='CLM01') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Back to Prospects
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <form id="convertForm" class="divide-y divide-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="prospect_id" value="{{ submission.id }}">
+
+                {% for section in sections %}
+                <div class="px-8 py-6">
+                    <div class="space-y-8">
+                        <!-- Section Header -->
+                        <div class="border-b border-gray-200 pb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Form Fields Grid -->
+                        <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
+                            {% for field in section.fields %}
+                            {% if field.is_active %}
+                            <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
+                                 data-field-name="{{ field.field_name }}"
+                                 {% if field.client_type_restrictions %}
+                                 data-client-types='{{ field.client_type_restrictions|tojson }}'
+                                 {% endif %}>
+                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
+                                    {{ field.field_label }}
+                                    {% if field.is_required %}
+                                    <span class="text-red-500">*</span>
+                                    {% endif %}
+                                </label>
+                                
+                                {% if field.field_type == 'text' or field.field_type == 'email' or field.field_type == 'tel' or field.field_type == 'number' %}
+                                <input type="{{ field.field_type }}"
+                                       id="{{ field.field_name }}"
+                                       name="{{ field.field_name }}"
+                                       class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                       {% if field.is_required %}required{% endif %}
+                                       {% if field.field_name in form_data %}
+                                       value="{{ form_data[field.field_name] }}"
+                                       {% endif %}
+                                       {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>
+                                
+                                {% elif field.field_type == 'textarea' %}
+                                <textarea id="{{ field.field_name }}"
+                                          name="{{ field.field_name }}"
+                                          rows="3"
+                                          class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                          {% if field.is_required %}required{% endif %}
+                                          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>{% if field.field_name in form_data %}{{ form_data[field.field_name] }}{% endif %}</textarea>
+                                
+                                {% elif field.field_type == 'select' %}
+                                <select id="{{ field.field_name }}"
+                                        name="{{ field.field_name }}"
+                                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                        {% if field.is_required %}required{% endif %}>
+                                    <option value="">Select an option</option>
+                                    {% if field.options %}
+                                        {% for option in field.options %}
+                                        <option value="{{ option.value }}"
+                                                {% if field.field_name in form_data and form_data[field.field_name] == option.value %}selected{% endif %}>
+                                            {{ option.label }}
+                                        </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                                {% endif %}
+                                
+                                {% if field.help_text %}
+                                <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- Form Actions -->
+                <div class="px-8 py-4 bg-gray-50 sm:px-8">
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="window.history.back()"
+                                class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            Convert to Client
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('convertForm');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get the form data
+        const formData = new FormData(form);
+        
+        // Submit the form via AJAX
+        fetch("{{ url_for('user.convert_to_client', submission_id=submission.id) }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showNotification(data.message, 'success');
+                // Redirect to clients list
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('user.manage_module', module_code='CLM02') }}";
+                }, 1500);
+            } else {
+                // Show error message
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while converting the prospect', 'error');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -44,6 +44,24 @@
     .module-item:hover {
         background-color: rgba(99, 102, 241, 0.1);
     }
+    .badge {
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 700;
+        border-radius: 0.25rem;
+    }
+    .badge-warning {
+        background-color: #ffc107;
+        color: #000;
+    }
+    .badge-success {
+        background-color: #28a745;
+        color: #fff;
+    }
+    .badge-danger {
+        background-color: #dc3545;
+        color: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -139,13 +157,16 @@
                         <i class="fas fa-users text-white text-xl"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ client_parent.description or 'Manage client information' }}</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage client information</p>
                 <div class="space-y-2">
                     {% for module in client_modules %}
-                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
-                       class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-file-alt mr-2"></i>
-                        {{ module.name }}
+                    <a href="{{ url_for('user.manage_module', module_code=module.code) }}" class="block">
+                        <div class="module-item">
+                            <div class="flex justify-between items-center">
+                                <span class="text-primary">Manage {{ module.name }}</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
                     </a>
                     {% endfor %}
                 </div>
@@ -162,13 +183,16 @@
                         <i class="fas fa-file-invoice-dollar text-white text-xl"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ loan_parent.description or 'Process and track loans' }}</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage loan applications</p>
                 <div class="space-y-2">
                     {% for module in loan_modules %}
-                    <a href="{{ url_for('user.dynamic_form', module_code=module.code) }}" 
-                       class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-file-alt mr-2"></i>
-                        {{ module.name }}
+                    <a href="{{ url_for('user.manage_module', module_code=module.code) }}" class="block">
+                        <div class="module-item">
+                            <div class="flex justify-between items-center">
+                                <span class="text-primary">Manage {{ module.name }}</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
                     </a>
                     {% endfor %}
                 </div>
@@ -190,10 +214,13 @@
                 <div class="space-y-2">
                     {% for child in module.children %}
                     {% if child.is_active %}
-                    <a href="{{ url_for('user.dynamic_form', module_code=child.code) }}" 
-                       class="module-item block text-sm text-primary hover:text-secondary">
-                        <i class="fas fa-file-alt mr-2"></i>
-                        {{ child.name }}
+                    <a href="{{ url_for('user.manage_module', module_code=child.code) }}" class="block">
+                        <div class="module-item">
+                            <div class="flex justify-between items-center">
+                                <span class="text-primary">Manage {{ child.name }}</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
                     </a>
                     {% endif %}
                     {% endfor %}

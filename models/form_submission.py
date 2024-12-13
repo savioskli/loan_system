@@ -8,6 +8,7 @@ class FormSubmission(db.Model):
     module_id = db.Column(db.Integer, db.ForeignKey('modules.id'), nullable=False)
     client_type_id = db.Column(db.Integer, db.ForeignKey('client_types.id'), nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    is_converted = db.Column(db.Boolean, default=False)
     form_data = db.Column(db.JSON, nullable=False)  # Store all form fields
     created_by = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Prospect - {{ submission.module.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+        <!-- Form Header -->
+        <div class="md:flex md:items-center md:justify-between mb-10">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Edit Prospect - {{ submission.module.name }}
+                </h2>
+                <p class="mt-2 text-sm text-gray-500">
+                    Last updated: {{ submission.updated_at.strftime('%Y-%m-%d %H:%M:%S') if submission.updated_at else 'Never' }}
+                </p>
+            </div>
+            <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+                <a href="{{ url_for('user.view_prospect', submission_id=submission.id) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    View Details
+                </a>
+                <a href="{{ url_for('user.manage_module', module_code=submission.module.code) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <form id="editForm" method="POST" class="divide-y divide-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% for section in sections %}
+                <div class="px-8 py-6">
+                    <div class="space-y-8">
+                        <!-- Section Header -->
+                        <div class="border-b border-gray-200 pb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Form Fields Grid -->
+                        <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
+                            {% if loop.first %}
+                            <!-- Client Type Selection (only in first section) -->
+                            <div class="form-group">
+                                <label for="client_type" class="block text-sm font-medium text-gray-900 mb-1">
+                                    Client Type
+                                </label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <input type="text" 
+                                           value="{{ submission.client_type.client_name }}"
+                                           disabled
+                                           class="bg-gray-50 block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                    <input type="hidden" name="client_type" value="{{ submission.client_type.id }}">
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% for field in section.fields %}
+                                {% if field.field_name != 'client_type' %}
+                                    <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
+                                         data-field-name="{{ field.field_name }}"
+                                         {% if field.client_type_restrictions %}
+                                         data-client-types='{{ field.client_type_restrictions|tojson }}'
+                                         {% endif %}>
+                                        <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
+                                            {{ field.field_label }}
+                                            {% if field.is_required %}
+                                                <span class="text-red-500">*</span>
+                                            {% endif %}
+                                        </label>
+                                        
+                                        {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date'] %}
+                                            <div class="relative rounded-md shadow-sm">
+                                                <input type="{{ field.field_type }}"
+                                                       id="{{ field.field_name }}"
+                                                       name="{{ field.field_name }}"
+                                                       value="{{ submission.form_data.get(field.field_name, '') }}"
+                                                       {% if field.is_required %}required{% endif %}
+                                                       class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
+                                                       {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>
+                                            </div>
+                                        {% elif field.field_type == 'radio' %}
+                                            <div class="mt-2 flex space-x-6">
+                                                {% for option in field.options %}
+                                                    <div class="flex items-center">
+                                                        <input type="radio"
+                                                               id="{{ field.field_name }}_{{ option.value }}"
+                                                               name="{{ field.field_name }}"
+                                                               value="{{ option.value }}"
+                                                               {% if option.value == submission.form_data.get(field.field_name) %}checked{% endif %}
+                                                               {% if field.is_required %}required{% endif %}
+                                                               class="h-4 w-4 text-primary border-gray-300 focus:ring-primary">
+                                                        <label for="{{ field.field_name }}_{{ option.value }}"
+                                                               class="ml-3 block text-sm text-gray-700">
+                                                            {{ option.label }}
+                                                        </label>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% elif field.field_type == 'select' %}
+                                            <div class="relative rounded-md shadow-sm">
+                                                <select id="{{ field.field_name }}"
+                                                        name="{{ field.field_name }}"
+                                                        {% if field.is_required %}required{% endif %}
+                                                        {% if field.depends_on %}data-depends-on="{{ field.depends_on }}"{% endif %}
+                                                        class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                                    {% if field.field_name == 'purpose_of_visit' %}
+                                                        <option value="">Select Purpose of Visit</option>
+                                                        {% for option in purpose_options %}
+                                                            <option value="{{ option.value }}" {% if option.value == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ option.label }}</option>
+                                                        {% endfor %}
+                                                    {% elif field.field_name == 'county' %}
+                                                        <option value="">Select County</option>
+                                                        {% for county in counties %}
+                                                            <option value="{{ county }}" {% if county == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ county }}</option>
+                                                        {% endfor %}
+                                                    {% elif field.field_name == 'id_type' %}
+                                                        <option value="">Select ID Type</option>
+                                                        {% for id_type in ID_TYPES %}
+                                                            <option value="{{ id_type.value }}" {% if submission.form_data and id_type.value == submission.form_data.get('id_type', '') %}selected{% endif %}>{{ id_type.label }}</option>
+                                                        {% endfor %}
+                                                    {% elif field.field_name == 'postal_town' %}
+                                                        <option value="">Select Postal Town</option>
+                                                        {% for town in postal_towns %}
+                                                            <option value="{{ town }}" {% if town == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ town }}</option>
+                                                        {% endfor %}
+                                                    {% elif field.field_name == 'product' %}
+                                                        <option value="">Select Product</option>
+                                                        {% for product in products %}
+                                                            <option value="{{ product.id }}" {% if product.id|string == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ product.name }}</option>
+                                                        {% endfor %}
+                                                    {% elif field.field_name == 'sub_county' and submission.form_data.get('county') %}
+                                                        <option value="">Select Sub County</option>
+                                                        {% for sub_county in counties[submission.form_data.get('county')] %}
+                                                            <option value="{{ sub_county }}" {% if sub_county == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ sub_county }}</option>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </select>
+                                            </div>
+                                        {% elif field.field_type == 'textarea' %}
+                                            <div class="relative rounded-md shadow-sm">
+                                                <textarea id="{{ field.field_name }}"
+                                                          name="{{ field.field_name }}"
+                                                          {% if field.is_required %}required{% endif %}
+                                                          class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
+                                                          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>{{ submission.form_data.get(field.field_name, '') }}</textarea>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if loop.first %}
+                            <div class="form-group">
+                                <label class="block text-sm font-medium text-gray-900 mb-1" for="status">
+                                    Status <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <select name="status" 
+                                            id="status"
+                                            required
+                                            class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                        <option value="pending" {% if submission.status == 'pending' %}selected{% endif %}>Pending</option>
+                                        <option value="approved" {% if submission.status == 'approved' %}selected{% endif %}>Approved</option>
+                                        <option value="rejected" {% if submission.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Form Actions -->
+                <div class="px-8 py-4 bg-gray-50">
+                    <div class="flex justify-end space-x-3">
+                        <button type="submit"
+                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/edit_form.js') }}"></script>
+{% endblock %}

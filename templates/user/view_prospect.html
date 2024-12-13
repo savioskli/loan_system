@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}View Prospect - {{ submission.module.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+        <!-- Header -->
+        <div class="md:flex md:items-center md:justify-between mb-10">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    View Prospect - {{ submission.module.name }}
+                </h2>
+                <div class="mt-2 flex items-center text-sm text-gray-500">
+                    <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                    </svg>
+                    Last updated: {{ submission.updated_at.strftime('%Y-%m-%d %H:%M:%S') if submission.updated_at else 'Never' }}
+                </div>
+                <div class="mt-2 flex items-center">
+                    <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium
+                        {% if submission.status == 'pending' %}
+                            bg-yellow-100 text-yellow-800
+                        {% elif submission.status == 'approved' %}
+                            bg-green-100 text-green-800
+                        {% elif submission.status == 'rejected' %}
+                            bg-red-100 text-red-800
+                        {% else %}
+                            bg-gray-100 text-gray-800
+                        {% endif %}">
+                        <svg class="mr-1.5 h-2 w-2
+                            {% if submission.status == 'pending' %}
+                                text-yellow-400
+                            {% elif submission.status == 'approved' %}
+                                text-green-400
+                            {% elif submission.status == 'rejected' %}
+                                text-red-400
+                            {% else %}
+                                text-gray-400
+                            {% endif %}" fill="currentColor" viewBox="0 0 8 8">
+                            <circle cx="4" cy="4" r="3" />
+                        </svg>
+                        {{ submission.status|title }}
+                    </span>
+                </div>
+            </div>
+            <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+                <a href="{{ url_for('user.edit_prospect', submission_id=submission.id) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Edit Details
+                </a>
+                <a href="{{ url_for('user.manage_module', module_code=submission.module.code) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="divide-y divide-gray-200">
+                {% for section in sections %}
+                <div class="px-8 py-6">
+                    <div class="space-y-8">
+                        <!-- Section Header -->
+                        <div class="border-b border-gray-200 pb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+                                {% if section.name == 'Basic Information' %}
+                                    <svg class="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                                    </svg>
+                                {% elif section.name == 'Contact Information' %}
+                                    <svg class="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                    </svg>
+                                {% elif section.name == 'Location Information' %}
+                                    <svg class="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                                    </svg>
+                                {% endif %}
+                                {{ section.name }}
+                            </h3>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Fields Grid -->
+                        <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                            {% if loop.first %}
+                            <!-- Client Type Display (only in first section) -->
+                            <div class="form-group">
+                                <label class="block text-sm font-medium text-gray-900 mb-1">
+                                    Client Type
+                                </label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <input type="text" 
+                                           value="{{ submission.client_type.client_name }}"
+                                           disabled
+                                           class="bg-gray-50 block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                    <input type="hidden" value="{{ submission.client_type.id }}">
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% for field in section.fields %}
+                            {% if field.field_name != 'client_type' %}
+                            <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
+                                 data-field-name="{{ field.field_name }}"
+                                 {% if field.client_type_restrictions %}
+                                 data-client-types='{{ field.client_type_restrictions|tojson }}'
+                                 {% endif %}>
+                                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ field.field_label }}</label>
+                                <div class="mt-1">
+                                    {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date'] %}
+                                    <div class="relative rounded-md shadow-sm">
+                                        <input type="{{ field.field_type }}"
+                                               value="{{ submission.form_data.get(field.field_name, '') }}"
+                                               disabled
+                                               class="bg-gray-50 block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                    </div>
+                                    {% elif field.field_type == 'select' %}
+                                    <div class="relative rounded-md shadow-sm">
+                                        <select disabled
+                                                class="bg-gray-50 block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                            <option value="">Select {{ field.field_label }}</option>
+                                            {% if field.field_name == 'county' %}
+                                                {% for county in counties %}
+                                                <option value="{{ county }}" {% if county == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ county }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'id_type' %}
+                                                {% for id_type in id_types %}
+                                                <option value="{{ id_type.value }}" {% if id_type.value == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ id_type.label }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'postal_town' %}
+                                                {% for town in postal_towns %}
+                                                <option value="{{ town }}" {% if town == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ town }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'product' %}
+                                                {% for product in products %}
+                                                <option value="{{ product.id }}" {% if product.id|string == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ product.name }}</option>
+                                                {% endfor %}
+                                            {% elif field.field_name == 'sub_county' and submission.form_data.get('county') %}
+                                                {% for sub_county in counties[submission.form_data.get('county')] %}
+                                                <option value="{{ sub_county }}" {% if sub_county == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ sub_county }}</option>
+                                                {% endfor %}
+                                            {% else %}
+                                                {% for option in field.options %}
+                                                <option value="{{ option.value }}" {% if option.value == submission.form_data.get(field.field_name) %}selected{% endif %}>{{ option.label }}</option>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                    {% elif field.field_type == 'textarea' %}
+                                    <div class="relative rounded-md shadow-sm">
+                                        <textarea disabled
+                                                  rows="3"
+                                                  class="bg-gray-50 block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">{{ submission.form_data.get(field.field_name, '') }}</textarea>
+                                    </div>
+                                    {% elif field.field_type == 'radio' %}
+                                    <div class="mt-2 flex space-x-6">
+                                        {% for option in field.options %}
+                                        <div class="flex items-center">
+                                            <input type="radio"
+                                                   value="{{ option.value }}"
+                                                   {% if option.value == submission.form_data.get(field.field_name) %}checked{% endif %}
+                                                   disabled
+                                                   class="h-4 w-4 text-primary border-gray-300 focus:ring-primary">
+                                            <label class="ml-3 block text-sm text-gray-700">
+                                                {{ option.label }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const clientType = '{{ submission.client_type.id }}';
+    const formGroups = document.querySelectorAll('.form-group[data-field-name]');
+
+    formGroups.forEach(group => {
+        try {
+            const fieldName = group.dataset.fieldName;
+            const allowedTypes = JSON.parse(group.dataset.clientTypes || '[]');
+            
+            // Individual client fields that should always show for individual clients
+            const individualFields = ['first_name', 'middle_name', 'last_name', 'gender', 'id_type', 'serial_number'];
+            const isIndividualClient = clientType === '1';
+            const isIndividualField = individualFields.includes(fieldName);
+            
+            // Show field if:
+            // 1. It has no restrictions (allowedTypes is empty array)
+            // 2. It's specifically allowed for this client type
+            // 3. For individual clients, show individual-specific fields
+            const shouldShow = allowedTypes.length === 0 || 
+                             allowedTypes.includes(clientType) ||
+                             (isIndividualClient && isIndividualField);
+            
+            group.style.display = shouldShow ? 'block' : 'none';
+        } catch (e) {
+            console.error('Error parsing client types for field:', group.dataset.fieldName, e);
+        }
+    });
+});
+</script>
+{% endblock %}

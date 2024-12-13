@@ -23,7 +23,7 @@ def init_extensions(app):
     
     # Initialize Flask-Login
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'  # Specify the login view endpoint with correct blueprint prefix
+    login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'  # Custom message
     login_manager.login_message_category = 'info'  # Message category for flash
     

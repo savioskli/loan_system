@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Register Client - {{ submission.id }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+        <!-- Form Header -->
+        <div class="md:flex md:items-center md:justify-between mb-10">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Register Client Information
+                </h2>
+                <p class="mt-2 text-sm text-gray-500">
+                    Please complete the client registration form. Fields marked with an asterisk (*) are required.
+                </p>
+            </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <a href="{{ url_for('user.manage_module', module_code='CLM02') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Back to Clients
+                </a>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-8">
+            <div class="flex justify-between mb-2">
+                {% for section in sections %}
+                {% if not section.client_type_restrictions or (client_type and client_type in section.client_type_restrictions) %}
+                <div class="text-xs font-medium flex flex-col items-center {% if loop.index0 == 0 %}text-primary{% else %}text-gray-500{% endif %}" id="step-label-{{ loop.index0 }}"
+                     data-client-types='{{ section.client_type_restrictions|default([])|tojson }}'>
+                    <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center mb-1 {% if loop.index0 == 0 %}border-primary bg-primary text-white{% else %}border-gray-300{% endif %}" id="step-circle-{{ loop.index0 }}">
+                        {% if section.name == 'Personal Information' %}
+                            <i class="fas fa-user"></i>
+                        {% elif section.name == 'Contact Information' %}
+                            <i class="fas fa-address-book"></i>
+                        {% elif section.name == 'Employment Details' %}
+                            <i class="fas fa-briefcase"></i>
+                        {% elif section.name == 'Financial Information' %}
+                            <i class="fas fa-coins"></i>
+                        {% elif section.name == 'Documents' %}
+                            <i class="fas fa-file-alt"></i>
+                        {% else %}
+                            <i class="fas fa-clipboard-list"></i>
+                        {% endif %}
+                    </div>
+                    <span>{{ section.name }}</span>
+                </div>
+                {% if not loop.last %}
+                <div class="flex-1 hidden sm:block">
+                    <div class="h-0.5 bg-gray-200 relative top-4">
+                        <div class="h-0.5 bg-primary" id="progress-line-{{ loop.index0 }}" style="width: 0%"></div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                <div id="progress-bar" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary transition-all duration-300 ease-in-out" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <form id="registerForm" class="divide-y divide-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="client_id" value="{{ submission.id }}">
+                <input type="hidden" name="client_type" value="{{ client_type }}">
+
+                {% for section in sections %}
+                {% if not section.client_type_restrictions or (client_type and client_type in section.client_type_restrictions) %}
+                <div class="section-content px-8 py-6 {% if not loop.first %}hidden{% endif %}" data-step="{{ loop.index0 }}"
+                     data-client-types='{{ section.client_type_restrictions|default([])|tojson }}'>
+                    <div class="space-y-8">
+                        <!-- Section Header -->
+                        <div class="border-b border-gray-200 pb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Form Fields Grid -->
+                        <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
+                            {% for field in section.fields %}
+                            {% if not field.client_type_restrictions or (client_type and client_type|string in field.client_type_restrictions|map('string')|list) %}
+                            <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
+                                 data-field-name="{{ field.field_name }}"
+                                 {% if field.client_type_restrictions %}
+                                 data-client-types='{{ field.client_type_restrictions|tojson }}'
+                                 {% endif %}>
+                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
+                                    {{ field.field_label }}
+                                    {% if field.is_required %}
+                                    <span class="text-red-500">*</span>
+                                    {% endif %}
+                                </label>
+                                
+                                {% if field.field_type == 'text' or field.field_type == 'email' or field.field_type == 'tel' or field.field_type == 'number' %}
+                                <input type="{{ field.field_type }}"
+                                       id="{{ field.field_name }}"
+                                       name="{{ field.field_name }}"
+                                       class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                       {% if field.is_required %}required{% endif %}
+                                       {% if field.field_name in form_data %}value="{{ form_data[field.field_name] }}"{% endif %}
+                                       {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>
+                                
+                                {% elif field.field_type == 'textarea' %}
+                                <textarea id="{{ field.field_name }}"
+                                          name="{{ field.field_name }}"
+                                          rows="3"
+                                          class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                          {% if field.is_required %}required{% endif %}
+                                          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>{% if field.field_name in form_data %}{{ form_data[field.field_name] }}{% endif %}</textarea>
+                                
+                                {% elif field.field_type == 'select' %}
+                                <select id="{{ field.field_name }}"
+                                        name="{{ field.field_name }}"
+                                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                        {% if field.is_required %}required{% endif %}>
+                                    <option value="">Select an option</option>
+                                    {% if field.field_name == 'county' %}
+                                        {% for county in counties %}
+                                        <option value="{{ county }}"
+                                                {% if field.field_name in form_data and form_data[field.field_name] == county %}selected{% endif %}>
+                                            {{ county }}
+                                        </option>
+                                        {% endfor %}
+                                    {% elif field.field_name == 'client_type' %}
+                                        {% for type in client_types %}
+                                        <option value="{{ type.id }}"
+                                                {% if field.field_name in form_data and form_data[field.field_name]|string == type.id|string %}selected{% endif %}>
+                                            {{ type.client_name }}
+                                        </option>
+                                        {% endfor %}
+                                    {% elif field.field_name == 'product' %}
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}"
+                                                {% if field.field_name in form_data and form_data[field.field_name]|string == product.id|string %}selected{% endif %}>
+                                            {{ product.name }}
+                                        </option>
+                                        {% endfor %}
+                                    {% elif field.options %}
+                                        {% for option in field.options %}
+                                        <option value="{{ option.value }}"
+                                                {% if field.field_name in form_data and form_data[field.field_name] == option.value %}selected{% endif %}>
+                                            {{ option.label }}
+                                        </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                                {% endif %}
+                                
+                                {% if field.help_text %}
+                                <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                
+                <!-- Navigation Buttons -->
+                <div class="px-8 py-4 bg-gray-50 sm:px-8">
+                    <div class="flex justify-between space-x-3">
+                        <div>
+                            <button type="button" id="prevBtn" onclick="prevStep()"
+                                    class="hidden inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Previous
+                            </button>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="button" onclick="window.history.back()"
+                                    class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Cancel
+                            </button>
+                            <button type="button" id="nextBtn" onclick="nextStep()"
+                                    class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Next
+                            </button>
+                            <button type="submit" id="submitBtn"
+                                    class="hidden inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Register Client
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentStep = 0;
+const clientType = document.querySelector('input[name="client_type"]')?.value || '';
+
+// Get only the visible sections based on client type
+function getVisibleSections() {
+    return Array.from(document.querySelectorAll('.section-content')).filter(section => {
+        try {
+            const clientTypesAttr = section.dataset.clientTypes;
+            if (!clientTypesAttr) return true; // If no restrictions, show the section
+            
+            const clientTypes = JSON.parse(clientTypesAttr);
+            return clientTypes.length === 0 || clientTypes.includes(clientType);
+        } catch (e) {
+            console.error('Error parsing client types:', e);
+            return true; // If there's an error parsing, show the section
+        }
+    });
+}
+
+function showStep(step) {
+    const sections = getVisibleSections();
+    if (!sections || sections.length === 0) {
+        console.error('No visible sections found');
+        return;
+    }
+    
+    // Hide all sections
+    document.querySelectorAll('.section-content').forEach(section => {
+        section.classList.add('hidden');
+    });
+    
+    // Show current section
+    if (sections[step]) {
+        sections[step].classList.remove('hidden');
+    }
+    
+    // Update progress bar and step indicators
+    const progress = ((step + 1) / sections.length) * 100;
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+    }
+    
+    // Update step labels and circles
+    try {
+        const visibleLabels = Array.from(document.querySelectorAll('[id^="step-label-"]')).filter(label => {
+            try {
+                const clientTypesAttr = label.dataset.clientTypes;
+                if (!clientTypesAttr) return true;
+                
+                const clientTypes = JSON.parse(clientTypesAttr);
+                return clientTypes.length === 0 || clientTypes.includes(clientType);
+            } catch (e) {
+                console.error('Error parsing label client types:', e);
+                return true;
+            }
+        });
+        
+        visibleLabels.forEach((label, index) => {
+            const circle = document.getElementById(`step-circle-${index}`);
+            const progressLine = document.getElementById(`progress-line-${index}`);
+            
+            // Update label color
+            if (index === step) {
+                label.classList.remove('text-gray-500');
+                label.classList.add('text-primary');
+            } else {
+                label.classList.remove('text-primary');
+                label.classList.add('text-gray-500');
+            }
+            
+            // Update circle styles
+            if (circle) {
+                if (index < step) {
+                    // Completed steps
+                    circle.classList.add('border-primary', 'bg-primary', 'text-white');
+                    circle.classList.remove('border-gray-300');
+                } else if (index === step) {
+                    // Current step
+                    circle.classList.add('border-primary', 'bg-primary', 'text-white');
+                    circle.classList.remove('border-gray-300');
+                } else {
+                    // Future steps
+                    circle.classList.remove('border-primary', 'bg-primary', 'text-white');
+                    circle.classList.add('border-gray-300');
+                }
+            }
+            
+            // Update progress lines
+            if (progressLine) {
+                if (index < step) {
+                    progressLine.style.width = '100%';
+                } else {
+                    progressLine.style.width = '0%';
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Error updating step labels:', e);
+    }
+    
+    // Show/hide navigation buttons
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (prevBtn) prevBtn.style.display = step === 0 ? 'none' : 'inline-flex';
+    if (nextBtn) nextBtn.style.display = step === sections.length - 1 ? 'none' : 'inline-flex';
+    if (submitBtn) submitBtn.style.display = step === sections.length - 1 ? 'inline-flex' : 'none';
+}
+
+function nextStep() {
+    const sections = getVisibleSections();
+    if (!sections || sections.length === 0) {
+        console.error('No visible sections found');
+        return;
+    }
+    
+    if (currentStep < sections.length - 1) {
+        if (validateCurrentStep()) {
+            currentStep++;
+            showStep(currentStep);
+        } else {
+            showNotification('Please fill in all required fields before proceeding.', 'error');
+        }
+    }
+}
+
+function prevStep() {
+    if (currentStep > 0) {
+        currentStep--;
+        showStep(currentStep);
+    }
+}
+
+function validateCurrentStep() {
+    const sections = getVisibleSections();
+    if (!sections || sections.length === 0) {
+        console.error('No visible sections found');
+        return false;
+    }
+    
+    const currentSection = sections[currentStep];
+    if (!currentSection) {
+        console.error('Current section not found');
+        return false;
+    }
+    
+    const requiredFields = currentSection.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        const fieldValue = field.value.trim();
+        const fieldLabel = field.previousElementSibling?.textContent?.trim() || field.name;
+        
+        if (!fieldValue) {
+            isValid = false;
+            field.classList.add('border-red-500');
+            const label = field.previousElementSibling;
+            if (label) {
+                label.classList.add('text-red-500');
+            }
+            
+            // Show error message below the field
+            let errorDiv = field.nextElementSibling;
+            if (!errorDiv || !errorDiv.classList.contains('error-message')) {
+                errorDiv = document.createElement('div');
+                errorDiv.classList.add('error-message', 'text-red-500', 'text-sm', 'mt-1');
+                field.parentNode.insertBefore(errorDiv, field.nextSibling);
+            }
+            errorDiv.textContent = `${fieldLabel} is required`;
+        } else {
+            field.classList.remove('border-red-500');
+            const label = field.previousElementSibling;
+            if (label) {
+                label.classList.remove('text-red-500');
+            }
+            
+            // Remove error message if it exists
+            const errorDiv = field.nextElementSibling;
+            if (errorDiv && errorDiv.classList.contains('error-message')) {
+                errorDiv.remove();
+            }
+        }
+    });
+    
+    return isValid;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    if (!form) {
+        console.error('Form not found');
+        return;
+    }
+    
+    showStep(currentStep);
+    
+    // Add input event listeners for validation
+    document.querySelectorAll('input, select, textarea').forEach(field => {
+        field.addEventListener('input', function() {
+            if (this.hasAttribute('required')) {
+                const fieldValue = this.value.trim();
+                if (fieldValue) {
+                    this.classList.remove('border-red-500');
+                    const label = this.previousElementSibling;
+                    if (label) {
+                        label.classList.remove('text-red-500');
+                    }
+                    
+                    // Remove error message if it exists
+                    const errorDiv = this.nextElementSibling;
+                    if (errorDiv && errorDiv.classList.contains('error-message')) {
+                        errorDiv.remove();
+                    }
+                }
+            }
+        });
+    });
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!validateCurrentStep()) {
+            return;
+        }
+        
+        // Get the form data
+        const formData = new FormData(form);
+        
+        // Submit the form via AJAX
+        fetch("{{ url_for('user.register_client', submission_id=submission.id) }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showNotification(data.message, 'success');
+                // Redirect back to clients list
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('user.manage_module', module_code='CLM02') }}";
+                }, 1500);
+            } else {
+                // Show error message
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while registering the client', 'error');
+        });
+    });
+});
+</script>
+{% endblock %}

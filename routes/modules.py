@@ -149,6 +149,18 @@ def list_fields(id):
     
     return render_template('admin/modules/fields.html', module=module, fields=fields)
 
+@modules_bp.route('/<int:id>/fields/get', methods=['GET'])
+@login_required
+def get_module_fields(id):
+    """Get all fields for a module"""
+    module = Module.query.get_or_404(id)
+    fields = FormField.query.filter_by(module_id=id).all()
+    return jsonify([{
+        'id': field.id,
+        'field_name': field.field_name,
+        'field_type': field.field_type
+    } for field in fields])
+
 @modules_bp.route('/<int:id>/fields/create', methods=['GET', 'POST'])
 @login_required
 def create_field(id):

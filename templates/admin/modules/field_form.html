@@ -270,13 +270,14 @@
                         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Field Options</h3>
                         <button type="button" 
                                 onclick="addOptionRow()"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                             <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
                             Add Option
                         </button>
                     </div>
+                    
                     <div id="options-container" class="space-y-4">
                         {% if field and field.options %}
                             {% for option in field.options %}
@@ -306,35 +307,78 @@
                                     </div>
                                 </div>
                             {% endfor %}
-                        {% elif form.options %}
-                            {% for option_form in form.options %}
-                                <div class="option-row grid grid-cols-2 gap-4">
-                                    <div class="space-y-2">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option Label</label>
-                                        <input type="text" 
-                                               name="options-{{ loop.index0 }}-label"
-                                               value="{{ option_form.form.label.data }}"
-                                               class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option Value</label>
-                                        <div class="flex space-x-2">
-                                            <input type="text" 
-                                                   name="options-{{ loop.index0 }}-value"
-                                                   value="{{ option_form.form.value.data }}"
-                                                   class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                            <button type="button" 
-                                                    onclick="this.closest('.option-row').remove(); updateOptionIndices();"
-                                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
                         {% endif %}
+                    </div>
+                </div>
+
+                <!-- Field Dependencies Section -->
+                <div id="dependencies-section" class="mt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Field Dependencies</h3>
+                        <button type="button" 
+                                id="add-dependency-btn"
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Dependency
+                        </button>
+                    </div>
+                    
+                    <div id="dependencies-container" class="space-y-4">
+                        <!-- Dependencies will be rendered here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Dependency Modal -->
+                <div id="dependency-modal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50">
+                    <div class="flex items-center justify-center min-h-screen p-4">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-lg w-full mx-4 transform transition-all">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Add Field Dependency</h3>
+                                <button type="button" class="cancel-modal-btn text-gray-400 hover:text-gray-500">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dependent Field</label>
+                                    <div class="relative">
+                                        <select id="dependent-field-select" 
+                                                class="block w-full pl-3 pr-10 py-2.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg shadow-sm">
+                                            <option value="">Select a field...</option>
+                                        </select>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">Select the field that should be shown/hidden based on this field's value.</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Show When Values</label>
+                                    <div class="relative">
+                                        <select id="show-values-select" 
+                                                multiple
+                                                class="block w-full pl-3 pr-10 py-2.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg shadow-sm">
+                                        </select>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">Select one or more values that will trigger showing the dependent field.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 flex justify-end space-x-3">
+                                <button type="button" 
+                                        class="cancel-modal-btn px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                                    Cancel
+                                </button>
+                                <button type="button" 
+                                        id="save-dependency-btn" 
+                                        class="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                                    Save Dependency
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -358,99 +402,98 @@
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script src="{{ url_for('static', filename='js/field_dependencies.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize choices.js for client type restrictions
-        const clientTypeSelect = document.querySelector('[name="client_type_restrictions"]');
-        if (clientTypeSelect) {
-            const choices = new Choices(clientTypeSelect, {
-                removeItemButton: true,
-                maxItemCount: -1,
-                searchEnabled: true,
-                renderChoiceLimit: -1,
-                placeholder: true,
-                placeholderValue: 'Select client types...',
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Initialize Choices.js for field type and client type restrictions
+        const fieldTypeSelect = document.getElementById('field_type');
+        const clientTypeSelect = document.getElementById('client_type_restrictions');
+        const sectionSelect = document.getElementById('section_id');
+
+        if (fieldTypeSelect) {
+            new Choices(fieldTypeSelect, {
+                searchEnabled: false,
+                itemSelectText: '',
                 classNames: {
-                    containerOuter: 'choices',
-                    containerInner: 'choices__inner',
-                    input: 'choices__input',
-                    inputCloned: 'choices__input--cloned',
-                    list: 'choices__list',
-                    listItems: 'choices__list--multiple',
-                    listSingle: 'choices__list--single',
-                    listDropdown: 'choices__list--dropdown',
-                    item: 'choices__item',
-                    itemSelectable: 'choices__item--selectable',
-                    itemDisabled: 'choices__item--disabled',
-                    itemChoice: 'choices__item--choice',
-                    placeholder: 'choices__placeholder',
-                    group: 'choices__group',
-                    groupHeading: 'choices__heading',
-                    button: 'choices__button',
+                    containerOuter: 'choices'
                 }
             });
         }
 
-        // Initialize Choices.js for select elements
-        const selects = document.querySelectorAll('select');
-        selects.forEach(select => {
-            if (select.id === 'client_type_restrictions') {
-                // Already initialized above
-            } else {
-                new Choices(select, {
-                    searchEnabled: false,
-                    placeholder: true,
-                });
-            }
-        });
+        if (clientTypeSelect) {
+            new Choices(clientTypeSelect, {
+                searchEnabled: false,
+                itemSelectText: '',
+                removeItemButton: true,
+                classNames: {
+                    containerOuter: 'choices'
+                }
+            });
+        }
+
+        if (sectionSelect) {
+            new Choices(sectionSelect, {
+                searchEnabled: false,
+                itemSelectText: '',
+                classNames: {
+                    containerOuter: 'choices'
+                }
+            });
+        }
+
+        // Show/hide options section based on field type
+        const optionsSection = document.getElementById('options-section');
+        const fieldTypeInput = document.getElementById('field_type');
+        
+        if (fieldTypeInput) {
+            fieldTypeInput.addEventListener('change', function() {
+                const showOptionsTypes = ['select', 'radio', 'checkbox'];
+                if (showOptionsTypes.includes(this.value)) {
+                    optionsSection?.classList.remove('hidden');
+                } else {
+                    optionsSection?.classList.add('hidden');
+                }
+            });
+        }
+
+        {% if field %}
+        // Add hidden input fields for IDs
+        const fieldIdInput = document.createElement('input');
+        fieldIdInput.type = 'hidden';
+        fieldIdInput.id = 'field-id';
+        fieldIdInput.value = '{{ field.id }}';
+        document.body.appendChild(fieldIdInput);
+
+        const moduleIdInput = document.createElement('input');
+        moduleIdInput.type = 'hidden';
+        moduleIdInput.id = 'module-id';
+        moduleIdInput.value = '{{ module.id }}';
+        document.body.appendChild(moduleIdInput);
+
+        // Initialize the dependency manager
+        const dependencyManager = new FieldDependencyManager({{ field.id }}, {{ module.id }});
+        {% endif %}
     });
 
-    // Field type change handler
-    const fieldTypeSelect = document.querySelector('#field_type');
-    const optionsSection = document.querySelector('#options-section');
-
-    function toggleOptionsSection() {
-        const selectedType = fieldTypeSelect.value;
-        const shouldShow = ['select', 'radio', 'checkbox'].includes(selectedType);
-        
-        if (shouldShow) {
-            optionsSection.classList.remove('hidden');
-            optionsSection.style.opacity = '0';
-            setTimeout(() => {
-                optionsSection.style.transition = 'opacity 0.3s ease';
-                optionsSection.style.opacity = '1';
-            }, 10);
-        } else {
-            optionsSection.style.opacity = '0';
-            setTimeout(() => {
-                optionsSection.classList.add('hidden');
-            }, 300);
-        }
-    }
-
-    function addOptionRow(label = '', value = '') {
+    // Function to add a new option row
+    function addOptionRow() {
         const container = document.getElementById('options-container');
-        const optionIndex = container.children.length;
+        const optionCount = container.getElementsByClassName('option-row').length;
         
-        const row = document.createElement('div');
-        row.className = 'option-row grid grid-cols-2 gap-4';
-        row.style.opacity = '0';
-        row.style.transform = 'translateY(20px)';
-        
-        row.innerHTML = `
+        const newRow = document.createElement('div');
+        newRow.className = 'option-row grid grid-cols-2 gap-4';
+        newRow.innerHTML = `
             <div class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option Label</label>
                 <input type="text" 
-                       name="options-${optionIndex}-label"
-                       value="${label}"
+                       name="options-${optionCount}-label"
                        class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
             <div class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option Value</label>
                 <div class="flex space-x-2">
                     <input type="text" 
-                           name="options-${optionIndex}-value"
-                           value="${value}"
+                           name="options-${optionCount}-value"
                            class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     <button type="button" 
                             onclick="this.closest('.option-row').remove(); updateOptionIndices();"
@@ -463,38 +506,21 @@
             </div>
         `;
         
-        container.appendChild(row);
-        
-        setTimeout(() => {
-            row.style.transition = 'all 0.3s ease';
-            row.style.opacity = '1';
-            row.style.transform = 'translateY(0)';
-        }, 10);
+        container.appendChild(newRow);
     }
 
+    // Function to update option indices after deletion
     function updateOptionIndices() {
         const container = document.getElementById('options-container');
-        const rows = container.getElementsByClassName('option-row');
+        const optionRows = container.getElementsByClassName('option-row');
         
-        Array.from(rows).forEach((row, index) => {
-            const inputs = row.getElementsByTagName('input');
-            inputs[0].name = `options-${index}-label`;
-            inputs[1].name = `options-${index}-value`;
+        Array.from(optionRows).forEach((row, index) => {
+            const labelInput = row.querySelector('input[name^="options-"][name$="-label"]');
+            const valueInput = row.querySelector('input[name^="options-"][name$="-value"]');
+            
+            labelInput.name = `options-${index}-label`;
+            valueInput.name = `options-${index}-value`;
         });
-    }
-
-    // Event Listeners
-    if (fieldTypeSelect) {
-        fieldTypeSelect.addEventListener('change', toggleOptionsSection);
-    }
-
-    // Initialize options section visibility
-    toggleOptionsSection();
-
-    // Add initial options for select/radio/checkbox fields
-    if (['select', 'radio', 'checkbox'].includes(fieldTypeSelect.value) && document.getElementById('options-container').children.length === 0) {
-        addOptionRow();
-        addOptionRow();
     }
 </script>
 {% endblock %}

@@ -31,6 +31,7 @@ from routes.user import user_bp
 from routes.products import products_bp
 from routes.section_routes import sections_bp
 from routes.settings import settings_bp
+from routes.field_dependencies import dependencies_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -119,6 +120,7 @@ def create_app():
     app.register_blueprint(branch_bp, url_prefix='/branches')  
     app.register_blueprint(client_types_bp)  
     app.register_blueprint(modules_bp, url_prefix='/modules')  
+    app.register_blueprint(dependencies_bp)  
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(products_bp)  
     app.register_blueprint(sections_bp)  

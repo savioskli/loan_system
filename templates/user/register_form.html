@@ -2,6 +2,179 @@
 
 {% block title %}Register Client - {{ submission.id }}{% endblock %}
 
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+    /* Custom input styles */
+    .form-input {
+        @apply block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200;
+    }
+
+    .form-select {
+        @apply block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+    }
+
+    .form-textarea {
+        @apply block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200;
+        min-height: 80px;
+    }
+
+    /* Field dependency transitions */
+    .form-group {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        height: auto;
+        transform-origin: top;
+    }
+
+    .form-group.hidden {
+        opacity: 0;
+        visibility: hidden;
+        height: 0;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Field visibility transitions */
+    .form-group {
+        transition: opacity 0.3s ease-in-out, height 0.3s ease-in-out, margin 0.3s ease-in-out, padding 0.3s ease-in-out;
+        opacity: 1;
+        height: auto;
+        margin: inherit;
+        padding: inherit;
+        overflow: hidden;
+    }
+
+    .field-invisible {
+        opacity: 0;
+        height: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    .field-hidden {
+        display: none;
+    }
+
+    /* File upload and camera styles */
+    .file-upload-container {
+        @apply bg-white;
+        border: 2px solid #e5e7eb;
+        margin: 0.75rem 0;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .upload-methods {
+        @apply flex justify-center items-center;
+        @apply py-2;
+    }
+    
+    .method-button {
+        @apply inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+        @apply cursor-pointer;
+    }
+
+    /* File upload area styles */
+    .file-drop-area {
+        @apply border-2 border-dashed border-gray-300 rounded-lg p-4;
+        @apply bg-gray-50 transition-all duration-200;
+        @apply flex flex-col items-center justify-center;
+        min-height: 120px;
+    }
+
+    .upload-icon {
+        @apply text-4xl text-blue-500 mb-2;
+        height: 40px;
+    }
+    
+    .upload-text {
+        @apply text-gray-600 mb-2 text-sm;
+    }
+    
+    .browse-button {
+        @apply mt-2 px-4 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm;
+        @apply text-sm font-medium text-gray-700;
+    }
+    
+    /* Camera container styles */
+    .camera-container {
+        @apply relative mx-auto rounded-lg overflow-hidden bg-gray-900 p-4 border-2 border-gray-800 shadow-lg;
+        max-width: 320px;
+    }
+    
+    .camera-preview {
+        @apply aspect-video bg-black rounded-lg overflow-hidden;
+        @apply border-2 border-gray-700 shadow-inner;
+        max-height: 240px;
+    }
+    
+    .camera-controls {
+        @apply flex items-center justify-center space-x-4 mt-4;
+    }
+    
+    .capture-btn {
+        @apply flex items-center justify-center px-6 py-2 bg-blue-600 text-white rounded-lg
+               text-sm font-medium shadow-md hover:shadow-lg active:transform active:scale-95
+               hover:bg-blue-700 transition-all duration-200 border border-blue-700;
+    }
+    
+    .camera-toggle {
+        @apply flex items-center justify-center p-3 bg-gray-700 text-white rounded-full
+               hover:bg-gray-600 transition-all duration-200 shadow-md hover:shadow-lg
+               border border-gray-600 hover:scale-105;
+    }
+
+    /* Preview styles */
+    .file-preview-wrapper {
+        @apply mt-4 relative bg-white rounded-lg shadow-md border border-gray-200 p-3;
+        max-width: 320px;
+        margin: 1rem auto 0;
+    }
+    
+    .file-preview img {
+        @apply w-full h-auto object-cover rounded-lg border border-gray-200;
+        max-height: 240px;
+    }
+
+    /* Form group spacing */
+    .form-group.sm\:col-span-2 {
+        @apply max-w-2xl mx-auto bg-gray-50 p-8 rounded-2xl shadow-lg border border-gray-200;
+    }
+    
+    /* Label styling */
+    .form-label {
+        @apply block text-sm font-medium text-gray-700;
+    }
+    
+    /* Required field asterisk */
+    .required-star {
+        color: #dc2626;
+        margin-left: 4px;
+    }
+    
+    .form-label .required-star:not(:first-of-type) {
+        display: none;
+    }
+    
+    /* Button hover effects */
+    .btn-hover {
+        @apply transition-all duration-200 ease-in-out hover:shadow-lg hover:transform 
+               hover:scale-[1.02] active:scale-[0.98];
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -89,7 +262,7 @@
                             {% for field in section.fields %}
                             {% if not field.client_type_restrictions or (client_type and client_type|string in field.client_type_restrictions|map('string')|list) %}
                             <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
-                                 data-field-name="{{ field.field_name }}"
+                                 data-field-id="{{ field.field_id }}"
                                  {% if field.client_type_restrictions %}
                                  data-client-types='{{ field.client_type_restrictions|tojson }}'
                                  {% endif %}>
@@ -99,60 +272,149 @@
                                     <span class="text-red-500">*</span>
                                     {% endif %}
                                 </label>
-                                
-                                {% if field.field_type == 'text' or field.field_type == 'email' or field.field_type == 'tel' or field.field_type == 'number' %}
-                                <input type="{{ field.field_type }}"
-                                       id="{{ field.field_name }}"
-                                       name="{{ field.field_name }}"
-                                       class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                                       {% if field.is_required %}required{% endif %}
-                                       {% if field.field_name in form_data %}value="{{ form_data[field.field_name] }}"{% endif %}
-                                       {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>
-                                
-                                {% elif field.field_type == 'textarea' %}
-                                <textarea id="{{ field.field_name }}"
-                                          name="{{ field.field_name }}"
-                                          rows="3"
-                                          class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                                          {% if field.is_required %}required{% endif %}
-                                          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>{% if field.field_name in form_data %}{{ form_data[field.field_name] }}{% endif %}</textarea>
-                                
-                                {% elif field.field_type == 'select' %}
-                                <select id="{{ field.field_name }}"
-                                        name="{{ field.field_name }}"
-                                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                        {% if field.is_required %}required{% endif %}>
-                                    <option value="">Select an option</option>
-                                    {% if field.field_name == 'county' %}
-                                        {% for county in counties %}
-                                        <option value="{{ county }}"
-                                                {% if field.field_name in form_data and form_data[field.field_name] == county %}selected{% endif %}>
-                                            {{ county }}
-                                        </option>
-                                        {% endfor %}
-                                    {% elif field.field_name == 'client_type' %}
-                                        {% for type in client_types %}
-                                        <option value="{{ type.id }}"
-                                                {% if field.field_name in form_data and form_data[field.field_name]|string == type.id|string %}selected{% endif %}>
-                                            {{ type.client_name }}
-                                        </option>
-                                        {% endfor %}
-                                    {% elif field.field_name == 'product' %}
-                                        {% for product in products %}
-                                        <option value="{{ product.id }}"
-                                                {% if field.field_name in form_data and form_data[field.field_name]|string == product.id|string %}selected{% endif %}>
-                                            {{ product.name }}
-                                        </option>
-                                        {% endfor %}
-                                    {% elif field.options %}
-                                        {% for option in field.options %}
-                                        <option value="{{ option.value }}"
-                                                {% if field.field_name in form_data and form_data[field.field_name] == option.value %}selected{% endif %}>
-                                            {{ option.label }}
-                                        </option>
-                                        {% endfor %}
+
+                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date'] %}
+                                <div class="relative rounded-md shadow-sm">
+                                    <input type="{{ field.field_type }}"
+                                           id="{{ field.field_name }}"
+                                           name="{{ field.field_name }}"
+                                           class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
+                                           {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+                                           {% if field.is_required %}required{% endif %}
+                                           {% if field.field_type == 'tel' %}pattern="[0-9]{10,}"{% endif %}
+                                           {% if field.field_type == 'number' %}step="any"{% endif %}
+                                           {% if field.field_type == 'date' %}max="{{ today_date }}"{% endif %}
+                                           {% if field.field_name == 'id_number' %}maxlength="8"{% endif %}
+                                           aria-describedby="{{ field.field_name }}-description">
+                                    {% if field.field_type == 'tel' %}
+                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
+                                        Format: +254XXXXXXXXX or 07XXXXXXXX
+                                    </div>
                                     {% endif %}
-                                </select>
+                                </div>
+
+                                {% elif field.field_type == 'textarea' %}
+                                <div class="relative rounded-md shadow-sm">
+                                    <textarea id="{{ field.field_name }}"
+                                              name="{{ field.field_name }}"
+                                              rows="4"
+                                              class="block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
+                                              {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+                                              {% if field.is_required %}required{% endif %}
+                                              aria-describedby="{{ field.field_name }}-description"></textarea>
+                                    {% if field.field_name == 'address' %}
+                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
+                                        Enter complete physical address including landmarks
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                {% elif field.field_type == 'select' %}
+                                <div class="relative rounded-md shadow-sm">
+                                    <select id="{{ field.field_name }}"
+                                            name="{{ field.field_name }}"
+                                            {% if field.depends_on %}
+                                            data-depends-on="{{ field.depends_on }}"
+                                            data-options='{{ field.options|tojson }}'
+                                            {% endif %}
+                                            class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
+                                            {% if field.is_required %}required{% endif %}>
+                                        <option value="">{{ field.placeholder or 'Select an option' }}</option>
+                                        {% if not field.depends_on %}
+                                            {% for option in field.options %}
+                                            <option value="{{ option.value }}"
+                                                    {% if option.client_types %}data-client-types='{{ option.client_types|tojson }}'{% endif %}>
+                                                {{ option.label }}
+                                            </option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+
+                                {% elif field.field_type == 'file' %}
+                                <div class="form-group sm:col-span-2">
+                                    <div class="file-upload-container">
+                                        <!-- Upload Method Selection -->
+                                        <div class="flex justify-center mb-4">
+                                            <div class="upload-methods">
+                                                <div role="button"
+                                                     id="camera-method-{{ field.field_name }}"
+                                                     tabindex="0"
+                                                     class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" 
+                                                     onclick="switchMethod('{{ field.field_name }}', 'camera')">
+                                                    <i class="fas fa-camera mr-2"></i>
+                                                    Use Camera
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- File Upload Input -->
+                                        <div id="file-input-{{ field.field_name }}" class="mt-4">
+                                            <div class="file-drop-area" id="drop-area-{{ field.field_name }}">
+                                                <div class="file-input-wrapper">
+                                                    <input type="file"
+                                                           id="{{ field.field_name }}"
+                                                           name="{{ field.field_name }}"
+                                                           class="hidden"
+                                                           accept="image/*,.pdf"
+                                                           {% if field.is_required %}required{% endif %}
+                                                           onchange="handleFileSelect(event, '{{ field.field_name }}')">
+                                                    <div class="text-center">
+                                                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                                                        <p class="text-gray-600 mb-4">Drag and drop your file here or</p>
+                                                        <div role="button"
+                                                             tabindex="0"
+                                                             class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                             onclick="document.getElementById('{{ field.field_name }}').click()">
+                                                            <i class="fas fa-folder-open mr-2"></i>
+                                                            Browse Files
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- File Preview -->
+                                            <div id="preview-{{ field.field_name }}" class="file-preview-wrapper hidden">
+                                                <div class="file-preview">
+                                                    <img id="preview-img-{{ field.field_name }}" alt="File preview" />
+                                                    <button type="button" 
+                                                            class="remove-preview btn-hover" 
+                                                            onclick="removeFile('{{ field.field_name }}')">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="file-info">
+                                                    <i class="fas fa-file-alt mr-2"></i>
+                                                    <span id="file-name-{{ field.field_name }}"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Camera Input -->
+                                        <div id="camera-input-{{ field.field_name }}" class="hidden">
+                                            <div class="camera-container">
+                                                <video id="camera-preview-{{ field.field_name }}" 
+                                                       class="camera-preview" 
+                                                       autoplay 
+                                                       playsinline></video>
+                                                <canvas id="canvas-{{ field.field_name }}" class="hidden"></canvas>
+                                                <div class="camera-controls">
+                                                    <button type="button" 
+                                                            class="camera-toggle btn-hover"
+                                                            onclick="toggleCamera('{{ field.field_name }}')">
+                                                        <i class="fas fa-sync-alt"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="capture-btn btn-hover"
+                                                            onclick="captureImage('{{ field.field_name }}')">
+                                                        <i class="fas fa-camera mr-2"></i>
+                                                        Take Photo
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endif %}
                                 
                                 {% if field.help_text %}
@@ -200,26 +462,29 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/field_visibility.js') }}"></script>
 <script>
 let currentStep = 0;
 const clientType = document.querySelector('input[name="client_type"]')?.value || '';
+const sections = document.querySelectorAll('.section-content');
+const totalSteps = sections.length;
 
-// Get only the visible sections based on client type
+// Function to get visible sections based on client type
 function getVisibleSections() {
     return Array.from(document.querySelectorAll('.section-content')).filter(section => {
+        const clientTypes = section.dataset.clientTypes;
+        if (!clientTypes) return true;
         try {
-            const clientTypesAttr = section.dataset.clientTypes;
-            if (!clientTypesAttr) return true; // If no restrictions, show the section
-            
-            const clientTypes = JSON.parse(clientTypesAttr);
-            return clientTypes.length === 0 || clientTypes.includes(clientType);
+            const allowedTypes = JSON.parse(clientTypes);
+            return !allowedTypes.length || allowedTypes.includes(clientType);
         } catch (e) {
             console.error('Error parsing client types:', e);
-            return true; // If there's an error parsing, show the section
+            return true;
         }
     });
 }
 
+// Function to show step
 function showStep(step) {
     const sections = getVisibleSections();
     if (!sections || sections.length === 0) {
@@ -458,6 +723,259 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('An error occurred while registering the client', 'error');
         });
     });
+});
+
+// Enhanced method switching
+function switchMethod(fieldName, method) {
+    const cameraMethod = document.getElementById(`camera-method-${fieldName}`);
+    const fileInput = document.getElementById(`file-input-${fieldName}`);
+    const cameraInput = document.getElementById(`camera-input-${fieldName}`);
+    const preview = document.getElementById(`preview-${fieldName}`);
+    
+    if (method === 'camera') {
+        cameraMethod.classList.add('active');
+        cameraMethod.classList.add('bg-indigo-500', 'text-white', 'border-indigo-500');
+        cameraMethod.classList.remove('text-gray-700', 'bg-white');
+        
+        fileInput.classList.add('hidden');
+        cameraInput.classList.remove('hidden');
+        preview.classList.add('hidden');
+        startCamera(fieldName);
+    } else {
+        cameraMethod.classList.remove('active');
+        cameraMethod.classList.remove('bg-indigo-500', 'text-white', 'border-indigo-500');
+        cameraMethod.classList.add('text-gray-700', 'bg-white');
+        
+        fileInput.classList.remove('hidden');
+        cameraInput.classList.add('hidden');
+        stopCamera(fieldName);
+    }
+}
+
+// Add camera facing mode toggle
+let facingMode = 'environment';
+
+function toggleCamera(fieldName) {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    stopCamera(fieldName);
+    startCamera(fieldName);
+}
+
+// Update startCamera function
+async function startCamera(fieldName) {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: facingMode,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            } 
+        });
+        const video = document.getElementById(`camera-preview-${fieldName}`);
+        video.srcObject = stream;
+        streamMap[fieldName] = stream;
+    } catch (err) {
+        console.error('Error accessing camera:', err);
+        alert('Could not access camera. Please ensure you have granted camera permissions.');
+        switchMethod(fieldName, 'file');
+    }
+}
+
+// Existing functions...
+let streamMap = {};
+
+function stopCamera(fieldName) {
+    if (streamMap[fieldName]) {
+        streamMap[fieldName].getTracks().forEach(track => track.stop());
+        delete streamMap[fieldName];
+    }
+}
+
+function captureImage(fieldName) {
+    const video = document.getElementById(`camera-preview-${fieldName}`);
+    const canvas = document.getElementById(`canvas-${fieldName}`);
+    const preview = document.getElementById(`preview-${fieldName}`);
+    const previewImg = document.getElementById(`preview-img-${fieldName}`);
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert to file
+    canvas.toBlob((blob) => {
+        const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        
+        // Create a new FileList-like object
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        
+        // Set the file input's files
+        const fileInput = document.getElementById(fieldName);
+        fileInput.files = dataTransfer.files;
+        
+        // Show preview
+        previewImg.src = URL.createObjectURL(blob);
+        preview.classList.remove('hidden');
+        
+        // Stop camera and switch back to file input view
+        stopCamera(fieldName);
+        document.getElementById(`camera-input-${fieldName}`).classList.add('hidden');
+        document.getElementById(`file-input-${fieldName}`).classList.remove('hidden');
+        document.getElementById(`toggle-text-${fieldName}`).textContent = 'Switch to Camera';
+    }, 'image/jpeg', 0.8);
+}
+
+// Enhanced file handling functions
+function handleFileSelect(event, fieldName) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    updateFilePreview(fieldName, file);
+}
+
+function updateFilePreview(fieldName, file) {
+    const preview = document.getElementById(`preview-${fieldName}`);
+    const previewImg = document.getElementById(`preview-img-${fieldName}`);
+    const fileName = document.getElementById(`file-name-${fieldName}`);
+    
+    // Show preview for images
+    if (file.type.startsWith('image/')) {
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.onclick = () => showLargePreview(previewImg.src);
+    } else {
+        previewImg.src = '/static/images/document-icon.png'; // You'll need to add this image
+    }
+    
+    // Update file info
+    fileName.textContent = file.name;
+    
+    // Show preview container
+    preview.classList.remove('hidden');
+}
+
+function removeFile(fieldName) {
+    const fileInput = document.getElementById(fieldName);
+    const preview = document.getElementById(`preview-${fieldName}`);
+    
+    fileInput.value = '';
+    preview.classList.add('hidden');
+}
+
+function showLargePreview(src) {
+    const preview = document.createElement('div');
+    preview.className = 'preview-container';
+    preview.innerHTML = `
+        <div class="preview-content">
+            <i class="fas fa-times preview-close" onclick="this.closest('.preview-container').remove()"></i>
+            <img src="${src}" class="max-h-[80vh] mx-auto" />
+        </div>
+    `;
+    document.body.appendChild(preview);
+}
+
+// Drag and drop handling
+document.querySelectorAll('.file-drop-area').forEach(dropArea => {
+    const fieldName = dropArea.id.replace('drop-area-', '');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.add('dragging');
+        });
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.remove('dragging');
+        });
+    });
+    
+    dropArea.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        
+        const fileInput = document.getElementById(fieldName);
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        
+        updateFilePreview(fieldName, file);
+    });
+});
+
+// Clean up camera streams when form is submitted or page is unloaded
+window.addEventListener('beforeunload', () => {
+    Object.keys(streamMap).forEach(stopCamera);
+});
+
+document.getElementById('registerForm').addEventListener('submit', () => {
+    Object.keys(streamMap).forEach(stopCamera);
+});
+
+// Field Dependencies Handling
+let fieldDependencies = {};
+
+function loadFieldDependencies() {
+    const formFields = document.querySelectorAll('[data-field-id]');
+    formFields.forEach(field => {
+        const fieldName = field.querySelector('input, select, textarea')?.name;
+        if (fieldName) {
+            fetch(`/api/field-dependencies/${fieldName}`)
+                .then(response => response.json())
+                .then(dependencies => {
+                    fieldDependencies[fieldName] = dependencies;
+                    // Add change event listener to handle dependencies
+                    const input = field.querySelector('input, select, textarea');
+                    if (input) {
+                        input.addEventListener('change', () => checkDependencies(fieldName, input.value));
+                        // Initial check
+                        checkDependencies(fieldName, input.value);
+                    }
+                })
+                .catch(error => console.error('Error loading dependencies:', error));
+        }
+    });
+}
+
+function checkDependencies(parentFieldName, value) {
+    const dependencies = fieldDependencies[parentFieldName] || [];
+    dependencies.forEach(dep => {
+        const dependentField = document.querySelector(`[name="${dep.dependent_field}"]`)?.closest('.form-group');
+        if (dependentField) {
+            const shouldShow = dep.show_values.includes(value);
+            if (shouldShow) {
+                dependentField.style.display = '';
+                dependentField.classList.remove('hidden');
+            } else {
+                dependentField.style.display = 'none';
+                dependentField.classList.add('hidden');
+                // Clear the value of the hidden field
+                const input = dependentField.querySelector('input, select, textarea');
+                if (input) {
+                    input.value = '';
+                    // Trigger change event to handle nested dependencies
+                    input.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+    });
+}
+
+// Load dependencies when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadFieldDependencies();
 });
 </script>
 {% endblock %}

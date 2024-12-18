@@ -349,27 +349,27 @@ def edit_field(id, field_id):
         flash('An error occurred while updating the field', 'error')
         return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
 
-@modules_bp.route('/<int:id>/fields/order', methods=['POST'])
+@modules_bp.route('/<int:id>/fields/reorder', methods=['POST'])
 @login_required
-def update_field_order(id):
-    if not current_user.role or current_user.role.name.lower() != 'admin':
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
-        
+def reorder_fields(id):
+    """Update the order of fields in a module"""
     try:
         data = request.get_json()
         fields = data.get('fields', [])
         
-        # Update each field's order
         for field_data in fields:
-            field = FormField.query.get(field_data['id'])
+            field_id = field_data.get('id')
+            new_order = field_data.get('order')
+            
+            field = FormField.query.get(field_id)
             if field and field.module_id == id:  # Ensure field belongs to current module
-                field.field_order = field_data['order']
+                field.field_order = new_order
         
         db.session.commit()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': 'Field order updated successfully'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @modules_bp.route('/<int:id>/fields/<int:field_id>/delete', methods=['GET', 'POST'])
 @login_required

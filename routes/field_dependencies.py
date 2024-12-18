@@ -51,57 +51,40 @@ def get_dependencies(field_id):
         'show_on_values': dep.get_show_values()
     } for dep in dependencies])
 
+@dependencies_bp.route('/api/field-dependencies/<field_name>', methods=['GET'])
+@login_required
+def get_field_dependencies_by_name(field_name):
+    """Get all dependencies where this field is the parent"""
+    field = FormField.query.filter_by(field_name=field_name).first_or_404()
+    dependencies = FieldDependency.query.filter_by(parent_field_id=field.id).all()
+    
+    return jsonify([{
+        'id': dep.id,
+        'dependent_field': dep.dependent_field.field_name,
+        'show_values': dep.get_show_values()
+    } for dep in dependencies])
+
 @dependencies_bp.route('/api/field-dependencies', methods=['POST'])
 @login_required
 def create_dependency():
     """Create a new field dependency"""
-    try:
-        data = request.json
-        if not data:
-            return jsonify({'message': 'No JSON data received'}), 400
-            
-        # Validate required fields
-        required_fields = ['parent_field_id', 'dependent_field_id', 'show_on_values']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'message': f'Missing required field: {field}'}), 400
-
-        # Check if fields exist
-        parent_field = FormField.query.get(data['parent_field_id'])
-        dependent_field = FormField.query.get(data['dependent_field_id'])
-        
-        if not parent_field or not dependent_field:
-            return jsonify({'message': 'Invalid field IDs'}), 400
-
-        # Check if dependency already exists
-        existing = FieldDependency.query.filter_by(
-            parent_field_id=data['parent_field_id'],
-            dependent_field_id=data['dependent_field_id']
-        ).first()
-        
-        if existing:
-            return jsonify({'message': 'Dependency already exists'}), 400
-
-        # Create new dependency
-        dependency = FieldDependency(
-            parent_field_id=data['parent_field_id'],
-            dependent_field_id=data['dependent_field_id']
-        )
-        dependency.set_show_values(data['show_on_values'])
-        
-        db.session.add(dependency)
-        db.session.commit()
-        
-        return jsonify({
-            'id': dependency.id,
-            'dependent_field_id': dependency.dependent_field_id,
-            'dependent_field_name': dependency.dependent_field.field_name,
-            'dependent_field_label': dependency.dependent_field.field_label,
-            'show_on_values': dependency.get_show_values()
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 500
+    data = request.json
+    dependency = FieldDependency(
+        parent_field_id=data['parent_field_id'],
+        dependent_field_id=data['dependent_field_id']
+    )
+    dependency.set_show_values(data['show_on_values'])
+    
+    db.session.add(dependency)
+    db.session.commit()
+    
+    return jsonify({
+        'id': dependency.id,
+        'dependent_field_id': dependency.dependent_field_id,
+        'dependent_field_name': dependency.dependent_field.field_name,
+        'dependent_field_label': dependency.dependent_field.field_label,
+        'show_on_values': dependency.get_show_values()
+    })
 
 @dependencies_bp.route('/api/field-dependencies/<int:dep_id>', methods=['PUT'])
 @login_required
@@ -128,11 +111,7 @@ def update_dependency(dep_id):
 @login_required
 def delete_dependency(dep_id):
     """Delete a field dependency"""
-    try:
-        dependency = FieldDependency.query.get_or_404(dep_id)
-        db.session.delete(dependency)
-        db.session.commit()
-        return jsonify({'message': 'Dependency deleted successfully'}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 500
+    dependency = FieldDependency.query.get_or_404(dep_id)
+    db.session.delete(dependency)
+    db.session.commit()
+    return jsonify({'message': 'Dependency deleted successfully'}), 200

@@ -104,32 +104,43 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('sortable-fields')) {
-        new Sortable(document.getElementById('sortable-fields'), {
-            handle: '.drag-handle',
+    const sortableList = document.getElementById('sortable-fields');
+    if (sortableList) {
+        new Sortable(sortableList, {
             animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'bg-gray-100',
             onEnd: function(evt) {
-                const fields = Array.from(evt.to.children).map((tr, index) => ({
-                    id: tr.dataset.id,
+                const rows = Array.from(sortableList.getElementsByTagName('tr'));
+                const updates = rows.map((row, index) => ({
+                    id: row.dataset.id,
                     order: index + 1
                 }));
 
-                fetch(`{{ url_for('modules.update_field_order', id=module.id) }}`, {
+                // Update the displayed order numbers
+                rows.forEach((row, index) => {
+                    row.querySelector('.field-order').textContent = index + 1;
+                });
+
+                // Send the updates to the server
+                fetch(`{{ url_for('modules.reorder_fields', id=module.id) }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ fields: fields })
+                    body: JSON.stringify({ fields: updates })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Update the order numbers in the UI
-                        document.querySelectorAll('.field-order').forEach((td, index) => {
-                            td.textContent = index + 1;
-                        });
+                        console.log('Field order updated successfully');
                     } else {
                         console.error('Error updating field order');
                     }

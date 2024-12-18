@@ -2,12 +2,6 @@
 
 {% block title %}{{ title }}{% endblock %}
 
-{% block head %}
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-{% endblock %}
-
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
@@ -78,22 +72,6 @@
     .choices__list--dropdown .choices__item--selectable.is-highlighted {
         background-color: #EEF2FF;
         color: #4F46E5;
-    }
-
-    /* Toast notification animation */
-    @keyframes slideIn {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); }
-        to { transform: translateX(100%); }
-    }
-    .toast-enter {
-        animation: slideIn 0.3s ease-out;
-    }
-    .toast-exit {
-        animation: slideOut 0.3s ease-in;
     }
 </style>
 {% endblock %}

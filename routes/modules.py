@@ -171,14 +171,9 @@ def create_field(id):
     try:
         module = Module.query.get_or_404(id)
         
-        # Use basic form for GET requests
         if request.method == 'GET':
             form = FormFieldForm(module_id=id)
-            current_app.logger.info("GET request - Creating new form")
             return render_template('admin/modules/field_form.html', form=form, module=module)
-        
-        # For POST requests
-        current_app.logger.debug(f"Form Data: {request.form}")
         
         field_type = request.form.get('field_type', '')
         field_data = {
@@ -192,7 +187,61 @@ def create_field(id):
             'section_id': request.form.get('section_id', type=int)
         }
         
-        # Get options from the form
+        # Process validation rules based on field type
+        validation_rules = {}
+        
+        # Common validations for text fields
+        if field_type in ['text', 'textarea', 'email', 'tel']:
+            min_length = request.form.get('min_length')
+            max_length = request.form.get('max_length')
+            pattern = request.form.get('pattern')
+            
+            if min_length and min_length.isdigit():
+                validation_rules['min_length'] = int(min_length)
+            if max_length and max_length.isdigit():
+                validation_rules['max_length'] = int(max_length)
+            if pattern:
+                validation_rules['pattern'] = pattern
+        
+        # Number field validations
+        if field_type in ['number', 'decimal']:
+            min_value = request.form.get('min_value')
+            max_value = request.form.get('max_value')
+            step = request.form.get('step')
+            
+            if min_value:
+                validation_rules['min_value'] = float(min_value)
+            if max_value:
+                validation_rules['max_value'] = float(max_value)
+            if step:
+                validation_rules['step'] = float(step)
+        
+        # Date field validations
+        if field_type == 'date':
+            min_date = request.form.get('min_date')
+            max_date = request.form.get('max_date')
+            
+            if min_date:
+                validation_rules['min_date'] = min_date
+            if max_date:
+                validation_rules['max_date'] = max_date
+        
+        # Field dependency validations
+        depends_on = request.form.get('depends_on')
+        if depends_on:
+            validation_rules['depends_on'] = {
+                'field': depends_on,
+                'values': request.form.getlist('dependent_values')
+            }
+        
+        # Custom validation message
+        custom_message = request.form.get('custom_validation_message')
+        if custom_message:
+            validation_rules['custom_message'] = custom_message
+        
+        field_data['validation_rules'] = validation_rules
+        
+        # Get options from the form for select/radio/checkbox
         options = []
         i = 0
         while True:
@@ -232,16 +281,12 @@ def create_field(id):
             is_required=field_data['is_required'],
             field_order=max_order + 1,
             client_type_restrictions=[int(x) for x in field_data['client_type_restrictions']],
-            section_id=field_data['section_id'] if field_data['section_id'] != 0 else None
+            section_id=field_data['section_id'] if field_data['section_id'] != 0 else None,
+            validation_rules=validation_rules
         )
         
         if field_type in ['select', 'radio', 'checkbox']:
             field.options = options
-        
-        current_app.logger.debug(f"Creating field with data:")
-        current_app.logger.debug(f"- Name: {field.field_name}")
-        current_app.logger.debug(f"- Type: {field.field_type}")
-        current_app.logger.debug(f"- Client Type Restrictions: {field.client_type_restrictions}")
         
         db.session.add(field)
         db.session.commit()
@@ -275,78 +320,138 @@ def edit_field(id, field_id):
         
         if request.method == 'GET':
             form = FormFieldForm(obj=field, module_id=id)
+            
+            # Populate validation rules if they exist
+            if field.validation_rules:
+                if field.field_type in ['text', 'textarea', 'email', 'tel']:
+                    form.min_length.data = field.validation_rules.get('min_length')
+                    form.max_length.data = field.validation_rules.get('max_length')
+                    form.pattern.data = field.validation_rules.get('pattern')
+                elif field.field_type in ['number', 'decimal']:
+                    form.min_value.data = field.validation_rules.get('min_value')
+                    form.max_value.data = field.validation_rules.get('max_value')
+                    form.step.data = field.validation_rules.get('step')
+                elif field.field_type == 'date':
+                    form.min_date.data = field.validation_rules.get('min_date')
+                    form.max_date.data = field.validation_rules.get('max_date')
+                
+                form.custom_validation_message.data = field.validation_rules.get('custom_message')
+            
             return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
         
         # For POST requests
-        form = FormFieldForm(module_id=id)
         field_type = request.form.get('field_type', '')
-        field_data = {
-            'field_name': request.form.get('field_name'),
-            'field_label': request.form.get('field_label'),
-            'field_placeholder': request.form.get('field_placeholder'),
-            'field_type': field_type,
-            'validation_text': request.form.get('validation_text'),
-            'is_required': request.form.get('is_required') == 'y',
-            'client_type_restrictions': request.form.getlist('client_type_restrictions') if request.form.getlist('client_type_restrictions') else [],
-            'section_id': request.form.get('section_id', type=int)
-        }
         
-        # Get options from the form
-        options = []
-        i = 0
-        while True:
-            label_key = f'options-{i}-form-label'
-            value_key = f'options-{i}-form-value'
+        # Process validation rules based on field type
+        validation_rules = {}
+        
+        # Common validations for text fields
+        if field_type in ['text', 'textarea', 'email', 'tel']:
+            min_length = request.form.get('min_length')
+            max_length = request.form.get('max_length')
+            pattern = request.form.get('pattern')
             
-            if label_key not in request.form and f'options-{i}-label' not in request.form:
-                break
-                
-            label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
-            value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
+            if min_length and min_length.isdigit():
+                validation_rules['min_length'] = int(min_length)
+            if max_length and max_length.isdigit():
+                validation_rules['max_length'] = int(max_length)
+            if pattern:
+                validation_rules['pattern'] = pattern
+        
+        # Number field validations
+        if field_type in ['number', 'decimal']:
+            min_value = request.form.get('min_value')
+            max_value = request.form.get('max_value')
+            step = request.form.get('step')
             
-            if label and value:
-                options.append({
-                    'label': label,
-                    'value': value
-                })
+            if min_value:
+                try:
+                    validation_rules['min_value'] = float(min_value)
+                except ValueError:
+                    pass
+            if max_value:
+                try:
+                    validation_rules['max_value'] = float(max_value)
+                except ValueError:
+                    pass
+            if step:
+                try:
+                    validation_rules['step'] = float(step)
+                except ValueError:
+                    pass
+        
+        # Date field validations
+        if field_type == 'date':
+            min_date = request.form.get('min_date')
+            max_date = request.form.get('max_date')
             
-            i += 1
+            if min_date:
+                validation_rules['min_date'] = min_date
+            if max_date:
+                validation_rules['max_date'] = max_date
         
-        if field_type in ['select', 'radio', 'checkbox'] and not options:
-            flash('Please add at least one option for this field type.', 'error')
-            form = FormFieldForm(data=field_data, module_id=id)
-            return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
+        # Custom validation message
+        custom_message = request.form.get('custom_validation_message')
+        if custom_message:
+            validation_rules['custom_message'] = custom_message
         
-        # Update field
-        field.field_name = field_data['field_name']
-        field.field_label = field_data['field_label']
-        field.field_placeholder = field_data['field_placeholder']
-        field.field_type = field_data['field_type']
-        field.validation_text = field_data['validation_text']
-        field.is_required = field_data['is_required']
-        field.section_id = field_data['section_id'] if field_data['section_id'] != 0 else None
-        field.client_type_restrictions = [int(x) for x in field_data['client_type_restrictions']]
+        # Update field with new data
+        field.field_name = request.form.get('field_name')
+        field.field_label = request.form.get('field_label')
+        field.field_placeholder = request.form.get('field_placeholder')
+        field.field_type = field_type
+        field.validation_text = request.form.get('validation_text')
+        field.is_required = request.form.get('is_required') == 'y'
+        field.client_type_restrictions = [int(x) for x in request.form.getlist('client_type_restrictions')] if request.form.getlist('client_type_restrictions') else []
+        field.section_id = request.form.get('section_id', type=int) if request.form.get('section_id', type=int) != 0 else None
+        field.validation_rules = validation_rules
         
+        # Update options if field type requires them
         if field_type in ['select', 'radio', 'checkbox']:
+            options = []
+            i = 0
+            while True:
+                label_key = f'options-{i}-form-label'
+                value_key = f'options-{i}-form-value'
+                
+                if label_key not in request.form and f'options-{i}-label' not in request.form:
+                    break
+                    
+                label = request.form.get(label_key, '').strip() or request.form.get(f'options-{i}-label', '').strip()
+                value = request.form.get(value_key, '').strip() or request.form.get(f'options-{i}-value', '').strip()
+                
+                if label and value:
+                    options.append({
+                        'label': label,
+                        'value': value
+                    })
+                
+                i += 1
+            
+            if not options:
+                flash('Please add at least one option for this field type.', 'error')
+                form = FormFieldForm(obj=field, module_id=id)
+                return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
+            
             field.options = options
         else:
             field.options = None
         
+        # Update the database
         db.session.commit()
         
         # Update the module's table schema
-        current_app.logger.info(f"Updating table schema for module {module.code}")
         if not create_or_update_module_table(module.code):
             raise Exception("Failed to update table schema")
-        current_app.logger.info("Table schema updated successfully")
         
-        flash('Field updated successfully.', 'success')
-        return redirect(url_for('modules.list_fields', id=module.id))
+        flash('Field updated successfully!', 'success')
+        return redirect(url_for('modules.list_fields', id=id))
         
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error updating field: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while updating the field', 'error')
+        form = FormFieldForm(obj=field, module_id=id)
         return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
 
 @modules_bp.route('/<int:id>/fields/reorder', methods=['POST'])

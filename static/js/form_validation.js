@@ -3,72 +3,119 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dynamicForm');
     const clientTypeSelect = document.getElementById('client_type');
     
-    // Validate phone number format
-    function validatePhone(phone) {
-        // Allow +254 or 0 prefix, followed by 9 digits
-        const phoneRegex = /^(?:\+254|0)\d{9}$/;
-        return phoneRegex.test(phone);
-    }
-    
-    // Validate email format
-    function validateEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-    
-    // Validate ID number format
-    function validateIdNumber(idNumber, idType) {
-        switch(idType) {
-            case 'National ID':
-                return /^\d{8}$/.test(idNumber);
-            case 'Passport':
-                return /^[A-Z]\d{7}$/.test(idNumber);
-            case 'Alien ID':
-                return /^[A-Z]\d{8}$/.test(idNumber);
-            case 'Military ID':
-                return /^[A-Z]\d{6}$/.test(idNumber);
-            default:
-                return true;
-        }
-    }
-    
     // Real-time field validation
     function validateField(field) {
         const fieldValue = field.value.trim();
         const fieldName = field.getAttribute('name');
         const fieldType = field.type;
+        const validationRules = JSON.parse(field.getAttribute('data-validation-rules') || '{}');
         let isValid = true;
         let errorMessage = '';
 
+        // Required field validation
         if (field.hasAttribute('required') && !fieldValue) {
             isValid = false;
-            errorMessage = 'This field is required';
-        } else if (fieldValue) {
-            switch(fieldType) {
-                case 'tel':
-                    if (!validatePhone(fieldValue)) {
+            errorMessage = validationRules.custom_message || 'This field is required';
+            return { isValid, errorMessage };
+        }
+
+        // Skip further validation if field is empty and not required
+        if (!fieldValue && !field.hasAttribute('required')) {
+            return { isValid, errorMessage };
+        }
+
+        // Length validations
+        if (validationRules.min_length && fieldValue.length < validationRules.min_length) {
+            isValid = false;
+            errorMessage = `Minimum length is ${validationRules.min_length} characters`;
+            return { isValid, errorMessage };
+        }
+
+        if (validationRules.max_length && fieldValue.length > validationRules.max_length) {
+            isValid = false;
+            errorMessage = `Maximum length is ${validationRules.max_length} characters`;
+            return { isValid, errorMessage };
+        }
+
+        // Pattern validation
+        if (validationRules.pattern && !new RegExp(validationRules.pattern).test(fieldValue)) {
+            isValid = false;
+            errorMessage = validationRules.custom_message || 'Invalid format';
+            return { isValid, errorMessage };
+        }
+
+        // Type-specific validations
+        switch(fieldType) {
+            case 'tel':
+                if (!validatePhone(fieldValue)) {
+                    isValid = false;
+                    errorMessage = 'Invalid phone number format. Use +254 or 0 prefix followed by 9 digits';
+                }
+                break;
+
+            case 'email':
+                if (!validateEmail(fieldValue)) {
+                    isValid = false;
+                    errorMessage = 'Invalid email format';
+                }
+                break;
+
+            case 'number':
+            case 'range':
+                const numValue = parseFloat(fieldValue);
+                if (validationRules.min_value !== undefined && numValue < validationRules.min_value) {
+                    isValid = false;
+                    errorMessage = `Value must be at least ${validationRules.min_value}`;
+                }
+                if (validationRules.max_value !== undefined && numValue > validationRules.max_value) {
+                    isValid = false;
+                    errorMessage = `Value must be at most ${validationRules.max_value}`;
+                }
+                if (validationRules.step) {
+                    const step = parseFloat(validationRules.step);
+                    if ((numValue % step) !== 0) {
                         isValid = false;
-                        errorMessage = 'Invalid phone number format. Use +254 or 0 prefix followed by 9 digits';
+                        errorMessage = `Value must be in increments of ${step}`;
                     }
-                    break;
-                case 'email':
-                    if (!validateEmail(fieldValue)) {
+                }
+                break;
+
+            case 'date':
+                const dateValue = new Date(fieldValue);
+                if (validationRules.min_date && dateValue < new Date(validationRules.min_date)) {
+                    isValid = false;
+                    errorMessage = `Date must be after ${validationRules.min_date}`;
+                }
+                if (validationRules.max_date && dateValue > new Date(validationRules.max_date)) {
+                    isValid = false;
+                    errorMessage = `Date must be before ${validationRules.max_date}`;
+                }
+                break;
+
+            default:
+                // Custom field validations
+                if (fieldName === 'id_number') {
+                    const idType = document.querySelector('[name="id_type"]')?.value;
+                    if (!validateIdNumber(fieldValue, idType)) {
                         isValid = false;
-                        errorMessage = 'Invalid email format';
+                        errorMessage = `Invalid ${idType} format`;
                     }
-                    break;
-                default:
-                    if (fieldName === 'id_number') {
-                        const idType = document.querySelector('[name="id_type"]').value;
-                        if (!validateIdNumber(fieldValue, idType)) {
-                            isValid = false;
-                            errorMessage = `Invalid ${idType} format`;
-                        }
-                    }
+                }
+        }
+
+        // Dependency validation
+        if (validationRules.depends_on) {
+            const dependentField = document.querySelector(`[name="${validationRules.depends_on.field}"]`);
+            if (dependentField) {
+                const dependentValue = dependentField.value;
+                if (!validationRules.depends_on.values.includes(dependentValue)) {
+                    isValid = false;
+                    errorMessage = `This field depends on ${validationRules.depends_on.field}`;
+                }
             }
         }
 
-        // Update field UI
+        // Update UI
         const feedbackDiv = field.nextElementSibling?.classList.contains('feedback') 
             ? field.nextElementSibling 
             : (() => {
@@ -93,9 +140,36 @@ document.addEventListener('DOMContentLoaded', function() {
             feedbackDiv.textContent = '';
         }
 
-        return isValid;
+        return { isValid, errorMessage };
     }
-    
+
+    // Helper validation functions
+    function validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    function validatePhone(phone) {
+        // Supports formats: +254XXXXXXXXX, 0XXXXXXXXX
+        const phoneRegex = /^(?:\+254|0)\d{9}$/;
+        return phoneRegex.test(phone);
+    }
+
+    function validateIdNumber(value, idType) {
+        switch(idType) {
+            case 'National ID':
+                return /^\d{8}$/.test(value);
+            case 'Passport':
+                return /^[A-Z]\d{7}$/.test(value);
+            case 'Alien ID':
+                return /^\d{9}$/.test(value);
+            case 'Military ID':
+                return /^[A-Z]\d{8}$/.test(value);
+            default:
+                return true;
+        }
+    }
+
     // Handle dependent fields
     function updateDependentFields(parentField) {
         const parentValue = parentField.value;

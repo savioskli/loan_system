@@ -35,7 +35,7 @@ class FormFieldForm(FlaskForm):
         ('checkbox', 'Checkboxes'),
         ('textarea', 'Text Area'),
         ('email', 'Email Input'),
-        ('phone', 'Phone Input'),
+        ('tel', 'Phone Input'),
         ('password', 'Password Input'),
         ('file', 'File Upload')
     ], validators=[DataRequired()], coerce=str)
@@ -46,9 +46,34 @@ class FormFieldForm(FlaskForm):
                                                  coerce=int,
                                                  validators=[Optional()],
                                                  description='Select client types that can access this field')
+    
+    # Validation rule fields
+    min_length = StringField('Minimum Length', validators=[Optional()],
+                          description='Minimum number of characters required')
+    max_length = StringField('Maximum Length', validators=[Optional()],
+                          description='Maximum number of characters allowed')
+    pattern = StringField('Pattern (Regex)', validators=[Optional()],
+                       description='Regular expression pattern for validation')
+    min_value = StringField('Minimum Value', validators=[Optional()],
+                         description='Minimum value allowed for number fields')
+    max_value = StringField('Maximum Value', validators=[Optional()],
+                         description='Maximum value allowed for number fields')
+    step = StringField('Step Value', validators=[Optional()],
+                    description='Increment step for number fields')
+    min_date = StringField('Minimum Date', validators=[Optional()],
+                        description='Earliest allowed date')
+    max_date = StringField('Maximum Date', validators=[Optional()],
+                        description='Latest allowed date')
+    custom_validation_message = StringField('Custom Validation Message', validators=[Optional()],
+                                        description='Custom message to show when validation fails')
 
     def __init__(self, *args, module_id=None, **kwargs):
+        # Initialize validation rules from data if present
+        data = kwargs.get('data', {})
+        validation_rules = data.pop('validation_rules', {}) if isinstance(data, dict) else {}
+        
         super(FormFieldForm, self).__init__(*args, **kwargs)
+        
         try:
             # Populate section choices if module_id is provided
             if module_id:
@@ -78,6 +103,18 @@ class FormFieldForm(FlaskForm):
             if not isinstance(self.client_type_restrictions.data, list):
                 current_app.logger.warning(f"Converting client_type_restrictions data to list. Current type: {type(self.client_type_restrictions.data)}")
                 self.client_type_restrictions.data = list(self.client_type_restrictions.data) if self.client_type_restrictions.data else []
+            
+            # Set validation rule values from data
+            if validation_rules:
+                self.min_length.data = validation_rules.get('min_length', '')
+                self.max_length.data = validation_rules.get('max_length', '')
+                self.pattern.data = validation_rules.get('pattern', '')
+                self.min_value.data = validation_rules.get('min_value', '')
+                self.max_value.data = validation_rules.get('max_value', '')
+                self.step.data = validation_rules.get('step', '')
+                self.min_date.data = validation_rules.get('min_date', '')
+                self.max_date.data = validation_rules.get('max_date', '')
+                self.custom_validation_message.data = validation_rules.get('custom_message', '')
             
             current_app.logger.info(f"Current client_type_restrictions data: {self.client_type_restrictions.data}")
             

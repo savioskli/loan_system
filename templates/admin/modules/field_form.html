@@ -198,20 +198,80 @@
                             {{ form.field_type.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
                                 {{ form.field_type(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
-                                <p class="mt-1 text-sm text-gray-500 help-text">Select the type of input field.</p>
                             </div>
-                            {% if form.field_type.errors %}
-                            <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                {% for error in form.field_type.errors %}
-                                <p class="flex items-center">
-                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    {{ error }}
-                                </p>
-                                {% endfor %}
+                        </div>
+
+                        <!-- Validation Rules Section -->
+                        <div id="validation-rules-section" class="space-y-6 mt-6 border-t border-gray-200 pt-6">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Validation Rules</h3>
+                            
+                            <!-- Text Field Validations -->
+                            <div id="text-validations" class="space-y-4 hidden">
+                                <!-- Length Validations -->
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        {{ form.min_length.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.min_length(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="number", min="0") }}
+                                        <p class="text-sm text-gray-500">{{ form.min_length.description }}</p>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {{ form.max_length.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.max_length(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="number", min="0") }}
+                                        <p class="text-sm text-gray-500">{{ form.max_length.description }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Pattern Validation -->
+                                <div class="space-y-2">
+                                    {{ form.pattern.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                    {{ form.pattern(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", placeholder="e.g., ^[A-Za-z0-9]+$") }}
+                                    <p class="text-sm text-gray-500">{{ form.pattern.description }}</p>
+                                </div>
                             </div>
-                            {% endif %}
+
+                            <!-- Number Field Validations -->
+                            <div id="number-validations" class="space-y-4 hidden">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        {{ form.min_value.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.min_value(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="number", step="any") }}
+                                        <p class="text-sm text-gray-500">{{ form.min_value.description }}</p>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {{ form.max_value.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.max_value(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="number", step="any") }}
+                                        <p class="text-sm text-gray-500">{{ form.max_value.description }}</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    {{ form.step.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                    {{ form.step(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="number", min="0", step="any") }}
+                                    <p class="text-sm text-gray-500">{{ form.step.description }}</p>
+                                </div>
+                            </div>
+
+                            <!-- Date Field Validations -->
+                            <div id="date-validations" class="space-y-4 hidden">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        {{ form.min_date.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.min_date(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="date") }}
+                                        <p class="text-sm text-gray-500">{{ form.min_date.description }}</p>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {{ form.max_date.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                        {{ form.max_date(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200", type="date") }}
+                                        <p class="text-sm text-gray-500">{{ form.max_date.description }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Validation Message -->
+                            <div class="space-y-2">
+                                {{ form.custom_validation_message.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                                {{ form.custom_validation_message(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200") }}
+                                <p class="text-sm text-gray-500">{{ form.custom_validation_message.description }}</p>
+                            </div>
                         </div>
 
                         <!-- Client Type Restrictions -->
@@ -524,4 +584,77 @@
         });
     }
 </script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Choices.js for select elements
+        const choicesElements = document.querySelectorAll('.choices-select');
+        choicesElements.forEach(element => {
+            new Choices(element, {
+                removeItemButton: true,
+                searchEnabled: true,
+                searchPlaceholderValue: 'Type to search...',
+                placeholder: true,
+                placeholderValue: '-- Select --'
+            });
+        });
+
+        // Handle field type changes
+        const fieldTypeSelect = document.querySelector('[name="field_type"]');
+        const validationRulesSection = document.getElementById('validation-rules-section');
+        const textValidations = document.querySelector('.text-field-validations');
+        const numberValidations = document.querySelector('.number-validations');
+        const dateValidations = document.querySelector('.date-validations');
+        const patternValidation = document.querySelector('.pattern-validation');
+
+        function updateValidationFields() {
+            const fieldType = fieldTypeSelect.value;
+            
+            // Hide all validation sections first
+            textValidations.classList.add('hidden');
+            numberValidations.classList.add('hidden');
+            dateValidations.classList.add('hidden');
+            patternValidation.classList.add('hidden');
+
+            // Show relevant validation sections based on field type
+            switch(fieldType) {
+                case 'text':
+                case 'textarea':
+                    textValidations.classList.remove('hidden');
+                    patternValidation.classList.remove('hidden');
+                    break;
+                case 'email':
+                    textValidations.classList.remove('hidden');
+                    break;
+                case 'tel':
+                    textValidations.classList.remove('hidden');
+                    patternValidation.classList.remove('hidden');
+                    break;
+                case 'number':
+                case 'decimal':
+                    numberValidations.classList.remove('hidden');
+                    break;
+                case 'date':
+                    dateValidations.classList.remove('hidden');
+                    break;
+            }
+        }
+
+        // Initial update and event listener
+        if (fieldTypeSelect) {
+            updateValidationFields();
+            fieldTypeSelect.addEventListener('change', updateValidationFields);
+        }
+
+        // Handle options section visibility
+        const optionsSection = document.getElementById('options-section');
+        if (optionsSection) {
+            fieldTypeSelect.addEventListener('change', function() {
+                const showOptions = ['select', 'radio', 'checkbox'].includes(this.value);
+                optionsSection.classList.toggle('hidden', !showOptions);
+            });
+        }
+    });
+</script>
+<script src="{{ url_for('static', filename='js/field_validation.js') }}"></script>
 {% endblock %}

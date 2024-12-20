@@ -115,40 +115,11 @@ def add_field():
 def form_sections():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    
-    # Get parent modules
-    cursor.execute("""
-        SELECT DISTINCT m1.* 
-        FROM modules m1 
-        JOIN modules m2 ON m2.parent_id = m1.id 
-        WHERE m1.parent_id IS NULL 
-        ORDER BY m1.name
-    """)
-    parent_modules = cursor.fetchall()
-    
-    # For each parent module, get its children and their sections
-    for parent in parent_modules:
-        cursor.execute("""
-            SELECT m.* 
-            FROM modules m 
-            WHERE m.parent_id = %s 
-            ORDER BY m.name
-        """, (parent['id'],))
-        parent['children'] = cursor.fetchall()
-        
-        for child in parent['children']:
-            cursor.execute("""
-                SELECT fs.* 
-                FROM form_sections fs
-                WHERE fs.module = %s
-                ORDER BY fs.display_order, fs.name
-            """, (child['id'],))
-            child['sections'] = cursor.fetchall()
-    
+    cursor.execute("SELECT * FROM form_sections ORDER BY name")
+    sections = cursor.fetchall()
     cursor.close()
     conn.close()
-    
-    return render_template('admin/sections/index.html', parent_modules=parent_modules)
+    return render_template('admin/sections/index.html', sections=sections)
 
 @admin_bp.route('/form-sections/add', methods=['GET', 'POST'])
 @login_required

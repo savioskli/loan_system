@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{% if section %}Edit Form Section{% else %}Add Form Section{% endif %}{% endblock %}
 
 {% block styles %}
 {{ super() }}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
 <style>
     .form-card {
         background: linear-gradient(to right bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
@@ -23,12 +22,7 @@
     .input-field:focus + .help-text {
         color: #6366F1;
     }
-
-    .select2-container {
-        width: 100% !important;
-    }
 </style>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
@@ -38,7 +32,7 @@
         <nav class="flex mb-6" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 md:space-x-3">
                 <li class="inline-flex items-center">
-                    <a href="{{ url_for('sections.index') }}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400">
+                    <a href="{{ url_for('admin.form_sections') }}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                         </svg>
@@ -47,10 +41,12 @@
                 </li>
                 <li aria-current="page">
                     <div class="flex items-center">
-                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
                         </svg>
-                        <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">{{ title }}</span>
+                        <span class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400">
+                            {% if section %}Edit{% else %}Add{% endif %} Form Section
+                        </span>
                     </div>
                 </li>
             </ol>
@@ -59,127 +55,100 @@
         <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden form-card">
             <!-- Header -->
             <div class="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600">
-                <h1 class="text-2xl font-bold text-white">{{ title }}</h1>
+                <h1 class="text-2xl font-bold text-white">{% if section %}Edit{% else %}Add{% endif %} Form Section</h1>
                 <p class="mt-2 text-indigo-100">
-                    {% if section %}
-                    Edit section for module: {{ module.name }}
-                    {% else %}
-                    Create new section for module: {{ module.name }}
-                    {% endif %}
+                    {% if section %}Update{% else %}Create{% endif %} a form section to organize your form fields.
                 </p>
             </div>
 
-            <!-- Form -->
             <form method="POST" class="p-6">
-                {{ form.csrf_token }}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="grid gap-6">
                     <!-- Name Field -->
                     <div class="space-y-2">
-                        {{ form.name.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" for="name">Section Name</label>
                         <div class="relative rounded-md shadow-sm">
-                            {{ form.name(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white", placeholder="Enter section name") }}
-                            <p class="mt-1 text-sm text-gray-500 help-text">Choose a clear and descriptive name for this section.</p>
+                            <input type="text" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ section.name if section else '' }}"
+                                   class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   required>
                         </div>
-                        {% if form.name.errors %}
-                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                            {% for error in form.name.errors %}
-                            <p class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
-                                {{ error }}
-                            </p>
-                            {% endfor %}
+                    </div>
+
+                    <!-- Module Field -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" for="module">Module</label>
+                        <div class="relative rounded-md shadow-sm">
+                            <select id="module" 
+                                    name="module" 
+                                    class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required>
+                                <option value="">Select a module</option>
+                                {% for module in modules %}
+                                <option value="{{ module.id }}" {% if section and section.module_id == module.id %}selected{% endif %}>
+                                    {{ module.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        {% endif %}
                     </div>
 
                     <!-- Description Field -->
                     <div class="space-y-2">
-                        {{ form.description.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" for="description">Description</label>
                         <div class="relative rounded-md shadow-sm">
-                            {{ form.description(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white", rows="4", placeholder="Enter section description") }}
-                            <p class="mt-1 text-sm text-gray-500 help-text">Add a detailed description to help users understand this section's purpose.</p>
-                        </div>
-                        {% if form.description.errors %}
-                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                            {% for error in form.description.errors %}
-                            <p class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
-                                {{ error }}
-                            </p>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Client Type Restrictions -->
-                    <div class="space-y-2">
-                        {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
-                        <div class="relative rounded-md shadow-sm">
-                            {{ form.client_type_restrictions(class="select2 input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
-                            <p class="mt-1 text-sm text-gray-500 help-text">Select which client types can access this section. Leave empty to allow all client types.</p>
+                            <textarea id="description" 
+                                    name="description" 
+                                    class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    rows="3">{{ section.description if section else '' }}</textarea>
                         </div>
                     </div>
 
-                    <!-- Product Restrictions -->
+                    <!-- Submodule Field -->
                     <div class="space-y-2">
-                        {{ form.product_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" for="submodule">Submodule</label>
                         <div class="relative rounded-md shadow-sm">
-                            {{ form.product_restrictions(class="select2 input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
-                            <p class="mt-1 text-sm text-gray-500 help-text">Select which products this section applies to. Leave empty to apply to all products.</p>
+                            <select id="submodule" 
+                                    name="submodule" 
+                                    class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="">Select a submodule</option>
+                                {% for submodule in submodules %}
+                                <option value="{{ submodule.id }}" {% if section and section.submodule_id == submodule.id %}selected{% endif %}>
+                                    {{ submodule.parent_name }} - {{ submodule.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                    </div>
-
-                    <!-- Order Field -->
-                    <div class="space-y-2">
-                        {{ form.order.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
-                        <div class="relative rounded-md shadow-sm max-w-xs">
-                            {{ form.order(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white", type="number", min="0") }}
-                            <p class="mt-1 text-sm text-gray-500 help-text">Set the display order of this section (lower numbers appear first).</p>
-                        </div>
-                        {% if form.order.errors %}
-                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                            {% for error in form.order.errors %}
-                            <p class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
-                                {{ error }}
-                            </p>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
+                        <p class="mt-2 text-sm text-gray-500">Optional: Select a submodule if this section belongs to one</p>
                     </div>
 
                     <!-- Active Status -->
-                    <div class="flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        {{ form.is_active(class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-all duration-200 cursor-pointer dark:bg-gray-600 dark:border-gray-500") }}
-                        <div>
-                            {{ form.is_active.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
-                            <p class="text-sm text-gray-500 dark:text-gray-400">When active, this section will be visible to users.</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" 
+                                   id="is_active" 
+                                   name="is_active" 
+                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                   {% if not section or section.is_active %}checked{% endif %}>
+                            <label class="ml-2 block text-sm text-gray-900 dark:text-gray-300" for="is_active">
+                                Active
+                            </label>
                         </div>
                     </div>
                 </div>
 
                 <!-- Form Actions -->
                 <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <a href="{{ url_for('sections.index') }}" 
-                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
+                    <a href="{{ url_for('admin.form_sections') }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Cancel
                     </a>
-                    <button type="submit" 
-                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        {{ 'Save Changes' if section else 'Create Section' }}
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        {% if section %}Update{% else %}Create{% endif %} Section
                     </button>
                 </div>
             </form>
@@ -190,28 +159,9 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Select2 for multiple select fields
-        $('.select2').select2({
-            theme: 'classic',
-            placeholder: 'Select options...',
-            allowClear: true,
-            width: '100%'
-        });
-
-        // Initialize Choices.js for sections
-        const sectionSelect = document.querySelector('select[name="sections"]');
-        if (sectionSelect) {
-            new Choices(sectionSelect, {
-                removeItemButton: true,
-                searchEnabled: true,
-                placeholder: true,
-                placeholderValue: 'Select sections...'
-            });
-        }
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any JavaScript initialization here if needed
+});
 </script>
 {% endblock %}

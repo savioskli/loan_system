@@ -115,7 +115,12 @@ def add_field():
 def form_sections():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM form_sections ORDER BY name")
+    cursor.execute("""
+        SELECT fs.*, m.name as module_name 
+        FROM form_sections fs
+        JOIN modules m ON fs.module_id = m.id
+        ORDER BY fs.order, fs.name
+    """)
     sections = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -127,17 +132,19 @@ def form_sections():
 def add_form_section():
     if request.method == 'POST':
         name = request.form['name']
-        module = request.form['module']
-        submodule = request.form['submodule']
+        module_id = request.form['module']
+        submodule_id = request.form.get('submodule')  # Optional submodule
         is_active = 'is_active' in request.form
+        description = request.form.get('description')
+        order = request.form.get('order', 0)
 
         conn = get_db_connection()
         cursor = conn.cursor()
         
         try:
             cursor.execute(
-                "INSERT INTO form_sections (name, module, submodule, is_active) VALUES (%s, %s, %s, %s)",
-                (name, module, submodule, is_active)
+                "INSERT INTO form_sections (name, module_id, submodule_id, description, `order`, is_active) VALUES (%s, %s, %s, %s, %s, %s)",
+                (name, module_id, submodule_id if submodule_id else None, description, order, is_active)
             )
             conn.commit()
             flash('Form section created successfully!', 'success')
@@ -149,17 +156,27 @@ def add_form_section():
             cursor.close()
             conn.close()
 
-    # Get available modules and submodules
+    # Get parent modules
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     
-    # Get parent modules (where parent_id is NULL)
-    cursor.execute("SELECT DISTINCT name FROM modules WHERE parent_id IS NULL ORDER BY name")
-    modules = [row[0] for row in cursor.fetchall()]
+    cursor.execute("""
+        SELECT m.id, m.name, m.code, m.description
+        FROM modules m
+        WHERE m.is_active = 1 AND m.parent_id IS NULL
+        ORDER BY m.name
+    """)
+    modules = cursor.fetchall()
     
-    # Get submodules (where parent_id is NOT NULL)
-    cursor.execute("SELECT DISTINCT name FROM modules WHERE parent_id IS NOT NULL ORDER BY name")
-    submodules = [row[0] for row in cursor.fetchall()]
+    # Get submodules
+    cursor.execute("""
+        SELECT m.id, m.name, m.code, m.description, p.name as parent_name
+        FROM modules m
+        JOIN modules p ON m.parent_id = p.id
+        WHERE m.is_active = 1 AND m.parent_id IS NOT NULL
+        ORDER BY p.name, m.name
+    """)
+    submodules = cursor.fetchall()
     
     cursor.close()
     conn.close()
@@ -178,14 +195,16 @@ def edit_form_section(section_id):
 
     if request.method == 'POST':
         name = request.form['name']
-        module = request.form['module']
-        submodule = request.form['submodule']
+        module_id = request.form['module']
+        submodule_id = request.form.get('submodule')  # Optional submodule
         is_active = 'is_active' in request.form
+        description = request.form.get('description')
+        order = request.form.get('order', 0)
 
         try:
             cursor.execute(
-                "UPDATE form_sections SET name=%s, module=%s, submodule=%s, is_active=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
-                (name, module, submodule, is_active, section_id)
+                "UPDATE form_sections SET name=%s, module_id=%s, submodule_id=%s, description=%s, `order`=%s, is_active=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+                (name, module_id, submodule_id if submodule_id else None, description, order, is_active, section_id)
             )
             conn.commit()
             flash('Form section updated successfully!', 'success')
@@ -196,7 +215,13 @@ def edit_form_section(section_id):
             return redirect(url_for('admin.form_sections'))
 
     # Get the current section data
-    cursor.execute("SELECT * FROM form_sections WHERE id = %s", (section_id,))
+    cursor.execute("""
+        SELECT fs.*, m.name as module_name, sm.id as submodule_id, sm.name as submodule_name 
+        FROM form_sections fs
+        JOIN modules m ON fs.module_id = m.id
+        LEFT JOIN modules sm ON fs.submodule_id = sm.id
+        WHERE fs.id = %s
+    """, (section_id,))
     section = cursor.fetchone()
 
     if not section:
@@ -205,23 +230,24 @@ def edit_form_section(section_id):
         flash('Form section not found', 'error')
         return redirect(url_for('admin.form_sections'))
 
-    # Get parent modules (where parent_id is NULL)
+    # Get parent modules
     cursor.execute("""
-        SELECT DISTINCT m.name 
-        FROM modules m 
-        WHERE m.parent_id IS NULL AND m.is_active = 1 
+        SELECT m.id, m.name, m.code, m.description
+        FROM modules m
+        WHERE m.is_active = 1 AND m.parent_id IS NULL
         ORDER BY m.name
     """)
-    modules = [row['name'] for row in cursor.fetchall()]
+    modules = cursor.fetchall()
     
-    # Get submodules (where parent_id is NOT NULL)
+    # Get submodules for the selected module
     cursor.execute("""
-        SELECT DISTINCT m.name 
-        FROM modules m 
-        WHERE m.parent_id IS NOT NULL AND m.is_active = 1 
-        ORDER BY m.name
+        SELECT m.id, m.name, m.code, m.description, p.name as parent_name
+        FROM modules m
+        JOIN modules p ON m.parent_id = p.id
+        WHERE m.is_active = 1 AND m.parent_id IS NOT NULL
+        ORDER BY p.name, m.name
     """)
-    submodules = [row['name'] for row in cursor.fetchall()]
+    submodules = cursor.fetchall()
 
     cursor.close()
     conn.close()

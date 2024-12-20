@@ -604,3 +604,40 @@ def get_selected_tables():
             'success': False,
             'message': f'Error fetching selected tables: {str(e)}'
         }), 500
+
+@integrations_bp.route('/core-banking/get-active-config', methods=['GET'])
+@csrf.exempt
+@login_required
+@admin_required
+def get_active_config():
+    """Get active core banking configuration"""
+    try:
+        logger.info("Fetching active configuration")
+        
+        # Get active configuration
+        config = CoreBankingConfig.get_active_config()
+        if not config:
+            logger.error("No active core banking configuration found")
+            return jsonify({
+                'success': False,
+                'message': 'No active core banking configuration found'
+            }), 404
+
+        # Convert to dictionary and remove sensitive fields
+        config_dict = config.to_dict()
+        config_dict.pop('password', None)
+        config_dict.pop('api_key', None)
+        
+        logger.info("Successfully fetched active configuration")
+        return jsonify({
+            'success': True,
+            'config': config_dict,
+            'message': 'Successfully fetched active configuration'
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching active configuration: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching active configuration: {str(e)}'
+        }), 500

@@ -1,16 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
-    const testConnectionBtn = document.getElementById('testConnectionBtn');
-    const fetchTablesBtn = document.getElementById('fetchTablesBtn');
     const systemSelect = document.querySelector('select[name="core_banking_system"]');
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    const fetchTablesBtn = document.getElementById('fetchTablesBtn');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
     const tablesContainer = document.getElementById('tablesContainer');
     const tablesList = document.getElementById('tablesList');
     const selectedTablesList = document.getElementById('selectedTablesList');
 
-    // Get CSRF token from meta tag
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    // Show/hide relevant fields based on selected system
+    // Handle system type change
     systemSelect.addEventListener('change', function() {
         const apiKeyField = document.querySelector('input[name="api_key"]').closest('.space-y-2');
         if (this.value === 'brnet') {
@@ -33,88 +31,45 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // Test connection
-    if (testConnectionBtn) {
-        console.log('Test connection button found');
-        testConnectionBtn.addEventListener('click', async function() {
-            console.log('Test connection button clicked');
-            try {
-                const config = getFormConfig();
-                console.log('Form config:', config);
-                
-                const response = await fetch('/api/integrations/core-banking/test-connection', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(config)
-                });
-                console.log('Response received:', response);
+    // Show notification
+    function showNotification(type, message, details = null) {
+        let container = document.getElementById('notificationContainer');
+        
+        // Create container if it doesn't exist
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'notificationContainer';
+            container.className = 'mb-6';
+            const form = document.querySelector('form');
+            form.parentNode.insertBefore(container, form);
+        }
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log('Response parsed:', result);
-                
-                if (result.success) {
-                    console.log('Connection test successful');
-                    showNotification('success', result.message || 'Connection test successful');
-                } else {
-                    console.error('Connection test failed:', result.message);
-                    showNotification('error', result.message || 'Connection test failed');
-                }
-            } catch (error) {
-                console.error('Error in test connection:', error);
-                showNotification('error', 'Error testing connection: ' + error.message);
-            }
-        });
-    } else {
-        console.error('Test connection button not found');
-    }
-
-    // Fetch available tables
-    if (fetchTablesBtn) {
-        fetchTablesBtn.addEventListener('click', async function() {
-            try {
-                const config = getFormConfig();
-                console.log('Fetching tables with config:', config);
-                
-                const [tablesResponse, savedTablesResponse] = await Promise.all([
-                    fetch('/api/integrations/core-banking/fetch-tables', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify(config)
-                    }),
-                    fetch('/api/integrations/core-banking/get-selected-tables')
-                ]);
-
-                if (!tablesResponse.ok) {
-                    throw new Error(`HTTP error! status: ${tablesResponse.status}`);
-                }
-
-                const result = await tablesResponse.json();
-                const savedResult = await savedTablesResponse.json();
-                
-                if (result.success) {
-                    console.log('Tables fetched successfully:', result.tables);
-                    displayTables(result.tables, savedResult.success ? savedResult.tables : []);
-                    tablesContainer.classList.remove('hidden');
-                    showNotification('success', result.message || 'Tables fetched successfully');
-                } else {
-                    console.error('Failed to fetch tables:', result.message);
-                    showNotification('error', result.message || 'Failed to fetch tables');
-                }
-            } catch (error) {
-                console.error('Error fetching tables:', error);
-                showNotification('error', 'Error fetching tables: ' + error.message);
-            }
-        });
+        const notification = document.createElement('div');
+        notification.className = `rounded-lg p-4 mb-4 text-sm ${
+            type === 'success' 
+                ? 'bg-green-100 text-green-700 border border-green-400'
+                : type === 'error'
+                ? 'bg-red-100 text-red-700 border border-red-400'
+                : 'bg-yellow-100 text-yellow-700 border border-yellow-400'
+        }`;
+        
+        let content = `<div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'} mr-2"></i>
+            <span>${message}</span>
+        </div>`;
+        
+        if (details) {
+            content += `<div class="mt-2 ml-6 text-xs">${details}</div>`;
+        }
+        
+        notification.innerHTML = content;
+        container.appendChild(notification);
+        
+        // Remove notification after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+            setTimeout(() => notification.remove(), 500);
+        }, 5000);
     }
 
     // Display tables in the UI
@@ -207,9 +162,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Show the container
-        tablesContainer.classList.remove('hidden');
-
         // Add save button click handler
         const saveButton = document.getElementById('saveTablesBtn');
         if (saveButton) {
@@ -270,21 +222,142 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         }
+
+        // Show the container
+        tablesContainer.style.display = 'block';
     }
 
-    // Load saved tables when fetching new tables
-    async function loadSavedTables() {
+    // Load and display selected tables on page load
+    (async function loadInitialTables() {
         try {
-            const response = await fetch('/api/integrations/core-banking/get-selected-tables');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            // Get active configuration
+            const configResponse = await fetch('/api/integrations/core-banking/get-active-config');
+            const configResult = await configResponse.json();
+            
+            if (!configResult.success) {
+                console.log('No active configuration found');
+                return;
             }
-            const result = await response.json();
-            return result.success ? result.tables : [];
+
+            const config = configResult.config;
+            
+            // Fill in the form with active configuration
+            systemSelect.value = config.system_type;
+            document.querySelector('input[name="server_url"]').value = config.server_url;
+            document.querySelector('input[name="port"]').value = config.port;
+            document.querySelector('input[name="database"]').value = config.database;
+            document.querySelector('input[name="username"]').value = config.username;
+            
+            // Show/hide API key field based on system type
+            const apiKeyField = document.querySelector('input[name="api_key"]').closest('.space-y-2');
+            if (config.system_type === 'brnet') {
+                apiKeyField.style.display = 'block';
+            } else {
+                apiKeyField.style.display = 'none';
+            }
+
+            // Fetch tables and selected tables
+            const [tablesResponse, savedTablesResponse] = await Promise.all([
+                fetch('/api/integrations/core-banking/fetch-tables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(getFormConfig())
+                }),
+                fetch('/api/integrations/core-banking/get-selected-tables')
+            ]);
+
+            const result = await tablesResponse.json();
+            const savedResult = await savedTablesResponse.json();
+            
+            if (result.success) {
+                console.log('Tables fetched successfully:', result.tables);
+                displayTables(result.tables, savedResult.success ? savedResult.tables : []);
+            }
         } catch (error) {
-            console.error('Error loading saved tables:', error);
-            return [];
+            console.error('Error loading initial tables:', error);
         }
+    })();
+
+    // Handle fetch tables button click
+    if (fetchTablesBtn) {
+        fetchTablesBtn.addEventListener('click', async function() {
+            try {
+                const config = getFormConfig();
+                console.log('Fetching tables with config:', config);
+                
+                const [tablesResponse, savedTablesResponse] = await Promise.all([
+                    fetch('/api/integrations/core-banking/fetch-tables', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(config)
+                    }),
+                    fetch('/api/integrations/core-banking/get-selected-tables')
+                ]);
+
+                const result = await tablesResponse.json();
+                const savedResult = await savedTablesResponse.json();
+                
+                if (result.success) {
+                    console.log('Tables fetched successfully:', result.tables);
+                    displayTables(result.tables, savedResult.success ? savedResult.tables : []);
+                    showNotification('success', result.message || 'Tables fetched successfully');
+                } else {
+                    console.error('Failed to fetch tables:', result.message);
+                    showNotification('error', result.message || 'Failed to fetch tables');
+                }
+            } catch (error) {
+                console.error('Error fetching tables:', error);
+                showNotification('error', 'Error fetching tables: ' + error.message);
+            }
+        });
+    }
+
+    // Test connection
+    if (testConnectionBtn) {
+        console.log('Test connection button found');
+        testConnectionBtn.addEventListener('click', async function() {
+            console.log('Test connection button clicked');
+            try {
+                const config = getFormConfig();
+                console.log('Form config:', config);
+                
+                const response = await fetch('/api/integrations/core-banking/test-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(config)
+                });
+                console.log('Response received:', response);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Response parsed:', result);
+                
+                if (result.success) {
+                    console.log('Connection test successful');
+                    showNotification('success', result.message || 'Connection test successful');
+                } else {
+                    console.error('Connection test failed:', result.message);
+                    showNotification('error', result.message || 'Connection test failed');
+                }
+            } catch (error) {
+                console.error('Error in test connection:', error);
+                showNotification('error', 'Error testing connection: ' + error.message);
+            }
+        });
+    } else {
+        console.error('Test connection button not found');
     }
 
     // Handle form submission
@@ -329,47 +402,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('error', 'Error saving configuration: ' + error.message);
         }
     });
-
-    // Show notifications
-    function showNotification(type, message, details = null) {
-        let container = document.getElementById('notificationContainer');
-        
-        // Create container if it doesn't exist
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'notificationContainer';
-            container.className = 'mb-6';
-            const form = document.querySelector('form');
-            form.parentNode.insertBefore(container, form);
-        }
-
-        const notification = document.createElement('div');
-        notification.className = `rounded-lg p-4 mb-4 text-sm ${
-            type === 'success' 
-                ? 'bg-green-100 text-green-700 border border-green-400'
-                : type === 'error'
-                ? 'bg-red-100 text-red-700 border border-red-400'
-                : 'bg-yellow-100 text-yellow-700 border border-yellow-400'
-        }`;
-        
-        let content = `<div class="flex items-center">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'} mr-2"></i>
-            <span>${message}</span>
-        </div>`;
-        
-        if (details) {
-            content += `<div class="mt-2 ml-6 text-xs">${details}</div>`;
-        }
-        
-        notification.innerHTML = content;
-        container.appendChild(notification);
-        
-        // Remove notification after 5 seconds
-        setTimeout(() => {
-            notification.classList.add('opacity-0', 'transition-opacity', 'duration-500');
-            setTimeout(() => notification.remove(), 500);
-        }, 5000);
-    }
 
     // Trigger initial system selection check
     systemSelect.dispatchEvent(new Event('change'));

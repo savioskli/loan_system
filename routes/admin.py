@@ -119,7 +119,7 @@ def form_sections():
     sections = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('admin/form_sections/index.html', sections=sections)
+    return render_template('admin/sections/index.html', sections=sections)
 
 @admin_bp.route('/form-sections/add', methods=['GET', 'POST'])
 @login_required
@@ -164,7 +164,7 @@ def add_form_section():
     cursor.close()
     conn.close()
 
-    return render_template('admin/form_sections/form.html', 
+    return render_template('admin/sections/form.html', 
                          section=None, 
                          modules=modules,
                          submodules=submodules)
@@ -226,7 +226,7 @@ def edit_form_section(section_id):
     cursor.close()
     conn.close()
 
-    return render_template('admin/form_sections/form.html', 
+    return render_template('admin/sections/form.html', 
                          section=section,
                          modules=modules,
                          submodules=submodules)

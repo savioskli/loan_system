@@ -526,3 +526,81 @@ def save_core_banking_tables():
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
+
+@integrations_bp.route('/core-banking/save-selected-tables', methods=['POST'])
+@csrf.exempt
+@login_required
+@admin_required
+def save_selected_tables():
+    """Save selected core banking tables"""
+    try:
+        logger.info("Received save selected tables request")
+        data = request.get_json()
+        logger.info(f"Request data: {data}")
+
+        if not data or 'tables' not in data:
+            logger.error("No tables provided in request")
+            return jsonify({
+                'success': False,
+                'message': 'No tables provided'
+            }), 400
+
+        # Get active configuration
+        config = CoreBankingConfig.get_active_config()
+        if not config:
+            logger.error("No active core banking configuration found")
+            return jsonify({
+                'success': False,
+                'message': 'No active core banking configuration found'
+            }), 404
+
+        # Update selected tables
+        config.selected_tables = data['tables']
+        db.session.commit()
+        
+        logger.info(f"Successfully saved {len(data['tables'])} tables")
+        return jsonify({
+            'success': True,
+            'message': f"Successfully saved {len(data['tables'])} tables"
+        })
+
+    except Exception as e:
+        logger.error(f"Error saving tables: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Error saving tables: {str(e)}'
+        }), 500
+
+@integrations_bp.route('/core-banking/get-selected-tables', methods=['GET'])
+@csrf.exempt
+@login_required
+@admin_required
+def get_selected_tables():
+    """Get selected core banking tables"""
+    try:
+        logger.info("Fetching selected tables")
+        
+        # Get active configuration
+        config = CoreBankingConfig.get_active_config()
+        if not config:
+            logger.error("No active core banking configuration found")
+            return jsonify({
+                'success': False,
+                'message': 'No active core banking configuration found'
+            }), 404
+
+        selected_tables = config.selected_tables or []
+        logger.info(f"Found {len(selected_tables)} selected tables")
+        
+        return jsonify({
+            'success': True,
+            'tables': selected_tables,
+            'message': f"Found {len(selected_tables)} selected tables"
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching selected tables: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching selected tables: {str(e)}'
+        }), 500

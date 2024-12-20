@@ -82,30 +82,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 const config = getFormConfig();
                 console.log('Fetching tables with config:', config);
                 
-                const response = await fetch('/api/integrations/core-banking/fetch-tables', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(config)
-                });
-                console.log('Response received:', response);
+                const [tablesResponse, savedTablesResponse] = await Promise.all([
+                    fetch('/api/integrations/core-banking/fetch-tables', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(config)
+                    }),
+                    fetch('/api/integrations/core-banking/get-selected-tables')
+                ]);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                if (!tablesResponse.ok) {
+                    throw new Error(`HTTP error! status: ${tablesResponse.status}`);
                 }
 
-                const result = await response.json();
-                console.log('Tables response:', result);
-
+                const result = await tablesResponse.json();
+                const savedResult = await savedTablesResponse.json();
+                
                 if (result.success) {
-                    console.log('Successfully retrieved tables:', result.tables);
-                    displayTables(result.tables);
-                    showNotification('success', 'Successfully retrieved tables');
+                    console.log('Tables fetched successfully:', result.tables);
+                    displayTables(result.tables, savedResult.success ? savedResult.tables : []);
+                    tablesContainer.classList.remove('hidden');
+                    showNotification('success', result.message || 'Tables fetched successfully');
                 } else {
-                    console.error('Failed to retrieve tables:', result.message);
-                    showNotification('error', `Failed to retrieve tables: ${result.message}`);
+                    console.error('Failed to fetch tables:', result.message);
+                    showNotification('error', result.message || 'Failed to fetch tables');
                 }
             } catch (error) {
                 console.error('Error fetching tables:', error);
@@ -115,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Display tables in the UI
-    function displayTables(tables) {
+    function displayTables(tables, selectedTables = []) {
         // Create containers if they don't exist
         let tablesContainer = document.getElementById('tablesContainer');
         if (!tablesContainer) {
@@ -124,11 +127,23 @@ document.addEventListener('DOMContentLoaded', function() {
             tablesContainer.id = 'tablesContainer';
             tablesContainer.className = 'bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mt-6';
 
-            // Add header
+            // Add header with save button
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'flex justify-between items-center mb-6';
+            
             const header = document.createElement('h3');
-            header.className = 'text-lg font-medium text-gray-900 dark:text-white mb-6';
+            header.className = 'text-lg font-medium text-gray-900 dark:text-white';
             header.textContent = 'Available Tables';
-            tablesContainer.appendChild(header);
+            headerDiv.appendChild(header);
+
+            const saveButton = document.createElement('button');
+            saveButton.type = 'button';
+            saveButton.id = 'saveTablesBtn';
+            saveButton.className = 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2';
+            saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>Save Selected Tables';
+            headerDiv.appendChild(saveButton);
+
+            tablesContainer.appendChild(headerDiv);
 
             // Add search box
             const searchBox = document.createElement('div');
@@ -165,29 +180,110 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="text-sm text-gray-500">No tables available</div>
                 </li>`;
         } else {
+            // Convert selectedTables array to a Set of table names for faster lookup
+            const selectedTableNames = new Set(selectedTables.map(t => t.name));
+
             tables.forEach(table => {
                 const li = document.createElement('li');
                 li.className = 'px-4 py-4 sm:px-6 hover:bg-gray-50 dark:hover:bg-gray-700';
                 li.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">${table.name}</h4>
-                            <p class="mt-1 text-sm text-gray-500">${table.description || ''}</p>
-                        </div>
-                        <div>
-                            <button type="button" class="select-table-btn inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" data-table-name="${table.name}">
-                                <i class="fas fa-plus mr-1"></i>
-                                Select
-                            </button>
+                    <div class="flex items-center space-x-4">
+                        <input type="checkbox" 
+                               id="table-${table.name}" 
+                               name="selected_tables" 
+                               value="${table.name}"
+                               ${selectedTableNames.has(table.name) ? 'checked' : ''}
+                               class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary">
+                        <div class="flex-1">
+                            <label for="table-${table.name}" class="block">
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">${table.name}</span>
+                                ${table.description ? `
+                                    <p class="mt-1 text-sm text-gray-500">${table.description}</p>
+                                ` : ''}
+                            </label>
                         </div>
                     </div>`;
                 tablesList.appendChild(li);
             });
         }
 
-        // Show the container by removing the hidden class if it exists
-        if (tablesContainer.classList.contains('hidden')) {
-            tablesContainer.classList.remove('hidden');
+        // Show the container
+        tablesContainer.classList.remove('hidden');
+
+        // Add save button click handler
+        const saveButton = document.getElementById('saveTablesBtn');
+        if (saveButton) {
+            saveButton.addEventListener('click', async function() {
+                const selectedTables = Array.from(document.querySelectorAll('input[name="selected_tables"]:checked')).map(checkbox => ({
+                    name: checkbox.value,
+                    description: tables.find(t => t.name === checkbox.value)?.description || ''
+                }));
+
+                if (selectedTables.length === 0) {
+                    showNotification('error', 'Please select at least one table');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/integrations/core-banking/save-selected-tables', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ tables: selectedTables })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification('success', 'Selected tables saved successfully');
+                    } else {
+                        showNotification('error', result.message || 'Failed to save selected tables');
+                    }
+                } catch (error) {
+                    console.error('Error saving tables:', error);
+                    showNotification('error', 'Error saving tables: ' + error.message);
+                }
+            });
+        }
+
+        // Add search functionality
+        const searchInput = document.getElementById('tableSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const tableItems = document.querySelectorAll('#tablesList li');
+                
+                tableItems.forEach(item => {
+                    const tableName = item.querySelector('span').textContent.toLowerCase();
+                    const tableDesc = item.querySelector('p')?.textContent.toLowerCase() || '';
+                    
+                    if (tableName.includes(searchTerm) || tableDesc.includes(searchTerm)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    // Load saved tables when fetching new tables
+    async function loadSavedTables() {
+        try {
+            const response = await fetch('/api/integrations/core-banking/get-selected-tables');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.success ? result.tables : [];
+        } catch (error) {
+            console.error('Error loading saved tables:', error);
+            return [];
         }
     }
 

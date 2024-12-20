@@ -37,6 +37,7 @@ from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
 from flask import g
+from services.scheduler import init_scheduler
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -84,9 +85,16 @@ def create_app():
         handler.setFormatter(formatter)
         app.logger.addHandler(handler)
 
+    # APScheduler settings
+    app.config['SCHEDULER_API_ENABLED'] = True
+    app.config['SCHEDULER_TIMEZONE'] = 'Africa/Nairobi'
+
     # Initialize extensions
     init_extensions(app)
     csrf.init_app(app)
+
+    # Initialize scheduler
+    init_scheduler(app)
 
     # Register context processors
     from context_processors import inject_settings, inject_navigation

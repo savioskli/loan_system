@@ -8,13 +8,14 @@ from models.staff import Staff
 from models.form_submission import FormSubmission
 from extensions import db, csrf
 from flask_wtf import FlaskForm
+from services.scheduler import get_cached_tables
+from datetime import datetime
+import traceback
+import requests
 import os
 import json
 from werkzeug.utils import secure_filename
-from data.kenya_locations import KENYA_COUNTIES
 from sqlalchemy import and_, or_, text, MetaData, Table
-from datetime import datetime
-import traceback
 
 user_bp = Blueprint('user', __name__)
 
@@ -110,7 +111,7 @@ def dynamic_form(module_code):
                             sections=sections,
                             client_types=client_types,
                             products=products,
-                            counties=KENYA_COUNTIES,
+                            counties=[],
                             id_types=ID_TYPES,
                             postal_towns=sorted(POSTAL_TOWNS))  # Sort alphabetically
                             
@@ -128,8 +129,8 @@ def get_sub_counties(county):
         county = county.strip()
         
         # Check if county exists in our data
-        if county in KENYA_COUNTIES:
-            sub_counties = sorted(KENYA_COUNTIES[county])  # Sort alphabetically
+        if county in []:
+            sub_counties = sorted([])  # Sort alphabetically
             return jsonify({
                 'success': True,
                 'data': sub_counties
@@ -167,9 +168,9 @@ def get_postal_towns(county):
         county = county.strip()
         
         # Check if county exists in our data
-        if county in KENYA_COUNTIES:
+        if county in []:
             # Use the sub-counties as postal towns
-            towns = sorted(KENYA_COUNTIES[county])  # Sort alphabetically
+            towns = sorted([])  # Sort alphabetically
             return jsonify({
                 'success': True,
                 'data': towns
@@ -406,7 +407,7 @@ def view_prospect(submission_id):
                              products=products,
                              client_types=client_types,
                              id_types=ID_TYPES,
-                             counties=KENYA_COUNTIES,
+                             counties=[],
                              purpose_options=purpose_options)
     except Exception as e:
         flash(f'Error viewing prospect: {str(e)}', 'error')
@@ -514,7 +515,7 @@ def edit_prospect(submission_id):
                              products=products,
                              client_types=client_types,
                              sections=sections,
-                             counties=KENYA_COUNTIES,
+                             counties=[],
                              postal_towns=sorted(POSTAL_TOWNS),
                              ID_TYPES=ID_TYPES,
                              purpose_options=purpose_options)
@@ -581,7 +582,7 @@ def convert_to_client(submission_id):
                                 sections=sections,
                                 client_types=client_types,
                                 products=products,
-                                counties=KENYA_COUNTIES,
+                                counties=[],
                                 form_data=form_data)
         
         elif request.method == 'POST':
@@ -684,7 +685,7 @@ def register_client(submission_id):
                                 sections=sections,
                                 client_types=client_types,
                                 products=products,
-                                counties=KENYA_COUNTIES,
+                                counties=[],
                                 form_data=form_data,
                                 client_type=client_type)
         
@@ -720,7 +721,76 @@ def register_client(submission_id):
 @user_bp.route('/post-disbursement')
 @login_required
 def post_disbursement():
-    return render_template('user/post_disbursement.html')
+    # Get loan grading data from Navision
+    tables, last_sync = get_cached_tables()
+    loan_data = []
+    
+    # Calculate key metrics
+    total_loans = 0
+    overdue_loans = {
+        'A': {'count': 0, 'amount': 0},  # 1-30 days
+        'B': {'count': 0, 'amount': 0},  # 31-60 days
+        'C': {'count': 0, 'amount': 0},  # 61-90 days
+        'D': {'count': 0, 'amount': 0},  # 91-180 days
+        'E': {'count': 0, 'amount': 0}   # >180 days
+    }
+    total_outstanding = 0
+    total_in_arrears = 0
+    
+    try:
+        # Make request to mock server
+        response = requests.get(
+            'http://localhost:5003/api/beta/companies/loan-grading',
+            headers={'Database': 'navision_db'},
+            auth=('admin', 'admin123')
+        )
+        
+        if response.status_code == 200:
+            # The response format is {'value': [...]} so we need to get the 'value' key
+            loan_data = response.json().get('value', [])
+            for loan in loan_data:
+                total_loans += 1
+                total_outstanding += loan['Outstanding_Balance']
+                total_in_arrears += loan['Total_In_Arrears']
+                overdue_loans[loan['Classification']]['count'] += 1
+                overdue_loans[loan['Classification']]['amount'] += loan['Outstanding_Balance']
+    except Exception as e:
+        print(f"Error fetching loan data: {str(e)}")
+        flash('Error fetching loan data from core banking system', 'error')
+    
+    # Calculate recovery rate (recovered amount / total in arrears)
+    recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else 0
+    
+    # Prepare data for charts
+    classification_data = {
+        'labels': ['1-30 days', '31-60 days', '61-90 days', '91-180 days', '>180 days'],
+        'counts': [
+            overdue_loans['A']['count'],
+            overdue_loans['B']['count'],
+            overdue_loans['C']['count'],
+            overdue_loans['D']['count'],
+            overdue_loans['E']['count']
+        ],
+        'amounts': [
+            overdue_loans['A']['amount'],
+            overdue_loans['B']['amount'],
+            overdue_loans['C']['amount'],
+            overdue_loans['D']['amount'],
+            overdue_loans['E']['amount']
+        ]
+    }
+    
+    return render_template(
+        'user/post_disbursement.html',
+        total_loans=total_loans,
+        overdue_loans=overdue_loans,
+        total_outstanding=total_outstanding,
+        total_in_arrears=total_in_arrears,
+        recovery_rate=round(recovery_rate, 2),
+        classification_data=classification_data,
+        loan_data=loan_data,
+        last_sync=last_sync
+    )
 
 @user_bp.route('/reports')
 @login_required

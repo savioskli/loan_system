@@ -3,39 +3,11 @@
 {% block styles %}
 <style>
     /* Admin-specific styles */
-    .sidebar {
-        @apply fixed top-0 bottom-0 left-0 z-50 w-64 pt-16 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700;
-    }
-    
-    .sidebar-sticky {
-        @apply relative h-[calc(100vh-4rem)] overflow-y-auto;
-    }
-    
-    .nav-link {
-        @apply flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200;
-    }
-    
-    .nav-link.active {
-        @apply bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light;
-    }
-    
-    .nav-link i {
-        @apply w-5 h-5 mr-3;
-    }
-    
     .content-wrapper {
-        @apply ml-64 p-8;
+        @apply p-8;
     }
     
     @media (max-width: 768px) {
-        .sidebar {
-            @apply transform -translate-x-full transition-transform duration-200;
-        }
-        
-        .sidebar.show {
-            @apply translate-x-0;
-        }
-        
         .content-wrapper {
             @apply ml-0;
         }
@@ -44,69 +16,26 @@
 {% endblock %}
 
 {% block content %}
-<!-- Sidebar -->
-<div class="sidebar">
-    <div class="sidebar-sticky">
-        <ul class="space-y-1">
-            <li>
-                <a href="{{ url_for('main.admin_dashboard') }}" 
-                   class="nav-link {% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            {% if current_user.role.name.lower() == 'admin' %}
-            <li>
-                <a href="{{ url_for('user_management.list_users') }}"
-                   class="nav-link {% if 'user_management' in request.endpoint %}active{% endif %}">
-                    <i class="fas fa-users"></i>
-                    <span>User Management</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('role_management.list_roles') }}"
-                   class="nav-link {% if 'role_management' in request.endpoint %}active{% endif %}">
-                    <i class="fas fa-user-tag"></i>
-                    <span>Role Management</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('branch_management.list_branches') }}"
-                   class="nav-link {% if 'branch_management' in request.endpoint %}active{% endif %}">
-                    <i class="fas fa-building"></i>
-                    <span>Branch Management</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('settings.system_settings') }}"
-                   class="nav-link {% if 'settings.system_settings' in request.endpoint %}active{% endif %}">
-                    <i class="fas fa-cog"></i>
-                    <span>System Settings</span>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </div>
-</div>
-
-<!-- Main Content -->
-<div class="content-wrapper">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="mb-4">
-                    <div class="rounded-lg p-4 {% if category == 'error' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %} flex items-center">
-                        <div class="flex-grow">{{ message }}</div>
-                        <button type="button" class="ml-auto" onclick="this.parentElement.remove()">
-                            <i class="fas fa-times"></i>
-                        </button>
+<div class="flex h-screen bg-gray-100 dark:bg-gray-900">
+    <!-- Main Content -->
+    <div class="content-wrapper w-full">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4">
+                        <div class="rounded-lg p-4 {% if category == 'error' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %} flex items-center">
+                            <div class="flex-grow">{{ message }}</div>
+                            <button type="button" class="ml-auto" onclick="this.parentElement.remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    {% block admin_content %}{% endblock %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block admin_content %}{% endblock %}
+    </div>
 </div>
 {% endblock %}
 

@@ -120,34 +120,18 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/admin')  
     app.register_blueprint(branch_bp, url_prefix='/branches')  
     app.register_blueprint(client_types_bp)  
-    app.register_blueprint(modules_bp, url_prefix='/modules')  
-    app.register_blueprint(dependencies_bp)  
+    app.register_blueprint(modules_bp, url_prefix='/api/modules')  
+    app.register_blueprint(dependencies_bp, url_prefix='/api/dependencies')  
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(products_bp)  
     app.register_blueprint(sections_bp)  
     app.register_blueprint(settings_bp)
-    app.register_blueprint(integrations_bp, url_prefix='/integrations')
+    app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
 
-    # Activity logging for admin routes
-    @app.before_request
-    def log_request():
-        """Log all requests to admin routes"""
-        app.logger.info(f"Before request: {request.endpoint}")  # Debug log
-        if request.endpoint and 'admin' in request.endpoint:
-            app.logger.info(f"Processing admin route: {request.endpoint}")  # Debug log
-            try:
-                if current_user.is_authenticated:
-                    action = f"access_{request.endpoint.split('.')[-1]}"
-                    details = f"Accessed {request.path} via {request.method}"
-                    app.logger.info(f"Logging activity: {action} - {details}")  # Debug log
-                    log_activity(current_user.id, action, details)
-                    app.logger.info("Activity logged successfully")  # Debug log
-            except Exception as e:
-                app.logger.error(f"Error logging activity: {str(e)}", exc_info=True)
-
-    # Exempt CSRF for certain routes
+    # Exempt CSRF for API routes
     csrf.exempt(modules_bp)
-    csrf.exempt(dependencies_bp)  # Add CSRF exemption for field dependencies API
+    csrf.exempt(dependencies_bp)
+    csrf.exempt(integrations_bp)
 
     # Flask-Login configuration
     @login_manager.user_loader

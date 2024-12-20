@@ -1,0 +1,44 @@
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-sticky">
+        <ul class="space-y-1">
+            <li>
+                <a href="{{ url_for('main.admin_dashboard') }}" 
+                   class="nav-link {% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            {% if current_user.role.name.lower() == 'admin' %}
+            <li>
+                <a href="{{ url_for('user_management.list_users') }}"
+                   class="nav-link {% if 'user_management' in request.endpoint %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('branch.manage_branches') }}"
+                   class="nav-link {% if 'branch.manage_branches' in request.endpoint %}active{% endif %}">
+                    <i class="fas fa-building"></i>
+                    <span>Branch Management</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('admin.system_settings') }}"
+                   class="nav-link {% if 'admin.system_settings' in request.endpoint %}active{% endif %}">
+                    <i class="fas fa-cog"></i>
+                    <span>System Settings</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('integrations.core_banking') }}"
+                   class="nav-link {% if 'integrations.core_banking' in request.endpoint %}active{% endif %}">
+                    <i class="fas fa-university"></i>
+                    <span>Core Banking</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+</div>

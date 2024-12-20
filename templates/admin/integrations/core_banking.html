@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Core Banking Integration{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <div class="flex items-center space-x-4 mb-6">
@@ -26,8 +26,8 @@
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Select System</label>
                         <select name="core_banking_system" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                            <option value="navision">Microsoft Dynamics Navision</option>
-                            <option value="brnet">BR.NET</option>
+                            <option value="navision" {% if config and config.system_type == 'navision' %}selected{% endif %}>Microsoft Dynamics Navision</option>
+                            <option value="brnet" {% if config and config.system_type == 'brnet' %}selected{% endif %}>BR.NET</option>
                         </select>
                     </div>
                 </div>
@@ -39,16 +39,16 @@
                 <div class="grid grid-cols-1 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Server URL/IP</label>
-                        <input type="text" name="server_url" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" name="server_url" value="{{ config.server_url if config else '' }}" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                         <p class="mt-1 text-sm text-gray-500">The URL or IP address of your core banking server</p>
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
-                        <input type="text" name="port" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" name="port" value="{{ config.port if config else '' }}" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Database Name</label>
-                        <input type="text" name="database" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" name="database" value="{{ config.database if config else '' }}" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                 </div>
             </div>
@@ -59,14 +59,14 @@
                 <div class="grid grid-cols-1 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
-                        <input type="text" name="username" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" name="username" value="{{ config.username if config else '' }}" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                         <input type="password" name="password" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key (if applicable)</label>
+                    <div class="space-y-2" {% if not config or config.system_type != 'brnet' %}style="display: none;"{% endif %}>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
                         <input type="password" name="api_key" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                 </div>
@@ -78,20 +78,20 @@
                 <div class="grid grid-cols-1 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sync Interval (minutes)</label>
-                        <input type="number" name="sync_interval" min="5" value="15" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="number" name="sync_interval" min="5" value="{{ config.sync_interval if config else 15 }}" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                         <p class="mt-1 text-sm text-gray-500">How often to sync loan data (minimum 5 minutes)</p>
                     </div>
                     <div class="space-y-4">
                         <div class="flex items-center">
-                            <input type="checkbox" name="sync_loan_details" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                            <input type="checkbox" name="sync_loan_details" {% if config and config.sync_settings.get('sync_loan_details') %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                             <label class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Sync Loan Details</label>
                         </div>
                         <div class="flex items-center">
-                            <input type="checkbox" name="sync_payments" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                            <input type="checkbox" name="sync_payments" {% if config and config.sync_settings.get('sync_payments') %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                             <label class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Sync Payment History</label>
                         </div>
                         <div class="flex items-center">
-                            <input type="checkbox" name="sync_customer_info" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                            <input type="checkbox" name="sync_customer_info" {% if config and config.sync_settings.get('sync_customer_info') %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                             <label class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Sync Customer Information</label>
                         </div>
                     </div>
@@ -104,13 +104,13 @@
                 <div class="space-y-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Test your connection to the core banking system</p>
                     <div class="flex space-x-4">
-                        <button type="button" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        <button type="button" id="testConnectionBtn" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                             <i class="fas fa-vial mr-2"></i>
                             Test Connection
                         </button>
-                        <button type="button" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                            <i class="fas fa-sync mr-2"></i>
-                            Test Data Sync
+                        <button type="button" id="fetchTablesBtn" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            <i class="fas fa-table mr-2"></i>
+                            Fetch Tables
                         </button>
                     </div>
                 </div>

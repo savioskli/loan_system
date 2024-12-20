@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Post Disbursement{% endblock %}
+
+{% block content %}
+<div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Post Disbursement Dashboard</h1>
+    
+    <!-- Content will be added based on specific post-disbursement requirements -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Disbursed Loans</h3>
+            <p class="text-gray-600 dark:text-gray-300">View and manage loans that have been disbursed.</p>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Repayment Tracking</h3>
+            <p class="text-gray-600 dark:text-gray-300">Monitor loan repayments and payment schedules.</p>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Performance Metrics</h3>
+            <p class="text-gray-600 dark:text-gray-300">View loan performance and collection metrics.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

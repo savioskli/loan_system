@@ -31,14 +31,23 @@ def log_activity(user_id, action, details=None):
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
-@login_required
 def index():
+    try:
+        return render_template('landing.html')
+    except Exception as e:
+        logger.error(f"Error in index route: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while loading the page.', 'error')
+        return render_template('errors/500.html'), 500
+
+@main_bp.route('/home')
+@login_required
+def home():
     try:
         if current_user.role.name.lower() == 'admin':
             return redirect(url_for('main.admin_dashboard'))
         return redirect(url_for('main.dashboard'))
     except Exception as e:
-        logger.error(f"Error in index route: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Error in home route: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading the page.', 'error')
         return render_template('errors/500.html'), 500
 

@@ -243,13 +243,11 @@
                                     </a>
                                 {% endif %}
                                 <a href="{{ url_for('user.dashboard') }}" class="nav-item {{ 'nav-item-active' if request.endpoint == 'user.dashboard' else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
-                                    <i class="fas fa-columns nav-icon mr-2"></i>User Dashboard
+                                    <i class="fas fa-columns nav-icon mr-2"></i>LOAS Dashboard
                                 </a>
-                                {% for item in navigation_items %}
-                                <a href="{{ item.url }}" class="nav-item {{ 'nav-item-active' if item.is_active else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
-                                    <i class="fas fa-{{ item.icon }} nav-icon mr-2"></i>{{ item.text }}
+                                <a href="{{ url_for('user.post_disbursement') }}" class="nav-item {{ 'nav-item-active' if request.endpoint == 'user.post_disbursement' else '' }} inline-flex items-center px-1 pt-1 text-sm font-medium">
+                                    <i class="fas fa-money-check-alt nav-icon mr-2"></i>Post Disbursement
                                 </a>
-                                {% endfor %}
                             {% endif %}
                         </div>
                     </div>

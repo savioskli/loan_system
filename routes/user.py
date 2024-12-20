@@ -717,6 +717,11 @@ def register_client(submission_id):
             flash(f'Error loading registration form: {str(e)}', 'error')
             return redirect(url_for('user.manage_module', module_code='CLM02'))
 
+@user_bp.route('/post-disbursement')
+@login_required
+def post_disbursement():
+    return render_template('user/post_disbursement.html')
+
 @user_bp.route('/reports')
 @login_required
 def reports():

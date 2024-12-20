@@ -32,6 +32,7 @@ from routes.products import products_bp
 from routes.section_routes import sections_bp
 from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
+from routes.integrations import integrations_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -125,6 +126,7 @@ def create_app():
     app.register_blueprint(products_bp)  
     app.register_blueprint(sections_bp)  
     app.register_blueprint(settings_bp)
+    app.register_blueprint(integrations_bp, url_prefix='/integrations')
 
     # Activity logging for admin routes
     @app.before_request

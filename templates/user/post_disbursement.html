@@ -203,7 +203,7 @@
                     <p class="text-2xl font-bold {% if npl_ratio > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
                         {{ '{:.2f}'.format(npl_ratio) }}%
                     </p>
-                    <p class="text-xs text-gray-500 mt-1">
+                    <p class="text-xs {% if npl_ratio > 5 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
                         <i class="fas {% if npl_ratio > 5 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
                         {% if npl_ratio > 5 %}Alert: Above 5%{% else %}Target: Below 5%{% endif %}
                     </p>

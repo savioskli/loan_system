@@ -2,6 +2,57 @@
 
 {% block title %}Post Disbursement{% endblock %}
 
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/dist/tippy.css" />
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/themes/light.css" />
+    <!-- Add custom tooltip styles -->
+    <style>
+        .tooltip-inner {
+            max-width: 300px;
+            padding: 10px;
+            background-color: #1f2937;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tooltip-inner p {
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .tooltip-inner ul {
+            text-align: left;
+            margin: 0;
+            padding-left: 8px;
+        }
+        .tooltip-inner li {
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+        }
+        .bs-tooltip-auto[data-popper-placement^=top] .tooltip-arrow::before, 
+        .bs-tooltip-top .tooltip-arrow::before {
+            border-top-color: #1f2937;
+        }
+    </style>
+    <style>
+        .popover {
+            max-width: 250px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .popover-body {
+            padding: 8px;
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+        .metric-alert, .metric-formula {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        .metric-alert i {
+            margin-right: 0.25rem;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 <div class="flex relative">
     <!-- Toggle Button (Pill) -->
@@ -97,46 +148,124 @@
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <!-- Total Loans -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</span>
-                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ total_loans }}</span>
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</h3>
                     </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.0f}'.format(total_loans) }}</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-circle-info mr-1"></i>Sum of all active loans
+                    </p>
                 </div>
-
                 <!-- Total Outstanding -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</span>
-                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ '{:,.2f}'.format(total_outstanding) }}</span>
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</h3>
                     </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding) }}</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-circle-info mr-1"></i>Sum of all outstanding balances
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">∑(Principal + Interest + Fees)</p>
                 </div>
-
-                <!-- Total in Arrears -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total in Arrears</span>
-                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ '{:,.2f}'.format(total_in_arrears) }}</span>
+                <!-- NPL Amount -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Amount</h3>
                     </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_provisions) }}</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-circle-info mr-1"></i>Sum of all non-performing loans
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">∑(Loans Past Due > 90 Days)</p>
                 </div>
+                                <!-- Total in Arrears -->
+                                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total in Arrears</h3>
+                                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears) }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Overdue Amount</p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        <i class="fas fa-circle-info mr-1"></i>Sum of all overdue payments
+                                    </p>
+                                </div>
+               
+            </div>
 
+            <!-- Additional Metrics Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                 <!-- NPL Ratio -->
+                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</h3>
+                    </div>
+                    <p class="text-2xl font-bold {% if npl_ratio > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.2f}'.format(npl_ratio) }}%
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas {% if npl_ratio > 5 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                        {% if npl_ratio > 5 %}Alert: Above 5%{% else %}Target: Below 5%{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">%(NPL Amount / Total Portfolio)</p>
+                </div>
+                <!-- NPL Coverage -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Coverage</h3>
+                    </div>
+                    <p class="text-2xl font-bold {% if npl_coverage_ratio < 100 %}text-yellow-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.2f}'.format(npl_coverage_ratio) }}%
+                    </p>
+                    <p class="text-xs {% if npl_coverage_ratio < 100 %}text-yellow-600{% else %}text-gray-500{% endif %} mt-1">
+                        <i class="fas {% if npl_coverage_ratio < 100 %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                        {% if npl_coverage_ratio < 100 %}Warning: Below 100%{% else %}Good: Above 100%{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">%(Total Provisions / NPL Amount)</p>
+                </div>
+                <!-- PAR30 -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">PAR > 30 Days</h3>
+                    </div>
+                    <p class="text-2xl font-bold {% if par30_ratio > 10 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.2f}'.format(par30_ratio) }}%
+                    </p>
+                    <p class="text-xs {% if par30_ratio > 10 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
+                        <i class="fas {% if par30_ratio > 10 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                        {% if par30_ratio > 10 %}Alert: Above 10%{% else %}Target: Below 10%{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">%(Loans Overdue > 30 Days / Total Portfolio)</p>
+                </div>
+                <!-- Cost of Risk -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Cost of Risk</h3>
+                    </div>
+                    <p class="text-2xl font-bold {% if cost_of_risk > 2 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.2f}'.format(cost_of_risk) }}%
+                    </p>
+                    <p class="text-xs {% if cost_of_risk > 2 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
+                        <i class="fas {% if cost_of_risk > 2 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                        {% if cost_of_risk > 2 %}Alert: Above 2%{% else %}Target: Below 2%{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">%(Total Provisions / Total Portfolio)</p>
+                </div>
                 <!-- Recovery Rate -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</span>
-                        <span class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{{ recovery_rate }}%</span>
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</h3>
                     </div>
+                    <p class="text-2xl font-bold {% if recovery_rate < 90 %}text-yellow-600{% elif recovery_rate >= 90 %}text-green-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.1f}'.format(recovery_rate) }}%
+                    </p>
+                    <p class="text-xs {% if recovery_rate < 90 %}text-yellow-600{% elif recovery_rate >= 90 %}text-green-600{% else %}text-gray-500{% endif %} mt-1">
+                        <i class="fas {% if recovery_rate < 90 %}fa-triangle-exclamation{% elif recovery_rate >= 90 %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-1"></i>
+                        {% if recovery_rate < 90 %}Warning: Below 90%{% elif recovery_rate >= 90 %}Good: Above 90%{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">%(Recovered Amount / Total Outstanding)</p>
                 </div>
 
-                <!-- NPL Ratio -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</span>
-                        <span class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{{ '{:.2f}'.format(total_in_arrears / total_outstanding * 100 if total_outstanding > 0 else 0) }}%</span>
-                    </div>
-                </div>
             </div>
 
             <!-- Loan Classification Overview -->
@@ -154,24 +283,37 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Classification Details</h3>
                     <div class="overflow-x-auto">
                         <div class="inline-block min-w-full align-middle">
-                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                                <thead class="bg-gray-50 dark:bg-gray-800">
+                            <table class="min-w-full text-sm">
+                                <thead>
                                     <tr>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Count</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% of Total</th>
+                                        <th class="text-left font-medium text-gray-500 dark:text-gray-400 py-2">Classification</th>
+                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Count</th>
+                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Amount</th>
+                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">% of Total</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
-                                    {% for grade in ['A', 'B', 'C', 'D', 'E'] %}
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ grade }} ({{ classification_data.labels[loop.index0] }})</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ overdue_loans[grade]['count'] }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(overdue_loans[grade]['amount']) }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                            {{ '{:.2f}'.format(overdue_loans[grade]['amount'] / total_outstanding * 100 if total_outstanding > 0 else 0) }}%
+                                <tbody>
+                                    {% for code, data in overdue_loans.items() %}
+                                    <tr class="border-t border-gray-200 dark:border-gray-700">
+                                        <td class="py-2">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                                {% if code == 'NORMAL' %}
+                                                    bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                                {% elif code == 'WATCH' %}
+                                                    bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                                                {% elif code == 'SUBSTANDARD' %}
+                                                    bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
+                                                {% elif code == 'DOUBTFUL' %}
+                                                    bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                                                {% else %}
+                                                    bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                                {% endif %}">
+                                                {{ code }} ({{ data.description }})
+                                            </span>
                                         </td>
+                                        <td class="text-right py-2">{{ data.count }}</td>
+                                        <td class="text-right py-2">{{ '{:,.2f}'.format(data.amount) }}</td>
+                                        <td class="text-right py-2">{{ '{:.2f}%'.format(data.amount / total_outstanding * 100 if total_outstanding > 0 else 0) }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -180,220 +322,489 @@
                     </div>
                 </div>
             </div>
+<!-- Loan Details -->
+<div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Loan Details</h3>
+        <div class="flex space-x-2">
+            <button onclick="exportTableToCSV('loan_details.csv')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export
+            </button>
+        </div>
+    </div>
 
-            <!-- Loan Details Table -->
-            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Loan Details</h3>
-                    <div class="flex space-x-2">
-                        <button class="px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark">
-                            <i class="fas fa-download mr-1"></i> Export
-                        </button>
-                        <button class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
-                            <i class="fas fa-filter mr-1"></i> Filter
-                        </button>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <div class="inline-block min-w-full align-middle">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                            <thead class="bg-gray-50 dark:bg-gray-800">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account No.</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer Name</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days in Arrears</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total in Arrears</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
-                                {% for loan in loan_data %}
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Loan_Account_No_ }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Customer_Name }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Outstanding_Balance) }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Days_In_Arrears }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Total_In_Arrears) }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                        <span class="px-2 py-1 rounded text-xs font-medium
-                                            {% if loan.Classification == 'A' %}
-                                                bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                            {% elif loan.Classification == 'B' %}
-                                                bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
-                                            {% elif loan.Classification == 'C' %}
-                                                bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
-                                            {% elif loan.Classification == 'D' %}
-                                                bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
-                                            {% else %}
-                                                bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
-                                            {% endif %}">
-                                            {{ loan.Classification }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                        <button class="text-primary hover:text-primary-dark mr-2" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="text-gray-500 hover:text-gray-700 mr-2" title="Schedule Follow-up">
-                                            <i class="fas fa-calendar-plus"></i>
-                                        </button>
-                                        <button class="text-red-500 hover:text-red-700" title="Mark for Review">
-                                            <i class="fas fa-flag"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    <!-- Filters -->
+    <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label for="classification-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Classification</label>
+            <select id="classification-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                <option value="">All Classifications</option>
+                <option value="NORMAL">NORMAL</option>
+                <option value="WATCH">WATCH</option>
+                <option value="SUBSTANDARD">SUBSTANDARD</option>
+                <option value="DOUBTFUL">DOUBTFUL</option>
+                <option value="LOSS">LOSS</option>
+            </select>
+        </div>
+        <div>
+            <label for="amount-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Range</label>
+            <select id="amount-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                <option value="">All Amounts</option>
+                <option value="0-100000">0 - 100,000</option>
+                <option value="100000-500000">100,000 - 500,000</option>
+                <option value="500000-1000000">500,000 - 1,000,000</option>
+                <option value="1000000+">Above 1,000,000</option>
+            </select>
+        </div>
+        <div>
+            <label for="arrears-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Days in Arrears</label>
+            <select id="arrears-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                <option value="">All</option>
+                <option value="0-30">0 - 30 days</option>
+                <option value="31-90">31 - 90 days</option>
+                <option value="91-180">91 - 180 days</option>
+                <option value="181-360">181 - 360 days</option>
+                <option value="360+">Above 360 days</option>
+            </select>
+        </div>
+        <div>
+            <label for="search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+            <input type="text" id="search" placeholder="Search by name or loan number" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table id="loan-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+            <thead class="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account No.</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer Name</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days in Arrears</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total in Arrears</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600" id="loan-table-body">
+                {% for loan in loan_data %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Loan_Account_No_ }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Customer_Name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Outstanding_Balance) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Days_In_Arrears }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Total_In_Arrears) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if loan.Classification == 'NORMAL' %}
+                                bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                            {% elif loan.Classification == 'WATCH' %}
+                                bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                            {% elif loan.Classification == 'SUBSTANDARD' %}
+                                bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
+                            {% elif loan.Classification == 'DOUBTFUL' %}
+                                bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                            {% else %}
+                                bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                            {% endif %}">
+                            {{ loan.Classification }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-600 px-4 py-3 sm:px-6 mt-4">
+        <div class="flex-1 flex justify-between sm:hidden">
+            <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Previous
+            </button>
+            <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Next
+            </button>
+        </div>
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing <span id="showing-start" class="font-medium">1</span> to <span id="showing-end" class="font-medium">10</span> of
+                    <span id="total-items" class="font-medium">{{ loan_data|length }}</span> results
+                </p>
             </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" id="pagination">
+                    <!-- Pagination buttons will be dynamically inserted here -->
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add JavaScript for table functionality -->
+<script>
+    // Table configuration
+    const itemsPerPage = 10;
+    let currentPage = 1;
+    let filteredData = [];
+
+    // Initialize the table
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all loan data from the table
+        const rows = Array.from(document.querySelectorAll('#loan-table-body tr'));
+        filteredData = rows;
+        
+        // Initialize pagination
+        updatePagination();
+        showPage(1);
+
+        // Add event listeners to filters
+        document.getElementById('classification-filter').addEventListener('change', applyFilters);
+        document.getElementById('amount-filter').addEventListener('change', applyFilters);
+        document.getElementById('arrears-filter').addEventListener('change', applyFilters);
+        document.getElementById('search').addEventListener('input', applyFilters);
+    });
+
+    function applyFilters() {
+        const classification = document.getElementById('classification-filter').value;
+        const amountRange = document.getElementById('amount-filter').value;
+        const arrearsRange = document.getElementById('arrears-filter').value;
+        const searchTerm = document.getElementById('search').value.toLowerCase();
+
+        const rows = Array.from(document.querySelectorAll('#loan-table-body tr'));
+        
+        filteredData = rows.filter(row => {
+            const cells = Array.from(row.getElementsByTagName('td'));
+            const rowClassification = cells[5].textContent.trim();
+            const amount = parseFloat(cells[2].textContent.replace(/,/g, ''));
+            const daysInArrears = parseInt(cells[3].textContent);
+            const searchText = (cells[0].textContent + cells[1].textContent).toLowerCase();
+
+            // Classification filter
+            if (classification && rowClassification !== classification) return false;
+
+            // Amount range filter
+            if (amountRange) {
+                const [min, max] = amountRange.split('-').map(v => v === '+' ? Infinity : parseFloat(v));
+                if (amount < min || (max !== Infinity && amount > max)) return false;
+            }
+
+            // Arrears range filter
+            if (arrearsRange) {
+                const [min, max] = arrearsRange.split('-').map(v => v === '+' ? Infinity : parseInt(v));
+                if (daysInArrears < min || (max !== Infinity && daysInArrears > max)) return false;
+            }
+
+            // Search filter
+            if (searchTerm && !searchText.includes(searchTerm)) return false;
+
+            return true;
+        });
+
+        currentPage = 1;
+        updatePagination();
+        showPage(1);
+    }
+
+    function showPage(page) {
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const rows = Array.from(document.querySelectorAll('#loan-table-body tr'));
+        
+        // Hide all rows
+        rows.forEach(row => row.style.display = 'none');
+        
+        // Show only rows for current page
+        filteredData.slice(start, end).forEach(row => row.style.display = '');
+        
+        // Update showing text
+        document.getElementById('showing-start').textContent = filteredData.length === 0 ? 0 : start + 1;
+        document.getElementById('showing-end').textContent = Math.min(end, filteredData.length);
+        document.getElementById('total-items').textContent = filteredData.length;
+        
+        currentPage = page;
+        updatePaginationButtons();
+    }
+
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        // Previous button
+        const prevButton = createPaginationButton('Previous', currentPage > 1, () => showPage(currentPage - 1));
+        prevButton.classList.add('rounded-l-md');
+        pagination.appendChild(prevButton);
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                const pageButton = createPaginationButton(i.toString(), true, () => showPage(i));
+                if (i === currentPage) {
+                    pageButton.classList.add('bg-indigo-50', 'border-indigo-500', 'text-indigo-600', 'z-10');
+                }
+                pagination.appendChild(pageButton);
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700';
+                ellipsis.textContent = '...';
+                pagination.appendChild(ellipsis);
+            }
+        }
+
+        // Next button
+        const nextButton = createPaginationButton('Next', currentPage < totalPages, () => showPage(currentPage + 1));
+        nextButton.classList.add('rounded-r-md');
+        pagination.appendChild(nextButton);
+
+        // Mobile pagination
+        document.getElementById('prev-page-mobile').disabled = currentPage === 1;
+        document.getElementById('next-page-mobile').disabled = currentPage === totalPages;
+        document.getElementById('prev-page-mobile').onclick = () => showPage(currentPage - 1);
+        document.getElementById('next-page-mobile').onclick = () => showPage(currentPage + 1);
+    }
+
+    function createPaginationButton(text, enabled, onClick) {
+        const button = document.createElement('button');
+        button.className = `relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${enabled ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-500 cursor-not-allowed'}`;
+        button.textContent = text;
+        if (enabled) {
+            button.onclick = onClick;
+        }
+        return button;
+    }
+
+    function updatePaginationButtons() {
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        const buttons = document.querySelectorAll('#pagination button');
+        
+        buttons.forEach(button => {
+            if (button.textContent === currentPage.toString()) {
+                button.classList.add('bg-indigo-50', 'border-indigo-500', 'text-indigo-600', 'z-10');
+            } else {
+                button.classList.remove('bg-indigo-50', 'border-indigo-500', 'text-indigo-600', 'z-10');
+            }
+        });
+    }
+
+    // Export table to CSV
+    function exportTableToCSV(filename) {
+        const rows = Array.from(document.querySelectorAll('#loan-table-body tr'));
+        const headers = Array.from(document.querySelectorAll('#loan-table th')).map(th => th.textContent.trim());
+        
+        let csvContent = headers.join(',') + '\n';
+        
+        filteredData.forEach(row => {
+            const cells = Array.from(row.getElementsByTagName('td'));
+            const rowData = cells.map(cell => {
+                let text = cell.textContent.trim();
+                // Remove commas from numbers
+                if (!isNaN(text.replace(/,/g, ''))) {
+                    text = text.replace(/,/g, '');
+                }
+                // Wrap in quotes if contains comma
+                if (text.includes(',')) {
+                    text = `"${text}"`;
+                }
+                return text;
+            });
+            csvContent += rowData.join(',') + '\n';
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (navigator.msSaveBlob) {
+            navigator.msSaveBlob(blob, filename);
+        } else {
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+</script>   
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_head %}
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+<style>
+    .tippy-box {
+        background-color: #1f2937;
+        color: #f3f4f6;
+        padding: 8px;
+        font-size: 0.875rem;
+        max-width: 300px;
+        line-height: 1.5;
+    }
+    .tippy-box ul {
+        margin-top: 0.5rem;
+        margin-left: 1rem;
+        list-style-type: disc;
+    }
+    .tippy-box li {
+        margin-bottom: 0.25rem;
+    }
+    .tippy-box .tippy-arrow {
+        color: #1f2937;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-let sidebarCollapsed = false;
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let sidebarCollapsed = false;
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-    const sidebarIcon = document.getElementById('sidebarIcon');
-    const toggleButton = document.getElementById('toggleButton');
-    
-    if (sidebarCollapsed) {
-        sidebar.style.width = '16rem'; // w-64 = 16rem
-        sidebar.style.transform = 'translateX(0)';
-        mainContent.style.marginLeft = '16rem';
-        sidebarIcon.style.transform = 'rotate(0deg)';
-        toggleButton.classList.add('hidden');
-    } else {
-        sidebar.style.width = '0';
-        sidebar.style.transform = 'translateX(-100%)';
-        mainContent.style.marginLeft = '0';
-        sidebarIcon.style.transform = 'rotate(180deg)';
-        toggleButton.classList.remove('hidden');
-    }
-    
-    sidebarCollapsed = !sidebarCollapsed;
-    
-    // Trigger resize event to update charts
-    window.dispatchEvent(new Event('resize'));
-}
-
-function toggleCollapse(id) {
-    const content = document.getElementById(id);
-    const icon = document.getElementById(id + 'Icon');
-    
-    if (content.classList.contains('hidden')) {
-        content.classList.remove('hidden');
-        icon.style.transform = 'rotate(180deg)';
-    } else {
-        content.classList.add('hidden');
-        icon.style.transform = 'rotate(0deg)';
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Last update timestamp management
-    function getLastUpdateTime() {
-        const lastUpdate = localStorage.getItem('postDisbursementLastUpdate');
-        if (!lastUpdate) {
-            const now = new Date();
-            localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
-            return now;
-        }
-        return new Date(lastUpdate);
-    }
-
-    function updateTimestamp() {
-        const lastUpdate = getLastUpdateTime();
-        const now = new Date();
-        const timeSinceUpdate = now - lastUpdate;
-        
-        // If 15 minutes have passed since last update
-        if (timeSinceUpdate >= 15 * 60 * 1000) {
-            localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
-            // Here you would typically refresh your data
-            location.reload(); // Refresh the page to get new data
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarIcon = document.getElementById('sidebarIcon');
+            const toggleButton = document.getElementById('toggleButton');
+            
+            if (sidebarCollapsed) {
+                sidebar.style.width = '16rem';
+                sidebar.style.transform = 'translateX(0)';
+                mainContent.style.marginLeft = '16rem';
+                sidebarIcon.style.transform = 'rotate(0deg)';
+                toggleButton.classList.add('hidden');
+            } else {
+                sidebar.style.width = '0';
+                sidebar.style.transform = 'translateX(-100%)';
+                mainContent.style.marginLeft = '0';
+                sidebarIcon.style.transform = 'rotate(180deg)';
+                toggleButton.classList.remove('hidden');
+            }
+            
+            sidebarCollapsed = !sidebarCollapsed;
+            window.dispatchEvent(new Event('resize'));
         }
 
-        const options = { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit',
-            second: '2-digit'
-        };
-        document.getElementById('lastUpdated').textContent = lastUpdate.toLocaleString('en-US', options);
-    }
-    
-    // Update timestamp display immediately
-    updateTimestamp();
-    
-    // Check every minute if 15 minutes have passed since last update
-    setInterval(updateTimestamp, 60 * 1000);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Bootstrap tooltips
+            const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            popoverTriggerList.forEach(function(popoverTriggerEl) {
+                new bootstrap.Popover(popoverTriggerEl, {
+                    container: 'body',
+                    template: '<div class="popover" role="tooltip"><div class="popover-arrow"></div><div class="popover-body"></div></div>'
+                });
+            });
 
-    // Classification Chart
-    const ctx = document.getElementById('classificationChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: {{ classification_data.labels | tojson }},
-            datasets: [{
-                data: {{ classification_data.counts | tojson }},
-                backgroundColor: [
-                    'rgba(34, 197, 94, 0.8)',  // Green for A
-                    'rgba(234, 179, 8, 0.8)',  // Yellow for B
-                    'rgba(249, 115, 22, 0.8)', // Orange for C
-                    'rgba(239, 68, 68, 0.8)',  // Red for D
-                    'rgba(147, 51, 234, 0.8)'  // Purple for E
-                ],
-                borderColor: [
-                    'rgb(34, 197, 94)',
-                    'rgb(234, 179, 8)',
-                    'rgb(249, 115, 22)',
-                    'rgb(239, 68, 68)',
-                    'rgb(147, 51, 234)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'right',
-                    labels: {
-                        color: document.documentElement.classList.contains('dark') ? 'rgb(209, 213, 219)' : 'rgb(55, 65, 81)',
-                        padding: 15,
-                        font: {
-                            size: 12
-                        }
-                    }
+            // Classification Chart
+            const ctx = document.getElementById('classificationChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: {{ classification_data.labels | tojson }},
+                    datasets: [{
+                        data: {{ classification_data.counts | tojson }},
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',  // Green for A
+                            'rgba(234, 179, 8, 0.8)',  // Yellow for B
+                            'rgba(249, 115, 22, 0.8)', // Orange for C
+                            'rgba(239, 68, 68, 0.8)',  // Red for D
+                            'rgba(147, 51, 234, 0.8)'  // Purple for E
+                        ],
+                        borderColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(234, 179, 8)',
+                            'rgb(249, 115, 22)',
+                            'rgb(239, 68, 68)',
+                            'rgb(147, 51, 234)'
+                        ],
+                        borderWidth: 1
+                    }]
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right',
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? 'rgb(209, 213, 219)' : 'rgb(55, 65, 81)',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
                         }
                     }
                 }
+            });
+
+            // Last update timestamp management
+            function getLastUpdateTime() {
+                const lastUpdate = localStorage.getItem('postDisbursementLastUpdate');
+                if (!lastUpdate) {
+                    const now = new Date();
+                    localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
+                    return now;
+                }
+                return new Date(lastUpdate);
             }
-        }
-    });
-});
-</script>
+
+            function updateTimestamp() {
+                const lastUpdate = getLastUpdateTime();
+                const now = new Date();
+                const timeSinceUpdate = now - lastUpdate;
+                
+                if (timeSinceUpdate >= 15 * 60 * 1000) {
+                    localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
+                    location.reload();
+                }
+
+                const options = { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                };
+                document.getElementById('lastUpdated').textContent = lastUpdate.toLocaleString('en-US', options);
+            }
+            
+            updateTimestamp();
+            setInterval(updateTimestamp, 60 * 1000);
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize popovers with custom options
+            const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            popoverTriggerList.forEach(function(popoverTriggerEl) {
+                new bootstrap.Popover(popoverTriggerEl, {
+                    container: 'body',
+                    trigger: 'hover',
+                    placement: 'top',
+                    html: true,
+                    template: '<div class="popover" role="tooltip"><div class="popover-arrow"></div><div class="popover-body"></div></div>'
+                });
+            });
+            
+            // Rest of your existing JavaScript...
+        });
+    </script>
 {% endblock %}

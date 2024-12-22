@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import time
+import random
 
 app = Flask(__name__)
 
@@ -67,15 +68,16 @@ MOCK_DATA = {
                     {'name': 'Loan_Account_No_', 'type': 'Code[20]', 'description': 'Loan account number'},
                     {'name': 'Customer_Name', 'type': 'Text[100]', 'description': 'Customer name'},
                     {'name': 'Loan_Amount', 'type': 'Decimal', 'description': 'Original loan amount'},
-                    {'name': 'Outstanding_Balance', 'type': 'Decimal', 'description': 'Current outstanding balance'},
-                    {'name': 'Days_In_Arrears', 'type': 'Integer', 'description': 'Number of days in arrears'},
-                    {'name': 'Principal_In_Arrears', 'type': 'Decimal', 'description': 'Principal amount in arrears'},
-                    {'name': 'Interest_In_Arrears', 'type': 'Decimal', 'description': 'Interest amount in arrears'},
-                    {'name': 'Total_In_Arrears', 'type': 'Decimal', 'description': 'Total amount in arrears'},
-                    {'name': 'Classification', 'type': 'Code[1]', 'description': 'Risk classification (A/B/C/D/E)'},
-                    {'name': 'Classification_Date', 'type': 'Date', 'description': 'Date of classification'},
-                    {'name': 'Provision_Rate', 'type': 'Decimal', 'description': 'Provision rate percentage'},
-                    {'name': 'Provision_Amount', 'type': 'Decimal', 'description': 'Calculated provision amount'}
+                    {'name': 'Days_In_Arrears', 'type': 'Integer', 'description': 'Number of days payment is overdue'},
+                    {'name': 'Classification', 'type': 'Option', 'description': 'Loan classification based on days in arrears',
+                     'options': [
+                        {'code': 'NORMAL', 'description': 'Performing Loans - Payments up to date or overdue by less than 30 days'},
+                        {'code': 'WATCH', 'description': 'Special Mention - Payments overdue by 31 to 90 days'},
+                        {'code': 'SUBSTANDARD', 'description': 'Payments overdue by 91 to 180 days'},
+                        {'code': 'DOUBTFUL', 'description': 'Payments overdue by 181 to 360 days'},
+                        {'code': 'LOSS', 'description': 'Non-Performing - Payments overdue by more than 360 days'}
+                    ]},
+                    {'name': 'Provision_Rate', 'type': 'Decimal', 'description': 'Required provision percentage based on classification'}
                 ],
                 'sample_data': [
                     {
@@ -83,135 +85,45 @@ MOCK_DATA = {
                         'Loan_Account_No_': 'LN00000001',
                         'Customer_Name': 'John Kamau',
                         'Loan_Amount': 500000.00,
-                        'Outstanding_Balance': 450000.00,
-                        'Days_In_Arrears': 10,
-                        'Principal_In_Arrears': 10000.00,
-                        'Interest_In_Arrears': 6041.67,
-                        'Total_In_Arrears': 16041.67,
-                        'Classification': 'A',
-                        'Classification_Date': '2023-12-10',
-                        'Provision_Rate': 1.00,
-                        'Provision_Amount': 4500.00
+                        'Days_In_Arrears': 0,
+                        'Classification': 'NORMAL',
+                        'Provision_Rate': 1
                     },
                     {
                         'Entry_No_': 2,
                         'Loan_Account_No_': 'LN00000002',
-                        'Customer_Name': 'Mary Wanjiku',
+                        'Customer_Name': 'Jane Wanjiku',
                         'Loan_Amount': 750000.00,
-                        'Outstanding_Balance': 675000.00,
-                        'Days_In_Arrears': 15,
-                        'Principal_In_Arrears': 15000.00,
-                        'Interest_In_Arrears': 10000.00,
-                        'Total_In_Arrears': 25000.00,
-                        'Classification': 'A',
-                        'Classification_Date': '2023-12-05',
-                        'Provision_Rate': 1.00,
-                        'Provision_Amount': 6750.00
+                        'Days_In_Arrears': 45,
+                        'Classification': 'WATCH',
+                        'Provision_Rate': 3
                     },
                     {
                         'Entry_No_': 3,
                         'Loan_Account_No_': 'LN00000003',
-                        'Customer_Name': 'Peter Ochieng',
+                        'Customer_Name': 'Peter Omondi',
                         'Loan_Amount': 1000000.00,
-                        'Outstanding_Balance': 900000.00,
-                        'Days_In_Arrears': 40,
-                        'Principal_In_Arrears': 40000.00,
-                        'Interest_In_Arrears': 25833.33,
-                        'Total_In_Arrears': 65833.33,
-                        'Classification': 'B',
-                        'Classification_Date': '2023-11-10',
-                        'Provision_Rate': 3.00,
-                        'Provision_Amount': 27000.00
+                        'Days_In_Arrears': 120,
+                        'Classification': 'SUBSTANDARD',
+                        'Provision_Rate': 20
                     },
                     {
                         'Entry_No_': 4,
                         'Loan_Account_No_': 'LN00000004',
-                        'Customer_Name': 'Sarah Muthoni',
-                        'Loan_Amount': 450000.00,
-                        'Outstanding_Balance': 405000.00,
-                        'Days_In_Arrears': 45,
-                        'Principal_In_Arrears': 18000.00,
-                        'Interest_In_Arrears': 10500.00,
-                        'Total_In_Arrears': 28500.00,
-                        'Classification': 'B',
-                        'Classification_Date': '2023-11-05',
-                        'Provision_Rate': 3.00,
-                        'Provision_Amount': 12150.00
+                        'Customer_Name': 'Mary Muthoni',
+                        'Loan_Amount': 300000.00,
+                        'Days_In_Arrears': 250,
+                        'Classification': 'DOUBTFUL',
+                        'Provision_Rate': 50
                     },
                     {
                         'Entry_No_': 5,
                         'Loan_Account_No_': 'LN00000005',
                         'Customer_Name': 'James Kiprop',
-                        'Loan_Amount': 800000.00,
-                        'Outstanding_Balance': 720000.00,
-                        'Days_In_Arrears': 70,
-                        'Principal_In_Arrears': 48000.00,
-                        'Interest_In_Arrears': 33000.00,
-                        'Total_In_Arrears': 81000.00,
-                        'Classification': 'C',
-                        'Classification_Date': '2023-10-10',
-                        'Provision_Rate': 20.00,
-                        'Provision_Amount': 144000.00
-                    },
-                    {
-                        'Entry_No_': 6,
-                        'Loan_Account_No_': 'LN00000006',
-                        'Customer_Name': 'Grace Akinyi',
-                        'Loan_Amount': 1200000.00,
-                        'Outstanding_Balance': 1080000.00,
-                        'Days_In_Arrears': 75,
-                        'Principal_In_Arrears': 72000.00,
-                        'Interest_In_Arrears': 46500.00,
-                        'Total_In_Arrears': 118500.00,
-                        'Classification': 'C',
-                        'Classification_Date': '2023-10-05',
-                        'Provision_Rate': 20.00,
-                        'Provision_Amount': 216000.00
-                    },
-                    {
-                        'Entry_No_': 7,
-                        'Loan_Account_No_': 'LN00000007',
-                        'Customer_Name': 'David Njoroge',
-                        'Loan_Amount': 2000000.00,
-                        'Outstanding_Balance': 1800000.00,
-                        'Days_In_Arrears': 100,
-                        'Principal_In_Arrears': 160000.00,
-                        'Interest_In_Arrears': 113333.33,
-                        'Total_In_Arrears': 273333.33,
-                        'Classification': 'D',
-                        'Classification_Date': '2023-09-10',
-                        'Provision_Rate': 50.00,
-                        'Provision_Amount': 900000.00
-                    },
-                    {
-                        'Entry_No_': 8,
-                        'Loan_Account_No_': 'LN00000008',
-                        'Customer_Name': 'Alice Wairimu',
                         'Loan_Amount': 1500000.00,
-                        'Outstanding_Balance': 1350000.00,
-                        'Days_In_Arrears': 105,
-                        'Principal_In_Arrears': 120000.00,
-                        'Interest_In_Arrears': 80000.00,
-                        'Total_In_Arrears': 200000.00,
-                        'Classification': 'D',
-                        'Classification_Date': '2023-09-05',
-                        'Provision_Rate': 50.00,
-                        'Provision_Amount': 675000.00
-                    },
-                    {
-                        'Entry_No_': 9,
-                        'Loan_Account_No_': 'LN00000009',
-                        'Customer_Name': 'Michael Otieno',
-                        'Loan_Amount': 1800000.00,
-                        'Outstanding_Balance': 1620000.00,
-                        'Days_In_Arrears': 190,
-                        'Principal_In_Arrears': 180000.00,
-                        'Interest_In_Arrears': 131250.00,
-                        'Total_In_Arrears': 311250.00,
-                        'Classification': 'E',
-                        'Classification_Date': '2023-06-10',
-                        'Provision_Rate': 100.00,
-                        'Provision_Amount': 1620000.00
+                        'Days_In_Arrears': 400,
+                        'Classification': 'LOSS',
+                        'Provision_Rate': 100
                     }
                 ]
             }
@@ -327,28 +239,137 @@ def brnet_health():
     return jsonify({'status': 'healthy', 'message': 'BR.NET core banking system is running'})
 
 @app.route('/api/beta/companies/loan-grading', methods=['GET'])
-def navision_loan_grading():
-    # Check basic auth
+def loan_grading():
+    # Simulate authentication check
     auth = request.authorization
     if not auth or auth.username != 'admin' or auth.password != 'admin123':
-        return jsonify({'error': 'Invalid credentials'}), 401
+        return jsonify({'error': 'Unauthorized'}), 401
     
-    # Check database name
-    database = request.headers.get('Database')
-    if not database or database != 'navision_db':
-        return jsonify({'error': 'Invalid or missing database name'}), 400
+    # Check database header
+    if request.headers.get('Database') != 'navision_db':
+        return jsonify({'error': 'Invalid database'}), 400
+
+    # Generate mock loan data
+    kenyan_names = [
+        "Wanjiku", "Kamau", "Ochieng", "Muthoni", "Kiprop", "Akinyi", "Otieno", "Njeri", "Kimani", "Adhiambo",
+        "Omondi", "Njoroge", "Wambui", "Kariuki", "Auma", "Maina", "Nyambura", "Kibet", "Onyango", "Gathoni",
+        "Mutua", "Awuor", "Gitau", "Wangari", "Korir", "Atieno", "Ngugi", "Waithera", "Ruto", "Nekesa",
+        "Karanja", "Akoth", "Ndungu", "Wanjiru", "Sang", "Achieng", "Mwangi", "Moraa", "Chebet", "Odhiambo",
+        "Njuguna", "Nyokabi", "Rotich", "Anyango", "Gicheru", "Kerubo", "Kiptoo", "Aoko", "Macharia", "Kemunto"
+    ]
+    first_names = [
+        "John", "Jane", "Peter", "Mary", "James", "Grace", "David", "Faith", "Daniel", "Hope",
+        "Samuel", "Joy", "Joseph", "Peace", "Michael", "Mercy", "George", "Charity", "Paul", "Blessing",
+        "Stephen", "Elizabeth", "Charles", "Catherine", "Francis", "Christine", "Thomas", "Caroline", "Anthony", "Esther",
+        "Robert", "Sarah", "Richard", "Ruth", "William", "Rachel", "Edward", "Rebecca", "Henry", "Rose",
+        "Philip", "Victoria", "Dennis", "Lucy", "Patrick", "Anne", "Bernard", "Alice", "Vincent", "Agnes"
+    ]
+
+    # Generate 120 loan records
+    loan_data = []
+    for i in range(120):
+        # Generate a random loan number with leading zeros
+        loan_no = f"LN{str(i+1).zfill(8)}"
+        
+        # Randomly select first and last names
+        first_name = random.choice(first_names)
+        last_name = random.choice(kenyan_names)
+        
+        # Generate random loan amount between 50,000 and 5,000,000
+        outstanding_balance = random.uniform(50000, 5000000)
+        
+        # Generate days in arrears with weighted distribution
+        days_in_arrears = random.choices(
+            [
+                random.randint(0, 30),    # NORMAL
+                random.randint(31, 90),   # WATCH
+                random.randint(91, 180),  # SUBSTANDARD
+                random.randint(181, 360), # DOUBTFUL
+                random.randint(361, 720)  # LOSS
+            ],
+            weights=[50, 20, 15, 10, 5],  # Higher weight for performing loans
+            k=1
+        )[0]
+        
+        # Calculate total in arrears (random percentage of outstanding balance)
+        if days_in_arrears > 0:
+            arrears_percentage = min((days_in_arrears / 30) * 0.05, 0.3)  # Cap at 30% of outstanding balance
+            total_in_arrears = outstanding_balance * arrears_percentage
+        else:
+            total_in_arrears = 0
+            
+        # Determine classification based on days in arrears
+        if days_in_arrears <= 30:
+            classification = 'NORMAL'
+        elif days_in_arrears <= 90:
+            classification = 'WATCH'
+        elif days_in_arrears <= 180:
+            classification = 'SUBSTANDARD'
+        elif days_in_arrears <= 360:
+            classification = 'DOUBTFUL'
+        else:
+            classification = 'LOSS'
+            
+        loan_record = {
+            'Loan_Account_No_': loan_no,
+            'Customer_Name': f"{first_name} {last_name}",
+            'Outstanding_Balance': round(outstanding_balance, 2),
+            'Days_In_Arrears': days_in_arrears,
+            'Total_In_Arrears': round(total_in_arrears, 2),
+            'Classification': classification
+        }
+        loan_data.append(loan_record)
     
-    # Get classification filter if any
-    classification = request.args.get('classification')
-    
-    # Filter data based on classification if provided
-    loan_data = MOCK_DATA['navision']['tables'][5]['sample_data']
-    if classification:
-        loan_data = [loan for loan in loan_data if loan['Classification'] == classification.upper()]
-    
-    # Simulate some processing time
-    time.sleep(0.5)
+    # Sort by loan number
+    loan_data.sort(key=lambda x: x['Loan_Account_No_'])
+        
     return jsonify({'value': loan_data})
+
+@app.route('/user/post-disbursement', methods=['GET'])
+def post_disbursement():
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'loan_classifications': [
+                {
+                    'code': 'NORMAL',
+                    'name': 'Normal (Performing Loans)',
+                    'description': 'Payments are up to date or overdue by less than 30 days',
+                    'days_range': '0-30',
+                    'provision_rate': 1
+                },
+                {
+                    'code': 'WATCH',
+                    'name': 'Watch (Special Mention)',
+                    'description': 'Payments are overdue by 31 to 90 days',
+                    'days_range': '31-90',
+                    'provision_rate': 3
+                },
+                {
+                    'code': 'SUBSTANDARD',
+                    'name': 'Substandard',
+                    'description': 'Payments are overdue by 91 to 180 days',
+                    'days_range': '91-180',
+                    'provision_rate': 20
+                },
+                {
+                    'code': 'DOUBTFUL',
+                    'name': 'Doubtful',
+                    'description': 'Payments are overdue by 181 to 360 days',
+                    'days_range': '181-360',
+                    'provision_rate': 50
+                },
+                {
+                    'code': 'LOSS',
+                    'name': 'Loss (Non-Performing)',
+                    'description': 'Payments are overdue by more than 360 days',
+                    'days_range': '>360',
+                    'provision_rate': 100
+                }
+            ],
+            'sample_loans': MOCK_DATA['navision']['tables'][3]['sample_data']
+        }
+    })
 
 if __name__ == '__main__':
     app.run(port=5003)

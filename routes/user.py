@@ -1,3 +1,4 @@
+import requests
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -11,7 +12,6 @@ from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
 from datetime import datetime
 import traceback
-import requests
 import os
 import json
 from werkzeug.utils import secure_filename
@@ -416,7 +416,7 @@ def view_prospect(submission_id):
 @user_bp.route('/prospect/<int:submission_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_prospect(submission_id):
-    """Edit prospect details."""
+    """Edit a prospect details."""
     try:
         submission = FormSubmission.query.get_or_404(submission_id)
         products = Product.query.filter_by(status='Active').all()
@@ -728,11 +728,11 @@ def post_disbursement():
     # Calculate key metrics
     total_loans = 0
     overdue_loans = {
-        'A': {'count': 0, 'amount': 0},  # 1-30 days
-        'B': {'count': 0, 'amount': 0},  # 31-60 days
-        'C': {'count': 0, 'amount': 0},  # 61-90 days
-        'D': {'count': 0, 'amount': 0},  # 91-180 days
-        'E': {'count': 0, 'amount': 0}   # >180 days
+        'NORMAL': {'count': 0, 'amount': 0, 'description': '0-30 days'},
+        'WATCH': {'count': 0, 'amount': 0, 'description': '31-90 days'},
+        'SUBSTANDARD': {'count': 0, 'amount': 0, 'description': '91-180 days'},
+        'DOUBTFUL': {'count': 0, 'amount': 0, 'description': '181-360 days'},
+        'LOSS': {'count': 0, 'amount': 0, 'description': '>360 days'}
     }
     total_outstanding = 0
     total_in_arrears = 0
@@ -752,8 +752,9 @@ def post_disbursement():
                 total_loans += 1
                 total_outstanding += loan['Outstanding_Balance']
                 total_in_arrears += loan['Total_In_Arrears']
-                overdue_loans[loan['Classification']]['count'] += 1
-                overdue_loans[loan['Classification']]['amount'] += loan['Outstanding_Balance']
+                if loan['Classification'] in overdue_loans:
+                    overdue_loans[loan['Classification']]['count'] += 1
+                    overdue_loans[loan['Classification']]['amount'] += loan['Outstanding_Balance']
     except Exception as e:
         print(f"Error fetching loan data: {str(e)}")
         flash('Error fetching loan data from core banking system', 'error')
@@ -761,22 +762,50 @@ def post_disbursement():
     # Calculate recovery rate (recovered amount / total in arrears)
     recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else 0
     
+    # Calculate NPL ratio (non-performing loans / total outstanding)
+    npl_amount = overdue_loans['SUBSTANDARD']['amount'] + overdue_loans['DOUBTFUL']['amount'] + overdue_loans['LOSS']['amount']
+    npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else 0
+    
+    # Calculate NPL Coverage Ratio (provisions / NPL amount)
+    provision_rate = {
+        'NORMAL': 0.01,  # 1% provision
+        'WATCH': 0.05,   # 5% provision
+        'SUBSTANDARD': 0.25,  # 25% provision
+        'DOUBTFUL': 0.50,     # 50% provision
+        'LOSS': 1.00          # 100% provision
+    }
+    total_provisions = sum(overdue_loans[grade]['amount'] * rate for grade, rate in provision_rate.items())
+    npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else 0
+    
+    # Calculate Cost of Risk (total provisions / total outstanding)
+    cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
+    
+    # Calculate PAR30 (Portfolio at Risk > 30 days)
+    par30_amount = sum(overdue_loans[grade]['amount'] for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS'])
+    par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else 0
+    
     # Prepare data for charts
     classification_data = {
-        'labels': ['1-30 days', '31-60 days', '61-90 days', '91-180 days', '>180 days'],
+        'labels': [
+            f"NORMAL ({overdue_loans['NORMAL']['description']})",
+            f"WATCH ({overdue_loans['WATCH']['description']})",
+            f"SUBSTANDARD ({overdue_loans['SUBSTANDARD']['description']})",
+            f"DOUBTFUL ({overdue_loans['DOUBTFUL']['description']})",
+            f"LOSS ({overdue_loans['LOSS']['description']})"
+        ],
         'counts': [
-            overdue_loans['A']['count'],
-            overdue_loans['B']['count'],
-            overdue_loans['C']['count'],
-            overdue_loans['D']['count'],
-            overdue_loans['E']['count']
+            overdue_loans['NORMAL']['count'],
+            overdue_loans['WATCH']['count'],
+            overdue_loans['SUBSTANDARD']['count'],
+            overdue_loans['DOUBTFUL']['count'],
+            overdue_loans['LOSS']['count']
         ],
         'amounts': [
-            overdue_loans['A']['amount'],
-            overdue_loans['B']['amount'],
-            overdue_loans['C']['amount'],
-            overdue_loans['D']['amount'],
-            overdue_loans['E']['amount']
+            overdue_loans['NORMAL']['amount'],
+            overdue_loans['WATCH']['amount'],
+            overdue_loans['SUBSTANDARD']['amount'],
+            overdue_loans['DOUBTFUL']['amount'],
+            overdue_loans['LOSS']['amount']
         ]
     }
     
@@ -787,6 +816,11 @@ def post_disbursement():
         total_outstanding=total_outstanding,
         total_in_arrears=total_in_arrears,
         recovery_rate=round(recovery_rate, 2),
+        npl_ratio=round(npl_ratio, 2),
+        npl_coverage_ratio=round(npl_coverage_ratio, 2),
+        cost_of_risk=round(cost_of_risk, 2),
+        par30_ratio=round(par30_ratio, 2),
+        total_provisions=total_provisions,
         classification_data=classification_data,
         loan_data=loan_data,
         last_sync=last_sync

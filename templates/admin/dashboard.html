@@ -133,6 +133,44 @@
                 </div>
             </div>
         </div>
+        <!-- Post Disbursement Management Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Post Disbursement</h3>
+                    <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                        <i class="fas fa-tasks text-white"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Manage post-disbursement settings and alerts</p>
+        
+                <!-- Communication Templates -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Communication Templates</h4>
+                    <div class="space-y-2">
+                        <a href="{{ url_for('sms_templates.manage_templates') }}" class="block text-sm text-primary hover:text-secondary">
+                            <i class="fas fa-sms mr-2"></i>SMS Templates
+                        </a>
+                        <a href="#" class="block text-sm text-primary hover:text-secondary">
+                            <i class="fas fa-envelope mr-2"></i>Email Templates
+                        </a>
+                    </div>
+                </div>
+        
+                <!-- Alert Thresholds -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Alert Thresholds</h4>
+                    <div class="space-y-2">
+                        <a href="#" class="block text-sm text-primary hover:text-secondary">
+                            <i class="fas fa-chart-line mr-2"></i>Configure Thresholds
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                NPL Ratio (5%), Coverage (100%), PAR (10%), Cost of Risk (2%), Recovery Rate (90%)
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
                 <!-- System Settings Card -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
                     <div class="p-6">

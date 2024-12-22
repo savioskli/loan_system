@@ -54,95 +54,259 @@
 {% endblock %}
 
 {% block content %}
-<div class="flex relative">
-    <!-- Toggle Button (Pill) -->
-    <button id="toggleButton" onclick="toggleSidebar()" class="fixed left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-lg rounded-r-full px-3 py-2 transform translate-x-0 transition-transform duration-300 hover:bg-gray-50 dark:hover:bg-gray-700 z-50 hidden">
-        <i class="fas fa-bars"></i>
-    </button>
+<div class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <!-- Sidebar -->
+    <aside class="fixed top-[64px] left-0 z-40 w-64 h-[calc(100vh-64px)] transition-transform -translate-x-full sm:translate-x-0">
+        <div class="h-full px-4 py-6 overflow-y-auto bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white" style="font-family: 'Inter', sans-serif;">Loan Follow-up</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Manage loan recovery process</p>
+            </div>
+            
+            <ul class="space-y-1.5">
+                <!-- Dashboard -->
+                <li>
+                    <a href="#" class="flex items-center p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <i class="fas fa-chart-line w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-3 font-medium">Dashboard</span>
+                    </a>
+                </li>
 
-    <!-- Sidebar Menu -->
-    <div id="sidebar" class="w-64 bg-white dark:bg-gray-800 shadow-sm h-screen fixed left-0 overflow-y-auto transition-all duration-300">
-        <div class="p-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Post Disbursement</h2>
-                <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                    <i id="sidebarIcon" class="fas fa-chevron-left transition-transform duration-300"></i>
-                </button>
-            </div>
-            <!-- Customer Engagement Module -->
-            <div class="mb-4">
-                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('customerEngagement')">
-                    <span>Customer Engagement</span>
-                    <i class="fas fa-chevron-down transition-transform" id="customerEngagementIcon"></i>
-                </button>
-                <div class="hidden ml-4 mt-2 space-y-2" id="customerEngagement">
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-bell mr-2"></i>Automated Reminders
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-history mr-2"></i>Communication History
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-file-alt mr-2"></i>Notice Templates
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Follow-Up Management Module -->
-            <div class="mb-4">
-                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('followUp')">
-                    <span>Follow-Up Management</span>
-                    <i class="fas fa-chevron-down transition-transform" id="followUpIcon"></i>
-                </button>
-                <div class="hidden ml-4 mt-2 space-y-2" id="followUp">
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-user-tie mr-2"></i>Assign Officers
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-calendar-alt mr-2"></i>Schedule Follow-ups
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-tasks mr-2"></i>Activity Logs
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Loan Restructuring Module -->
-            <div class="mb-4">
-                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('loanRestructuring')">
-                    <span>Loan Restructuring</span>
-                    <i class="fas fa-chevron-down transition-transform" id="loanRestructuringIcon"></i>
-                </button>
-                <div class="hidden ml-4 mt-2 space-y-2" id="loanRestructuring">
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-sync mr-2"></i>Restructure Workflow
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-check-circle mr-2"></i>Approval Process
-                    </a>
-                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
-                        <i class="fas fa-file-contract mr-2"></i>Loan Terms
-                    </a>
-                </div>
-            </div>
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Communication Center -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="communication-menu">
+                        <i class="fas fa-comments w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Communication</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="communication-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-history w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Correspondence History</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-phone w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Call Logs</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-calendar-check w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Meeting Records</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-chart-line w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Communication Analytics</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Collection Strategies -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="collection-menu">
+                        <i class="fas fa-tasks w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Collection</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="collection-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-user-tie w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Assign Collectors</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-calendar-alt w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Collection Schedule</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-walking w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Field Visits</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-clipboard-list w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Recovery Plans</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Guarantor Management -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="guarantor-menu">
+                        <i class="fas fa-user-shield w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Guarantors</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="guarantor-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-users w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Guarantor List</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-bell w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Notify Guarantors</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-file-invoice w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Guarantor Claims</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Legal Actions -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="legal-menu">
+                        <i class="fas fa-gavel w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Legal</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="legal-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-envelope-open-text w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Demand Letters</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-credit-card w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">CRB Reports</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-balance-scale w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Legal Cases</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-gavel w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Auction Process</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Restructuring -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="restructure-menu">
+                        <i class="fas fa-sync w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Restructuring</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="restructure-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-calendar-plus w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Loan Rescheduling</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-sync-alt w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Refinancing</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-handshake w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Settlement Plans</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="my-4">
+                    <hr class="border-gray-200 dark:border-gray-700">
+                </li>
+
+                <!-- Reports -->
+                <li class="menu-item">
+                    <button type="button" class="flex items-center w-full p-3 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="reports-menu">
+                        <i class="fas fa-file-alt w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="flex-1 ml-3 font-medium">Reports</span>
+                        <i class="fas fa-chevron-down w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <ul id="reports-menu" class="hidden py-2 space-y-1">
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-chart-bar w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Collection Reports</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-comments w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Communication Logs</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-balance-scale w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Legal Status</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center p-3 pl-11 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                                <i class="fas fa-chart-line w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                                <span class="ml-3">Recovery Analytics</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
         </div>
-    </div>
+    </aside>
 
     <!-- Main Content -->
-    <div id="mainContent" class="ml-64 flex-1 p-6 transition-all duration-300">
-        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
-            <!-- Header Section -->
+    <div class="p-4 sm:ml-64">
+        <div class="mt-14"> <!-- Add top margin to account for the fixed header -->
+            <!-- Content Header -->
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Post Disbursement Dashboard</h1>
                 <div class="flex flex-col items-end">
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Last Updated: <span id="lastUpdated"></span>
                         <span class="ml-2 text-xs">(Updates every 15 minutes)</span>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark">
-                            <i class="fas fa-download mr-2"></i>Export
-                        </button>
                     </div>
                 </div>
             </div>
@@ -326,14 +490,6 @@
 <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6">
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Loan Details</h3>
-        <div class="flex space-x-2">
-            <button onclick="exportTableToCSV('loan_details.csv')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                Export
-            </button>
-        </div>
     </div>
 
     <!-- Filters -->
@@ -663,43 +819,72 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let sidebarCollapsed = false;
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const sidebarIcon = document.getElementById('sidebarIcon');
-            const toggleButton = document.getElementById('toggleButton');
-            
-            if (sidebarCollapsed) {
-                sidebar.style.width = '16rem';
-                sidebar.style.transform = 'translateX(0)';
-                mainContent.style.marginLeft = '16rem';
-                sidebarIcon.style.transform = 'rotate(0deg)';
-                toggleButton.classList.add('hidden');
-            } else {
-                sidebar.style.width = '0';
-                sidebar.style.transform = 'translateX(-100%)';
-                mainContent.style.marginLeft = '0';
-                sidebarIcon.style.transform = 'rotate(180deg)';
-                toggleButton.classList.remove('hidden');
-            }
-            
-            sidebarCollapsed = !sidebarCollapsed;
-            window.dispatchEvent(new Event('resize'));
-        }
-
+        // Wait for the DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Bootstrap tooltips
-            const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-            popoverTriggerList.forEach(function(popoverTriggerEl) {
-                new bootstrap.Popover(popoverTriggerEl, {
-                    container: 'body',
-                    template: '<div class="popover" role="tooltip"><div class="popover-arrow"></div><div class="popover-body"></div></div>'
+            // Initialize all dropdowns
+            initializeDropdowns();
+
+            // Initialize metrics update functionality
+            initializeMetricsUpdate();
+
+            // Initialize Classification Chart
+            initializeClassificationChart();
+        });
+
+        function initializeDropdowns() {
+            // Get all menu buttons with data-collapse-toggle attribute
+            const menuButtons = document.querySelectorAll('[data-collapse-toggle]');
+            
+            menuButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault(); // Prevent default button behavior
+                    
+                    // Get the target menu ID from the data attribute
+                    const targetId = this.getAttribute('data-collapse-toggle');
+                    const targetMenu = document.getElementById(targetId);
+                    
+                    // Toggle the menu visibility
+                    if (targetMenu) {
+                        targetMenu.classList.toggle('hidden');
+                        
+                        // Rotate the chevron icon
+                        const icon = this.querySelector('.fa-chevron-down');
+                        if (icon) {
+                            icon.style.transform = targetMenu.classList.contains('hidden') 
+                                ? 'rotate(0deg)' 
+                                : 'rotate(180deg)';
+                        }
+                        
+                        // Close other open menus
+                        const otherMenus = document.querySelectorAll('[id$="-menu"]');
+                        otherMenus.forEach(menu => {
+                            if (menu.id !== targetId && !menu.classList.contains('hidden')) {
+                                menu.classList.add('hidden');
+                                // Reset other chevron icons
+                                const otherButton = document.querySelector(`[data-collapse-toggle="${menu.id}"]`);
+                                const otherIcon = otherButton?.querySelector('.fa-chevron-down');
+                                if (otherIcon) {
+                                    otherIcon.style.transform = 'rotate(0deg)';
+                                }
+                            }
+                        });
+                    }
                 });
             });
 
-            // Classification Chart
+            // Add active state to menu items
+            const menuItems = document.querySelectorAll('.menu-item a');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // Remove active class from all items
+                    menuItems.forEach(i => i.classList.remove('bg-gray-100', 'dark:bg-gray-700'));
+                    // Add active class to clicked item
+                    this.classList.add('bg-gray-100', 'dark:bg-gray-700');
+                });
+            });
+        }
+
+        function initializeClassificationChart() {
             const ctx = document.getElementById('classificationChart').getContext('2d');
             new Chart(ctx, {
                 type: 'pie',
@@ -708,11 +893,11 @@
                     datasets: [{
                         data: {{ classification_data.counts | tojson }},
                         backgroundColor: [
-                            'rgba(34, 197, 94, 0.8)',  // Green for A
-                            'rgba(234, 179, 8, 0.8)',  // Yellow for B
-                            'rgba(249, 115, 22, 0.8)', // Orange for C
-                            'rgba(239, 68, 68, 0.8)',  // Red for D
-                            'rgba(147, 51, 234, 0.8)'  // Purple for E
+                            'rgba(34, 197, 94, 0.8)',  // Green for Normal
+                            'rgba(234, 179, 8, 0.8)',  // Yellow for Watch
+                            'rgba(249, 115, 22, 0.8)', // Orange for Substandard
+                            'rgba(239, 68, 68, 0.8)',  // Red for Doubtful
+                            'rgba(147, 51, 234, 0.8)'  // Purple for Loss
                         ],
                         borderColor: [
                             'rgb(34, 197, 94)',
@@ -753,7 +938,9 @@
                     }
                 }
             });
+        }
 
+        function initializeMetricsUpdate() {
             // Last update timestamp management
             function getLastUpdateTime() {
                 const lastUpdate = localStorage.getItem('postDisbursementLastUpdate');
@@ -788,11 +975,8 @@
             
             updateTimestamp();
             setInterval(updateTimestamp, 60 * 1000);
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize popovers with custom options
+
+            // Initialize Bootstrap tooltips
             const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
             popoverTriggerList.forEach(function(popoverTriggerEl) {
                 new bootstrap.Popover(popoverTriggerEl, {
@@ -803,8 +987,6 @@
                     template: '<div class="popover" role="tooltip"><div class="popover-arrow"></div><div class="popover-body"></div></div>'
                 });
             });
-            
-            // Rest of your existing JavaScript...
-        });
+        }
     </script>
 {% endblock %}

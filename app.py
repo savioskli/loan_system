@@ -14,6 +14,7 @@ from models.activity_log import ActivityLog
 from models.branch import Branch
 from models.role import Role
 from models.module import Module, FormField
+from models.sms_template import SMSTemplate
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, FileField, DateField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
@@ -33,6 +34,7 @@ from routes.section_routes import sections_bp
 from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
+from routes.sms_templates import sms_templates
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -111,6 +113,7 @@ def create_app():
             from models.staff import Staff
             from models.role import Role
             from models.module import Module, FormField
+            from models.sms_template import SMSTemplate
             db.create_all()
 
     # Register template filters
@@ -125,7 +128,6 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')  
     app.register_blueprint(user_management_bp, url_prefix='/users')  
     app.register_blueprint(role_bp, url_prefix='/roles')  
-    app.register_blueprint(admin_bp, url_prefix='/admin')  
     app.register_blueprint(branch_bp, url_prefix='/branches')  
     app.register_blueprint(client_types_bp)  
     app.register_blueprint(modules_bp, url_prefix='/api/modules')  
@@ -135,11 +137,14 @@ def create_app():
     app.register_blueprint(sections_bp)  
     app.register_blueprint(settings_bp)
     app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
+    app.register_blueprint(sms_templates, url_prefix='/admin/sms-templates')  # Changed to /admin prefix
+    app.register_blueprint(admin_bp, url_prefix='/admin', name='admin')  # Main admin blueprint with name='admin'
 
     # Exempt CSRF for API routes
     csrf.exempt(modules_bp)
     csrf.exempt(dependencies_bp)
     csrf.exempt(integrations_bp)
+    csrf.exempt(sms_templates)
 
     # Flask-Login configuration
     @login_manager.user_loader

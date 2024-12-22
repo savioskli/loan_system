@@ -3,202 +3,253 @@
 {% block title %}Post Disbursement{% endblock %}
 
 {% block content %}
-<div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
-    <!-- Header Section -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Post Disbursement Dashboard</h1>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Last synced: {{ last_sync.strftime('%Y-%m-%d %H:%M:%S') if last_sync else 'Never' }}</p>
-        </div>
-        <div class="flex items-center space-x-4">
-            <div class="relative">
-                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                    <i class="fas fa-bell text-xl"></i>
-                    <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">3</span>
+<div class="flex relative">
+    <!-- Toggle Button (Pill) -->
+    <button id="toggleButton" onclick="toggleSidebar()" class="fixed left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-lg rounded-r-full px-3 py-2 transform translate-x-0 transition-transform duration-300 hover:bg-gray-50 dark:hover:bg-gray-700 z-50 hidden">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Menu -->
+    <div id="sidebar" class="w-64 bg-white dark:bg-gray-800 shadow-sm h-screen fixed left-0 overflow-y-auto transition-all duration-300">
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Post Disbursement</h2>
+                <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <i id="sidebarIcon" class="fas fa-chevron-left transition-transform duration-300"></i>
                 </button>
             </div>
-            <div class="text-right">
-                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_user.name }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400">{{ current_user.role.name }}</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Key Metrics Section -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <!-- Total Loans -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Loans</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ total_loans }}</p>
-                </div>
-                <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
-                    <i class="fas fa-file-invoice-dollar text-blue-500 dark:text-blue-300"></i>
+            <!-- Customer Engagement Module -->
+            <div class="mb-4">
+                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('customerEngagement')">
+                    <span>Customer Engagement</span>
+                    <i class="fas fa-chevron-down transition-transform" id="customerEngagementIcon"></i>
+                </button>
+                <div class="hidden ml-4 mt-2 space-y-2" id="customerEngagement">
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-bell mr-2"></i>Automated Reminders
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-history mr-2"></i>Communication History
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-file-alt mr-2"></i>Notice Templates
+                    </a>
                 </div>
             </div>
-        </div>
-
-        <!-- Total Outstanding -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Outstanding</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding) }}</p>
-                </div>
-                <div class="bg-green-100 dark:bg-green-900 p-3 rounded-full">
-                    <i class="fas fa-money-bill-wave text-green-500 dark:text-green-300"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Total in Arrears -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Total in Arrears</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears) }}</p>
-                </div>
-                <div class="bg-red-100 dark:bg-red-900 p-3 rounded-full">
-                    <i class="fas fa-exclamation-triangle text-red-500 dark:text-red-300"></i>
+            
+            <!-- Follow-Up Management Module -->
+            <div class="mb-4">
+                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('followUp')">
+                    <span>Follow-Up Management</span>
+                    <i class="fas fa-chevron-down transition-transform" id="followUpIcon"></i>
+                </button>
+                <div class="hidden ml-4 mt-2 space-y-2" id="followUp">
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-user-tie mr-2"></i>Assign Officers
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-calendar-alt mr-2"></i>Schedule Follow-ups
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-tasks mr-2"></i>Activity Logs
+                    </a>
                 </div>
             </div>
-        </div>
-
-        <!-- Recovery Rate -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Recovery Rate</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ recovery_rate }}%</p>
-                </div>
-                <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded-full">
-                    <i class="fas fa-chart-line text-purple-500 dark:text-purple-300"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- NPL Ratio -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">NPL Ratio</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                        {{ '{:.2f}'.format(total_in_arrears / total_outstanding * 100 if total_outstanding > 0 else 0) }}%
-                    </p>
-                </div>
-                <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded-full">
-                    <i class="fas fa-percentage text-yellow-500 dark:text-yellow-300"></i>
+            
+            <!-- Loan Restructuring Module -->
+            <div class="mb-4">
+                <button class="flex items-center justify-between w-full text-left px-2 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="toggleCollapse('loanRestructuring')">
+                    <span>Loan Restructuring</span>
+                    <i class="fas fa-chevron-down transition-transform" id="loanRestructuringIcon"></i>
+                </button>
+                <div class="hidden ml-4 mt-2 space-y-2" id="loanRestructuring">
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-sync mr-2"></i>Restructure Workflow
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-check-circle mr-2"></i>Approval Process
+                    </a>
+                    <a href="#" class="block px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light">
+                        <i class="fas fa-file-contract mr-2"></i>Loan Terms
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Loan Classification Overview -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- Classification Chart -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Loan Classification</h3>
-            <div class="h-[400px]">
-                <canvas id="classificationChart"></canvas>
+    <!-- Main Content -->
+    <div id="mainContent" class="ml-64 flex-1 p-6 transition-all duration-300">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+            <!-- Header Section -->
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Post Disbursement Dashboard</h1>
+                <div class="flex flex-col items-end">
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        Last Updated: <span id="lastUpdated"></span>
+                        <span class="ml-2 text-xs">(Updates every 15 minutes)</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Classification Details -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Classification Details</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                    <thead>
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Count</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% of Total</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
-                        {% for grade in ['A', 'B', 'C', 'D', 'E'] %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                            <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ grade }} ({{ classification_data.labels[loop.index0] }})</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ overdue_loans[grade]['count'] }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(overdue_loans[grade]['amount']) }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                {{ '{:.2f}'.format(overdue_loans[grade]['amount'] / total_outstanding * 100 if total_outstanding > 0 else 0) }}%
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+                <!-- Total Loans -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</span>
+                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ total_loans }}</span>
+                    </div>
+                </div>
 
-    <!-- Loan Details Table -->
-    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Loan Details</h3>
-            <div class="flex space-x-2">
-                <button class="px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark">
-                    <i class="fas fa-download mr-1"></i> Export
-                </button>
-                <button class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
-                    <i class="fas fa-filter mr-1"></i> Filter
-                </button>
+                <!-- Total Outstanding -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</span>
+                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ '{:,.2f}'.format(total_outstanding) }}</span>
+                    </div>
+                </div>
+
+                <!-- Total in Arrears -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total in Arrears</span>
+                        <span class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ '{:,.2f}'.format(total_in_arrears) }}</span>
+                    </div>
+                </div>
+
+                <!-- Recovery Rate -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</span>
+                        <span class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{{ recovery_rate }}%</span>
+                    </div>
+                </div>
+
+                <!-- NPL Ratio -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</span>
+                        <span class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{{ '{:.2f}'.format(total_in_arrears / total_outstanding * 100 if total_outstanding > 0 else 0) }}%</span>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account No.</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer Name</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days in Arrears</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total in Arrears</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
-                    {% for loan in loan_data %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ loan.Loan_Account_No_ }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ loan.Customer_Name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Outstanding_Balance) }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ loan.Days_In_Arrears }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Total_In_Arrears) }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span class="px-2 py-1 rounded text-xs font-medium
-                                {% if loan.Classification == 'A' %}
-                                    bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                {% elif loan.Classification == 'B' %}
-                                    bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
-                                {% elif loan.Classification == 'C' %}
-                                    bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
-                                {% elif loan.Classification == 'D' %}
-                                    bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
-                                {% else %}
-                                    bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
-                                {% endif %}">
-                                {{ loan.Classification }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-sm">
-                            <button class="text-primary hover:text-primary-dark mr-2" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="text-gray-500 hover:text-gray-700 mr-2" title="Schedule Follow-up">
-                                <i class="fas fa-calendar-plus"></i>
-                            </button>
-                            <button class="text-red-500 hover:text-red-700" title="Mark for Review">
-                                <i class="fas fa-flag"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+            <!-- Loan Classification Overview -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Classification Chart -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Loan Classification</h3>
+                    <div class="h-[400px]">
+                        <canvas id="classificationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Classification Details -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Classification Details</h3>
+                    <div class="overflow-x-auto">
+                        <div class="inline-block min-w-full align-middle">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                                <thead class="bg-gray-50 dark:bg-gray-800">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Count</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% of Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                                    {% for grade in ['A', 'B', 'C', 'D', 'E'] %}
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ grade }} ({{ classification_data.labels[loop.index0] }})</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ overdue_loans[grade]['count'] }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(overdue_loans[grade]['amount']) }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                            {{ '{:.2f}'.format(overdue_loans[grade]['amount'] / total_outstanding * 100 if total_outstanding > 0 else 0) }}%
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loan Details Table -->
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Loan Details</h3>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark">
+                            <i class="fas fa-download mr-1"></i> Export
+                        </button>
+                        <button class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
+                            <i class="fas fa-filter mr-1"></i> Filter
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <div class="inline-block min-w-full align-middle">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                            <thead class="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account No.</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer Name</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days in Arrears</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total in Arrears</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                                {% for loan in loan_data %}
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Loan_Account_No_ }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Customer_Name }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Outstanding_Balance) }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Days_In_Arrears }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Total_In_Arrears) }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                        <span class="px-2 py-1 rounded text-xs font-medium
+                                            {% if loan.Classification == 'A' %}
+                                                bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                            {% elif loan.Classification == 'B' %}
+                                                bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                                            {% elif loan.Classification == 'C' %}
+                                                bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
+                                            {% elif loan.Classification == 'D' %}
+                                                bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                                            {% else %}
+                                                bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                            {% endif %}">
+                                            {{ loan.Classification }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                        <button class="text-primary hover:text-primary-dark mr-2" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="text-gray-500 hover:text-gray-700 mr-2" title="Schedule Follow-up">
+                                            <i class="fas fa-calendar-plus"></i>
+                                        </button>
+                                        <button class="text-red-500 hover:text-red-700" title="Mark for Review">
+                                            <i class="fas fa-flag"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -207,7 +258,88 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let sidebarCollapsed = false;
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const sidebarIcon = document.getElementById('sidebarIcon');
+    const toggleButton = document.getElementById('toggleButton');
+    
+    if (sidebarCollapsed) {
+        sidebar.style.width = '16rem'; // w-64 = 16rem
+        sidebar.style.transform = 'translateX(0)';
+        mainContent.style.marginLeft = '16rem';
+        sidebarIcon.style.transform = 'rotate(0deg)';
+        toggleButton.classList.add('hidden');
+    } else {
+        sidebar.style.width = '0';
+        sidebar.style.transform = 'translateX(-100%)';
+        mainContent.style.marginLeft = '0';
+        sidebarIcon.style.transform = 'rotate(180deg)';
+        toggleButton.classList.remove('hidden');
+    }
+    
+    sidebarCollapsed = !sidebarCollapsed;
+    
+    // Trigger resize event to update charts
+    window.dispatchEvent(new Event('resize'));
+}
+
+function toggleCollapse(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById(id + 'Icon');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Last update timestamp management
+    function getLastUpdateTime() {
+        const lastUpdate = localStorage.getItem('postDisbursementLastUpdate');
+        if (!lastUpdate) {
+            const now = new Date();
+            localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
+            return now;
+        }
+        return new Date(lastUpdate);
+    }
+
+    function updateTimestamp() {
+        const lastUpdate = getLastUpdateTime();
+        const now = new Date();
+        const timeSinceUpdate = now - lastUpdate;
+        
+        // If 15 minutes have passed since last update
+        if (timeSinceUpdate >= 15 * 60 * 1000) {
+            localStorage.setItem('postDisbursementLastUpdate', now.toISOString());
+            // Here you would typically refresh your data
+            location.reload(); // Refresh the page to get new data
+        }
+
+        const options = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        document.getElementById('lastUpdated').textContent = lastUpdate.toLocaleString('en-US', options);
+    }
+    
+    // Update timestamp display immediately
+    updateTimestamp();
+    
+    // Check every minute if 15 minutes have passed since last update
+    setInterval(updateTimestamp, 60 * 1000);
+
     // Classification Chart
     const ctx = document.getElementById('classificationChart').getContext('2d');
     new Chart(ctx, {

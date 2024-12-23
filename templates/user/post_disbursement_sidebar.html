@@ -1,0 +1,321 @@
+<aside class="fixed top-[64px] left-0 z-40 w-64 h-[calc(100vh-64px)] transition-transform -translate-x-full sm:translate-x-0">
+    <div class="h-full px-4 py-6 overflow-y-auto bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-white text-left" style="font-family: 'Inter', sans-serif;">Loan Follow-up</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Manage loan recovery process</p>
+        </div>
+        
+        <ul class="space-y-1.5">
+            <!-- Dashboard -->
+            <li>
+                <a href="#" class="flex items-center p-2.5 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                    <i class="fas fa-chart-line w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                    <span class="ml-2 text-sm">Dashboard</span>
+                </a>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Communication Center -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="communication-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-comments w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Communication</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="communication-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="{{ url_for('user.manage_calendar') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-calendar-check w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Manage Calendar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('correspondence.correspondence_history') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-history w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Correspondence</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-chart-line w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Collection Strategies -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="collection-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-tasks w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Collection</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="collection-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-user-tie w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Assign Collectors</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-calendar-alt w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Collection Schedule</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-walking w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Field Visits</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-clipboard-list w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Recovery Plans</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Guarantor Management -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="guarantor-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-user-shield w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Guarantors</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="guarantor-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-users w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Guarantor List</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-bell w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Notify Guarantors</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-file-invoice w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Guarantor Claims</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Legal Actions -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="legal-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-gavel w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Legal</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="legal-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-envelope-open-text w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Demand Letters</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-credit-card w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">CRB Reports</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-balance-scale w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Legal Cases</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-gavel w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Auction Process</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Restructuring -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="restructure-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-sync w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Restructuring</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="restructure-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-calendar-plus w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Loan Rescheduling</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-sync-alt w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Refinancing</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-handshake w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Settlement Plans</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="my-3">
+                <hr class="border-gray-200 dark:border-gray-700">
+            </li>
+
+            <!-- Reports -->
+            <li class="menu-item">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="reports-menu">
+                    <div class="flex items-center">
+                        <i class="fas fa-file-alt w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">Reports</span>
+                    </div>
+                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
+                </button>
+                <ul id="reports-menu" class="hidden py-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-chart-bar w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Collection Reports</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-comments w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Communication Logs</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-balance-scale w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Legal Status</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas fa-chart-line w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">Recovery Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</aside>
+
+<script>
+    // Self-executing function to handle sidebar functionality
+    (function() {
+        function initializeSidebar() {
+            // Get all menu buttons with data-collapse-toggle attribute
+            const menuButtons = document.querySelectorAll('[data-collapse-toggle]');
+            
+            menuButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault(); // Prevent default button behavior
+                    
+                    // Get the target menu ID from the data attribute
+                    const targetId = this.getAttribute('data-collapse-toggle');
+                    const targetMenu = document.getElementById(targetId);
+                    
+                    // Toggle the menu visibility
+                    if (targetMenu) {
+                        targetMenu.classList.toggle('hidden');
+                        
+                        // Rotate the chevron icon
+                        const icon = this.querySelector('.fa-chevron-down');
+                        if (icon) {
+                            icon.style.transform = targetMenu.classList.contains('hidden') 
+                                ? 'rotate(0deg)' 
+                                : 'rotate(180deg)';
+                        }
+                        
+                        // Close other open menus
+                        const otherMenus = document.querySelectorAll('[id$="-menu"]');
+                        otherMenus.forEach(menu => {
+                            if (menu.id !== targetId && !menu.classList.contains('hidden')) {
+                                menu.classList.add('hidden');
+                                // Reset other chevron icons
+                                const otherButton = document.querySelector(`[data-collapse-toggle="${menu.id}"]`);
+                                const otherIcon = otherButton?.querySelector('.fa-chevron-down');
+                                if (otherIcon) {
+                                    otherIcon.style.transform = 'rotate(0deg)';
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Add active state to menu items
+            const menuItems = document.querySelectorAll('.menu-item a');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // Remove active class from all items
+                    menuItems.forEach(i => i.classList.remove('bg-gray-100', 'dark:bg-gray-700'));
+                    // Add active class to clicked item
+                    this.classList.add('bg-gray-100', 'dark:bg-gray-700');
+                });
+            });
+
+            // Handle mobile sidebar toggle
+            const sidebarToggleBtn = document.querySelector('[data-drawer-toggle="sidebar"]');
+            const sidebar = document.querySelector('aside');
+            
+            if (sidebarToggleBtn && sidebar) {
+                sidebarToggleBtn.addEventListener('click', () => {
+                    sidebar.classList.toggle('-translate-x-full');
+                });
+            }
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeSidebar);
+        } else {
+            initializeSidebar();
+        }
+    })();
+</script>

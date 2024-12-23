@@ -35,6 +35,7 @@ from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
 from routes.sms_templates import sms_templates
+from routes.correspondence import correspondence_bp
 from urllib.parse import urlparse
 from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
@@ -116,6 +117,13 @@ def create_app():
             from models.sms_template import SMSTemplate
             db.create_all()
 
+    # Register custom template filters
+    @app.template_filter('datetime')
+    def format_datetime(value):
+        if value is None:
+            return ""
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+
     # Register template filters
     @app.template_filter('format_datetime')
     def format_datetime_filter(value):
@@ -133,6 +141,7 @@ def create_app():
     app.register_blueprint(modules_bp, url_prefix='/api/modules')  
     app.register_blueprint(dependencies_bp, url_prefix='/api/dependencies')  
     app.register_blueprint(user_bp, url_prefix='/user')
+    app.register_blueprint(correspondence_bp, url_prefix='/user')
     app.register_blueprint(products_bp)  
     app.register_blueprint(sections_bp)  
     app.register_blueprint(settings_bp)

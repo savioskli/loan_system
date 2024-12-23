@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import time
 import random
 
 app = Flask(__name__)
+CORS(app)
 
 # Mock data for different core banking systems
 MOCK_DATA = {
@@ -187,6 +189,81 @@ MOCK_DATA = {
     }
 }
 
+# Mock client data
+MOCK_CLIENTS = [
+    {
+        'id': 'CLT001',
+        'name': 'John Doe',
+        'account_number': 'ACC123456',
+        'loan_amount': 50000,
+        'status': 'Active',
+        'classification': 'Normal',
+        'days_in_arrears': 0,
+        'outstanding_balance': 45000
+    },
+    {
+        'id': 'CLT002',
+        'name': 'Jane Smith',
+        'account_number': 'ACC789012',
+        'loan_amount': 75000,
+        'status': 'Active',
+        'classification': 'Watch',
+        'days_in_arrears': 45,
+        'outstanding_balance': 70000
+    },
+    {
+        'id': 'CLT003',
+        'name': 'Robert Johnson',
+        'account_number': 'ACC345678',
+        'loan_amount': 100000,
+        'status': 'Active',
+        'classification': 'Substandard',
+        'days_in_arrears': 95,
+        'outstanding_balance': 98000
+    },
+    {
+        'id': 'CLT004',
+        'name': 'Sarah Williams',
+        'account_number': 'ACC901234',
+        'loan_amount': 25000,
+        'status': 'Active',
+        'classification': 'Normal',
+        'days_in_arrears': 0,
+        'outstanding_balance': 20000
+    }
+]
+
+# Mock correspondence data
+MOCK_CORRESPONDENCE = {
+    'CLT001': [
+        {
+            'id': 'COR001',
+            'type': 'email',
+            'subject': 'Loan Approval',
+            'content': 'Your loan has been approved.',
+            'date': '2023-12-20T10:30:00',
+            'status': 'sent'
+        },
+        {
+            'id': 'COR002',
+            'type': 'sms',
+            'content': 'Payment reminder: Your loan payment is due in 5 days.',
+            'date': '2023-12-22T09:00:00',
+            'status': 'sent'
+        }
+    ],
+    'CLT002': [
+        {
+            'id': 'COR003',
+            'type': 'call',
+            'content': 'Discussed payment schedule',
+            'date': '2023-12-21T14:15:00',
+            'duration': '00:10:23',
+            'status': 'completed'
+        }
+    ]
+}
+
 @app.route('/api/beta/companies/metadata', methods=['GET'])
 def navision_tables():
     # Check basic auth
@@ -369,6 +446,63 @@ def post_disbursement():
             ],
             'sample_loans': MOCK_DATA['navision']['tables'][3]['sample_data']
         }
+    })
+
+@app.route('/api/mock/clients/search', methods=['GET'])
+def search_clients():
+    search_term = request.args.get('search', '').lower()
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    
+    # Filter clients based on search term
+    filtered_clients = [
+        client for client in MOCK_CLIENTS
+        if search_term in client['name'].lower() or 
+           search_term in client['account_number'].lower()
+    ]
+    
+    # Calculate pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_clients = filtered_clients[start_idx:end_idx]
+    
+    return jsonify({
+        'clients': paginated_clients,
+        'has_more': len(filtered_clients) > end_idx
+    })
+
+@app.route('/api/correspondence/<client_id>', methods=['GET'])
+def get_correspondence(client_id):
+    correspondence_type = request.args.get('type', 'all')
+    
+    if client_id not in MOCK_CORRESPONDENCE:
+        return jsonify({
+            'items': [],
+            'counts': {
+                'total': 0,
+                'emails': 0,
+                'sms': 0,
+                'calls': 0
+            }
+        })
+    
+    correspondence = MOCK_CORRESPONDENCE[client_id]
+    
+    # Filter by type if specified
+    if correspondence_type != 'all':
+        correspondence = [c for c in correspondence if c['type'] == correspondence_type]
+    
+    # Calculate counts
+    counts = {
+        'total': len(MOCK_CORRESPONDENCE[client_id]),
+        'emails': len([c for c in MOCK_CORRESPONDENCE[client_id] if c['type'] == 'email']),
+        'sms': len([c for c in MOCK_CORRESPONDENCE[client_id] if c['type'] == 'sms']),
+        'calls': len([c for c in MOCK_CORRESPONDENCE[client_id] if c['type'] == 'call'])
+    }
+    
+    return jsonify({
+        'items': correspondence,
+        'counts': counts
     })
 
 if __name__ == '__main__':

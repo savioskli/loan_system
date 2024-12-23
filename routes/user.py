@@ -7,6 +7,7 @@ from models.product import Product
 from models.client_type import ClientType
 from models.staff import Staff
 from models.form_submission import FormSubmission
+from models.calendar_event import CalendarEvent
 from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
@@ -16,6 +17,7 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_, or_, text, MetaData, Table
+from models import CalendarEvent
 
 user_bp = Blueprint('user', __name__)
 
@@ -718,6 +720,95 @@ def register_client(submission_id):
             flash(f'Error loading registration form: {str(e)}', 'error')
             return redirect(url_for('user.manage_module', module_code='CLM02'))
 
+@user_bp.route('/manage-calendar')
+@login_required
+def manage_calendar():
+    return render_template('user/manage_calendar.html')
+
+@user_bp.route('/api/calendar/events', methods=['GET'])
+@login_required
+@csrf.exempt
+def get_calendar_events():
+    try:
+        # Get query parameters for filtering
+        start_date = request.args.get('start')
+        end_date = request.args.get('end')
+        client_id = request.args.get('client_id')
+        loan_id = request.args.get('loan_id')
+
+        # Build the query
+        query = CalendarEvent.query.filter_by(created_by_id=current_user.id)
+
+        # Apply filters if provided
+        if start_date and end_date:
+            query = query.filter(
+                CalendarEvent.start_time >= datetime.fromisoformat(start_date),
+                CalendarEvent.start_time <= datetime.fromisoformat(end_date)
+            )
+        if client_id:
+            query = query.filter_by(client_id=client_id)
+        if loan_id:
+            query = query.filter_by(loan_id=loan_id)
+
+        # Get all events
+        events = query.order_by(CalendarEvent.start_time).all()
+        return jsonify([event.to_dict() for event in events])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/api/calendar/events', methods=['POST'])
+@login_required
+@csrf.exempt
+def create_calendar_event():
+    try:
+        data = request.json
+        event = CalendarEvent.create_event(data, current_user.id)
+        return jsonify(event.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/api/calendar/events/<int:event_id>', methods=['PUT'])
+@login_required
+@csrf.exempt
+def update_calendar_event(event_id):
+    try:
+        event = CalendarEvent.query.get_or_404(event_id)
+        
+        # Check if the user has permission to update this event
+        if event.created_by_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        data = request.json
+        event.update_event(data)
+        return jsonify(event.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/api/calendar/events/<int:event_id>', methods=['DELETE'])
+@login_required
+@csrf.exempt
+def delete_calendar_event(event_id):
+    try:
+        event = CalendarEvent.query.get_or_404(event_id)
+        
+        # Check if the user has permission to delete this event
+        if event.created_by_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        event.delete_event()
+        return jsonify({'message': 'Event deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/reports')
+@login_required
+def reports():
+    # TODO: Implement reports page
+    return render_template('user/reports.html')
+
 @user_bp.route('/post-disbursement')
 @login_required
 def post_disbursement():
@@ -825,9 +916,3 @@ def post_disbursement():
         loan_data=loan_data,
         last_sync=last_sync
     )
-
-@user_bp.route('/reports')
-@login_required
-def reports():
-    # TODO: Implement reports page
-    return render_template('user/reports.html')

@@ -8,6 +8,8 @@ from models.client_type import ClientType
 from models.staff import Staff
 from models.form_submission import FormSubmission
 from models.calendar_event import CalendarEvent
+from models.client import Client
+from models.correspondence import Correspondence
 from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
@@ -17,7 +19,6 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_, or_, text, MetaData, Table
-from models import CalendarEvent
 
 user_bp = Blueprint('user', __name__)
 
@@ -719,6 +720,96 @@ def register_client(submission_id):
         else:
             flash(f'Error loading registration form: {str(e)}', 'error')
             return redirect(url_for('user.manage_module', module_code='CLM02'))
+
+@user_bp.route('/correspondence')
+@login_required
+def correspondence():
+    return render_template('user/correspondence.html')
+
+@user_bp.route('/api/clients/search')
+@login_required
+def search_clients():
+    query = request.args.get('q', '')
+    page = int(request.args.get('page', 1))
+    per_page = 10
+
+    # Search clients by name or client number
+    clients = Client.query.filter(
+        or_(
+            Client.name.ilike(f'%{query}%'),
+            Client.client_no.ilike(f'%{query}%')
+        )
+    ).paginate(page=page, per_page=per_page)
+
+    return jsonify({
+        'items': [{
+            'id': client.id,
+            'name': client.name,
+            'client_no': client.client_no
+        } for client in clients.items],
+        'has_more': clients.has_next
+    })
+
+@user_bp.route('/api/correspondence/<int:client_id>')
+@login_required
+def get_correspondence(client_id):
+    client = Client.query.get_or_404(client_id)
+    correspondence = Correspondence.query.filter_by(account_no=client.client_no).order_by(Correspondence.created_at.desc()).all()
+    
+    return jsonify({
+        'correspondence': [{
+            'id': c.id,
+            'type': c.type,
+            'content': c.message,
+            'attachment': url_for('static', filename=c.attachment_path) if c.attachment_path else None,
+            'created_at': c.created_at.isoformat(),
+            'sent_by': c.sent_by
+        } for c in correspondence]
+    })
+
+@user_bp.route('/api/correspondence', methods=['POST'])
+@login_required
+def create_correspondence():
+    client_id = request.form.get('client_id')
+    comm_type = request.form.get('type')
+    content = request.form.get('content')
+    
+    if not all([client_id, comm_type, content]):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    try:
+        client = Client.query.get_or_404(client_id)
+        
+        # Handle file upload if present
+        attachment_path = None
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                attachment_path = f'uploads/correspondence/{filename}'
+                file.save(os.path.join(current_app.static_folder, attachment_path))
+
+        correspondence = Correspondence(
+            account_no=client.client_no,
+            client_name=client.full_name,
+            type=comm_type,
+            message=content,
+            status='sent',
+            sent_by=current_user.name,
+            staff_id=current_user.id,
+            loan_id=None,  # This will need to be updated based on your requirements
+            attachment_path=attachment_path
+        )
+        db.session.add(correspondence)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Correspondence created successfully',
+            'id': correspondence.id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/manage-calendar')
 @login_required

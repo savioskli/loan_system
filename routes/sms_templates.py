@@ -1,144 +1,81 @@
-from flask import Blueprint, render_template, jsonify, request, current_app
-from models.sms_template import SMSTemplate
-from database import db
-from sqlalchemy.exc import SQLAlchemyError
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, request, jsonify
+from models.sms_template import TemplateType, SMSTemplate
+from extensions import db
 import logging
-import traceback
 
-sms_templates = Blueprint('sms_templates', __name__)
+logger = logging.getLogger(__name__)
+sms_templates_bp = Blueprint('sms_templates', __name__)
 
-@sms_templates.route('/')
-@login_required
-def manage_templates():
+@sms_templates_bp.route('/admin/sms-templates', methods=['GET'])
+def list_templates():
+    logger.info("Fetching SMS templates list")
     try:
-        logging.info("Starting manage_templates route")
-        logging.info(f"Current user: {current_user}")
+        templates = db.session.query(SMSTemplate).filter(
+            SMSTemplate.is_active == True
+        ).all()
         
-        # Log database connection info
-        logging.info(f"Database URI: {current_app.config['SQLALCHEMY_DATABASE_URI']}")
+        template_list = []
+        for template in templates:
+            template_list.append({
+                'type': template.type,
+                'days': template.days_trigger,
+                'content': template.content
+            })
         
-        # Fetch templates grouped by category
-        logging.info("Fetching payment templates")
-        payment_templates = SMSTemplate.query.filter_by(category='payment').all()
-        logging.info(f"Found {len(payment_templates)} payment templates")
-        
-        logging.info("Fetching overdue templates")
-        overdue_templates = SMSTemplate.query.filter_by(category='overdue').all()
-        logging.info(f"Found {len(overdue_templates)} overdue templates")
-        
-        logging.info("Fetching alert templates")
-        alert_templates = SMSTemplate.query.filter_by(category='alert').all()
-        logging.info(f"Found {len(alert_templates)} alert templates")
-        
-        # Log template details
-        for template in payment_templates + overdue_templates + alert_templates:
-            logging.info(f"Template: {template.to_dict()}")
-        
-        return render_template('admin/sms_templates.html',
-                             payment_templates=payment_templates or [],
-                             overdue_templates=overdue_templates or [],
-                             alert_templates=alert_templates or [])
-    except SQLAlchemyError as e:
-        error_msg = f"Database error in manage_templates: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return "Database error occurred", 500
-    except Exception as e:
-        error_msg = f"Unexpected error in manage_templates: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return "An unexpected error occurred", 500
-
-@sms_templates.route('/api', methods=['POST'])
-@login_required
-def create_template():
-    try:
-        logging.info(f"Current user: {current_user}")
-        data = request.json
-        logging.info(f"Received data: {data}")
-        template = SMSTemplate(
-            name=data['name'],
-            category=data['category'],
-            message=data['message'],
-            trigger_type=data['trigger'],
-            trigger_value=data['triggerValue']
+        logger.info(f"Successfully retrieved {len(template_list)} SMS templates")
+        return render_template(
+            'admin/sms_templates/list.html',
+            templates=template_list,
+            template_types=[t.value for t in TemplateType]
         )
-        logging.info(f"Created template: {template.to_dict()}")
-        db.session.add(template)
-        db.session.commit()
-        return jsonify({'success': True, 'template': template.to_dict()})
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        error_msg = f"Database error in create_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
-        db.session.rollback()
-        error_msg = f"Unexpected error in create_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        logger.error(f"Error fetching SMS templates: {str(e)}", exc_info=True)
+        raise
 
-@sms_templates.route('/api/<int:template_id>', methods=['PUT'])
-@login_required
-def update_template(template_id):
+@sms_templates_bp.route('/admin/sms-templates/preview', methods=['POST'])
+def preview_template():
+    template_type = request.form.get('template_type')
+    days = request.form.get('days')
+    
+    logger.info(f"Previewing SMS template - Type: {template_type}, Days: {days}")
+    
+    if days:
+        try:
+            days = int(days)
+        except ValueError:
+            logger.error(f"Invalid days value received: {days}")
+            return jsonify({'preview': 'Invalid days value'}), 400
+    
     try:
-        logging.info(f"Current user: {current_user}")
-        template = SMSTemplate.query.get_or_404(template_id)
-        logging.info(f"Found template: {template.to_dict()}")
-        data = request.json
-        logging.info(f"Received data: {data}")
-        template.name = data['name']
-        template.category = data['category']
-        template.message = data['message']
-        template.trigger_type = data['trigger']
-        template.trigger_value = data['triggerValue']
-        logging.info(f"Updated template: {template.to_dict()}")
-        db.session.commit()
-        return jsonify({'success': True, 'template': template.to_dict()})
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        error_msg = f"Database error in update_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'Database error occurred'}), 500
+        template = db.session.query(SMSTemplate).filter(
+            SMSTemplate.type == template_type,
+            SMSTemplate.days_trigger == days,
+            SMSTemplate.is_active == True
+        ).first()
+        
+        if not template:
+            logger.warning(f"Template not found - Type: {template_type}, Days: {days}")
+            return jsonify({'preview': 'Template not found'}), 404
+        
+        # Sample data for preview
+        sample_data = {
+            'client_name': 'John Doe',
+            'amount': '10,000',
+            'account_number': '1234567890',
+            'support_number': '0700123456',
+            'next_amount': '12,000',
+            'next_date': '2024-01-24',
+            'remaining_balance': '50,000'
+        }
+        
+        logger.debug(f"Attempting to format template with sample data: {sample_data}")
+        preview = template.content.format(**sample_data)
+        logger.info("Successfully generated template preview")
+        return jsonify({'preview': preview})
+        
+    except KeyError as e:
+        logger.error(f"Missing variable in template: {str(e)}")
+        return jsonify({'preview': f'Error: Missing variable {str(e)}'}), 400
     except Exception as e:
-        db.session.rollback()
-        error_msg = f"Unexpected error in update_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
-
-@sms_templates.route('/api/<int:template_id>', methods=['DELETE'])
-@login_required
-def delete_template(template_id):
-    try:
-        logging.info(f"Current user: {current_user}")
-        template = SMSTemplate.query.get_or_404(template_id)
-        logging.info(f"Found template: {template.to_dict()}")
-        db.session.delete(template)
-        db.session.commit()
-        return jsonify({'success': True})
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        error_msg = f"Database error in delete_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'Database error occurred'}), 500
-    except Exception as e:
-        db.session.rollback()
-        error_msg = f"Unexpected error in delete_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
-
-@sms_templates.route('/api/<int:template_id>', methods=['GET'])
-@login_required
-def get_template(template_id):
-    try:
-        logging.info(f"Current user: {current_user}")
-        template = SMSTemplate.query.get_or_404(template_id)
-        logging.info(f"Found template: {template.to_dict()}")
-        return jsonify(template.to_dict())
-    except SQLAlchemyError as e:
-        error_msg = f"Database error in get_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'Database error occurred'}), 500
-    except Exception as e:
-        error_msg = f"Unexpected error in get_template: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        logger.error(f"Error generating template preview: {str(e)}", exc_info=True)
+        return jsonify({'preview': f'Error: {str(e)}'}), 400

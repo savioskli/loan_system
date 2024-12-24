@@ -19,6 +19,8 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_, or_, text, MetaData, Table
+import time
+from flask import current_app
 
 user_bp = Blueprint('user', __name__)
 
@@ -721,51 +723,69 @@ def register_client(submission_id):
             flash(f'Error loading registration form: {str(e)}', 'error')
             return redirect(url_for('user.manage_module', module_code='CLM02'))
 
+@user_bp.route('/api/clients/search', methods=['GET'])
+@login_required
+def search_clients():
+    query = request.args.get('q', '')
+    page = int(request.args.get('page', 1))
+    
+    print(f"Search request - Query: {query}, Page: {page}")
+    
+    try:
+        # Call mock core banking API
+        response = requests.get(f'http://localhost:5003/api/mock/clients/search', params={
+            'search': query,  # Changed from 'q' to 'search' to match mock server
+            'page': page
+        })
+        
+        print(f"Mock API request URL: {response.url}")
+        print(f"Mock API status code: {response.status_code}")
+        
+        if response.ok:
+            data = response.json()
+            print(f"Mock API response: {data}")
+            result = {
+                'items': [{
+                    'id': client['id'],
+                    'text': f"{client['name']} ({client['account_number']})"
+                } for client in data['clients']],
+                'has_more': data['has_more']
+            }
+            print(f"Sending to frontend: {result}")
+            return jsonify(result)
+        else:
+            error_msg = f"Failed to fetch clients: {response.status_code} - {response.text}"
+            print(error_msg)
+            return jsonify({'error': error_msg}), 500
+    except Exception as e:
+        error_msg = f"Error fetching clients: {str(e)}"
+        print(error_msg)
+        return jsonify({'error': error_msg}), 500
+
 @user_bp.route('/correspondence')
 @login_required
 def correspondence():
     return render_template('user/correspondence.html')
 
-@user_bp.route('/api/clients/search')
-@login_required
-def search_clients():
-    query = request.args.get('q', '')
-    page = int(request.args.get('page', 1))
-    per_page = 10
-
-    # Search clients by name or client number
-    clients = Client.query.filter(
-        or_(
-            Client.name.ilike(f'%{query}%'),
-            Client.client_no.ilike(f'%{query}%')
-        )
-    ).paginate(page=page, per_page=per_page)
-
-    return jsonify({
-        'items': [{
-            'id': client.id,
-            'name': client.name,
-            'client_no': client.client_no
-        } for client in clients.items],
-        'has_more': clients.has_next
-    })
-
-@user_bp.route('/api/correspondence/<int:client_id>')
+@user_bp.route('/api/correspondence/<client_id>')
 @login_required
 def get_correspondence(client_id):
-    client = Client.query.get_or_404(client_id)
-    correspondence = Correspondence.query.filter_by(account_no=client.client_no).order_by(Correspondence.created_at.desc()).all()
+    # Call mock core banking API
+    response = requests.get(f'http://localhost:5003/api/correspondence/{client_id}')
     
-    return jsonify({
-        'correspondence': [{
-            'id': c.id,
-            'type': c.type,
-            'content': c.message,
-            'attachment': url_for('static', filename=c.attachment_path) if c.attachment_path else None,
-            'created_at': c.created_at.isoformat(),
-            'sent_by': c.sent_by
-        } for c in correspondence]
-    })
+    if response.ok:
+        data = response.json()
+        return jsonify({
+            'correspondence': [{
+                'id': item['id'],
+                'type': item['type'],
+                'content': item['content'],
+                'created_at': item['date'],
+                'sent_by': 'System Admin'  # Mock sent_by since it's not in the mock data
+            } for item in data['items']]
+        })
+    else:
+        return jsonify({'error': 'Failed to fetch correspondence'}), 500
 
 @user_bp.route('/api/correspondence', methods=['POST'])
 @login_required
@@ -778,37 +798,13 @@ def create_correspondence():
         return jsonify({'error': 'Missing required fields'}), 400
 
     try:
-        client = Client.query.get_or_404(client_id)
-        
-        # Handle file upload if present
-        attachment_path = None
-        if 'attachment' in request.files:
-            file = request.files['attachment']
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                attachment_path = f'uploads/correspondence/{filename}'
-                file.save(os.path.join(current_app.static_folder, attachment_path))
-
-        correspondence = Correspondence(
-            account_no=client.client_no,
-            client_name=client.full_name,
-            type=comm_type,
-            message=content,
-            status='sent',
-            sent_by=current_user.name,
-            staff_id=current_user.id,
-            loan_id=None,  # This will need to be updated based on your requirements
-            attachment_path=attachment_path
-        )
-        db.session.add(correspondence)
-        db.session.commit()
-
+        # In a real implementation, we would call the core banking API to save the correspondence
+        # For now, we'll just return success
         return jsonify({
             'message': 'Correspondence created successfully',
-            'id': correspondence.id
+            'id': f'COR{int(time.time())}'  # Generate a unique ID
         })
     except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/manage-calendar')

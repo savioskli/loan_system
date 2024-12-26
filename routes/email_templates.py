@@ -229,3 +229,36 @@ def create_template():
             'success': False,
             'message': str(e)
         }), 500
+
+@email_templates_bp.route('/admin/email-templates/delete/<int:template_id>', methods=['DELETE'])
+def delete_template(template_id):
+    logger.info(f"Attempting to delete template with ID: {template_id}")
+    try:
+        template = db.session.query(EmailTemplate).filter(
+            EmailTemplate.id == template_id,
+            EmailTemplate.is_active == True
+        ).first()
+        
+        if not template:
+            logger.warning(f"Template not found with ID: {template_id}")
+            return jsonify({
+                'success': False,
+                'message': 'Template not found'
+            }), 404
+
+        # Soft delete by setting is_active to False
+        template.is_active = False
+        db.session.commit()
+        logger.info(f"Successfully deleted template with ID: {template_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Template deleted successfully'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting template: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500

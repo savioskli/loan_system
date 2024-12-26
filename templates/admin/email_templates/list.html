@@ -45,17 +45,18 @@
         @apply text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
     }
 
-    .input-field {
-        @apply block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500;
+    .form-input {
+        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3;
     }
 
-    .input-field:focus {
-        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
-        border-color: #6366F1;
+    .form-select {
+        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3;
+        padding-right: 2.5rem;
     }
 
-    select.input-field {
-        @apply pr-10;
+    .form-textarea {
+        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3;
+        min-height: 120px;
     }
 </style>
 {% endblock %}
@@ -101,7 +102,7 @@
                                 <select name="template_type" 
                                         id="template_type" 
                                         required 
-                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2">
+                                        class="form-select">
                                     {% for type in template_types %}
                                     <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
                                     {% endfor %}
@@ -118,7 +119,7 @@
                                 <input type="number" 
                                        id="days_trigger"
                                        name="days_trigger" 
-                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                       class="form-input"
                                        placeholder="Enter number of days">
                             </div>
                         </div>
@@ -133,7 +134,7 @@
                                        id="template_subject"
                                        name="template_subject" 
                                        required
-                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                       class="form-input"
                                        placeholder="Enter email subject">
                             </div>
                         </div>
@@ -148,7 +149,7 @@
                                           name="template_content" 
                                           rows="4" 
                                           required
-                                          class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                          class="form-textarea"
                                           placeholder="Enter email content"></textarea>
                             </div>
                         </div>
@@ -174,34 +175,48 @@
                 <div class="template-card">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-medium text-gray-900">
-                            <i class="fas fa-list mr-2"></i>Available Templates
+                            <i class="fas fa-envelope mr-2"></i>Available Templates
                         </h3>
                     </div>
                     <div class="divide-y divide-gray-200">
                         {% for template in templates %}
-                        <div class="p-6">
+                        <div class="p-6 hover:bg-gray-50 transition-colors duration-200">
                             <div class="flex items-center justify-between mb-4">
-                                <div>
-                                    <span class="badge badge-primary">
-                                        {{ template.type|replace('_', ' ')|title }}
-                                    </span>
-                                    {% if template.days %}
-                                    <span class="badge badge-secondary ml-2">
-                                        {{ template.days }} days
-                                    </span>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                        <i class="fas fa-envelope text-indigo-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">{{ template.type|replace('_', ' ')|title }}</h4>
+                                        {% if template.days_trigger %}
+                                        <p class="text-xs text-gray-500">Trigger: {{ template.days_trigger }} days</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="editTemplate({{ template.id }})" class="btn btn-outline text-sm">
+                                        <i class="fas fa-edit mr-1"></i>Edit
+                                    </button>
+                                    {% if template.is_active %}
+                                    <span class="badge badge-primary">Active</span>
                                     {% endif %}
                                 </div>
-                                <button onclick="editTemplate({{ template.id }})" class="btn btn-outline">
-                                    <i class="fas fa-edit mr-2"></i>Edit
-                                </button>
                             </div>
-                            <div class="mb-3">
-                                <h4 class="text-sm font-medium text-gray-700 mb-2">Subject</h4>
-                                <div class="template-content">{{ template.subject }}</div>
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-medium text-gray-700 mb-2">Content</h4>
-                                <div class="template-content">{{ template.content }}</div>
+                            
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <!-- Email Header -->
+                                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                    <div class="grid grid-cols-[auto,1fr] gap-2">
+                                        <span class="text-sm font-medium text-gray-500">Subject:</span>
+                                        <span class="text-sm text-gray-900">{{ template.subject }}</span>
+                                    </div>
+                                </div>
+                                <!-- Email Content -->
+                                <div class="p-4 bg-white">
+                                    <div class="prose prose-sm max-w-none text-gray-600">
+                                        {{ template.content|replace('\n', '<br>')|safe }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
@@ -216,71 +231,100 @@
 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="newTemplateModal">
     <div class="fixed inset-0 z-10 overflow-y-auto">
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div>
-                    <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <!-- Modal Header -->
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900" id="modal-title">
                         Create New Template
                     </h3>
-                    <form id="newTemplateForm" class="mt-4 space-y-4">
+                </div>
+
+                <!-- Modal Body -->
+                <div class="px-6 py-4">
+                    <form id="newTemplateForm" class="space-y-6">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="new_template_type">
-                                Template Type
-                            </label>
-                            <select name="template_type" 
-                                    id="new_template_type" 
-                                    required 
-                                    class="mt-1 input-field">
-                                {% for type in template_types %}
-                                <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
-                                {% endfor %}
-                            </select>
+                        
+                        <!-- Template Type -->
+                        <div class="grid grid-cols-6 gap-6">
+                            <div class="col-span-6 sm:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700" for="new_template_type">
+                                    Template Type
+                                </label>
+                                <div class="mt-1">
+                                    <select name="template_type" 
+                                            id="new_template_type" 
+                                            required 
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3">
+                                        {% for type in template_types %}
+                                        <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-span-6 sm:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700" for="new_days_trigger">
+                                    Days Trigger
+                                </label>
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           name="days_trigger" 
+                                           id="new_days_trigger" 
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                           placeholder="Optional">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="new_days_trigger">
-                                Days Trigger (Optional)
-                            </label>
-                            <input type="number" 
-                                   name="days_trigger" 
-                                   id="new_days_trigger" 
-                                   class="mt-1 input-field"
-                                   placeholder="Enter number of days">
-                        </div>
+
+                        <!-- Subject -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700" for="new_template_subject">
                                 Subject
                             </label>
-                            <input type="text" 
-                                   name="template_subject" 
-                                   id="new_template_subject" 
-                                   required 
-                                   class="mt-1 input-field"
-                                   placeholder="Enter email subject">
+                            <div class="mt-1">
+                                <input type="text" 
+                                       name="template_subject" 
+                                       id="new_template_subject" 
+                                       required 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                       placeholder="Enter email subject">
+                            </div>
                         </div>
+
+                        <!-- Content -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700" for="new_template_content">
                                 Content
                             </label>
-                            <textarea name="template_content" 
-                                      id="new_template_content" 
-                                      rows="4" 
-                                      required 
-                                      class="mt-1 input-field"
-                                      placeholder="Enter email content"></textarea>
+                            <div class="mt-1">
+                                <textarea name="template_content" 
+                                          id="new_template_content" 
+                                          rows="8" 
+                                          required 
+                                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                          placeholder="Enter email content"></textarea>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Use placeholders like {customer_name}, {loan_amount}, etc. for dynamic content
+                            </p>
                         </div>
                     </form>
                 </div>
-                <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="button" 
-                            class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-2 sm:text-sm"
-                            onclick="submitNewTemplate()">
-                        Create
-                    </button>
-                    <button type="button" 
-                            class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
-                            onclick="closeModal()">
-                        Cancel
-                    </button>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" 
+                                class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                onclick="closeModal()">
+                            Cancel
+                        </button>
+                        <button type="button" 
+                                class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                onclick="submitNewTemplate()">
+                            Create Template
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -91,81 +91,78 @@
                     <h3 class="text-lg font-medium text-gray-900 mb-4">
                         <i class="fas fa-eye mr-2"></i>Preview Template
                     </h3>
-                    <form id="previewForm" class="space-y-6">
+                    <form id="previewForm" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
                         <!-- Template Type -->
-                        <div class="sm:col-span-4">
-                            <label class="block text-sm font-medium text-gray-700" for="template_type">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="template_type">
                                 Template Type
                             </label>
-                            <div class="mt-1">
-                                <select name="template_type" 
-                                        id="template_type" 
-                                        required 
-                                        class="form-select">
-                                    {% for type in template_types %}
-                                    <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                            <select name="template_type" 
+                                    id="template_type" 
+                                    required 
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3">
+                                {% for type in template_types %}
+                                <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
 
-                        <!-- Days Input -->
-                        <div class="sm:col-span-4">
-                            <label class="block text-sm font-medium text-gray-700" for="days">
-                                Days (if applicable)
+                        <!-- Days Trigger -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="days_trigger">
+                                Days Trigger
                             </label>
-                            <div class="mt-1">
-                                <input type="number" 
-                                       id="days_trigger"
-                                       name="days_trigger" 
-                                       class="form-input"
-                                       placeholder="Enter number of days">
-                            </div>
+                            <input type="number" 
+                                   id="days_trigger"
+                                   name="days_trigger" 
+                                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                   placeholder="Enter number of days">
                         </div>
 
-                        <!-- Subject Input -->
-                        <div class="sm:col-span-4">
-                            <label class="block text-sm font-medium text-gray-700" for="template_subject">
+                        <!-- Subject -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="template_subject">
                                 Subject
                             </label>
-                            <div class="mt-1">
-                                <input type="text" 
-                                       id="template_subject"
-                                       name="template_subject" 
-                                       required
-                                       class="form-input"
-                                       placeholder="Enter email subject">
-                            </div>
+                            <input type="text" 
+                                   id="template_subject"
+                                   name="template_subject" 
+                                   required
+                                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                   placeholder="Enter email subject">
                         </div>
 
-                        <!-- Content Input -->
-                        <div class="sm:col-span-4">
-                            <label class="block text-sm font-medium text-gray-700" for="template_content">
+                        <!-- Content -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="template_content">
                                 Content
                             </label>
-                            <div class="mt-1">
-                                <textarea id="template_content" 
-                                          name="template_content" 
-                                          rows="4" 
-                                          required
-                                          class="form-textarea"
-                                          placeholder="Enter email content"></textarea>
-                            </div>
+                            <textarea id="template_content"
+                                      name="template_content" 
+                                      rows="4" 
+                                      required
+                                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                      placeholder="Enter email content"></textarea>
                         </div>
 
-                        <div>
-                            <button type="submit" class="btn btn-primary w-full">
+                        <!-- Preview Button -->
+                        <div class="pt-2">
+                            <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <i class="fas fa-eye mr-2"></i>
                                 Preview Template
                             </button>
                         </div>
                     </form>
 
-                    <!-- Preview Results -->
+                    <!-- Preview Box -->
                     <div class="mt-6">
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Preview Results</h4>
-                        <div id="previewSubject" class="preview-box mb-3"></div>
-                        <div id="previewContent" class="preview-box"></div>
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">Preview</h4>
+                        <div class="preview-box">
+                            <div id="previewSubject" class="text-sm font-medium text-gray-900 mb-2"></div>
+                            <div id="previewContent" class="text-sm text-gray-600 whitespace-pre-wrap"></div>
+                        </div>
                     </div>
                 </div>
             </div>

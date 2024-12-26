@@ -145,6 +145,8 @@
                 </div>
             </div>
 
+            
+
             <!-- Templates List -->
             <div class="lg:col-span-2">
                 <div class="template-card">
@@ -204,42 +206,280 @@
         </div>
     </div>
 </div>
+<!-- New Template Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="newTemplateModal">
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div class="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                    <button type="button" 
+                            class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            onclick="closeModal()">
+                        <span class="sr-only">Close</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg font-semibold leading-6 text-gray-900">
+                            New SMS Template
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Create a new SMS template for notifications
+                            </p>
+                        </div>
+<!-- Replace the modal form section with this -->
+<!-- Replace the modal form section -->
+<form id="newTemplateForm" class="mt-6 space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <!-- Template Type -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700" for="new_template_type">
+            Template Type
+        </label>
+        <div class="mt-1">
+            <select name="template_type" 
+                    id="new_template_type" 
+                    required 
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2">
+                {% for type in template_types %}
+                <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Days Trigger -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700" for="days">
+            Days Trigger
+        </label>
+        <div class="mt-1">
+            <input type="number" 
+                   id="days" 
+                   name="days" 
+                   class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                   placeholder="Enter number of days (optional)">
+        </div>
+    </div>
+
+    <!-- Template Content -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700" for="template_content">
+            Template Content
+        </label>
+        <div class="mt-1">
+            <textarea id="template_content" 
+                     name="template_content" 
+                     rows="4" 
+                     required
+                     class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                     placeholder="Enter template content..."></textarea>
+        </div>
+        <p class="mt-2 text-sm text-gray-500">
+            Available variables: {client_name}, {amount}, {account_number}, {support_number}, {next_amount}, {next_date}, {remaining_balance}
+        </p>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3">
+        <button type="button" 
+                class="btn btn-outline w-full"
+                onclick="closeModal()">
+            Cancel
+        </button>
+        <button type="submit" 
+                id="submitTemplateButton"
+                class="btn btn-primary w-full">
+            Create Template
+        </button>
+    </div>
+</form>
+                    </div>
+                </div>
+
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button type="button"
+                            onclick="submitNewTemplate()"
+                            class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
+                        Save Template
+                    </button>
+                    <button type="button"
+                            onclick="closeModal()"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.getElementById('previewForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const submitButton = this.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
-    
-    fetch('/admin/sms-templates/preview', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('previewText').textContent = data.preview;
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error previewing template');
-    })
-    .finally(() => {
-        submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Generate Preview';
+    // Preview form submission
+    document.getElementById('previewForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+        
+        fetch('/admin/sms-templates/preview', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('previewText').textContent = data.preview;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error previewing template');
+        })
+        .finally(() => {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Generate Preview';
+        });
     });
-});
+    
+    // Modal functions
+    function openModal(isEdit = false) {
+        const modal = document.getElementById('newTemplateModal');
+        const modalTitle = modal.querySelector('h3');
+        const submitButton = document.getElementById('submitTemplateButton');
+        
+        modalTitle.textContent = isEdit ? 'Edit SMS Template' : 'New SMS Template';
+        submitButton.textContent = isEdit ? 'Update Template' : 'Create Template';
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeModal() {
+        const modal = document.getElementById('newTemplateModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        document.getElementById('newTemplateForm').reset();
+        // Clear any stored template ID
+        document.getElementById('newTemplateForm').removeAttribute('data-template-id');
+    }
+    
+    // Template submission
+    function submitNewTemplate() {
+        const form = document.getElementById('newTemplateForm');
+        const formData = new FormData(form);
+        const submitButton = document.getElementById('submitTemplateButton');
+        const templateId = form.getAttribute('data-template-id');
+        const isEdit = !!templateId;
+        
+        if (!formData.get('template_type') || !formData.get('template_content')) {
+            alert('Template type and content are required');
+            return;
+        }
 
-function editTemplate(templateId) {
-    // Implement template editing functionality
-    console.log('Editing template:', templateId);
-}
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${isEdit ? 'Updating...' : 'Creating...'}`;
+
+        const url = isEdit ? `/admin/sms-templates/edit/${templateId}` : '/admin/sms-templates/create';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal();
+                window.location.reload();
+            } else {
+                alert(data.message || `Error ${isEdit ? 'updating' : 'creating'} template`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(`Error ${isEdit ? 'updating' : 'creating'} template`);
+        })
+        .finally(() => {
+            submitButton.disabled = false;
+            submitButton.innerHTML = isEdit ? 'Update Template' : 'Create Template';
+        });
+    }
+    
+    // Template editing
+    function editTemplate(templateId) {
+        fetch(`/admin/sms-templates/get/${templateId}`, {
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const form = document.getElementById('newTemplateForm');
+                form.setAttribute('data-template-id', templateId);
+                
+                // Populate form fields
+                document.getElementById('new_template_type').value = data.template.type;
+                document.getElementById('days').value = data.template.days || '';
+                document.getElementById('template_content').value = data.template.content;
+                
+                openModal(true);
+            } else {
+                alert(data.message || 'Error loading template');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading template');
+        });
+    }
+    
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal trigger
+        const newTemplateButton = document.querySelector('[data-bs-toggle="modal"]');
+        if (newTemplateButton) {
+            newTemplateButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                openModal(false);
+            });
+        }
+    
+        // Close modal when clicking outside
+        const modal = document.getElementById('newTemplateModal');
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    
+        // Close modal with escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    
+        // Form submission
+        const newTemplateForm = document.getElementById('newTemplateForm');
+        newTemplateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitNewTemplate();
+        });
+    });
 </script>
 {% endblock %}

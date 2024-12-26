@@ -21,6 +21,7 @@ class Staff(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     approved_by_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
+    last_login = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     approved_by = db.relationship('Staff', remote_side=[id], backref='approved_staff')
@@ -46,6 +47,11 @@ class Staff(UserMixin, db.Model):
         self.status = 'rejected'
         self.approved_by_id = approver.id
         self.approved_at = datetime.utcnow()
+    
+    def update_last_login(self):
+        """Update the last login timestamp for the staff member."""
+        self.last_login = datetime.utcnow()
+        db.session.commit()
     
     def has_role(self, role_name):
         """Check if the staff member has a specific role."""

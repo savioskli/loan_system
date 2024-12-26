@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .threshold-card {
+        @apply bg-white rounded-lg shadow-sm transition-all duration-200;
+    }
+
+    .threshold-card:hover {
+        @apply shadow-md;
+    }
+
+    .btn {
+        @apply inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md transition-colors duration-200;
+    }
+
+    .btn-primary {
+        @apply text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .btn-outline {
+        @apply text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .form-input {
+        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3;
+    }
+
+    .form-label {
+        @apply block text-sm font-medium text-gray-700 mb-1;
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-success {
+        @apply bg-green-100 text-green-800;
+    }
+
+    .badge-warning {
+        @apply bg-yellow-100 text-yellow-800;
+    }
+
+    .badge-danger {
+        @apply bg-red-100 text-red-800;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="md:flex md:items-center md:justify-between mb-8">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Risk Thresholds
+                </h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Manage risk threshold values and validity periods
+                </p>
+            </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Threshold
+                </button>
+            </div>
+        </div>
+
+        <!-- Thresholds List -->
+        <div class="grid grid-cols-1 gap-6">
+            {% for threshold in thresholds %}
+            <div class="threshold-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Threshold Period
+                        </h3>
+                        <p class="text-sm text-gray-500">
+                            Valid from {{ threshold.valid_from.strftime('%Y-%m-%d %H:%M:%S') if threshold.valid_from else 'N/A' }}
+                            {% if threshold.valid_to %}
+                            to {{ threshold.valid_to.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                            onwards
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editThreshold('{{ threshold|tojson }}')" class="text-indigo-600 hover:text-indigo-900">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteThreshold('{{ threshold.id }}')" class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- NPL Ratio -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">NPL Ratio</h4>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-semibold text-gray-900">{{ "%.1f"|format(threshold.npl_ratio) }}%</span>
+                            {% if threshold.npl_ratio > 10 %}
+                            <span class="ml-2 badge badge-danger">High</span>
+                            {% elif threshold.npl_ratio > 5 %}
+                            <span class="ml-2 badge badge-warning">Medium</span>
+                            {% else %}
+                            <span class="ml-2 badge badge-success">Good</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Coverage Ratio -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Coverage Ratio</h4>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-semibold text-gray-900">{{ "%.1f"|format(threshold.coverage_ratio) }}%</span>
+                            {% if threshold.coverage_ratio < 80 %}
+                            <span class="ml-2 badge badge-danger">Low</span>
+                            {% elif threshold.coverage_ratio < 100 %}
+                            <span class="ml-2 badge badge-warning">Medium</span>
+                            {% else %}
+                            <span class="ml-2 badge badge-success">Good</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- PAR Ratio -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">PAR Ratio</h4>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-semibold text-gray-900">{{ "%.1f"|format(threshold.par_ratio) }}%</span>
+                            {% if threshold.par_ratio > 15 %}
+                            <span class="ml-2 badge badge-danger">High</span>
+                            {% elif threshold.par_ratio > 10 %}
+                            <span class="ml-2 badge badge-warning">Medium</span>
+                            {% else %}
+                            <span class="ml-2 badge badge-success">Good</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Cost of Risk -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Cost of Risk</h4>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-semibold text-gray-900">{{ "%.1f"|format(threshold.cost_of_risk) }}%</span>
+                            {% if threshold.cost_of_risk > 3 %}
+                            <span class="ml-2 badge badge-danger">High</span>
+                            {% elif threshold.cost_of_risk > 2 %}
+                            <span class="ml-2 badge badge-warning">Medium</span>
+                            {% else %}
+                            <span class="ml-2 badge badge-success">Good</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Recovery Rate -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Recovery Rate</h4>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-semibold text-gray-900">{{ "%.1f"|format(threshold.recovery_rate) }}%</span>
+                            {% if threshold.recovery_rate < 80 %}
+                            <span class="ml-2 badge badge-danger">Low</span>
+                            {% elif threshold.recovery_rate < 90 %}
+                            <span class="ml-2 badge badge-warning">Medium</span>
+                            {% else %}
+                            <span class="ml-2 badge badge-success">Good</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Threshold Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="thresholdModal">
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <!-- Modal Header -->
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900" id="modal-title">
+                        Create New Threshold
+                    </h3>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="px-6 py-4">
+                    <form id="thresholdForm" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" id="threshold_id" name="threshold_id">
+                        
+                        <!-- NPL Ratio -->
+                        <div>
+                            <label class="form-label" for="npl_ratio">
+                                NPL Ratio (%)
+                            </label>
+                            <input type="number" 
+                                   id="npl_ratio"
+                                   name="npl_ratio" 
+                                   required
+                                   min="0"
+                                   max="100"
+                                   step="0.1"
+                                   class="form-input"
+                                   placeholder="Enter NPL ratio">
+                        </div>
+
+                        <!-- Coverage Ratio -->
+                        <div>
+                            <label class="form-label" for="coverage_ratio">
+                                Coverage Ratio (%)
+                            </label>
+                            <input type="number" 
+                                   id="coverage_ratio"
+                                   name="coverage_ratio" 
+                                   required
+                                   min="0"
+                                   max="100"
+                                   step="0.1"
+                                   class="form-input"
+                                   placeholder="Enter coverage ratio">
+                        </div>
+
+                        <!-- PAR Ratio -->
+                        <div>
+                            <label class="form-label" for="par_ratio">
+                                PAR Ratio (%)
+                            </label>
+                            <input type="number" 
+                                   id="par_ratio"
+                                   name="par_ratio" 
+                                   required
+                                   min="0"
+                                   max="100"
+                                   step="0.1"
+                                   class="form-input"
+                                   placeholder="Enter PAR ratio">
+                        </div>
+
+                        <!-- Cost of Risk -->
+                        <div>
+                            <label class="form-label" for="cost_of_risk">
+                                Cost of Risk (%)
+                            </label>
+                            <input type="number" 
+                                   id="cost_of_risk"
+                                   name="cost_of_risk" 
+                                   required
+                                   min="0"
+                                   max="100"
+                                   step="0.1"
+                                   class="form-input"
+                                   placeholder="Enter cost of risk">
+                        </div>
+
+                        <!-- Recovery Rate -->
+                        <div>
+                            <label class="form-label" for="recovery_rate">
+                                Recovery Rate (%)
+                            </label>
+                            <input type="number" 
+                                   id="recovery_rate"
+                                   name="recovery_rate" 
+                                   required
+                                   min="0"
+                                   max="100"
+                                   step="0.1"
+                                   class="form-input"
+                                   placeholder="Enter recovery rate">
+                        </div>
+
+                        <!-- Validity Period -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label" for="valid_from">
+                                    Valid From
+                                </label>
+                                <input type="datetime-local" 
+                                       id="valid_from"
+                                       name="valid_from" 
+                                       required
+                                       class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label" for="valid_to">
+                                    Valid To
+                                </label>
+                                <input type="datetime-local" 
+                                       id="valid_to"
+                                       name="valid_to" 
+                                       class="form-input">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" 
+                                class="btn btn-outline"
+                                onclick="closeModal()">
+                            Cancel
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                onclick="submitThreshold()"
+                                id="submitButton">
+                            Create Threshold
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openModal(isEdit = false) {
+        const modal = document.getElementById('thresholdModal');
+        modal.classList.remove('hidden');
+        const submitButton = document.getElementById('submitButton');
+        if (isEdit) {
+            document.getElementById('modal-title').textContent = 'Edit Threshold';
+            submitButton.textContent = 'Update Threshold';
+        } else {
+            document.getElementById('modal-title').textContent = 'Create New Threshold';
+            submitButton.textContent = 'Create Threshold';
+            document.getElementById('thresholdForm').reset();
+            document.getElementById('threshold_id').value = '';
+        }
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('thresholdModal');
+        modal.classList.add('hidden');
+        document.getElementById('thresholdForm').reset();
+    }
+
+    function submitThreshold() {
+        const form = document.getElementById('thresholdForm');
+        const formData = new FormData(form);
+        const thresholdId = document.getElementById('threshold_id').value;
+        
+        const url = thresholdId ? 
+            `/admin/thresholds/edit/${thresholdId}` : 
+            '/admin/thresholds/create';
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to save threshold');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the threshold');
+        });
+    }
+
+    function editThreshold(thresholdJson) {
+        const threshold = JSON.parse(thresholdJson);
+        document.getElementById('threshold_id').value = threshold.id;
+        document.getElementById('npl_ratio').value = threshold.npl_ratio;
+        document.getElementById('coverage_ratio').value = threshold.coverage_ratio;
+        document.getElementById('par_ratio').value = threshold.par_ratio;
+        document.getElementById('cost_of_risk').value = threshold.cost_of_risk;
+        document.getElementById('recovery_rate').value = threshold.recovery_rate;
+        document.getElementById('valid_from').value = threshold.valid_from.slice(0, 16);
+        if (threshold.valid_to) {
+            document.getElementById('valid_to').value = threshold.valid_to.slice(0, 16);
+        }
+        openModal(true);
+    }
+
+    function deleteThreshold(thresholdId) {
+        if (confirm('Are you sure you want to delete this threshold? This action cannot be undone.')) {
+            fetch(`/admin/thresholds/delete/${thresholdId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to delete threshold');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the threshold');
+            });
+        }
+    }
+</script>
+{% endblock %}

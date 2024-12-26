@@ -46,6 +46,7 @@ from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
 from routes.correspondence import correspondence_bp
+from routes.thresholds import thresholds_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -122,6 +123,10 @@ def create_app():
     from routes.email_templates import email_templates_bp
     app.register_blueprint(email_templates_bp)
 
+    # Import and register thresholds blueprint
+    from routes.thresholds import thresholds_bp
+    app.register_blueprint(thresholds_bp)
+
     # Register context processors
     from context_processors import inject_settings, inject_navigation
     app.context_processor(inject_settings)
@@ -162,6 +167,7 @@ def create_app():
     csrf.exempt(integrations_bp)
     csrf.exempt(sms_templates_bp)
     csrf.exempt(email_templates_bp)
+    csrf.exempt(thresholds_bp)
 
     # Flask-Login configuration
     @login_manager.user_loader

@@ -27,6 +27,7 @@ from models.branch import Branch
 from models.role import Role
 from models.module import Module, FormField
 from models.sms_template import SMSTemplate, TemplateType
+from models.email_template import EmailTemplate, EmailTemplateType
 from models.sms_log import SMSLog
 
 # Import routes (excluding sms_templates for now)
@@ -117,6 +118,10 @@ def create_app():
     from routes.sms_templates import sms_templates_bp
     app.register_blueprint(sms_templates_bp)
 
+    # Import and register email templates blueprint
+    from routes.email_templates import email_templates_bp
+    app.register_blueprint(email_templates_bp)
+
     # Register context processors
     from context_processors import inject_settings, inject_navigation
     app.context_processor(inject_settings)
@@ -134,6 +139,7 @@ def create_app():
             from models.role import Role
             from models.module import Module, FormField
             from models.sms_template import SMSTemplate, TemplateType
+            from models.email_template import EmailTemplate, EmailTemplateType
             from models.sms_log import SMSLog
             db.create_all()
 
@@ -155,6 +161,7 @@ def create_app():
     csrf.exempt(dependencies_bp)
     csrf.exempt(integrations_bp)
     csrf.exempt(sms_templates_bp)
+    csrf.exempt(email_templates_bp)
 
     # Flask-Login configuration
     @login_manager.user_loader

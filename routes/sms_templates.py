@@ -136,26 +136,26 @@ def edit_template(template_id):
 @sms_templates_bp.route('/admin/sms-templates/preview', methods=['POST'])
 def preview_template():
     template_type = request.form.get('template_type')
-    days = request.form.get('days')
+    days_trigger = request.form.get('days_trigger')
     
-    logger.info(f"Previewing SMS template - Type: {template_type}, Days: {days}")
+    logger.info(f"Previewing SMS template - Type: {template_type}, Days: {days_trigger}")
     
-    if days:
+    if days_trigger:
         try:
-            days = int(days)
+            days_trigger = int(days_trigger)
         except ValueError:
-            logger.error(f"Invalid days value received: {days}")
+            logger.error(f"Invalid days value received: {days_trigger}")
             return jsonify({'preview': 'Invalid days value'}), 400
     
     try:
         template = db.session.query(SMSTemplate).filter(
             SMSTemplate.type == template_type,
-            SMSTemplate.days_trigger == days,
+            SMSTemplate.days_trigger == days_trigger,
             SMSTemplate.is_active == True
         ).first()
         
         if not template:
-            logger.warning(f"Template not found - Type: {template_type}, Days: {days}")
+            logger.warning(f"Template not found - Type: {template_type}, Days: {days_trigger}")
             return jsonify({'preview': 'Template not found'}), 404
         
         # Sample data for preview

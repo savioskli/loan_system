@@ -115,8 +115,8 @@
                             </label>
                             <div class="mt-1">
                                 <input type="number" 
-                                       id="days"
-                                       name="days" 
+                                       id="days_trigger"
+                                       name="days_trigger" 
                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
                                        placeholder="Enter number of days">
                             </div>
@@ -159,16 +159,16 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th class="px-6 py-3 text-left sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                                         Type
                                     </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th class="px-6 py-3 text-left sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                                         Days
                                     </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th class="px-6 py-3 text-left sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                                         Content
                                     </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th class="px-6 py-3 text-left sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
@@ -176,22 +176,22 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 {% for template in templates %}
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-4 whitespace-nowrap sm:text-sm">
                                         <span class="badge badge-primary">
                                             {{ template.type|replace('_', ' ')|title }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-4 whitespace-nowrap sm:text-sm">
                                         {% if template.days %}
                                         <span class="badge badge-secondary">{{ template.days }} days</span>
                                         {% else %}
                                         <span class="badge badge-secondary">N/A</span>
                                         {% endif %}
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td class="px-6 py-4 sm:text-sm">
                                         <div class="template-content">{{ template.content }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-4 whitespace-nowrap sm:text-sm">
                                         <button class="btn btn-outline" onclick="editTemplate({{ template.id }})">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -287,33 +287,21 @@
     </div>
 
     <!-- Form Actions -->
-    <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3">
+    <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
         <button type="button" 
-                class="btn btn-outline w-full"
-                onclick="closeModal()">
-            Cancel
-        </button>
-        <button type="submit" 
+                onclick="submitNewTemplate()"
                 id="submitTemplateButton"
-                class="btn btn-primary w-full">
+                class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
             Create Template
+        </button>
+        <button type="button" 
+                onclick="closeModal()"
+                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+            Cancel
         </button>
     </div>
 </form>
                     </div>
-                </div>
-
-                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                    <button type="button"
-                            onclick="submitNewTemplate()"
-                            class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
-                        Save Template
-                    </button>
-                    <button type="button"
-                            onclick="closeModal()"
-                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-                        Cancel
-                    </button>
                 </div>
             </div>
         </div>

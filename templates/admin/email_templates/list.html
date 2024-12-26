@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .template-card {
+        background: linear-gradient(to right bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
+        backdrop-filter: blur(2rem);
+        @apply bg-white rounded-lg shadow-sm transition-all duration-200;
+    }
+
+    .template-card:hover {
+        @apply shadow-md;
+    }
+
+    .template-content {
+        @apply font-mono text-sm bg-gray-50 p-4 rounded-md border border-gray-200;
+        white-space: pre-wrap;
+    }
+
+    .preview-box {
+        @apply bg-white rounded-lg p-4 border border-gray-200 min-h-[120px];
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-primary {
+        @apply bg-blue-100 text-blue-800;
+    }
+
+    .badge-secondary {
+        @apply bg-gray-100 text-gray-800;
+    }
+
+    .btn {
+        @apply inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md transition-colors duration-200;
+    }
+
+    .btn-primary {
+        @apply text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .btn-outline {
+        @apply text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .input-field {
+        @apply block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500;
+    }
+
+    .input-field:focus {
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        border-color: #6366F1;
+    }
+
+    select.input-field {
+        @apply pr-10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="md:flex md:items-center md:justify-between mb-8">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Email Templates
+                </h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Manage and preview your email notification templates
+                </p>
+            </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <button class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-bs-toggle="modal" data-bs-target="#newTemplateModal">
+                    <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Template
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <!-- Preview Section -->
+            <div class="lg:col-span-1">
+                <div class="template-card p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-eye mr-2"></i>Preview Template
+                    </h3>
+                    <form id="previewForm" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <!-- Template Type -->
+                        <div class="sm:col-span-4">
+                            <label class="block text-sm font-medium text-gray-700" for="template_type">
+                                Template Type
+                            </label>
+                            <div class="mt-1">
+                                <select name="template_type" 
+                                        id="template_type" 
+                                        required 
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2">
+                                    {% for type in template_types %}
+                                    <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Days Input -->
+                        <div class="sm:col-span-4">
+                            <label class="block text-sm font-medium text-gray-700" for="days">
+                                Days (if applicable)
+                            </label>
+                            <div class="mt-1">
+                                <input type="number" 
+                                       id="days_trigger"
+                                       name="days_trigger" 
+                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                       placeholder="Enter number of days">
+                            </div>
+                        </div>
+
+                        <!-- Subject Input -->
+                        <div class="sm:col-span-4">
+                            <label class="block text-sm font-medium text-gray-700" for="template_subject">
+                                Subject
+                            </label>
+                            <div class="mt-1">
+                                <input type="text" 
+                                       id="template_subject"
+                                       name="template_subject" 
+                                       required
+                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                       placeholder="Enter email subject">
+                            </div>
+                        </div>
+
+                        <!-- Content Input -->
+                        <div class="sm:col-span-4">
+                            <label class="block text-sm font-medium text-gray-700" for="template_content">
+                                Content
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="template_content" 
+                                          name="template_content" 
+                                          rows="4" 
+                                          required
+                                          class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                          placeholder="Enter email content"></textarea>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" class="btn btn-primary w-full">
+                                Preview Template
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Preview Results -->
+                    <div class="mt-6">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Preview Results</h4>
+                        <div id="previewSubject" class="preview-box mb-3"></div>
+                        <div id="previewContent" class="preview-box"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Templates List -->
+            <div class="lg:col-span-2">
+                <div class="template-card">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            <i class="fas fa-list mr-2"></i>Available Templates
+                        </h3>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        {% for template in templates %}
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <span class="badge badge-primary">
+                                        {{ template.type|replace('_', ' ')|title }}
+                                    </span>
+                                    {% if template.days %}
+                                    <span class="badge badge-secondary ml-2">
+                                        {{ template.days }} days
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <button onclick="editTemplate({{ template.id }})" class="btn btn-outline">
+                                    <i class="fas fa-edit mr-2"></i>Edit
+                                </button>
+                            </div>
+                            <div class="mb-3">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Subject</h4>
+                                <div class="template-content">{{ template.subject }}</div>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Content</h4>
+                                <div class="template-content">{{ template.content }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Template Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="newTemplateModal">
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div>
+                    <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">
+                        Create New Template
+                    </h3>
+                    <form id="newTemplateForm" class="mt-4 space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="new_template_type">
+                                Template Type
+                            </label>
+                            <select name="template_type" 
+                                    id="new_template_type" 
+                                    required 
+                                    class="mt-1 input-field">
+                                {% for type in template_types %}
+                                <option value="{{ type }}">{{ type|replace('_', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="new_days_trigger">
+                                Days Trigger (Optional)
+                            </label>
+                            <input type="number" 
+                                   name="days_trigger" 
+                                   id="new_days_trigger" 
+                                   class="mt-1 input-field"
+                                   placeholder="Enter number of days">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="new_template_subject">
+                                Subject
+                            </label>
+                            <input type="text" 
+                                   name="template_subject" 
+                                   id="new_template_subject" 
+                                   required 
+                                   class="mt-1 input-field"
+                                   placeholder="Enter email subject">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="new_template_content">
+                                Content
+                            </label>
+                            <textarea name="template_content" 
+                                      id="new_template_content" 
+                                      rows="4" 
+                                      required 
+                                      class="mt-1 input-field"
+                                      placeholder="Enter email content"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                    <button type="button" 
+                            class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-2 sm:text-sm"
+                            onclick="submitNewTemplate()">
+                        Create
+                    </button>
+                    <button type="button" 
+                            class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
+                            onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Preview form submission
+    document.getElementById('previewForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('/admin/email-templates/preview', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('previewSubject').textContent = data.preview.subject;
+                document.getElementById('previewContent').textContent = data.preview.content;
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while previewing the template');
+        });
+    });
+
+    function openModal(isEdit = false) {
+        const modal = document.getElementById('newTemplateModal');
+        modal.classList.remove('hidden');
+        if (isEdit) {
+            document.getElementById('modal-title').textContent = 'Edit Template';
+        } else {
+            document.getElementById('modal-title').textContent = 'Create New Template';
+        }
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('newTemplateModal');
+        modal.classList.add('hidden');
+        document.getElementById('newTemplateForm').reset();
+    }
+
+    function submitNewTemplate() {
+        const form = document.getElementById('newTemplateForm');
+        const formData = new FormData(form);
+        
+        fetch('/admin/email-templates/create', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal();
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating the template');
+        });
+    }
+
+    function editTemplate(templateId) {
+        fetch(`/admin/email-templates/get/${templateId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const template = data.template;
+                document.getElementById('new_template_type').value = template.type;
+                document.getElementById('new_template_subject').value = template.subject;
+                document.getElementById('new_template_content').value = template.content;
+                document.getElementById('new_days_trigger').value = template.days || '';
+                
+                openModal(true);
+                
+                const form = document.getElementById('newTemplateForm');
+                form.onsubmit = function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    
+                    fetch(`/admin/email-templates/edit/${templateId}`, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            closeModal();
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while updating the template');
+                    });
+                };
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while fetching the template');
+        });
+    }
+</script>
+{% endblock %}

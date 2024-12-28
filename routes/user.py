@@ -789,23 +789,33 @@ def get_correspondence(client_id):
 
 @user_bp.route('/api/correspondence', methods=['POST'])
 @login_required
-def create_correspondence():
-    client_id = request.form.get('client_id')
-    comm_type = request.form.get('type')
-    content = request.form.get('content')
+def save_correspondence():
+    data = request.json  # Get the JSON data from the request
+    client_id = data.get('client_id')
+    communication_type = data.get('type')
+    content = data.get('content')
+    account_no = data.get('account_no')
+    client_name = data.get('client_name')
+    sent_by = data.get('sent_by')
+    status = 'pending'  # Default status can be set as needed
     
-    if not all([client_id, comm_type, content]):
-        return jsonify({'error': 'Missing required fields'}), 400
+    # Validate data here (e.g., check if fields are not empty)
+    if not client_id or not communication_type or not content or not account_no or not client_name or not sent_by:
+        return jsonify({'success': False, 'message': 'All fields are required.'}), 400
+    
+    # Create a new Correspondence object
+    new_correspondence = Correspondence(
+        account_no=account_no,
+        client_name=client_name,
+        type=communication_type,
+        message=content,
+        status=status,
+        sent_by=sent_by
+    )
+    db.session.add(new_correspondence)
+    db.session.commit()  # Save to the database
 
-    try:
-        # In a real implementation, we would call the core banking API to save the correspondence
-        # For now, we'll just return success
-        return jsonify({
-            'message': 'Correspondence created successfully',
-            'id': f'COR{int(time.time())}'  # Generate a unique ID
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({'success': True, 'message': 'Correspondence saved successfully'}), 201
 
 @user_bp.route('/manage-calendar')
 @login_required

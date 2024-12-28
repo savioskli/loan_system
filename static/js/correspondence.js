@@ -76,6 +76,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const list = $('#correspondenceList ul');
         list.empty();
 
+        // Add padding to the results section
+        $('#correspondenceList').css('padding-top', '10px');
+
         if (!correspondence || correspondence.length === 0) {
             list.append('<li class="text-center text-gray-500 py-4">No correspondence found</li>');
             return;
@@ -83,22 +86,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         correspondence.forEach(function(item) {
             const html = `
-                <li>
-                    <div class="relative pb-8">
-                        <span class="absolute left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                        <div class="relative flex space-x-3">
+                <li class="bg-white shadow-md rounded-lg p-4 mb-4">
+                    <div class="relative flex space-x-3">
+                        <div>
+                            <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white bg-${getTypeColor(item.type)}">
+                                ${getTypeIcon(item.type)}
+                            </span>
+                        </div>
+                        <div class="flex min-w-0 flex-1 justify-between space-x-4">
                             <div>
-                                <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white bg-${getTypeColor(item.type)}">
-                                    ${getTypeIcon(item.type)}
-                                </span>
+                                <p class="text-sm font-semibold text-gray-900">${item.content}</p>
                             </div>
-                            <div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                <div>
-                                    <p class="text-sm text-gray-500">${item.content}</p>
-                                </div>
-                                <div class="whitespace-nowrap text-right text-sm text-gray-500">
-                                    <span>${formatDate(item.created_at)}</span>
-                                </div>
+                            <div class="whitespace-nowrap text-sm text-gray-500">
+                                <span>${formatDate(item.created_at)}</span>
                             </div>
                         </div>
                     </div>

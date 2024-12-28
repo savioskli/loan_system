@@ -4,52 +4,55 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded');
     
     // Initialize client select with search
-    console.log('Initializing Select2');
-    
-    $('#clientSelect').select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Search for a client...',
-        allowClear: true,
-        width: '100%',
-        ajax: {
-            url: '/user/api/clients/search',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                console.log('Search params:', params);
-                return {
-                    q: params.term || '',
-                    page: params.page || 1
-                };
+    $(document).ready(function() {
+        const select = $('#clientSelect');
+
+        // Initialize Select2
+        select.select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a client...',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: 'http://localhost:5003/api/mock/clients/search', // Updated URL
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    console.log('Search params:', params);
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    console.log('Received data:', data);
+                    params.page = params.page || 1;
+                    return {
+                        results: data.clients.map(item => ({
+                            id: item.id,
+                            text: item.name // Use the correct property for display
+                        })),
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                cache: true
             },
-            processResults: function(data, params) {
-                console.log('Received data:', data);
-                params.page = params.page || 1;
-                return {
-                    results: data.items.map(item => ({
-                        id: item.id,
-                        text: item.text
-                    })),
-                    pagination: {
-                        more: data.has_more
-                    }
-                };
+            minimumInputLength: 1,
+            templateResult: function(data) {
+                if (data.loading) {
+                    return data.text;
+                }
+                return $('<span>' + data.text + '</span>');
             },
-            cache: true
-        },
-        minimumInputLength: 1,
-        templateResult: function(data) {
-            if (data.loading) {
-                return data.text;
+            templateSelection: function(data) {
+                return data.text || data.id;
             }
-            return $('<span>' + data.text + '</span>');
-        },
-        templateSelection: function(data) {
-            return data.text || data.id;
-        }
-    }).on('select2:select', function(e) {
-        console.log('Selected:', e.params.data);
-        loadCorrespondence(e.params.data.id);
+        }).on('select2:select', function(e) {
+            console.log('Selected:', e.params.data);
+            loadCorrespondence(e.params.data.id);
+        });
     });
 
     // Load correspondence for a client

@@ -83,23 +83,5 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script>
-// Debugging script
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded');
-    if ($.fn.select2) {
-        console.log('Select2 is loaded');
-    } else {
-        console.error('Select2 is not loaded');
-    }
-    
-    const select = document.getElementById('clientSelect');
-    if (select) {
-        console.log('Client select found');
-    } else {
-        console.error('Client select not found');
-    }
-});
-</script>
 <script src="{{ url_for('static', filename='js/correspondence.js') }}"></script>
 {% endblock %}

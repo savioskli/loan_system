@@ -23,7 +23,11 @@
     }
 
     .form-input {
-        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3;
+        @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3 transition duration-200 ease-in-out;
+    }
+
+    .form-input:focus {
+        @apply border-indigo-500 ring-2 ring-indigo-200;
     }
 
     .form-label {
@@ -44,6 +48,44 @@
 
     .badge-danger {
         @apply bg-red-100 text-red-800;
+    }
+
+    /* Modal Styles */
+    #thresholdModal {
+        transition: opacity 0.3s ease;
+    }
+
+    .modal-content {
+        @apply p-6 rounded-lg shadow-lg;
+    }
+
+    .modal-header {
+        @apply bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg;
+    }
+
+    .modal-footer {
+        @apply bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-lg;
+    }
+
+    .modal-title {
+        @apply text-lg font-medium text-gray-900;
+    }
+
+    .modal-body {
+        @apply px-6 py-4;
+    }
+
+    /* Button Hover Effects */
+    .btn:hover {
+        @apply transform scale-105;
+    }
+
+    .btn-primary:hover {
+        @apply bg-indigo-700;
+    }
+
+    .btn-outline:hover {
+        @apply bg-gray-50;
     }
 </style>
 {% endblock %}
@@ -185,127 +227,154 @@
 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="thresholdModal">
     <div class="fixed inset-0 z-10 overflow-y-auto">
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
-                <!-- Modal Header -->
-                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900" id="modal-title">
-                        Create New Threshold
-                    </h3>
+            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div class="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                    <button type="button" 
+                            class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            onclick="closeModal()">
+                        <span class="sr-only">Close</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
-                <!-- Modal Body -->
-                <div class="px-6 py-4">
-                    <form id="thresholdForm" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" id="threshold_id" name="threshold_id">
-                        
-                        <!-- NPL Ratio -->
-                        <div>
-                            <label class="form-label" for="npl_ratio">
-                                NPL Ratio (%)
-                            </label>
-                            <input type="number" 
-                                   id="npl_ratio"
-                                   name="npl_ratio" 
-                                   required
-                                   min="0"
-                                   max="100"
-                                   step="0.1"
-                                   class="form-input"
-                                   placeholder="Enter NPL ratio">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
+                            Create New Threshold
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Define the parameters for a new risk threshold.
+                            </p>
                         </div>
-
-                        <!-- Coverage Ratio -->
-                        <div>
-                            <label class="form-label" for="coverage_ratio">
-                                Coverage Ratio (%)
-                            </label>
-                            <input type="number" 
-                                   id="coverage_ratio"
-                                   name="coverage_ratio" 
-                                   required
-                                   min="0"
-                                   max="100"
-                                   step="0.1"
-                                   class="form-input"
-                                   placeholder="Enter coverage ratio">
-                        </div>
-
-                        <!-- PAR Ratio -->
-                        <div>
-                            <label class="form-label" for="par_ratio">
-                                PAR Ratio (%)
-                            </label>
-                            <input type="number" 
-                                   id="par_ratio"
-                                   name="par_ratio" 
-                                   required
-                                   min="0"
-                                   max="100"
-                                   step="0.1"
-                                   class="form-input"
-                                   placeholder="Enter PAR ratio">
-                        </div>
-
-                        <!-- Cost of Risk -->
-                        <div>
-                            <label class="form-label" for="cost_of_risk">
-                                Cost of Risk (%)
-                            </label>
-                            <input type="number" 
-                                   id="cost_of_risk"
-                                   name="cost_of_risk" 
-                                   required
-                                   min="0"
-                                   max="100"
-                                   step="0.1"
-                                   class="form-input"
-                                   placeholder="Enter cost of risk">
-                        </div>
-
-                        <!-- Recovery Rate -->
-                        <div>
-                            <label class="form-label" for="recovery_rate">
-                                Recovery Rate (%)
-                            </label>
-                            <input type="number" 
-                                   id="recovery_rate"
-                                   name="recovery_rate" 
-                                   required
-                                   min="0"
-                                   max="100"
-                                   step="0.1"
-                                   class="form-input"
-                                   placeholder="Enter recovery rate">
-                        </div>
-
-                        <!-- Validity Period -->
-                        <div class="grid grid-cols-2 gap-4">
+                        <!-- Modal Body -->
+                        <form id="thresholdForm" class="mt-6 space-y-6">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" id="threshold_id" name="threshold_id">
+                            
+                            <!-- NPL Ratio -->
                             <div>
-                                <label class="form-label" for="valid_from">
-                                    Valid From
+                                <label class="block text-sm font-medium text-gray-700" for="npl_ratio">
+                                    NPL Ratio (%)
                                 </label>
-                                <input type="datetime-local" 
-                                       id="valid_from"
-                                       name="valid_from" 
-                                       required
-                                       class="form-input">
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           id="npl_ratio"
+                                           name="npl_ratio" 
+                                           required
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                           placeholder="Enter NPL ratio">
+                                </div>
                             </div>
+
+                            <!-- Coverage Ratio -->
                             <div>
-                                <label class="form-label" for="valid_to">
-                                    Valid To
+                                <label class="block text-sm font-medium text-gray-700" for="coverage_ratio">
+                                    Coverage Ratio (%)
                                 </label>
-                                <input type="datetime-local" 
-                                       id="valid_to"
-                                       name="valid_to" 
-                                       class="form-input">
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           id="coverage_ratio"
+                                           name="coverage_ratio" 
+                                           required
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                           placeholder="Enter coverage ratio">
+                                </div>
                             </div>
-                        </div>
-                    </form>
+
+                            <!-- PAR Ratio -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700" for="par_ratio">
+                                    PAR Ratio (%)
+                                </label>
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           id="par_ratio"
+                                           name="par_ratio" 
+                                           required
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                           placeholder="Enter PAR ratio">
+                                </div>
+                            </div>
+
+                            <!-- Cost of Risk -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700" for="cost_of_risk">
+                                    Cost of Risk (%)
+                                </label>
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           id="cost_of_risk"
+                                           name="cost_of_risk" 
+                                           required
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                           placeholder="Enter cost of risk">
+                                </div>
+                            </div>
+
+                            <!-- Recovery Rate -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700" for="recovery_rate">
+                                    Recovery Rate (%)
+                                </label>
+                                <div class="mt-1">
+                                    <input type="number" 
+                                           id="recovery_rate"
+                                           name="recovery_rate" 
+                                           required
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2"
+                                           placeholder="Enter recovery rate">
+                                </div>
+                            </div>
+
+                            <!-- Validity Period -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700" for="valid_from">
+                                        Valid From
+                                    </label>
+                                    <div class="mt-1">
+                                        <input type="datetime-local" 
+                                               id="valid_from"
+                                               name="valid_from" 
+                                               required
+                                               class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700" for="valid_to">
+                                        Valid To
+                                    </label>
+                                    <div class="mt-1">
+                                        <input type="datetime-local" 
+                                               id="valid_to"
+                                               name="valid_to" 
+                                               class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-
                 <!-- Modal Footer -->
-                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <div class="modal-footer">
                     <div class="flex justify-end space-x-3">
                         <button type="button" 
                                 class="btn btn-outline"

@@ -1013,3 +1013,29 @@ def post_disbursement():
         loan_data=loan_data,
         last_sync=last_sync
     )
+
+@user_bp.route('/analytics', methods=['GET'])
+@login_required
+def analytics():
+    correspondence_data = Correspondence.query.all()
+    
+    # Count by type
+    type_counts = {}
+    for correspondence in correspondence_data:
+        type_counts[correspondence.type] = type_counts.get(correspondence.type, 0) + 1
+
+    # Count by status
+    status_counts = {}
+    for correspondence in correspondence_data:
+        status_counts[correspondence.status] = status_counts.get(correspondence.status, 0) + 1
+
+    # Top clients
+    client_counts = {}
+    for correspondence in correspondence_data:
+        client_counts[correspondence.client_name] = client_counts.get(correspondence.client_name, 0) + 1
+
+    return render_template('user/analytics.html', 
+                           data=correspondence_data, 
+                           type_counts=type_counts, 
+                           status_counts=status_counts, 
+                           client_counts=client_counts)

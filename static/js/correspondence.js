@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             success: function(data) {
                 console.log('Correspondence loaded:', data);
                 displayCorrespondence(data.correspondence);
+                setupPagination(data.total, data.current_page, data.per_page);
             },
             error: function(xhr, status, error) {
                 console.error('Error loading correspondence:', error);
@@ -135,6 +136,39 @@ document.addEventListener('DOMContentLoaded', function() {
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
+        });
+    }
+
+    function setupPagination(total, currentPage, perPage) {
+        const totalPages = Math.ceil(total / perPage);
+        const paginationContainer = $('#pagination');
+
+        paginationContainer.empty(); // Clear existing pagination
+
+        if (currentPage > 1) {
+            paginationContainer.append(`<button onclick="loadPage(${currentPage - 1})">Previous</button>`);
+        }
+
+        for (let i = 1; i <= totalPages; i++) {
+            paginationContainer.append(`<button onclick="loadPage(${i})">${i}</button>`);
+        }
+
+        if (currentPage < totalPages) {
+            paginationContainer.append(`<button onclick="loadPage(${currentPage + 1})">Next</button>`);
+        }
+    }
+
+    function loadPage(page) {
+        $.ajax({
+            url: `/user/api/correspondence?page=${page}`,
+            method: 'GET',
+            success: function(data) {
+                displayCorrespondence(data.correspondence);
+                setupPagination(data.total, data.current_page, data.per_page);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading correspondence:', error);
+            }
         });
     }
 

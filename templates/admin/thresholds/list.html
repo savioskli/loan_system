@@ -132,7 +132,7 @@
                         </p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="editThreshold('{{ threshold|tojson }}')" class="text-indigo-600 hover:text-indigo-900">
+                        <button onclick='editThreshold({{ threshold|tojson | safe }})' class="text-indigo-600 hover:text-indigo-900">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button onclick="deleteThreshold('{{ threshold.id }}')" class="text-red-600 hover:text-red-900">
@@ -290,124 +290,16 @@
                         </form>
                     </div>
                 </div>
-                <!-- Modal Footer -->
-                <div class="modal-footer">
-                    <div class="flex justify-end space-x-3 mt-5"> <!-- Added padding here -->
-                        <button type="button" 
-                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                                onclick="closeModal()">
-                            Cancel
-                        </button>
-                        <button type="button" 
-                                class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto"
-                                onclick="submitThreshold()"
-                                id="submitButton">
-                            Create Threshold
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Threshold Modal -->
-<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" id="editThresholdModal">
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div class="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                    <button type="button" 
-                            class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            onclick="closeEditModal()">
-                        <span class="sr-only">Close</span>
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                    <h3 class="text-lg font-semibold leading-6 text-gray-900" id="edit-modal-title">
-                        Edit Threshold
-                    </h3>
-                    <form id="editThresholdForm" class="mt-6 space-y-6">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" id="edit_threshold_id" name="threshold_id">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_npl_ratio">NPL Ratio (%)</label>
-                            <input type="number" id="edit_npl_ratio" name="npl_ratio" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_coverage_ratio">Coverage Ratio (%)</label>
-                            <input type="number" id="edit_coverage_ratio" name="coverage_ratio" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_par_ratio">PAR Ratio (%)</label>
-                            <input type="number" id="edit_par_ratio" name="par_ratio" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_cost_of_risk">Cost of Risk (%)</label>
-                            <input type="number" id="edit_cost_of_risk" name="cost_of_risk" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_recovery_rate">Recovery Rate (%)</label>
-                            <input type="number" id="edit_recovery_rate" name="recovery_rate" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_valid_from">Valid From</label>
-                            <input type="datetime-local" id="edit_valid_from" name="valid_from" required class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="edit_valid_to">Valid To</label>
-                            <input type="datetime-local" id="edit_valid_to" name="valid_to" class="input-field">
-                        </div>
-
-                        <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                            <button type="button" onclick="submitEditThreshold()" id="submitEditThresholdButton" class="btn btn-primary">
-                                Update Threshold
-                            </button>
-                            <button type="button" onclick="closeEditModal()" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Utility function to format datetime strings
-    function formatDateTime(dateTimeStr) {
-        if (!dateTimeStr) return '';
-        
-        // Handle both ISO string format and Python datetime string format
-        const date = new Date(dateTimeStr);
-        if (isNaN(date.getTime())) {
-            // Try parsing Python datetime format (YYYY-MM-DD HH:MM:SS)
-            const matches = dateTimeStr.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-            if (matches) {
-                const [_, year, month, day, hours, minutes] = matches;
-                return `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-            return '';
-        }
-        
-        // Format to YYYY-MM-DDThh:mm for datetime-local input
-        return date.toISOString().slice(0, 16);
-    }
-
-    // Function to show error messages to the user
-    function showError(message) {
-        alert(message || 'An error occurred. Please try again.');
-    }
-
-    // Function to open the modal in create or edit mode
     function openModal(isEdit = false) {
         const modal = document.getElementById('thresholdModal');
         modal.classList.remove('hidden');
-        const submitButton = document.getElementById('submitButton');
+        const submitButton = document.getElementById('submitThresholdButton');
         if (isEdit) {
             document.getElementById('modal-title').textContent = 'Edit Threshold';
             submitButton.textContent = 'Update Threshold';
@@ -419,54 +311,12 @@
         }
     }
 
-    // Function to close the modal
     function closeModal() {
         const modal = document.getElementById('thresholdModal');
         modal.classList.add('hidden');
         document.getElementById('thresholdForm').reset();
     }
 
-    // Function to open the edit modal with existing threshold data
-    function openEditModal(thresholdJson) {
-        try {
-            const modal = document.getElementById('thresholdModal');
-            modal.classList.remove('hidden');
-            const threshold = JSON.parse(thresholdJson);
-            
-            // Set form to edit mode
-            document.getElementById('modal-title').textContent = 'Edit Threshold';
-            document.getElementById('submitButton').textContent = 'Update Threshold';
-            
-            // Set all form fields
-            const fields = {
-                'threshold_id': 'id',
-                'npl_ratio': 'npl_ratio',
-                'coverage_ratio': 'coverage_ratio',
-                'par_ratio': 'par_ratio',
-                'cost_of_risk': 'cost_of_risk',
-                'recovery_rate': 'recovery_rate',
-                'valid_from': 'valid_from',
-                'valid_to': 'valid_to'
-            };
-
-            // Update each field with proper formatting for dates
-            Object.entries(fields).forEach(([elementId, thresholdKey]) => {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    if (elementId.includes('valid_')) {
-                        element.value = formatDateTime(threshold[thresholdKey]);
-                    } else {
-                        element.value = threshold[thresholdKey];
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error parsing threshold data:', error);
-            showError('Failed to load threshold data');
-        }
-    }
-
-    // Function to submit the threshold form (create or update)
     function submitThreshold() {
         console.log('Threshold JSON:', thresholdJson);
         const form = document.getElementById('thresholdForm');
@@ -477,30 +327,16 @@
             `/admin/thresholds/edit/${thresholdId}` : 
             '/admin/thresholds/create';
 
-        // Add loading state
-        const submitButton = document.getElementById('submitButton');
-        const originalText = submitButton.textContent;
-        submitButton.disabled = true;
-        submitButton.textContent = 'Saving...';
-
         fetch(url, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            body: formData
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
                 window.location.reload();
             } else {
-                throw new Error(data.message || 'Failed to save threshold');
+                alert(data.message || 'Failed to save threshold');
             }
         })
         .catch(error => {
@@ -509,102 +345,47 @@
         });
     }
 
-    function editThreshold(thresholdJson) {
-        const threshold = JSON.parse(thresholdJson);
+    function editThreshold(threshold) {
         document.getElementById('threshold_id').value = threshold.id;
         document.getElementById('npl_ratio').value = threshold.npl_ratio;
         document.getElementById('coverage_ratio').value = threshold.coverage_ratio;
         document.getElementById('par_ratio').value = threshold.par_ratio;
         document.getElementById('cost_of_risk').value = threshold.cost_of_risk;
         document.getElementById('recovery_rate').value = threshold.recovery_rate;
-        document.getElementById('valid_from').value = threshold.valid_from.slice(0, 16);
-        if (threshold.valid_to) {
-            document.getElementById('valid_to').value = threshold.valid_to.slice(0, 16);
-        }
+        document.getElementById('valid_from').value = threshold.valid_from;
+        document.getElementById('valid_to').value = threshold.valid_to;
+
         openModal(true);
+        document.getElementById('npl_ratio').dispatchEvent(new Event('input'));
+        document.getElementById('coverage_ratio').dispatchEvent(new Event('input'));
+        document.getElementById('par_ratio').dispatchEvent(new Event('input'));
+        document.getElementById('cost_of_risk').dispatchEvent(new Event('input'));
+        document.getElementById('recovery_rate').dispatchEvent(new Event('input'));
+        document.getElementById('valid_from').dispatchEvent(new Event('input'));
+        document.getElementById('valid_to').dispatchEvent(new Event('input'));
     }
 
     function deleteThreshold(thresholdId) {
-        if (!confirm('Are you sure you want to delete this threshold? This action cannot be undone.')) {
-            return;
-        }
-
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-
-        fetch(`/admin/thresholds/delete/${thresholdId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                throw new Error(data.message || 'Failed to delete threshold');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError(error.message);
-        });
-    }
-
-    // Function to validate form inputs
-    function validateForm() {
-        const form = document.getElementById('thresholdForm');
-        const inputs = form.querySelectorAll('input[type="number"]');
-        
-        for (const input of inputs) {
-            const value = parseFloat(input.value);
-            if (isNaN(value) || value < 0 || value > 100) {
-                showError(`${input.name} must be between 0 and 100`);
-                return false;
-            }
-        }
-
-        const validFrom = new Date(form.valid_from.value);
-        const validTo = new Date(form.valid_to.value);
-
-        if (validTo && validFrom > validTo) {
-            showError('Valid From date must be before Valid To date');
-            return false;
-        }
-
-        return true;
-    }
-
-    // Initialize event listeners when the DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add form validation before submit
-        const form = document.getElementById('thresholdForm');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                if (validateForm()) {
-                    submitThreshold();
+        if (confirm('Are you sure you want to delete this threshold? This action cannot be undone.')) {
+            fetch(`/admin/thresholds/delete/${thresholdId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                 }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to delete threshold');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the threshold');
             });
         }
-
-        // Add input validation for number fields
-        const numberInputs = document.querySelectorAll('input[type="number"]');
-        numberInputs.forEach(input => {
-            input.addEventListener('input', function() {
-                const value = parseFloat(this.value);
-                if (!isNaN(value)) {
-                    if (value < 0) this.value = 0;
-                    if (value > 100) this.value = 100;
-                }
-            });
-        });
-    });
+    }
 </script>
 {% endblock %}

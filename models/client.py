@@ -38,10 +38,9 @@ class Client(db.Model):
     
     @property
     def full_name(self):
-        """Return the full name of the client."""
+        """Get the full name of the client."""
         if self.client_type.client_code == 'IND':  # Individual
-            names = filter(None, [self.first_name, self.middle_name, self.last_name])
-            return ' '.join(names)
+            return f"{self.first_name} {self.middle_name} {self.last_name}"
         return self.business_name
     
     def __repr__(self):

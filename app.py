@@ -47,6 +47,7 @@ from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
 from routes.correspondence import correspondence_bp
 from routes.thresholds import thresholds_bp
+from routes.collection_schedule import collection_schedule_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -114,6 +115,7 @@ def create_app():
     app.register_blueprint(correspondence_bp)
     app.register_blueprint(branch_bp)
     app.register_blueprint(client_types_bp)
+    app.register_blueprint(collection_schedule_bp)
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp
@@ -221,6 +223,18 @@ def create_app():
                 theme_secondary_color='#1E40AF',
                 theme_mode='light'
             )
+
+    # Debug route to list all registered routes
+    @app.route('/debug/routes')
+    def list_routes():
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': ','.join(rule.methods),
+                'route': str(rule)
+            })
+        return jsonify(routes)
 
     # Error handlers
     @app.errorhandler(500)

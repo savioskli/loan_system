@@ -28,6 +28,11 @@ class Staff(UserMixin, db.Model):
     role = db.relationship('Role', foreign_keys=[role_id])
     branch = db.relationship('Branch', foreign_keys=[branch_id])
     
+    @property
+    def full_name(self):
+        """Get the full name of the staff member."""
+        return f"{self.first_name} {self.last_name}"
+    
     def set_password(self, password):
         """Set the password hash for the staff member."""
         self.password_hash = generate_password_hash(password)
@@ -49,24 +54,18 @@ class Staff(UserMixin, db.Model):
         self.approved_at = datetime.utcnow()
     
     def update_last_login(self):
-        """Update the last login timestamp for the staff member."""
+        """Update the last login timestamp."""
         self.last_login = datetime.utcnow()
         db.session.commit()
     
     def has_role(self, role_name):
         """Check if the staff member has a specific role."""
-        return self.role.name.lower() == role_name.lower()
+        return self.role and self.role.name.lower() == role_name.lower()
     
     @property
     def is_admin(self):
         """Check if the staff member is an admin."""
         return self.role and self.role.name.lower() == 'admin'
     
-    @property
-    def full_name(self):
-        """Get the full name of the staff member."""
-        return f"{self.first_name} {self.last_name}"
-        
     def __repr__(self):
-        """Return a string representation of the staff member."""
-        return f'<Staff {self.email}>'
+        return f'<Staff {self.username}: {self.full_name}>'

@@ -1018,6 +1018,9 @@ def post_disbursement():
 @login_required
 def analytics():
     correspondence_data = Correspondence.query.all()
+    records_per_page = 10
+    total_records = len(correspondence_data)
+    total_pages = (total_records + records_per_page - 1) // records_per_page
     
     # Count by type
     type_counts = {}
@@ -1038,4 +1041,5 @@ def analytics():
                            data=correspondence_data, 
                            type_counts=type_counts, 
                            status_counts=status_counts, 
-                           client_counts=client_counts)
+                           client_counts=client_counts,
+                           total_pages=total_pages)

@@ -1,96 +1,262 @@
 {% extends "base.html" %}
 
+{% block title %}Correspondence Analytics{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/dist/tippy.css" />
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/themes/light.css" />
+    <style>
+        .tooltip-inner {
+            max-width: 300px;
+            padding: 10px;
+            background-color: #1f2937;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tooltip-inner p {
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .tooltip-inner ul {
+            text-align: left;
+            margin: 0;
+            padding-left: 8px;
+        }
+        .tooltip-inner li {
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+        }
+        .bs-tooltip-auto[data-popper-placement^=top] .tooltip-arrow::before, 
+        .bs-tooltip-top .tooltip-arrow::before {
+            border-top-color: #1f2937;
+        }
+        .recent-correspondences-table th,
+        .recent-correspondences-table td {
+            font-size: 0.875rem; /* Adjust font size here */
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Correspondence Analytics Dashboard</h1>
-    
-    <!-- Summary Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded shadow-lg">
-            <h2 class="text-lg font-semibold">Total Correspondences</h2>
-            <p class="text-3xl">{{ data|length }}</p>
-        </div>
-        <div class="bg-white p-6 rounded shadow-lg">
-            <h2 class="text-lg font-semibold">Pending</h2>
-            <p class="text-3xl">{{ data|selectattr('status', 'equalto', 'pending')|list|length }}</p>
-        </div>
-        <div class="bg-white p-6 rounded shadow-lg">
-            <h2 class="text-lg font-semibold">Completed</h2>
-            <p class="text-3xl">{{ data|selectattr('status', 'equalto', 'completed')|list|length }}</p>
-        </div>
-        <div class="bg-white p-6 rounded shadow-lg">
-            <h2 class="text-lg font-semibold">Failed Deliveries</h2>
-            <p class="text-3xl">{{ data|selectattr('delivery_status', 'equalto', 'failed')|list|length }}</p>
-        </div>
-    </div>
+{% include 'user/post_disbursement_sidebar.html' %}
 
-    <!-- Correspondence by Type -->
-    <div class="bg-white p-6 mt-8 rounded shadow-lg">
-        <h2 class="text-lg font-semibold mb-4">Correspondences by Type</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="p-4 sm:ml-64">
+    <div class="p-6 bg-white rounded-lg shadow-sm dark:bg-gray-800">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-                <p>SMS: {{ data|selectattr('type', 'equalto', 'sms')|list|length }}</p>
-                <p>Email: {{ data|selectattr('type', 'equalto', 'email')|list|length }}</p>
-            </div>
-            <div>
-                <p>Call: {{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
-                <p>Letter: {{ data|selectattr('type', 'equalto', 'letter')|list|length }}</p>
-            </div>
-            <div>
-                <p>Visit: {{ data|selectattr('type', 'equalto', 'visit')|list|length }}</p>
+                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Correspondence Analytics Dashboard</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400">View and manage correspondence statistics</p>
             </div>
         </div>
-    </div>
 
-    <!-- Recent Correspondences -->
-    <div class="bg-white p-6 mt-8 rounded shadow-lg">
-        <h2 class="text-lg font-semibold mb-4">Recent Correspondences</h2>
-        <table class="w-full table-auto">
-            <thead>
-                <tr>
-                    <th class="px-4 py-2">Client Name</th>
-                    <th class="px-4 py-2">Type</th>
-                    <th class="px-4 py-2">Sent By</th>
-                    <th class="px-4 py-2">Status</th>
-                    <th class="px-4 py-2">Delivery Status</th>
-                    <th class="px-4 py-2">Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set sorted_data = data|sort(attribute='delivery_time', reverse=True) %}
-                {% set recent_records = sorted_data[:10] %}
-                {% for record in recent_records %}
-                <tr>
-                    <td class="border px-4 py-2">{{ record.client_name }}</td>
-                    <td class="border px-4 py-2">{{ record.type }}</td>
-                    <td class="border px-4 py-2">{{ record.sent_by }}</td>
-                    <td class="border px-4 py-2">{{ record.status }}</td>
-                    <td class="border px-4 py-2">{{ record.delivery_status|default('N/A') }}</td>
-                    <td class="border px-4 py-2">{{ record.delivery_time|default('N/A') }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Call Statistics -->
-    <div class="bg-white p-6 mt-8 rounded shadow-lg">
-        <h2 class="text-lg font-semibold mb-4">Call Statistics</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-                <p>Total Calls: {{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
-                <p>Average Duration: {% set call_count = data|selectattr('type', 'equalto', 'call')|list|length %}
-{% if call_count > 0 %}
-{{ (data|selectattr('type', 'equalto', 'call')|map(attribute='call_duration')|sum) / call_count }} seconds
-{% else %}
-N/A
-{% endif %}</p>
+        <!-- Summary Statistics -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- Total Correspondences -->
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Correspondences</h3>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|length }}</p>
+                <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of all correspondences</p>
             </div>
-            <div>
-                <p>Successful Calls: {{ data|selectattr('call_outcome', 'equalto', 'successful')|list|length }}</p>
-                <p>Unsuccessful Calls: {{ data|selectattr('call_outcome', 'equalto', 'unsuccessful')|list|length }}</p>
+            <!-- Pending -->
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Pending</h3>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('status', 'equalto', 'pending')|list|length }}</p>
+                <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of pending correspondences</p>
+            </div>
+            <!-- Completed -->
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</h3>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('status', 'equalto', 'completed')|list|length }}</p>
+                <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of completed correspondences</p>
+            </div>
+            <!-- Failed Deliveries -->
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Failed Deliveries</h3>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('delivery_status', 'equalto', 'failed')|list|length }}</p>
+                <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of failed deliveries</p>
             </div>
         </div>
+
+        <!-- Correspondence by Type -->
+        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mt-8">
+            <h2 class="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-4">Correspondences by Type</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <!-- SMS -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">SMS</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'sms')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of SMS correspondences</p>
+                </div>
+                <!-- Email -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'email')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Email correspondences</p>
+                </div>
+                <!-- Call -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Call</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Call correspondences</p>
+                </div>
+                <!-- Letter -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Letter</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'letter')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Letter correspondences</p>
+                </div>
+                <!-- Visit -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Visit</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'visit')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Visit correspondences</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call Statistics -->
+        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mt-8">
+            <h2 class="text-base font-medium text-gray-600 dark:text-gray-400 mb-4">Call Statistics</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <!-- Total Calls -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Calls</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of all calls</p>
+                </div>
+                <!-- Average Duration -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Duration</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{% set call_count = data|selectattr('type', 'equalto', 'call')|list|length %}{% if call_count > 0 %}{{ (data|selectattr('type', 'equalto', 'call')|map(attribute='call_duration')|sum) / call_count }} seconds{% else %}N/A{% endif %}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Average duration of calls</p>
+                </div>
+                <!-- Successful Calls -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Successful Calls</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('call_outcome', 'equalto', 'successful')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of successful calls</p>
+                </div>
+                <!-- Unsuccessful Calls -->
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Unsuccessful Calls</h3>
+                    </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('call_outcome', 'equalto', 'unsuccessful')|list|length }}</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of unsuccessful calls</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Correspondences -->
+        <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6 mt-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Correspondences</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <div class="flex mb-4">
+                    <input type="text" id="filterInput" class="border border-gray-300 rounded-lg p-2 w-full" placeholder="Search Anything..." onkeyup="filterTable()">
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600 recent-correspondences-table">
+                    <thead class="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sent By</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Delivery Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                        {% set sorted_data = data|sort(attribute='delivery_time', reverse=True) %}
+                        {% set recent_records = sorted_data[:10] %}
+                        {% for record in recent_records %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.client_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.type }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.sent_by }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.status }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.delivery_status|default('N/A') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.delivery_time|default('N/A') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="flex justify-end mt-4">
+                    <nav aria-label="Pagination">
+                        <ul class="inline-flex -space-x-px">
+                            <li>
+                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700" aria-label="Previous">
+                                    Previous
+                                </a>
+                            </li>
+                            {% for page in range(1, total_pages + 1) %}
+                            <li>
+                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 {{ 'font-bold' if page == current_page }}">
+                                    {{ page }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                            <li>
+                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700" aria-label="Next">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+<script>
+function filterTable() {
+    const input = document.getElementById('filterInput');
+    const filter = input.value.toLowerCase();
+    const table = document.querySelector('.recent-correspondences-table');
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName('td');
+        let rowVisible = false;
+
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j]) {
+                const cellValue = cells[j].textContent || cells[j].innerText;
+                if (cellValue.toLowerCase().indexOf(filter) > -1) {
+                    rowVisible = true;
+                    break;
+                }
+            }
+        }
+        rows[i].style.display = rowVisible ? '' : 'none';
+    }
+}
+</script>
 {% endblock %}

@@ -2,24 +2,95 @@
 
 {% block content %}
 <div class="container mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Correspondence Analytics</h1>
+    <h1 class="text-2xl font-bold mb-6">Correspondence Analytics Dashboard</h1>
     
     <!-- Summary Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div class="bg-white p-4 rounded shadow">
-            <h2 class="font-semibold">Total Correspondences</h2>
-            <p>{{ data|length }}</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded shadow-lg">
+            <h2 class="text-lg font-semibold">Total Correspondences</h2>
+            <p class="text-3xl">{{ data|length }}</p>
         </div>
-        <div class="bg-white p-4 rounded shadow">
-            <h2 class="font-semibold">Pending</h2>
-            <p>{{ data|selectattr('status', 'equalto', 'pending')|list|length }}</p>
+        <div class="bg-white p-6 rounded shadow-lg">
+            <h2 class="text-lg font-semibold">Pending</h2>
+            <p class="text-3xl">{{ data|selectattr('status', 'equalto', 'pending')|list|length }}</p>
         </div>
-        <div class="bg-white p-4 rounded shadow">
-            <h2 class="font-semibold">Completed</h2>
-            <p>{{ data|selectattr('status', 'equalto', 'completed')|list|length }}</p>
+        <div class="bg-white p-6 rounded shadow-lg">
+            <h2 class="text-lg font-semibold">Completed</h2>
+            <p class="text-3xl">{{ data|selectattr('status', 'equalto', 'completed')|list|length }}</p>
+        </div>
+        <div class="bg-white p-6 rounded shadow-lg">
+            <h2 class="text-lg font-semibold">Failed Deliveries</h2>
+            <p class="text-3xl">{{ data|selectattr('delivery_status', 'equalto', 'failed')|list|length }}</p>
         </div>
     </div>
 
-    <!-- Additional analytics can go here -->
+    <!-- Correspondence by Type -->
+    <div class="bg-white p-6 mt-8 rounded shadow-lg">
+        <h2 class="text-lg font-semibold mb-4">Correspondences by Type</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p>SMS: {{ data|selectattr('type', 'equalto', 'sms')|list|length }}</p>
+                <p>Email: {{ data|selectattr('type', 'equalto', 'email')|list|length }}</p>
+            </div>
+            <div>
+                <p>Call: {{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                <p>Letter: {{ data|selectattr('type', 'equalto', 'letter')|list|length }}</p>
+            </div>
+            <div>
+                <p>Visit: {{ data|selectattr('type', 'equalto', 'visit')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Correspondences -->
+    <div class="bg-white p-6 mt-8 rounded shadow-lg">
+        <h2 class="text-lg font-semibold mb-4">Recent Correspondences</h2>
+        <table class="w-full table-auto">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2">Client Name</th>
+                    <th class="px-4 py-2">Type</th>
+                    <th class="px-4 py-2">Sent By</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2">Delivery Status</th>
+                    <th class="px-4 py-2">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set sorted_data = data|sort(attribute='delivery_time', reverse=True) %}
+                {% set recent_records = sorted_data[:10] %}
+                {% for record in recent_records %}
+                <tr>
+                    <td class="border px-4 py-2">{{ record.client_name }}</td>
+                    <td class="border px-4 py-2">{{ record.type }}</td>
+                    <td class="border px-4 py-2">{{ record.sent_by }}</td>
+                    <td class="border px-4 py-2">{{ record.status }}</td>
+                    <td class="border px-4 py-2">{{ record.delivery_status|default('N/A') }}</td>
+                    <td class="border px-4 py-2">{{ record.delivery_time|default('N/A') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Call Statistics -->
+    <div class="bg-white p-6 mt-8 rounded shadow-lg">
+        <h2 class="text-lg font-semibold mb-4">Call Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <p>Total Calls: {{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                <p>Average Duration: {% set call_count = data|selectattr('type', 'equalto', 'call')|list|length %}
+{% if call_count > 0 %}
+{{ (data|selectattr('type', 'equalto', 'call')|map(attribute='call_duration')|sum) / call_count }} seconds
+{% else %}
+N/A
+{% endif %}</p>
+            </div>
+            <div>
+                <p>Successful Calls: {{ data|selectattr('call_outcome', 'equalto', 'successful')|list|length }}</p>
+                <p>Unsuccessful Calls: {{ data|selectattr('call_outcome', 'equalto', 'unsuccessful')|list|length }}</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

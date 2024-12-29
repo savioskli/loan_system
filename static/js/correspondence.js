@@ -55,9 +55,76 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+        // Initialize client select with search
+        $(document).ready(function() {
+            const select = $('#clientSelect2');
+    
+            // Initialize Select2
+            select.select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Search for a client...',
+                allowClear: true,
+                width: '100%',
+                ajax: {
+                    url: 'http://localhost:5003/api/mock/clients/search', // Updated URL
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        console.log('Search params:', params);
+                        return {
+                            q: params.term || '',
+                            page: params.page || 1
+                        };
+                    },
+                    processResults: function(data, params) {
+                        console.log('Received data:', data);
+                        params.page = params.page || 1;
+                        return {
+                            results: data.clients.map(item => ({
+                                id: item.id,
+                                text: item.name // Use the correct property for display
+                            })),
+                            pagination: {
+                                more: data.has_more
+                            }
+                        };
+                    },
+                    cache: true
+                },
+                minimumInputLength: 1,
+                templateResult: function(data) {
+                    if (data.loading) {
+                        return data.text;
+                    }
+                    return $('<span>' + data.text + '</span>');
+                },
+                templateSelection: function(data) {
+                    return data.text || data.id;
+                }
+            }).on('select2:select', function(e) {
+                console.log('Selected:', e.params.data);
+                loadCorrespondence(e.params.data.id);
+            });
+        });
+
     // Load correspondence for a client
     function loadCorrespondence(clientId) {
         console.log('Loading correspondence for client:', clientId);
+        // Fetch account numbers for the selected client
+        $.ajax({
+            url: `http://localhost:5003/api/mock/clients/${clientId}/accounts`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                console.log('Accounts for client:', data);
+                // Assuming data.accounts is an array of account numbers
+                const accountInput = $('#account_no');
+                accountInput.val(data.accounts.join(', ')); // Display account numbers as comma-separated
+            },
+            error: function(error) {
+                console.error('Error loading accounts:', error);
+            }
+        });
         $.ajax({
             url: '/user/api/correspondence/' + clientId,
             method: 'GET',
@@ -172,6 +239,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function saveCorrespondence() {
+        const correspondenceData = {
+            account_no: document.getElementById('account_no').value,
+            client_name: document.getElementById('client_name').value,
+            type: document.getElementById('type').value,
+            message: document.getElementById('message').value,
+            status: document.getElementById('status').value,
+            sent_by: document.getElementById('sent_by').value,
+            recipient: document.getElementById('recipient').value,
+            delivery_status: document.getElementById('delivery_status').value,
+            delivery_time: document.getElementById('delivery_time').value,
+            call_duration: document.getElementById('call_duration').value,
+            call_outcome: document.getElementById('call_outcome').value,
+            location: document.getElementById('location').value,
+            visit_purpose: document.getElementById('visit_purpose').value,
+            visit_outcome: document.getElementById('visit_outcome').value,
+            staff_id: document.getElementById('staff_id').value,
+            loan_id: document.getElementById('loan_id').value,
+            attachment_path: document.getElementById('attachment_path').value,
+        };
+
+        createCorrespondence(correspondenceData);
+    }
+
+   function createCorrespondence(data) {
+       const csrfToken = document.querySelector('input[name="csrf_token"]').value; // Get CSRF token
+       const formData = new FormData();
+       formData.append('csrf_token', csrfToken);
+       for (const key in data) {
+           formData.append(key, data[key]);
+       }
+   
+       console.log('Form Data:', Array.from(formData.entries()));
+       fetch('/api/correspondence', {
+           method: 'POST',
+           body: formData, // Send as FormData
+       })
+       .then(response => response.json())
+       .then(data => {
+           if (data.success) {
+               alert('Correspondence saved successfully!');
+           } else {
+               alert('Error saving correspondence: ' + data.message);
+           }
+       })
+       .catch(error => {
+           console.error('Error:', error);
+           alert('An unexpected error occurred.');
+       });
+   }
+
     // Modal handling
     const modal = document.getElementById('newCorrespondenceModal');
     const newCorrespondenceBtn = document.getElementById('newCorrespondenceBtn');
@@ -192,9 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#newCorrespondenceForm').on('submit', function(e) {
         e.preventDefault();
         
-        const clientId = $('#clientSelect').val();
+        const clientId = $('#clientSelect2').val();
         if (!clientId) {
-            alert('Please select a client first');
+            // alert('Please select a client first'); 
             return;
         }
 
@@ -206,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             data: formData,
             processData: false,
-            contentType: false,
+            //contentType: false,
             success: function(response) {
                 closeNewCorrespondenceModal();
                 loadCorrespondence(clientId);

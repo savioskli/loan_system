@@ -471,6 +471,16 @@ def search_clients():
         'has_more': len(filtered_clients) > end_idx
     })
 
+@app.route('/api/mock/clients/<client_id>/accounts', methods=['GET'])
+def get_client_accounts(client_id):
+    # Find the client in the mock data
+    client = next((c for c in MOCK_CLIENTS if c['id'] == client_id), None)
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
+    
+    # Return the account number(s) for the client
+    return jsonify({'accounts': [client['account_number']]})
+
 @app.route('/api/correspondence/<client_id>', methods=['GET'])
 def get_correspondence(client_id):
     correspondence_type = request.args.get('type', 'all')

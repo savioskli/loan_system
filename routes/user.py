@@ -790,26 +790,24 @@ def get_correspondence(client_id):
 @user_bp.route('/api/correspondence', methods=['POST'])
 @login_required
 def save_correspondence():
-    data = request.json  # Get the JSON data from the request
-    client_id = data.get('client_id')
+    data = request.form  # Get the form data from the request
+    client_id = data.get('client_name')  # Adjusted to match the form field names
     communication_type = data.get('type')
-    content = data.get('content')
+    content = data.get('message')  # Adjusted to match the form field names
     account_no = data.get('account_no')
-    client_name = data.get('client_name')
-    sent_by = data.get('sent_by')
-    status = 'pending'  # Default status can be set as needed
-    
+    sent_by = current_user.username  # Assuming sent_by is the current user's username
+
     # Validate data here (e.g., check if fields are not empty)
-    if not client_id or not communication_type or not content or not account_no or not client_name or not sent_by:
+    if not client_id or not communication_type or not content or not account_no or not sent_by:
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
     
     # Create a new Correspondence object
     new_correspondence = Correspondence(
         account_no=account_no,
-        client_name=client_name,
+        client_name=client_id,
         type=communication_type,
         message=content,
-        status=status,
+        status='pending',
         sent_by=sent_by
     )
     db.session.add(new_correspondence)

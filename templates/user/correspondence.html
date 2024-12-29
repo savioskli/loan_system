@@ -97,19 +97,18 @@
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="status" name="status" value="pending" required>
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sent By</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="sent_by" name="sent_by" required>
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipient</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="recipient" name="recipient">
+                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="status" name="status" required>
+                        <option value="Completed">Completed</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Pending" selected>Pending</option>
+                    </select>
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Status</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="delivery_status" name="delivery_status">
+                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="delivery_status" name="delivery_status">
+                        <option value="Delivered">Delivered</option>
+                        <option value="Failed">Failed</option>
+                    </select>
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Time</label>
@@ -121,7 +120,11 @@
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Outcome</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="call_outcome" name="call_outcome">
+                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="call_outcome" name="call_outcome">
+                        <option value="answered">Answered</option>
+                        <option value="no_answer">No Answer</option>
+                        <option value="voicemail">Voicemail</option>
+                    </select>
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
@@ -130,6 +133,10 @@
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Purpose</label>
                     <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="visit_purpose" name="visit_purpose">
+                </div>
+                <div class="w-1/2 px-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Outcome</label>
+                    <textarea class="w-full border border-gray-300 rounded-lg p-1.5" id="visit_outcome" name="visit_outcome"></textarea>
                 </div>
             </div>
             <div class="flex justify-end space-x-4">
@@ -144,10 +151,55 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const typeSelect = document.getElementById('type');
+        const fields = {
+            delivery_status: document.getElementById('delivery_status').closest('div'),
+            delivery_time: document.getElementById('delivery_time').closest('div'),
+            call_duration: document.getElementById('call_duration').closest('div'),
+            call_outcome: document.getElementById('call_outcome').closest('div'),
+            location: document.getElementById('location').closest('div'),
+            visit_purpose: document.getElementById('visit_purpose').closest('div'),
+            visit_outcome: document.getElementById('visit_outcome').closest('div')
+        };
 
+        // Hide all optional fields initially
+        function hideAllFields() {
+            for (let key in fields) {
+                fields[key].style.display = 'none';
+            }
+        }
+
+        function toggleFields() {
+            hideAllFields();
+            const type = typeSelect.value;
+
+            if (type === 'sms' || type === 'email') {
+                fields.delivery_status.style.display = 'block';
+                fields.delivery_time.style.display = 'block';
+            } else if (type === 'call') {
+                fields.call_duration.style.display = 'block';
+                fields.call_outcome.style.display = 'block';
+            } else if (type === 'visit') {
+                fields.location.style.display = 'block';
+                fields.visit_purpose.style.display = 'block';
+                fields.visit_outcome.style.display = 'block';
+            }
+        }
+
+        // Initial hide
+        hideAllFields();
+
+        // Listen for changes
+        typeSelect.addEventListener('change', toggleFields);
+    });
+</script>
 {% endblock %}
 
 {% block extra_js %}
+
+
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ url_for('static', filename='js/correspondence.js') }}"></script>
 {% endblock %}

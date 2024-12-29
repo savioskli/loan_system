@@ -1,5 +1,6 @@
 from extensions import db
 from datetime import datetime
+from models.collection_schedule import CollectionSchedule
 
 class Loan(db.Model):
     __tablename__ = 'loans'

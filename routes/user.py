@@ -21,8 +21,11 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import and_, or_, text, MetaData, Table
 import time
 from flask import current_app
+from routes.collection_schedule import collection_schedule_bp
 
 user_bp = Blueprint('user', __name__)
+
+user_bp.register_blueprint(collection_schedule_bp, url_prefix='/user')
 
 @user_bp.route('/dashboard')
 @login_required
@@ -1074,3 +1077,61 @@ def analytics():
                            call_count=call_count,
                            letter_count=letter_count,
                            visit_count=visit_count)
+
+@user_bp.route('/collection-schedule', methods=['GET'])
+@login_required
+def collection_schedule():
+    return render_template('user/collection_schedule.html')
+
+@user_bp.route('/collection_schedule', methods=['POST'])
+@login_required
+def create_collection_schedule():
+    data = request.json
+    new_schedule = CollectionSchedule(
+        staff_id=data['staff_id'],
+        loan_id=data['loan_id'],
+        schedule_date=datetime.strptime(data['schedule_date'], '%Y-%m-%dT%H:%M:%S'),
+        status=data['status']
+    )
+    db.session.add(new_schedule)
+    db.session.commit()
+    return jsonify({'message': 'Collection schedule created successfully'}), 201
+
+@user_bp.route('/collection_schedule', methods=['GET'])
+@login_required
+def get_collection_schedules():
+    staff_id = request.args.get('staff_id')
+    loan_status = request.args.get('loan_status')
+    query = CollectionSchedule.query
+    if staff_id:
+        query = query.filter_by(staff_id=staff_id)
+    if loan_status:
+        query = query.join(Loan).filter(Loan.status == loan_status)
+    schedules = query.all()
+    return jsonify([{
+        'id': schedule.id,
+        'staff_id': schedule.staff_id,
+        'loan_id': schedule.loan_id,
+        'schedule_date': schedule.schedule_date.isoformat(),
+        'status': schedule.status
+    } for schedule in schedules]), 200
+
+@user_bp.route('/collection_schedule/<int:schedule_id>', methods=['PUT'])
+@login_required
+def update_collection_schedule(schedule_id):
+    data = request.json
+    schedule = CollectionSchedule.query.get_or_404(schedule_id)
+    schedule.staff_id = data.get('staff_id', schedule.staff_id)
+    schedule.loan_id = data.get('loan_id', schedule.loan_id)
+    schedule.schedule_date = datetime.strptime(data['schedule_date'], '%Y-%m-%dT%H:%M:%S')
+    schedule.status = data.get('status', schedule.status)
+    db.session.commit()
+    return jsonify({'message': 'Collection schedule updated successfully'}), 200
+
+@user_bp.route('/collection_schedule/<int:schedule_id>', methods=['DELETE'])
+@login_required
+def delete_collection_schedule(schedule_id):
+    schedule = CollectionSchedule.query.get_or_404(schedule_id)
+    db.session.delete(schedule)
+    db.session.commit()
+    return jsonify({'message': 'Collection schedule deleted successfully'}), 200

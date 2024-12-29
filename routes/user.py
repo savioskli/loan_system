@@ -1037,9 +1037,42 @@ def analytics():
     for correspondence in correspondence_data:
         client_counts[correspondence.client_name] = client_counts.get(correspondence.client_name, 0) + 1
 
+    # Calculate statistics
+    total_calls = len([c for c in correspondence_data if c.type == 'Call'])
+    successful_calls = len([c for c in correspondence_data if c.call_outcome in ['Answered']])
+    unsuccessful_calls = len([c for c in correspondence_data if c.call_outcome in ['No Answer', 'Voicemail']])
+    call_durations = [c.call_duration for c in correspondence_data if c.type == 'Call']
+    average_duration = sum(call_durations) / len(call_durations) if call_durations else 0
+
+    # Calculate statistics for correspondences
+    total_correspondences = len(correspondence_data)
+    pending_correspondences = len([c for c in correspondence_data if c.status == 'Pending'])
+    completed_correspondences = len([c for c in correspondence_data if c.status == 'Completed'])
+    failed_deliveries = len([c for c in correspondence_data if c.delivery_status == 'Failed'])
+
+    # Calculate statistics for SMS, Email, Call, Letter, and Visit correspondences
+    sms_count = len([c for c in correspondence_data if c.type == 'SMS'])
+    email_count = len([c for c in correspondence_data if c.type == 'Email'])
+    call_count = len([c for c in correspondence_data if c.type == 'Call'])
+    letter_count = len([c for c in correspondence_data if c.type == 'Letter'])
+    visit_count = len([c for c in correspondence_data if c.type == 'Visit'])
+
     return render_template('user/analytics.html', 
                            data=correspondence_data, 
                            type_counts=type_counts, 
                            status_counts=status_counts, 
                            client_counts=client_counts,
-                           total_pages=total_pages)
+                           total_pages=total_pages,
+                           total_calls=total_calls,
+                           successful_calls=successful_calls,
+                           unsuccessful_calls=unsuccessful_calls,
+                           average_duration=average_duration,
+                           total_correspondences=total_correspondences,
+                           pending_correspondences=pending_correspondences,
+                           completed_correspondences=completed_correspondences,
+                           failed_deliveries=failed_deliveries,
+                           sms_count=sms_count,
+                           email_count=email_count,
+                           call_count=call_count,
+                           letter_count=letter_count,
+                           visit_count=visit_count)

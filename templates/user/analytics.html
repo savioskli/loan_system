@@ -57,7 +57,7 @@
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Correspondences</h3>
                 </div>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|length }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ total_correspondences }}</p>
                 <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of all correspondences</p>
             </div>
             <!-- Pending -->
@@ -65,7 +65,7 @@
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Pending</h3>
                 </div>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('status', 'equalto', 'pending')|list|length }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_correspondences }}</p>
                 <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of pending correspondences</p>
             </div>
             <!-- Completed -->
@@ -73,7 +73,7 @@
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</h3>
                 </div>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('status', 'equalto', 'completed')|list|length }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ completed_correspondences }}</p>
                 <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of completed correspondences</p>
             </div>
             <!-- Failed Deliveries -->
@@ -81,7 +81,7 @@
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Failed Deliveries</h3>
                 </div>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('delivery_status', 'equalto', 'failed')|list|length }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ failed_deliveries }}</p>
                 <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of failed deliveries</p>
             </div>
         </div>
@@ -95,7 +95,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">SMS</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'sms')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ sms_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of SMS correspondences</p>
                 </div>
                 <!-- Email -->
@@ -103,7 +103,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'email')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ email_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Email correspondences</p>
                 </div>
                 <!-- Call -->
@@ -111,7 +111,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Call</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ call_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Call correspondences</p>
                 </div>
                 <!-- Letter -->
@@ -119,7 +119,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Letter</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'letter')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ letter_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Letter correspondences</p>
                 </div>
                 <!-- Visit -->
@@ -127,22 +127,22 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Visit</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'visit')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ visit_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Visit correspondences</p>
                 </div>
             </div>
         </div>
 
-        <!-- Call Statistics -->
-        <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mt-8">
+        <!-- Call Statistics Section -->
+        <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6 mt-8">
             <h2 class="text-base font-medium text-gray-600 dark:text-gray-400 mb-4">Call Statistics</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <!-- Total Calls -->
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Calls</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('type', 'equalto', 'call')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ total_calls }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of all calls</p>
                 </div>
                 <!-- Average Duration -->
@@ -150,15 +150,15 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Duration</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{% set call_count = data|selectattr('type', 'equalto', 'call')|list|length %}{% if call_count > 0 %}{{ (data|selectattr('type', 'equalto', 'call')|map(attribute='call_duration')|sum) / call_count }} seconds{% else %}N/A{% endif %}</p>
-                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Average duration of calls</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ average_duration }} </p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Average duration of calls in seconds</p>
                 </div>
                 <!-- Successful Calls -->
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Successful Calls</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('call_outcome', 'equalto', 'successful')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ successful_calls }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of successful calls</p>
                 </div>
                 <!-- Unsuccessful Calls -->
@@ -166,7 +166,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Unsuccessful Calls</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ data|selectattr('call_outcome', 'equalto', 'unsuccessful')|list|length }}</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ unsuccessful_calls }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of unsuccessful calls</p>
                 </div>
             </div>

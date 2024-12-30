@@ -1,5 +1,5 @@
 import requests
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from models.module import Module, FormField
 from models.form_section import FormSection
@@ -10,6 +10,8 @@ from models.form_submission import FormSubmission
 from models.calendar_event import CalendarEvent
 from models.client import Client
 from models.correspondence import Correspondence
+from models.guarantor import Guarantor
+from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
@@ -23,6 +25,7 @@ import time
 from flask import current_app
 from routes.collection_schedule import collection_schedule_bp
 from services.collection_schedule_service import CollectionScheduleService
+import io
 
 user_bp = Blueprint('user', __name__)
 
@@ -1085,3 +1088,160 @@ def analytics():
 def collection_schedule():
     """Render the collection schedule page."""
     return render_template('user/collection_schedule.html')
+
+@user_bp.route('/guarantors')
+@login_required
+def guarantors_list():
+    """Display list of all guarantors"""
+    return render_template('user/guarantors_list.html')
+
+@user_bp.route('/guarantors/<customer_no>')
+@login_required
+def customer_guarantors(customer_no):
+    """Display guarantors for a specific customer"""
+    guarantors = GuarantorService.get_customer_guarantors(customer_no)
+    return render_template('user/customer_guarantors.html', guarantors=guarantors, customer_no=customer_no)
+
+@user_bp.route('/api/guarantors/sync/<customer_no>', methods=['POST'])
+@login_required
+def sync_guarantors(customer_no):
+    """Sync guarantors from core banking system"""
+    success = GuarantorService.sync_guarantors(customer_no)
+    if success:
+        return jsonify({'message': 'Guarantors synced successfully'}), 200
+    return jsonify({'error': 'Failed to sync guarantors'}), 500
+
+@user_bp.route('/guarantors/<guarantor_no>/details')
+@login_required
+def guarantor_details(guarantor_no):
+    """Display detailed information about a specific guarantor"""
+    guarantor = GuarantorService.get_guarantor_by_no(guarantor_no)
+    if not guarantor:
+        flash('Guarantor not found', 'error')
+        return redirect(url_for('user.guarantors_list'))
+    
+    customer = CustomerService.get_customer_by_no(guarantor.customer_no)
+    loans = LoanService.get_customer_loans(guarantor.customer_no)
+    
+    return render_template('user/guarantor_detail.html', 
+                         guarantor=guarantor,
+                         customer=customer,
+                         loans=loans)
+
+@user_bp.route('/api/guarantors/<guarantor_no>/status', methods=['POST'])
+@login_required
+def update_guarantor_status(guarantor_no):
+    """Update guarantor status"""
+    data = request.get_json()
+    success = GuarantorService.update_status(guarantor_no, data['status'], data['reason'])
+    
+    if success:
+        return jsonify({'message': 'Status updated successfully'})
+    return jsonify({'error': 'Failed to update status'}), 400
+
+@user_bp.route('/api/guarantors/<guarantor_no>/export', methods=['GET'])
+@login_required
+def export_guarantor_details(guarantor_no):
+    """Export guarantor details as PDF"""
+    pdf_data = GuarantorService.generate_pdf_report(guarantor_no)
+    if pdf_data:
+        return send_file(
+            io.BytesIO(pdf_data),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'guarantor_{guarantor_no}_details.pdf'
+        )
+    return jsonify({'error': 'Failed to generate PDF'}), 400
+
+@user_bp.route('/api/guarantors', methods=['POST'])
+@login_required
+def create_guarantor():
+    """Create a new guarantor"""
+    data = request.get_json()
+    guarantor = GuarantorService.create_guarantor(data)
+    
+    if guarantor:
+        return jsonify({'message': 'Guarantor created successfully', 'guarantor': guarantor.to_dict()})
+    return jsonify({'error': 'Failed to create guarantor'}), 400
+
+@user_bp.route('/api/guarantors/<guarantor_no>', methods=['PUT'])
+@login_required
+def update_guarantor(guarantor_no):
+    """Update guarantor information"""
+    data = request.get_json()
+    success = GuarantorService.update_guarantor(guarantor_no, data)
+    
+    if success:
+        return jsonify({'message': 'Guarantor updated successfully'})
+    return jsonify({'error': 'Failed to update guarantor'}), 400
+
+@user_bp.route('/api/customers/<customer_id>/guarantors/export', methods=['GET'])
+@login_required
+def export_customer_guarantors(customer_id):
+    """Export customer's guarantors list as Excel"""
+    excel_data = GuarantorService.generate_excel_report(customer_id)
+    if excel_data:
+        return send_file(
+            io.BytesIO(excel_data),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'customer_{customer_id}_guarantors.xlsx'
+        )
+    return jsonify({'error': 'Failed to generate Excel report'}), 400
+
+@user_bp.route('/api/guarantors/search', methods=['GET'])
+@login_required
+def search_guarantors():
+    """Search guarantors with filters"""
+    try:
+        search_term = request.args.get('q', '')
+        status = request.args.get('status')
+        income_range = request.args.get('income')
+
+        # Get all guarantors from mock core banking
+        response = requests.get('http://localhost:5003/api/guarantors/search', params={'q': search_term})
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to fetch guarantors from core banking system'}), 500
+            
+        guarantors = response.json()
+
+        # Apply additional filters
+        if status:
+            guarantors = [g for g in guarantors if g['status'] == status]
+
+        if income_range:
+            ranges = {
+                '0-50000': (0, 50000),
+                '50001-100000': (50001, 100000),
+                '100001-200000': (100001, 200000),
+                '200001+': (200001, float('inf'))
+            }
+            if income_range in ranges:
+                min_val, max_val = ranges[income_range]
+                guarantors = [g for g in guarantors if min_val <= g['monthly_income'] <= max_val] if max_val != float('inf') else [g for g in guarantors if g['monthly_income'] >= min_val]
+
+        return jsonify(guarantors)
+    except Exception as e:
+        current_app.logger.error(f"Error searching guarantors: {str(e)}")
+        return jsonify({'error': 'Failed to search guarantors'}), 500
+
+@user_bp.route('/api/guarantors/sync', methods=['POST'])
+@login_required
+def sync_all_guarantors():
+    """Sync all guarantors from core banking system"""
+    try:
+        # Get all clients
+        clients = Client.query.all()
+        success_count = 0
+        
+        # Sync guarantors for each client
+        for client in clients:
+            if GuarantorService.sync_guarantors(client.client_no):
+                success_count += 1
+        
+        if success_count > 0:
+            return jsonify({'message': f'Successfully synced guarantors for {success_count} clients'})
+        return jsonify({'error': 'No guarantors were synced'}), 400
+    except Exception as e:
+        current_app.logger.error(f"Error syncing all guarantors: {str(e)}")
+        return jsonify({'error': 'Failed to sync guarantors'}), 500

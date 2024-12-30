@@ -5,22 +5,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeModalBtn = document.getElementById('closeCollectionScheduleModal');
 
     // Initialize Select2 dropdowns
-    $('#staffSelect').select2({
+    const staffSelect2Config = {
         theme: 'bootstrap-5',
-        placeholder: 'Select a staff member',
+        placeholder: 'Select a collection officer',
+        allowClear: true,
+        width: '100%',
         ajax: {
             url: '/api/collection-schedules/staff',
             dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    search: params.term,
+                    page: params.page || 1
+                };
+            },
             processResults: function(data) {
                 return {
                     results: data.map(staff => ({
                         id: staff.id,
-                        text: `${staff.name} (${staff.branch})`
+                        text: `${staff.name} (${staff.branch || 'No Branch'})`
                     }))
                 };
+            },
+            cache: true
+        },
+        minimumInputLength: 0,
+        templateResult: function(staff) {
+            if (staff.loading) {
+                return 'Loading...';
             }
+            return staff.text;
+        },
+        templateSelection: function(staff) {
+            return staff.text;
         }
-    });
+    };
+
+    // Initialize Select2 for both staff select fields
+    $('#staffSelect, #filterStaff').select2(staffSelect2Config);
 
     $('#loanSelect').select2({
         theme: 'bootstrap-5',

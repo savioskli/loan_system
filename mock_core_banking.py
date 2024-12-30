@@ -63,6 +63,22 @@ MOCK_DATA = {
                 ]
             },
             {
+                'name': 'Guarantor',
+                'description': 'Contains information about loan guarantors and their relationships with customers',
+                'fields': [
+                    {'name': 'Guarantor_No_', 'type': 'Code[20]', 'description': 'Guarantor unique identifier'},
+                    {'name': 'Customer_No_', 'type': 'Code[20]', 'description': 'Customer being guaranteed'},
+                    {'name': 'Name', 'type': 'Text[100]', 'description': 'Guarantor full name'},
+                    {'name': 'ID_No_', 'type': 'Text[20]', 'description': 'National ID number'},
+                    {'name': 'Phone_No_', 'type': 'Text[30]', 'description': 'Contact phone number'},
+                    {'name': 'Email', 'type': 'Text[80]', 'description': 'Email address'},
+                    {'name': 'Relationship', 'type': 'Option', 'description': 'Relationship to customer'},
+                    {'name': 'Occupation', 'type': 'Text[50]', 'description': 'Guarantor occupation'},
+                    {'name': 'Monthly_Income', 'type': 'Decimal', 'description': 'Guarantor monthly income'},
+                    {'name': 'Status', 'type': 'Option', 'description': 'Status (Active/Inactive)'}
+                ]
+            },
+            {
                 'name': 'Loan_Grading',
                 'description': 'Contains loan classification and provisioning details as per CBK guidelines',
                 'fields': [
@@ -192,50 +208,561 @@ MOCK_DATA = {
 # Mock client data
 MOCK_CLIENTS = [
     {
-        'id': 'CLT001',
-        'name': 'John Doe',
-        'account_number': 'ACC123456',
-        'loan_amount': 50000,
-        'status': 'Active',
-        'classification': 'Normal',
-        'days_in_arrears': 0,
-        'outstanding_balance': 45000
+        'id': 'CUS001',
+        'name': 'Wanjiku Kamau',
+        'phone': '+254722000001',
+        'email': 'wanjiku.kamau@example.com',
+        'loans': [
+            {
+                'account_no': 'LN001',
+                'amount': 50000,
+                'balance': 45000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA001',
+                'name': 'Njeri Mwangi',
+                'id_no': '12345678',
+                'phone_no': '+254722000099',
+                'email': 'njeri.mwangi@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Teacher',
+                'monthly_income': 75000,
+                'status': 'Active'
+            }
+        ]
     },
     {
-        'id': 'CLT002',
-        'name': 'Jane Smith',
-        'account_number': 'ACC789012',
-        'loan_amount': 75000,
-        'status': 'Active',
-        'classification': 'Watch',
-        'days_in_arrears': 45,
-        'outstanding_balance': 70000
+        'id': 'CUS002',
+        'name': 'Omondi Otieno',
+        'phone': '+254722000002',
+        'email': 'omondi.otieno@example.com',
+        'loans': [
+            {
+                'account_no': 'LN002',
+                'amount': 100000,
+                'balance': 80000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA002',
+                'name': 'Kipchoge Kipruto',
+                'id_no': '87654321',
+                'phone_no': '+254722000003',
+                'email': 'kipchoge.kipruto@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Business Owner',
+                'monthly_income': 120000,
+                'status': 'Active'
+            },
+            {
+                'guarantor_no': 'GUA003',
+                'name': 'Akinyi Odhiambo',
+                'id_no': '23456789',
+                'phone_no': '+254722000088',
+                'email': 'akinyi.odhiambo@example.com',
+                'relationship': 'Spouse',
+                'occupation': 'Accountant',
+                'monthly_income': 90000,
+                'status': 'Active'
+            }
+        ]
     },
     {
-        'id': 'CLT003',
-        'name': 'Robert Johnson',
-        'account_number': 'ACC345678',
-        'loan_amount': 100000,
-        'status': 'Active',
-        'classification': 'Substandard',
-        'days_in_arrears': 95,
-        'outstanding_balance': 98000
+        'id': 'CUS003',
+        'name': 'Hassan Ali Mohammed',
+        'phone': '+254722000004',
+        'email': 'hassan.mohammed@example.com',
+        'loans': [
+            {
+                'account_no': 'LN003',
+                'amount': 150000,
+                'balance': 120000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA004',
+                'name': 'Fatuma Omar',
+                'id_no': '34567890',
+                'phone_no': '+254722000005',
+                'email': 'fatuma.omar@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Shop Owner',
+                'monthly_income': 85000,
+                'status': 'Active'
+            }
+        ]
     },
     {
-        'id': 'CLT004',
-        'name': 'Sarah Williams',
-        'account_number': 'ACC901234',
-        'loan_amount': 25000,
-        'status': 'Active',
-        'classification': 'Normal',
-        'days_in_arrears': 0,
-        'outstanding_balance': 20000
+        'id': 'CUS004',
+        'name': 'Mutua Musyoka',
+        'phone': '+254722000006',
+        'email': 'mutua.musyoka@example.com',
+        'loans': [
+            {
+                'account_no': 'LN004',
+                'amount': 75000,
+                'balance': 60000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA005',
+                'name': 'Muthoni Njoroge',
+                'id_no': '45678901',
+                'phone_no': '+254722000007',
+                'email': 'muthoni.njoroge@example.com',
+                'relationship': 'Cousin',
+                'occupation': 'Civil Servant',
+                'monthly_income': 95000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS005',
+        'name': 'Amina Hussein',
+        'phone': '+254722000008',
+        'email': 'amina.hussein@example.com',
+        'loans': [
+            {
+                'account_no': 'LN005',
+                'amount': 200000,
+                'balance': 180000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA006',
+                'name': 'Salim Abdullah',
+                'id_no': '56789012',
+                'phone_no': '+254722000009',
+                'email': 'salim.abdullah@example.com',
+                'relationship': 'Brother',
+                'occupation': 'Doctor',
+                'monthly_income': 150000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS006',
+        'name': 'Kipkorir Sang',
+        'phone': '+254722000010',
+        'email': 'kipkorir.sang@example.com',
+        'loans': [
+            {
+                'account_no': 'LN006',
+                'amount': 300000,
+                'balance': 250000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA007',
+                'name': 'Cherono Koech',
+                'id_no': '67890123',
+                'phone_no': '+254722000011',
+                'email': 'cherono.koech@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Engineer',
+                'monthly_income': 130000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS007',
+        'name': 'Atieno Adhiambo',
+        'phone': '+254722000012',
+        'email': 'atieno.adhiambo@example.com',
+        'loans': [
+            {
+                'account_no': 'LN007',
+                'amount': 80000,
+                'balance': 65000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA008',
+                'name': 'Owino Okoth',
+                'id_no': '78901234',
+                'phone_no': '+254722000013',
+                'email': 'owino.okoth@example.com',
+                'relationship': 'Uncle',
+                'occupation': 'Teacher',
+                'monthly_income': 70000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS008',
+        'name': 'Njuguna Kariuki',
+        'phone': '+254722000014',
+        'email': 'njuguna.kariuki@example.com',
+        'loans': [
+            {
+                'account_no': 'LN008',
+                'amount': 250000,
+                'balance': 200000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA009',
+                'name': 'Wambui Githinji',
+                'id_no': '89012345',
+                'phone_no': '+254722000015',
+                'email': 'wambui.githinji@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Business Owner',
+                'monthly_income': 180000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS009',
+        'name': 'Ahmed Ibrahim',
+        'phone': '+254722000016',
+        'email': 'ahmed.ibrahim@example.com',
+        'loans': [
+            {
+                'account_no': 'LN009',
+                'amount': 175000,
+                'balance': 150000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA010',
+                'name': 'Halima Said',
+                'id_no': '90123456',
+                'phone_no': '+254722000017',
+                'email': 'halima.said@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Nurse',
+                'monthly_income': 85000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS010',
+        'name': 'Kimani Ngugi',
+        'phone': '+254722000018',
+        'email': 'kimani.ngugi@example.com',
+        'loans': [
+            {
+                'account_no': 'LN010',
+                'amount': 400000,
+                'balance': 380000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA011',
+                'name': 'Nyambura Maina',
+                'id_no': '01234567',
+                'phone_no': '+254722000019',
+                'email': 'nyambura.maina@example.com',
+                'relationship': 'Spouse',
+                'occupation': 'Lawyer',
+                'monthly_income': 200000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS011',
+        'name': 'Wekesa Wafula',
+        'phone': '+254722000020',
+        'email': 'wekesa.wafula@example.com',
+        'loans': [
+            {
+                'account_no': 'LN011',
+                'amount': 120000,
+                'balance': 100000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA012',
+                'name': 'Nafula Simiyu',
+                'id_no': '11234567',
+                'phone_no': '+254722000021',
+                'email': 'nafula.simiyu@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Pharmacist',
+                'monthly_income': 110000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS012',
+        'name': 'Kibet Rotich',
+        'phone': '+254722000022',
+        'email': 'kibet.rotich@example.com',
+        'loans': [
+            {
+                'account_no': 'LN012',
+                'amount': 280000,
+                'balance': 250000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA013',
+                'name': 'Chebet Rono',
+                'id_no': '21234567',
+                'phone_no': '+254722000023',
+                'email': 'chebet.rono@example.com',
+                'relationship': 'Cousin',
+                'occupation': 'Software Developer',
+                'monthly_income': 160000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS013',
+        'name': 'Juma Ochieng',
+        'phone': '+254722000024',
+        'email': 'juma.ochieng@example.com',
+        'loans': [
+            {
+                'account_no': 'LN013',
+                'amount': 90000,
+                'balance': 75000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA014',
+                'name': 'Onyango Odongo',
+                'id_no': '31234567',
+                'phone_no': '+254722000025',
+                'email': 'onyango.odongo@example.com',
+                'relationship': 'Brother',
+                'occupation': 'Lecturer',
+                'monthly_income': 140000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS014',
+        'name': 'Muthama Kyalo',
+        'phone': '+254722000026',
+        'email': 'muthama.kyalo@example.com',
+        'loans': [
+            {
+                'account_no': 'LN014',
+                'amount': 150000,
+                'balance': 130000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA015',
+                'name': 'Mutinda Muema',
+                'id_no': '41234567',
+                'phone_no': '+254722000027',
+                'email': 'mutinda.muema@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Contractor',
+                'monthly_income': 170000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS015',
+        'name': 'Aisha Mohamed',
+        'phone': '+254722000028',
+        'email': 'aisha.mohamed@example.com',
+        'loans': [
+            {
+                'account_no': 'LN015',
+                'amount': 220000,
+                'balance': 200000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA016',
+                'name': 'Zainab Hassan',
+                'id_no': '51234567',
+                'phone_no': '+254722000029',
+                'email': 'zainab.hassan@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Dentist',
+                'monthly_income': 190000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS016',
+        'name': 'Kiprop Kemboi',
+        'phone': '+254722000030',
+        'email': 'kiprop.kemboi@example.com',
+        'loans': [
+            {
+                'account_no': 'LN016',
+                'amount': 350000,
+                'balance': 320000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA017',
+                'name': 'Kiptoo Bett',
+                'id_no': '61234567',
+                'phone_no': '+254722000031',
+                'email': 'kiptoo.bett@example.com',
+                'relationship': 'Brother',
+                'occupation': 'Architect',
+                'monthly_income': 180000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS017',
+        'name': 'Nyokabi Muchiri',
+        'phone': '+254722000032',
+        'email': 'nyokabi.muchiri@example.com',
+        'loans': [
+            {
+                'account_no': 'LN017',
+                'amount': 180000,
+                'balance': 160000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA018',
+                'name': 'Waithera Ndung\'u',
+                'id_no': '71234567',
+                'phone_no': '+254722000033',
+                'email': 'waithera.ndungu@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Real Estate Agent',
+                'monthly_income': 200000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS018',
+        'name': 'Omar Abdallah',
+        'phone': '+254722000034',
+        'email': 'omar.abdallah@example.com',
+        'loans': [
+            {
+                'account_no': 'LN018',
+                'amount': 270000,
+                'balance': 250000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA019',
+                'name': 'Yusuf Mahmoud',
+                'id_no': '81234567',
+                'phone_no': '+254722000035',
+                'email': 'yusuf.mahmoud@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Import/Export Trader',
+                'monthly_income': 250000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS019',
+        'name': 'Mwangi Githae',
+        'phone': '+254722000036',
+        'email': 'mwangi.githae@example.com',
+        'loans': [
+            {
+                'account_no': 'LN019',
+                'amount': 420000,
+                'balance': 400000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA020',
+                'name': 'Njoroge Kimani',
+                'id_no': '91234567',
+                'phone_no': '+254722000037',
+                'email': 'njoroge.kimani@example.com',
+                'relationship': 'Business Partner',
+                'occupation': 'Factory Owner',
+                'monthly_income': 300000,
+                'status': 'Active'
+            }
+        ]
+    },
+    {
+        'id': 'CUS020',
+        'name': 'Awino Okello',
+        'phone': '+254722000038',
+        'email': 'awino.okello@example.com',
+        'loans': [
+            {
+                'account_no': 'LN020',
+                'amount': 160000,
+                'balance': 140000,
+                'status': 'Active'
+            }
+        ],
+        'guarantors': [
+            {
+                'guarantor_no': 'GUA021',
+                'name': 'Akoth Owuor',
+                'id_no': '10123456',
+                'phone_no': '+254722000039',
+                'email': 'akoth.owuor@example.com',
+                'relationship': 'Sister',
+                'occupation': 'Bank Manager',
+                'monthly_income': 220000,
+                'status': 'Active'
+            }
+        ]
     }
 ]
 
 # Mock correspondence data
 MOCK_CORRESPONDENCE = {
-    'CLT001': [
+    'CUS001': [
         {
             'id': 'COR001',
             'type': 'email',
@@ -252,7 +779,7 @@ MOCK_CORRESPONDENCE = {
             'status': 'sent'
         }
     ],
-    'CLT002': [
+    'CUS002': [
         {
             'id': 'COR003',
             'type': 'call',
@@ -458,7 +985,7 @@ def search_clients():
     filtered_clients = [
         client for client in MOCK_CLIENTS
         if search_term in client['name'].lower() or 
-           search_term in client['account_number'].lower()
+           search_term in client['phone'].lower()
     ]
     
     # Calculate pagination
@@ -479,7 +1006,7 @@ def get_client_accounts(client_id):
         return jsonify({'error': 'Client not found'}), 404
     
     # Return the account number(s) for the client
-    return jsonify({'accounts': [client['account_number']]})
+    return jsonify({'accounts': [loan['account_no'] for loan in client['loans']]})
 
 @app.route('/api/correspondence/<client_id>', methods=['GET'])
 def get_correspondence(client_id):
@@ -514,6 +1041,31 @@ def get_correspondence(client_id):
         'items': correspondence,
         'counts': counts
     })
+
+@app.route('/api/guarantors/<customer_id>', methods=['GET'])
+def get_customer_guarantors(customer_id):
+    """Get guarantors for a specific customer"""
+    client = next((c for c in MOCK_CLIENTS if c['id'] == customer_id), None)
+    if not client:
+        return jsonify({'error': 'Customer not found'}), 404
+    
+    return jsonify(client.get('guarantors', []))
+
+@app.route('/api/guarantors/search', methods=['GET'])
+def search_guarantors():
+    """Search guarantors by name or ID"""
+    search_term = request.args.get('q', '').lower()
+    
+    guarantors = []
+    for client in MOCK_CLIENTS:
+        for guarantor in client.get('guarantors', []):
+            if search_term in guarantor['name'].lower() or search_term in guarantor['id_no'].lower():
+                guarantor_data = guarantor.copy()
+                guarantor_data['customer_name'] = client['name']
+                guarantor_data['customer_id'] = client['id']
+                guarantors.append(guarantor_data)
+    
+    return jsonify(guarantors)
 
 if __name__ == '__main__':
     app.run(port=5003)

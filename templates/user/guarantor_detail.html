@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Guarantor Details{% endblock %}
+
+{% block content %}
+    {% include 'user/post_disbursement_sidebar.html' %}
+
+    <div class="p-4 sm:ml-64">
+        <div class="p-4 border-2 border-gray-200 border-dashed rounded-lg dark:border-gray-700">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Guarantors
+                </button>
+            </div>
+
+            <!-- Header Section -->
+            <div class="mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ guarantor.name }}</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Guarantor ID: {{ guarantor.guarantor_no }}</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="exportPdfBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                    </button>
+                    <button id="updateStatusBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-edit mr-2"></i>Update Status
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Personal Information -->
+                <div class="bg-white rounded-lg shadow p-6 dark:bg-gray-800">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Personal Information</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Full Name</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.name }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">ID Number</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.id_no }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Phone Number</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.phone_no }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Email</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.email }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Status</label>
+                            <span class="mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {{ 'bg-green-100 text-green-800' if guarantor.status == 'Active' else 'bg-red-100 text-red-800' }}">
+                                {{ guarantor.status }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Professional Information -->
+                <div class="bg-white rounded-lg shadow p-6 dark:bg-gray-800">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Professional Information</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Occupation</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.occupation }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Monthly Income</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">KES {{ "{:,.2f}".format(guarantor.monthly_income) }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Relationship to Customer</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ guarantor.relationship }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Information -->
+                <div class="bg-white rounded-lg shadow p-6 dark:bg-gray-800">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Customer Information</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Customer Name</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ customer.name }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Customer ID</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ customer.id }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Total Loans Guaranteed</label>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ loans|length }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guaranteed Loans -->
+                <div class="bg-white rounded-lg shadow p-6 dark:bg-gray-800">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Guaranteed Loans</h2>
+                    <div class="space-y-4">
+                        {% for loan in loans %}
+                        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">Loan #{{ loan.account_no }}</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">Amount: KES {{ "{:,.2f}".format(loan.amount) }}</p>
+                                </div>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {{ 'bg-green-100 text-green-800' if loan.status == 'Active' else 'bg-red-100 text-red-800' }}">
+                                    {{ loan.status }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Update Modal -->
+    <div id="statusModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden">
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <h3 class="text-lg font-semibold mb-4">Update Guarantor Status</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">New Status</label>
+                            <select id="newStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Reason for Change</label>
+                            <textarea id="statusReason" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button id="confirmStatusUpdate" class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto">Update</button>
+                        <button id="cancelStatusUpdate" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/guarantor_detail.js') }}"></script>
+{% endblock %}

@@ -1,3 +1,7 @@
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
 from .client_type import ClientType
 from .staff import Staff
 from .system_settings import SystemSettings
@@ -8,8 +12,10 @@ from .loan import Loan
 from .client import Client
 from .product import Product
 from .calendar_event import CalendarEvent
+from .guarantor import Guarantor
 
 __all__ = [
+    'db',
     'ClientType', 
     'Staff', 
     'SystemSettings', 
@@ -20,4 +26,5 @@ __all__ = [
     'Client', 
     'Product',
     'CalendarEvent',
+    'Guarantor'
 ]

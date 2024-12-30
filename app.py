@@ -170,6 +170,7 @@ def create_app():
     csrf.exempt(sms_templates_bp)
     csrf.exempt(email_templates_bp)
     csrf.exempt(thresholds_bp)
+    csrf.exempt(user_bp)
 
     # Flask-Login configuration
     @login_manager.user_loader
@@ -251,16 +252,23 @@ def create_app():
         )
         
         if wants_json:
-            error_msg = getattr(error, 'description', str(error))
-            if hasattr(error, 'original_exception'):
-                error_msg = str(error.original_exception)
-            
-            return jsonify({
-                'success': False,
-                'message': error_msg or 'Internal server error occurred.'
-            }), 500
-        
+            return jsonify({'error': 'Internal server error'}), 500
         return render_template('errors/500.html'), 500
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        app.logger.error(f"405 error: {str(error)}")
+        
+        wants_json = (
+            request.headers.get('Content-Type', '').startswith('application/json') or
+            request.headers.get('Accept', '').startswith('application/json') or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.path.startswith('/api/')
+        )
+        
+        if wants_json:
+            return jsonify({'error': 'Method not allowed'}), 405
+        return render_template('errors/405.html'), 405
 
     @app.errorhandler(404)
     def not_found_error(error):

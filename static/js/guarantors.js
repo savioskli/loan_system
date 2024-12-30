@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // DOM elements
     const searchInput = document.getElementById('searchGuarantor');
+    const searchCustomer = document.getElementById('searchCustomer');
     const filterStatus = document.getElementById('filterStatus');
     const filterIncome = document.getElementById('filterIncome');
     const tableBody = document.getElementById('guarantorsTableBody');
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function buildQueryString() {
         const params = new URLSearchParams();
         if (searchInput.value) params.append('q', searchInput.value);
+        if (searchCustomer.value) params.append('customer', searchCustomer.value);
         if (filterStatus.value) params.append('status', filterStatus.value);
         if (filterIncome.value) params.append('income', filterIncome.value);
         if (params.toString()) {
@@ -39,11 +41,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Filter guarantors based on search criteria
+    function filterGuarantors(data) {
+        return data.filter(guarantor => {
+            // Filter by guarantor name or ID
+            const searchTerm = searchInput.value.toLowerCase();
+            const nameMatch = guarantor.name.toLowerCase().includes(searchTerm);
+            const idMatch = guarantor.id_no.toLowerCase().includes(searchTerm);
+
+            // Filter by customer name
+            const customerTerm = searchCustomer.value.toLowerCase();
+            const customerMatch = !customerTerm || guarantor.customer_name.toLowerCase().includes(customerTerm);
+
+            // Filter by status
+            const statusMatch = !filterStatus.value || guarantor.status === filterStatus.value;
+
+            // Filter by income
+            let incomeMatch = true;
+            if (filterIncome.value) {
+                const income = guarantor.monthly_income;
+                switch (filterIncome.value) {
+                    case '0-50000':
+                        incomeMatch = income <= 50000;
+                        break;
+                    case '50001-100000':
+                        incomeMatch = income > 50000 && income <= 100000;
+                        break;
+                    case '100001-200000':
+                        incomeMatch = income > 100000 && income <= 200000;
+                        break;
+                    case '200001+':
+                        incomeMatch = income > 200000;
+                        break;
+                }
+            }
+
+            return (nameMatch || idMatch) && customerMatch && statusMatch && incomeMatch;
+        });
+    }
+
     // Update table with current data
     function updateTable() {
+        const filteredData = filterGuarantors(guarantorsData);
         const start = (currentPage - 1) * itemsPerPage;
         const end = start + itemsPerPage;
-        const pageData = guarantorsData.slice(start, end);
+        const pageData = filteredData.slice(start, end);
 
         tableBody.innerHTML = pageData.map(guarantor => `
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -78,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button onclick="viewGuarantor('${guarantor.guarantor_no}')" 
+                    <button onclick="viewGuarantor('${guarantor.id_no}')" 
                             class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                         View Details
                     </button>
@@ -88,13 +130,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update pagination info
         document.getElementById('startIndex').textContent = start + 1;
-        document.getElementById('endIndex').textContent = Math.min(end, guarantorsData.length);
-        document.getElementById('totalItems').textContent = guarantorsData.length;
+        document.getElementById('endIndex').textContent = Math.min(end, filteredData.length);
+        document.getElementById('totalItems').textContent = filteredData.length;
     }
 
     // Update pagination controls
     function updatePagination() {
-        const totalPages = Math.ceil(guarantorsData.length / itemsPerPage);
+        const totalPages = Math.ceil(filterGuarantors(guarantorsData).length / itemsPerPage);
         const pagination = document.getElementById('pagination');
         
         if (totalPages <= 1) {
@@ -187,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Change page
     window.changePage = function(page) {
-        const totalPages = Math.ceil(guarantorsData.length / itemsPerPage);
+        const totalPages = Math.ceil(filterGuarantors(guarantorsData).length / itemsPerPage);
         if (page >= 1 && page <= totalPages) {
             currentPage = page;
             updateTable();
@@ -198,17 +240,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners
     searchInput.addEventListener('input', debounce(() => {
         currentPage = 1;
-        loadGuarantors();
+        updateTable();
+    }, 300));
+
+    searchCustomer.addEventListener('input', debounce(() => {
+        currentPage = 1;
+        updateTable();
     }, 300));
 
     filterStatus.addEventListener('change', () => {
         currentPage = 1;
-        loadGuarantors();
+        updateTable();
     });
 
     filterIncome.addEventListener('change', () => {
         currentPage = 1;
-        loadGuarantors();
+        updateTable();
     });
 
     syncButton.addEventListener('click', () => {
@@ -235,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // View guarantor details
     window.viewGuarantor = function(guarantorNo) {
-        window.location.href = `/user/guarantors/${guarantorNo}`;
+        window.location.href = `/user/guarantors/${guarantorNo}/details`;
     };
 
     // Show notification

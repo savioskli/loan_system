@@ -1099,8 +1099,23 @@ def guarantors_list():
 @login_required
 def customer_guarantors(customer_no):
     """Display guarantors for a specific customer"""
+    # Get customer info from mock core banking
+    try:
+        customer_response = requests.get(f'http://localhost:5003/api/clients/{customer_no}')
+        customer = customer_response.json() if customer_response.status_code == 200 else None
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('user.guarantors_list'))
+    except Exception as e:
+        current_app.logger.error(f"Error fetching customer: {str(e)}")
+        flash('Error fetching customer information', 'error')
+        return redirect(url_for('user.guarantors_list'))
+
     guarantors = GuarantorService.get_customer_guarantors(customer_no)
-    return render_template('user/customer_guarantors.html', guarantors=guarantors, customer_no=customer_no)
+    return render_template('user/customer_guarantors.html', 
+                         guarantors=guarantors, 
+                         customer=customer,
+                         customer_no=customer_no)
 
 @user_bp.route('/api/guarantors/sync/<customer_no>', methods=['POST'])
 @login_required
@@ -1115,18 +1130,22 @@ def sync_guarantors(customer_no):
 @login_required
 def guarantor_details(guarantor_no):
     """Display detailed information about a specific guarantor"""
-    guarantor = GuarantorService.get_guarantor_by_no(guarantor_no)
-    if not guarantor:
+    try:
+        # Get guarantor details from mock core banking
+        response = requests.get('http://localhost:5003/api/guarantors/search')
+        if response.status_code == 200:
+            guarantors = response.json()
+            guarantor = next((g for g in guarantors if g['id_no'] == guarantor_no), None)
+            if guarantor:
+                return render_template('user/guarantor_detail.html', 
+                                    guarantor=guarantor)
+        
         flash('Guarantor not found', 'error')
         return redirect(url_for('user.guarantors_list'))
-    
-    customer = CustomerService.get_customer_by_no(guarantor.customer_no)
-    loans = LoanService.get_customer_loans(guarantor.customer_no)
-    
-    return render_template('user/guarantor_detail.html', 
-                         guarantor=guarantor,
-                         customer=customer,
-                         loans=loans)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching guarantor details: {str(e)}")
+        flash('Error fetching guarantor details', 'error')
+        return redirect(url_for('user.guarantors_list'))
 
 @user_bp.route('/api/guarantors/<guarantor_no>/status', methods=['POST'])
 @login_required
@@ -1245,3 +1264,9 @@ def sync_all_guarantors():
     except Exception as e:
         current_app.logger.error(f"Error syncing all guarantors: {str(e)}")
         return jsonify({'error': 'Failed to sync guarantors'}), 500
+
+@user_bp.route('/notifications/create', methods=['GET'])
+@login_required
+def create_notification():
+    """Display the notification creation form"""
+    return render_template('user/create_notification.html')

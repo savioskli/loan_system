@@ -1067,5 +1067,13 @@ def search_guarantors():
     
     return jsonify(guarantors)
 
+@app.route('/api/clients/<client_id>', methods=['GET'])
+def get_client(client_id):
+    """Get a specific client by ID"""
+    client = next((c for c in MOCK_CLIENTS if c['id'] == client_id), None)
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
+    return jsonify(client)
+
 if __name__ == '__main__':
     app.run(port=5003)

@@ -201,9 +201,25 @@ class GuarantorService:
     @staticmethod
     def get_guarantor_by_no(guarantor_no):
         """Get specific guarantor by number"""
-        return Guarantor.query.filter_by(guarantor_no=guarantor_no).first()
+        try:
+            # First get all guarantors and find the matching one
+            response = requests.get('http://localhost:5003/api/guarantors/search')
+            if response.status_code == 200:
+                guarantors = response.json()
+                return next((g for g in guarantors if g['id_no'] == guarantor_no), None)
+            return None
+        except Exception as e:
+            current_app.logger.error(f"Error fetching guarantor: {str(e)}")
+            return None
 
     @staticmethod
     def get_customer_guarantors(client_no):
         """Get all guarantors for a specific customer"""
-        return Guarantor.query.filter_by(customer_no=client_no).all()
+        try:
+            response = requests.get(f'http://localhost:5003/api/guarantors/{client_no}')
+            if response.status_code == 200:
+                return response.json()
+            return []
+        except Exception as e:
+            current_app.logger.error(f"Error fetching guarantors: {str(e)}")
+            return []

@@ -1,5 +1,6 @@
 from datetime import datetime
-from models import db
+from extensions import db
+from models.client import Client
 
 class Guarantor(db.Model):
     __tablename__ = 'guarantors'

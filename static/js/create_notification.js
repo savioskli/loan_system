@@ -10,6 +10,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let selectedFiles = [];
 
+    // Initialize customer search
+    function initializeCustomerSearch() {
+        $('#searchCustomer').select2({
+            ajax: {
+                url: 'http://localhost:5003/api/mock/customers/search',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.items,
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: 'Search for a customer...',
+            minimumInputLength: 1,
+            templateResult: formatCustomer,
+            templateSelection: formatCustomer
+        }).on('select2:select', function (e) {
+            const customer = e.params.data;
+            selectCustomer(customer.id, customer.name);
+        });
+    }
+
+    function formatCustomer(customer) {
+        if (!customer.id) return customer.text;
+        return $('<span>' + customer.text + '</span>');
+    }
+
+    // Initialize customer search on page load
+    $(document).ready(function() {
+        initializeCustomerSearch();
+    });
+
+    // Select customer
+    function selectCustomer(id, name) {
+        document.getElementById('selectedCustomerId').value = id;
+        document.getElementById('selectedCustomerName').value = name;
+        document.getElementById('customerNameDisplay').textContent = name;
+        document.getElementById('customerIdDisplay').textContent = id;
+        customerInfo.classList.remove('hidden');
+        
+        // Load customer accounts
+        loadCustomerAccounts(id);
+    }
+
     // Customer search with debounce
     let searchTimeout;
     searchCustomer.addEventListener('input', function() {
@@ -24,12 +80,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Search customers
     function searchCustomers(term) {
-        // TODO: Replace with actual API endpoint
-        fetch(`/api/customers/search?q=${encodeURIComponent(term)}`)
-            .then(response => response.json())
-            .then(customers => {
-                // Create and show dropdown
-                showCustomerDropdown(customers);
+        fetch(`http://localhost:5003/api/mock/customers/search?q=${encodeURIComponent(term)}&page=1`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                // Transform the response to match the expected format
+                const items = data.customers.map(customer => ({
+                    id: customer.id,
+                    text: `${customer.name} (${customer.account_number})`
+                }));
+                showCustomerDropdown(items);
             })
             .catch(error => {
                 console.error('Error searching customers:', error);
@@ -50,8 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
         dropdown.innerHTML = customers.map(customer => `
             <div class="customer-item p-2 hover:bg-gray-100 cursor-pointer" 
                  data-id="${customer.id}" 
-                 data-name="${customer.name}">
-                ${customer.name} (${customer.id})
+                 data-name="${customer.text.split('(')[0].trim()}">
+                ${customer.text}
             </div>
         `).join('');
 
@@ -67,35 +134,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Select customer
-    function selectCustomer(id, name) {
-        document.getElementById('selectedCustomerId').value = id;
-        document.getElementById('selectedCustomerName').value = name;
-        document.getElementById('customerNameDisplay').textContent = name;
-        document.getElementById('customerIdDisplay').textContent = id;
-        searchCustomer.value = name;
-        customerInfo.classList.remove('hidden');
-        
-        // Load customer accounts
-        loadCustomerAccounts(id);
-    }
-
     // Load customer accounts
     function loadCustomerAccounts(customerId) {
-        fetch(`/api/notifications/customers/${customerId}/accounts`)
+        fetch(`http://localhost:5003/api/mock/customers/${customerId}/accounts`)
             .then(response => response.json())
-            .then(accounts => {
+            .then(data => {
+                const accounts = data.accounts || [];
                 const tbody = document.getElementById('accountsTableBody');
                 tbody.innerHTML = accounts.map(account => `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td class="px-6 py-4">
-                            <input type="radio" name="account_no" value="${account.account_no}" 
+                            <input type="radio" name="account_no" value="${account.account_number}" 
                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
                         </td>
-                        <td class="px-6 py-4">${account.account_no}</td>
-                        <td class="px-6 py-4">${account.product_name}</td>
-                        <td class="px-6 py-4">KES ${account.due_amount.toLocaleString()}</td>
-                        <td class="px-6 py-4">${account.due_date}</td>
+                        <td class="px-6 py-4">${account.account_number}</td>
+                        <td class="px-6 py-4">${account.product_name || 'Standard Loan'}</td>
+                        <td class="px-6 py-4">KES ${(account.due_amount || 0).toLocaleString()}</td>
+                        <td class="px-6 py-4">${account.due_date || 'N/A'}</td>
                     </tr>
                 `).join('');
 
@@ -118,19 +173,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load guarantors for selected account
     function loadGuarantors(customerId, accountNo) {
-        fetch(`/user/api/guarantors/search?customer_id=${customerId}`)
+        fetch(`http://localhost:5003/api/mock/customers/${customerId}/guarantors`)
             .then(response => response.json())
-            .then(guarantors => {
+            .then(data => {
+                const guarantors = data.guarantors || [];
                 const tbody = document.getElementById('guarantorsTableBody');
                 tbody.innerHTML = guarantors.map(guarantor => `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td class="px-6 py-4">
-                            <input type="checkbox" name="guarantor_ids" value="${guarantor.id_no}" 
+                            <input type="checkbox" name="guarantor_ids" value="${guarantor.id}" 
                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
                         </td>
                         <td class="px-6 py-4">${guarantor.name}</td>
-                        <td class="px-6 py-4">${guarantor.id_no}</td>
-                        <td class="px-6 py-4">${guarantor.phone_no || '-'}</td>
+                        <td class="px-6 py-4">${guarantor.id_no || '-'}</td>
+                        <td class="px-6 py-4">${guarantor.phone || '-'}</td>
                         <td class="px-6 py-4">${guarantor.email || '-'}</td>
                     </tr>
                 `).join('');

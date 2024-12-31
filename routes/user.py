@@ -1270,3 +1270,42 @@ def sync_all_guarantors():
 def create_notification():
     """Display the notification creation form"""
     return render_template('user/create_notification.html')
+
+@user_bp.route('/api/customers/search', methods=['GET'])
+@login_required
+def search_customers():
+    query = request.args.get('q', '')
+    page = int(request.args.get('page', 1))
+    
+    print(f"Customer search request - Query: {query}, Page: {page}")
+    
+    try:
+        # Call mock core banking API
+        response = requests.get('http://localhost:5003/api/mock/customers/search', params={
+            'q': query,  # Changed from 'search' to 'q' to match frontend
+            'page': page
+        })
+        
+        print(f"Mock API request URL: {response.url}")
+        print(f"Mock API status code: {response.status_code}")
+        
+        if response.ok:
+            data = response.json()
+            print(f"Mock API response: {data}")
+            result = {
+                'items': [{
+                    'id': customer['id'],
+                    'text': f"{customer['name']} ({customer['account_number']})"
+                } for customer in data['customers']],
+                'has_more': data['has_more']
+            }
+            print(f"Sending to frontend: {result}")
+            return jsonify(result)
+        else:
+            error_msg = f"Failed to fetch customers: {response.status_code} - {response.text}"
+            print(error_msg)
+            return jsonify({'error': error_msg}), 500
+    except Exception as e:
+        error_msg = f"Error fetching customers: {str(e)}"
+        print(error_msg)
+        return jsonify({'error': error_msg}), 500

@@ -791,8 +791,63 @@ MOCK_CORRESPONDENCE = {
     ]
 }
 
+# Mock customer accounts
+mock_accounts = {
+    '1001': [
+        {
+            'account_number': 'LN001',
+            'product_name': 'Personal Loan',
+            'due_amount': 25000,
+            'due_date': '2024-01-15'
+        },
+        {
+            'account_number': 'LN002',
+            'product_name': 'Business Loan',
+            'due_amount': 100000,
+            'due_date': '2024-02-01'
+        }
+    ],
+    '1002': [
+        {
+            'account_number': 'LN003',
+            'product_name': 'Home Loan',
+            'due_amount': 500000,
+            'due_date': '2024-03-01'
+        }
+    ]
+}
+
+# Mock guarantors data
+mock_guarantors = {
+    '1001': [
+        {
+            'id': 'G001',
+            'name': 'Michael Brown',
+            'id_no': 'ID123456',
+            'phone': '+254722111101',
+            'email': 'michael.brown@example.com'
+        },
+        {
+            'id': 'G002',
+            'name': 'Sarah Wilson',
+            'id_no': 'ID123457',
+            'phone': '+254722111102',
+            'email': 'sarah.wilson@example.com'
+        }
+    ],
+    '1002': [
+        {
+            'id': 'G003',
+            'name': 'David Lee',
+            'id_no': 'ID123458',
+            'phone': '+254722111103',
+            'email': 'david.lee@example.com'
+        }
+    ]
+}
+
 @app.route('/api/beta/companies/metadata', methods=['GET'])
-def navision_tables():
+def mock_navision_tables():
     # Check basic auth
     auth = request.authorization
     if not auth or auth.username != 'admin' or auth.password != 'admin123':
@@ -814,7 +869,7 @@ def navision_tables():
     return jsonify({'value': tables})
 
 @app.route('/api/v1/health', methods=['GET'])
-def navision_health():
+def mock_navision_health():
     # Check basic auth
     auth = request.authorization
     if not auth or auth.username != 'admin' or auth.password != 'admin123':
@@ -823,7 +878,7 @@ def navision_health():
     return jsonify({'status': 'healthy', 'message': 'Navision core banking system is running'})
 
 @app.route('/api/schema/tables', methods=['GET'])
-def brnet_tables():
+def mock_brnet_tables():
     # Check for API key
     api_key = request.headers.get('Authorization')
     if not api_key or not api_key.startswith('Bearer '):
@@ -834,7 +889,7 @@ def brnet_tables():
     return jsonify(MOCK_DATA['brnet']['tables'])
 
 @app.route('/api/health', methods=['GET'])
-def brnet_health():
+def mock_brnet_health():
     # Check for API key
     api_key = request.headers.get('Authorization')
     if not api_key or not api_key.startswith('Bearer '):
@@ -843,7 +898,7 @@ def brnet_health():
     return jsonify({'status': 'healthy', 'message': 'BR.NET core banking system is running'})
 
 @app.route('/api/beta/companies/loan-grading', methods=['GET'])
-def loan_grading():
+def mock_loan_grading():
     # Simulate authentication check
     auth = request.authorization
     if not auth or auth.username != 'admin' or auth.password != 'admin123':
@@ -930,7 +985,7 @@ def loan_grading():
     return jsonify({'value': loan_data})
 
 @app.route('/user/post-disbursement', methods=['GET'])
-def post_disbursement():
+def mock_post_disbursement():
     return jsonify({
         'status': 'success',
         'data': {
@@ -976,7 +1031,7 @@ def post_disbursement():
     })
 
 @app.route('/api/mock/clients/search', methods=['GET'])
-def search_clients():
+def mock_search_clients():
     search_term = request.args.get('search', '').lower()
     page = int(request.args.get('page', 1))
     per_page = 10
@@ -998,8 +1053,21 @@ def search_clients():
         'has_more': len(filtered_clients) > end_idx
     })
 
+@app.route('/api/mock/customers/<customer_id>/accounts', methods=['GET'])
+def mock_get_customer_accounts(customer_id):
+    """Get accounts for a specific customer"""
+    accounts = mock_accounts.get(customer_id, [])
+    return jsonify({'accounts': accounts})
+
+@app.route('/api/mock/customers/<customer_id>/guarantors', methods=['GET'])
+def mock_get_customer_guarantors(customer_id):
+    """Get guarantors for a specific customer"""
+    guarantors = mock_guarantors.get(customer_id, [])
+    return jsonify({'guarantors': guarantors})
+
 @app.route('/api/mock/clients/<client_id>/accounts', methods=['GET'])
-def get_client_accounts(client_id):
+def mock_get_client_accounts(client_id):
+    """Get accounts for a specific client"""
     # Find the client in the mock data
     client = next((c for c in MOCK_CLIENTS if c['id'] == client_id), None)
     if not client:
@@ -1008,8 +1076,19 @@ def get_client_accounts(client_id):
     # Return the account number(s) for the client
     return jsonify({'accounts': [loan['account_no'] for loan in client['loans']]})
 
+@app.route('/api/mock/clients/<client_id>/guarantors', methods=['GET'])
+def mock_get_client_guarantors(client_id):
+    """Get guarantors for a specific client"""
+    # Find the client in the mock data
+    client = next((c for c in MOCK_CLIENTS if c['id'] == client_id), None)
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
+    
+    # Return the guarantors for the client
+    return jsonify(client.get('guarantors', []))
+
 @app.route('/api/correspondence/<client_id>', methods=['GET'])
-def get_correspondence(client_id):
+def mock_get_correspondence(client_id):
     correspondence_type = request.args.get('type', 'all')
     
     if client_id not in MOCK_CORRESPONDENCE:
@@ -1043,7 +1122,7 @@ def get_correspondence(client_id):
     })
 
 @app.route('/api/guarantors/<customer_id>', methods=['GET'])
-def get_customer_guarantors(customer_id):
+def mock_get_guarantors_by_customer(customer_id):
     """Get guarantors for a specific customer"""
     client = next((c for c in MOCK_CLIENTS if c['id'] == customer_id), None)
     if not client:
@@ -1052,7 +1131,7 @@ def get_customer_guarantors(customer_id):
     return jsonify(client.get('guarantors', []))
 
 @app.route('/api/guarantors/search', methods=['GET'])
-def search_guarantors():
+def mock_search_guarantors():
     """Search guarantors by name or ID"""
     search_term = request.args.get('q', '').lower()
     
@@ -1068,12 +1147,42 @@ def search_guarantors():
     return jsonify(guarantors)
 
 @app.route('/api/clients/<client_id>', methods=['GET'])
-def get_client(client_id):
+def mock_get_client(client_id):
     """Get a specific client by ID"""
     client = next((c for c in MOCK_CLIENTS if c['id'] == client_id), None)
     if not client:
         return jsonify({'error': 'Client not found'}), 404
     return jsonify(client)
+
+@app.route('/api/mock/customers/search', methods=['GET'])
+def mock_search_customers():
+    """Search customers by name or account number"""
+    query = request.args.get('q', '').lower()
+    page = int(request.args.get('page', 1))
+    items_per_page = 10
+    
+    # Filter customers based on search query
+    filtered_customers = [
+        {
+            'id': customer['id'],
+            'text': f"{customer['name']} ({customer.get('account_number', '')})",
+            'name': customer['name'],
+            'account_number': customer.get('account_number', '')
+        }
+        for customer in MOCK_CLIENTS 
+        if query in customer['name'].lower() or 
+        query in customer.get('account_number', '').lower()
+    ]
+    
+    # Calculate pagination
+    start_idx = (page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    paginated_customers = filtered_customers[start_idx:end_idx]
+    
+    return jsonify({
+        'items': paginated_customers,  
+        'has_more': end_idx < len(filtered_customers)
+    })
 
 if __name__ == '__main__':
     app.run(port=5003)

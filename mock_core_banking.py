@@ -1162,17 +1162,22 @@ def mock_search_customers():
     items_per_page = 10
     
     # Filter customers based on search query
-    filtered_customers = [
-        {
-            'id': customer['id'],
-            'text': f"{customer['name']} ({customer.get('account_number', '')})",
-            'name': customer['name'],
-            'account_number': customer.get('account_number', '')
-        }
-        for customer in MOCK_CLIENTS 
-        if query in customer['name'].lower() or 
-        query in customer.get('account_number', '').lower()
-    ]
+    filtered_customers = []
+    for customer in MOCK_CLIENTS:
+        if query in customer['name'].lower():
+            # Get customer's accounts
+            accounts = mock_accounts.get(customer['id'], [])
+            # Get customer's guarantors
+            guarantors = mock_guarantors.get(customer['id'], [])
+            
+            customer_info = {
+                'id': customer['id'],
+                'text': customer['name'],  
+                'name': customer['name'],
+                'accounts': accounts,
+                'guarantors': guarantors
+            }
+            filtered_customers.append(customer_info)
     
     # Calculate pagination
     start_idx = (page - 1) * items_per_page
@@ -1180,7 +1185,7 @@ def mock_search_customers():
     paginated_customers = filtered_customers[start_idx:end_idx]
     
     return jsonify({
-        'items': paginated_customers,  
+        'items': paginated_customers,
         'has_more': end_idx < len(filtered_customers)
     })
 

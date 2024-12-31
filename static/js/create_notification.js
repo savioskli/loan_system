@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
             templateSelection: formatCustomer
         }).on('select2:select', function (e) {
             const customer = e.params.data;
-            selectCustomer(customer.id, customer.name);
+            selectCustomer(customer);
         });
     }
 
@@ -55,15 +55,86 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Select customer
-    function selectCustomer(id, name) {
-        document.getElementById('selectedCustomerId').value = id;
-        document.getElementById('selectedCustomerName').value = name;
-        document.getElementById('customerNameDisplay').textContent = name;
-        document.getElementById('customerIdDisplay').textContent = id;
+    function selectCustomer(customer) {
+        document.getElementById('selectedCustomerId').value = customer.id;
+        document.getElementById('selectedCustomerName').value = customer.name;
+        document.getElementById('customerNameDisplay').textContent = customer.name;
+        document.getElementById('customerIdDisplay').textContent = customer.id;
         customerInfo.classList.remove('hidden');
         
-        // Load customer accounts
-        loadCustomerAccounts(id);
+        // If accounts are included in the customer data, display them directly
+        if (customer.accounts) {
+            displayCustomerAccounts(customer.accounts);
+        } else {
+            // Fallback to loading accounts via API if not included
+            loadCustomerAccounts(customer.id);
+        }
+        
+        // If guarantors are included in the customer data, display them directly
+        if (customer.guarantors) {
+            displayGuarantors(customer.guarantors);
+        } else {
+            // Fallback to loading guarantors via API if not included
+            loadGuarantors(customer.id);
+        }
+    }
+
+    // Display customer accounts
+    function displayCustomerAccounts(accounts) {
+        const tbody = document.getElementById('accountsTableBody');
+        tbody.innerHTML = accounts.map(account => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4">
+                    <input type="radio" name="account_no" value="${account.account_number}" 
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                </td>
+                <td class="px-6 py-4">${account.account_number}</td>
+                <td class="px-6 py-4">${account.product_name || 'Standard Loan'}</td>
+                <td class="px-6 py-4">KES ${(account.due_amount || 0).toLocaleString()}</td>
+                <td class="px-6 py-4">${account.due_date || 'N/A'}</td>
+            </tr>
+        `).join('');
+
+        accountSection.classList.remove('hidden');
+
+        // Add change handler for account selection
+        tbody.querySelectorAll('input[name="account_no"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    const selectedAccount = accounts.find(a => a.account_number === this.value);
+                    if (selectedAccount) {
+                        displayGuarantors(selectedAccount.guarantors || []);
+                    }
+                }
+            });
+        });
+    }
+
+    // Display guarantors
+    function displayGuarantors(guarantors) {
+        const tbody = document.getElementById('guarantorsTableBody');
+        tbody.innerHTML = guarantors.map(guarantor => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4">
+                    <input type="checkbox" name="guarantor_ids" value="${guarantor.id}" 
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                </td>
+                <td class="px-6 py-4">${guarantor.name}</td>
+                <td class="px-6 py-4">${guarantor.id_no || '-'}</td>
+                <td class="px-6 py-4">${guarantor.phone || '-'}</td>
+                <td class="px-6 py-4">${guarantor.email || '-'}</td>
+            </tr>
+        `).join('');
+
+        guarantorSection.classList.remove('hidden');
+        notificationDetails.classList.remove('hidden');
+
+        // Add change handler for guarantor selection
+        tbody.querySelectorAll('input[name="guarantor_ids"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateNotificationForm();
+            });
+        });
     }
 
     // Customer search with debounce
@@ -125,10 +196,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add click handlers
         dropdown.querySelectorAll('.customer-item').forEach(item => {
             item.addEventListener('click', function() {
-                selectCustomer(
-                    this.dataset.id,
-                    this.dataset.name
-                );
+                selectCustomer({
+                    id: this.dataset.id,
+                    name: this.dataset.name
+                });
                 dropdown.remove();
             });
         });

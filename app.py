@@ -55,6 +55,7 @@ from routes.integrations import integrations_bp
 from routes.correspondence import correspondence_bp
 from routes.thresholds import thresholds_bp
 from routes.collection_schedule import collection_schedule_bp
+from routes.core_banking import bp as core_banking_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -123,6 +124,7 @@ def create_app():
     app.register_blueprint(branch_bp)
     app.register_blueprint(client_types_bp)
     app.register_blueprint(collection_schedule_bp)
+    app.register_blueprint(core_banking_bp)
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

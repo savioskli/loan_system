@@ -44,6 +44,107 @@
     .dataTables_wrapper .dataTables_paginate .paginate_button.current {
         @apply bg-primary text-white border-primary hover:bg-primary hover:text-white;
     }
+    
+    /* Enhanced Modal Styles */
+    .modal.fade .modal-dialog {
+        transform: scale(0.95);
+        transition: transform 0.2s ease-out;
+    }
+    
+    .modal.show .modal-dialog {
+        transform: scale(1);
+    }
+    
+    .form-loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+    
+    .form-loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2rem;
+        height: 2rem;
+        margin: -1rem 0 0 -1rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .field-tooltip {
+        position: relative;
+        display: inline-block;
+        margin-left: 0.5rem;
+        color: #6b7280;
+    }
+    
+    .field-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        z-index: 1070;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.5rem;
+        background-color: #1f2937;
+        color: white;
+        text-align: center;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        transition: opacity 0.2s;
+        white-space: nowrap;
+    }
+    
+    /* Input padding styles */
+    .modal input[type="text"],
+    .modal input[type="url"],
+    .modal input[type="number"],
+    .modal select,
+    .modal textarea {
+        padding: 0.625rem 0.75rem;
+    }
+    
+    .modal select {
+        padding-right: 2rem;
+    }
+    
+    .modal textarea {
+        padding: 0.75rem;
+    }
+    
+    /* Native Select Styles */
+    .modal select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+    }
+    
+    .modal select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    
+    .dark .modal select {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    }
 </style>
 {% endblock %}
 
@@ -174,7 +275,7 @@
                                        title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button onclick="showEditModal()" 
+                                    <button onclick="editSystem({{ system.id }})" 
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                                             title="Edit">
                                         <i class="fas fa-edit"></i>
@@ -203,57 +304,91 @@
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Add Banking System
                 </h3>
-                <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                <button type="button" class="text-gray-400 hover:text-gray-500 transition-colors duration-200" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body p-6">
-                <form id="addSystemForm" class="space-y-6">
+                <form id="addSystemForm" class="space-y-6 relative">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">System Name</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                System Name
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Enter a unique name for the banking system</span>
+                                </span>
+                            </label>
                             <input type="text" name="name" required
-                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Base URL</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Base URL
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">The base URL of the banking system API</span>
+                                </span>
+                            </label>
                             <input type="url" name="base_url" required
-                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Port
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Optional: Specify a custom port number</span>
+                                </span>
+                            </label>
                             <input type="number" name="port"
-                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Authentication Type</label>
-                            <select name="auth_type" onchange="updateAuthFields()" required
-                                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
-                                <option value="">Select Type</option>
-                                <option value="basic">Basic Auth</option>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Authentication Type
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Select the authentication method required by the banking system API</span>
+                                </span>
+                            </label>
+                            <select name="auth_type" onchange="updateAuthFields(false)" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200">
+                                <option value="">Select Authentication Type</option>
+                                <option value="none">No Authentication</option>
+                                <option value="basic">Basic Auth (Username/Password)</option>
                                 <option value="bearer">Bearer Token</option>
                                 <option value="api_key">API Key</option>
+                                <option value="oauth2">OAuth 2.0</option>
                             </select>
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
                         </div>
                     </div>
-
-                    <div id="authFields" class="space-y-6 hidden">
-                        <!-- Dynamic auth fields will be inserted here -->
-                    </div>
-
+                    <div id="addAuthFields"></div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Description
+                            <span class="field-tooltip">
+                                <i class="fas fa-info-circle"></i>
+                                <span class="tooltip-text">Add any additional notes or details about this system</span>
+                            </span>
+                        </label>
                         <textarea name="description" rows="3"
-                                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"></textarea>
+                                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200"></textarea>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer bg-gray-50 dark:bg-gray-700 px-6 py-3 flex justify-end space-x-2">
-                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500" data-bs-dismiss="modal">
+            <div class="modal-footer border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200" data-bs-dismiss="modal">
                     Cancel
                 </button>
-                <button type="button" onclick="submitAddSystem()" class="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                    Add System
+                <button type="button" onclick="submitAddSystem()" class="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                    <span class="submit-text">Add System</span>
+                    <span class="loading-text hidden">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Adding...
+                    </span>
                 </button>
             </div>
         </div>
@@ -262,9 +397,101 @@
 
 <!-- Edit System Modal -->
 <div class="modal fade" id="editSystemModal" tabindex="-1">
-    <div class="modal-dialog max-w-2xl">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-            <!-- Similar structure to Add Modal but with id="editSystemForm" -->
+            <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Edit Banking System
+                </h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-6">
+                <form id="editSystemForm" class="space-y-6 relative">
+                    <input type="hidden" name="system_id" id="editSystemId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                System Name
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Unique name to identify the banking system</span>
+                                </span>
+                            </label>
+                            <input type="text" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Enter system name">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Base URL
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Base URL of the banking system API</span>
+                                </span>
+                            </label>
+                            <input type="url" name="base_url" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="https://api.example.com">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Port
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Optional port number if not using standard ports</span>
+                                </span>
+                            </label>
+                            <input type="number" name="port" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="e.g., 8080">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Authentication Type
+                                <span class="field-tooltip">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip-text">Type of authentication required by the API</span>
+                                </span>
+                            </label>
+                            <select name="auth_type" required onchange="updateAuthFields(true)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="">Select authentication type</option>
+                                <option value="none">None</option>
+                                <option value="basic">Basic Auth</option>
+                                <option value="bearer">Bearer Token</option>
+                                <option value="api_key">API Key</option>
+                                <option value="oauth2">OAuth 2.0</option>
+                            </select>
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                    </div>
+                    <div id="editAuthFields" class="space-y-6">
+                        <!-- Auth fields will be dynamically added here -->
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Description
+                            <span class="field-tooltip">
+                                <i class="fas fa-info-circle"></i>
+                                <span class="tooltip-text">Optional description of the banking system</span>
+                            </span>
+                        </label>
+                        <textarea name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Enter system description"></textarea>
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" onclick="submitEditSystem()" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                    <span class="submit-text">Save Changes</span>
+                    <span class="loading-text hidden">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Saving...
+                    </span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -278,77 +505,164 @@
 <!-- DataTables JS -->
 <script type="text/javascript" src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<!-- Select2 -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-function updateAuthFields() {
-    const authType = $('select[name="auth_type"]').val();
-    const authFields = $('#authFields');
-    authFields.html('').removeClass('hidden');
+function updateAuthFields(isEdit = false) {
+    const formPrefix = isEdit ? 'edit' : 'add';
+    const authType = document.querySelector(`#${formPrefix}SystemForm [name="auth_type"]`).value;
+    const authFieldsContainer = document.getElementById(`${formPrefix}AuthFields`);
+    const inputClasses = 'mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200 px-4 py-2.5';
+    const labelClasses = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
+    const tooltipClasses = 'field-tooltip';
+    const tooltipIconClasses = 'fas fa-info-circle';
+    const containerClasses = 'bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700';
 
-    const inputClasses = 'mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50';
-    const labelClasses = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+    // Clear existing auth fields
+    authFieldsContainer.innerHTML = '';
 
-    switch (authType) {
-        case 'basic':
-            authFields.html(`
+    if (authType === 'none') {
+        authFieldsContainer.innerHTML = `
+            <div class="${containerClasses}">
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    No authentication will be used for API requests to this banking system.
+                </p>
+            </div>
+        `;
+    } else if (authType === 'basic') {
+        authFieldsContainer.innerHTML = `
+            <div class="${containerClasses}">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="${labelClasses}">Username</label>
-                        <input type="text" name="username" required class="${inputClasses}">
+                        <label class="${labelClasses}">
+                            Username
+                            <span class="${tooltipClasses}">
+                                <i class="${tooltipIconClasses}"></i>
+                                <span class="tooltip-text">Enter the API username</span>
+                            </span>
+                        </label>
+                        <input type="text" name="username" required class="${inputClasses}" placeholder="API Username">
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
                     </div>
                     <div>
-                        <label class="${labelClasses}">Password</label>
-                        <input type="password" name="password" required class="${inputClasses}">
+                        <label class="${labelClasses}">
+                            Password
+                            <span class="${tooltipClasses}">
+                                <i class="${tooltipIconClasses}"></i>
+                                <span class="tooltip-text">Enter the API password</span>
+                            </span>
+                        </label>
+                        <input type="password" name="password" required class="${inputClasses}" placeholder="API Password">
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
                     </div>
                 </div>
-            `);
-            break;
-        case 'bearer':
-            authFields.html(`
+            </div>
+        `;
+    } else if (authType === 'bearer') {
+        authFieldsContainer.innerHTML = `
+            <div class="${containerClasses}">
                 <div>
-                    <label class="${labelClasses}">Token</label>
-                    <input type="text" name="token" required class="${inputClasses}">
+                    <label class="${labelClasses}">
+                        Bearer Token
+                        <span class="${tooltipClasses}">
+                            <i class="${tooltipIconClasses}"></i>
+                            <span class="tooltip-text">Enter the authentication token (without 'Bearer' prefix)</span>
+                        </span>
+                    </label>
+                    <input type="text" name="token" required class="${inputClasses}" placeholder="Enter token">
+                    <div class="text-sm text-red-500 mt-1 hidden"></div>
                 </div>
-            `);
-            break;
-        case 'api_key':
-            authFields.html(`
+            </div>
+        `;
+    } else if (authType === 'api_key') {
+        authFieldsContainer.innerHTML = `
+            <div class="${containerClasses}">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="${labelClasses}">Key Name</label>
-                        <input type="text" name="key_name" required class="${inputClasses}">
+                        <label class="${labelClasses}">
+                            Key Name
+                            <span class="${tooltipClasses}">
+                                <i class="${tooltipIconClasses}"></i>
+                                <span class="tooltip-text">Header or query parameter name for the API key</span>
+                            </span>
+                        </label>
+                        <input type="text" name="key_name" required class="${inputClasses}" placeholder="e.g., X-API-Key">
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
                     </div>
                     <div>
-                        <label class="${labelClasses}">Key Value</label>
-                        <input type="text" name="key_value" required class="${inputClasses}">
+                        <label class="${labelClasses}">
+                            Key Value
+                            <span class="${tooltipClasses}">
+                                <i class="${tooltipIconClasses}"></i>
+                                <span class="tooltip-text">The actual API key value</span>
+                            </span>
+                        </label>
+                        <input type="text" name="key_value" required class="${inputClasses}" placeholder="Enter API key">
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
                     </div>
                 </div>
-            `);
-            break;
-        default:
-            authFields.addClass('hidden');
+            </div>
+        `;
+    } else if (authType === 'oauth2') {
+        authFieldsContainer.innerHTML = `
+            <div class="${containerClasses}">
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="${labelClasses}">
+                                Client ID
+                                <span class="${tooltipClasses}">
+                                    <i class="${tooltipIconClasses}"></i>
+                                    <span class="tooltip-text">OAuth 2.0 client identifier</span>
+                                </span>
+                            </label>
+                            <input type="text" name="client_id" required class="${inputClasses}" placeholder="Enter Client ID">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="${labelClasses}">
+                                Client Secret
+                                <span class="${tooltipClasses}">
+                                    <i class="${tooltipIconClasses}"></i>
+                                    <span class="tooltip-text">OAuth 2.0 client secret</span>
+                                </span>
+                            </label>
+                            <input type="password" name="client_secret" required class="${inputClasses}" placeholder="Enter Client Secret">
+                            <div class="text-sm text-red-500 mt-1 hidden"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="${labelClasses}">
+                            Token URL
+                            <span class="${tooltipClasses}">
+                                <i class="${tooltipIconClasses}"></i>
+                                <span class="tooltip-text">URL for obtaining OAuth 2.0 tokens</span>
+                            </span>
+                        </label>
+                        <input type="url" name="token_url" required class="${inputClasses}" placeholder="Enter Token URL">
+                        <div class="text-sm text-red-500 mt-1 hidden"></div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 }
 
 function showAddModal() {
+    // Clear form
+    const form = document.getElementById('addSystemForm');
+    form.reset();
+    form.querySelectorAll('.text-red-500').forEach(el => el.classList.add('hidden'));
+    
+    // Update auth fields
+    updateAuthFields(false);
+    
+    // Show modal
     const modal = new bootstrap.Modal(document.getElementById('addSystemModal'));
     modal.show();
 }
 
-function showEditModal() {
-    const modal = new bootstrap.Modal(document.getElementById('editSystemModal'));
-    modal.show();
-}
-
 $(document).ready(function() {
-    // Initialize Select2
-    $('select').select2({
-        theme: 'classic',
-        width: '100%'
-    });
-    
     // Initialize DataTable
     const table = $('#systemsTable').DataTable({
         responsive: true,
@@ -361,57 +675,101 @@ $(document).ready(function() {
 });
 
 async function submitAddSystem() {
-    const form = $('#addSystemForm');
-    const formData = new FormData(form[0]);
+    const form = document.getElementById('addSystemForm');
+    const submitBtn = form.closest('.modal-content').querySelector('button[onclick="submitAddSystem()"]');
+    
+    // Clear previous errors
+    form.querySelectorAll('.text-red-500').forEach(el => el.classList.add('hidden'));
+    
+    // Basic form validation
+    let isValid = true;
+    form.querySelectorAll('[required]').forEach(input => {
+        if (!input.value) {
+            isValid = false;
+            const errorDiv = input.nextElementSibling;
+            errorDiv.textContent = 'This field is required';
+            errorDiv.classList.remove('hidden');
+        }
+    });
+    
+    if (!isValid) return;
+    
+    // Show loading state
+    form.classList.add('form-loading');
+    submitBtn.disabled = true;
+    submitBtn.querySelector('.submit-text').classList.add('hidden');
+    submitBtn.querySelector('.loading-text').classList.remove('hidden');
+    
+    // Collect form data
+    const formData = new FormData(form);
     const data = {
         name: formData.get('name'),
         base_url: formData.get('base_url'),
-        port: formData.get('port'),
-        auth_type: formData.get('auth_type'),
+        port: formData.get('port') ? parseInt(formData.get('port')) : null,
         description: formData.get('description'),
-        auth_credentials: {}
+        auth_type: formData.get('auth_type'),
     };
 
+    // Add auth credentials based on auth type
     switch (data.auth_type) {
         case 'basic':
-            data.auth_credentials = {
-                username: formData.get('username'),
-                password: formData.get('password')
-            };
+            data.username = formData.get('username');
+            data.password = formData.get('password');
             break;
         case 'bearer':
-            data.auth_credentials = {
-                token: formData.get('token')
-            };
+            data.token = formData.get('token');
             break;
         case 'api_key':
-            data.auth_credentials = {
-                key_name: formData.get('key_name'),
-                key_value: formData.get('key_value')
-            };
+            data.key_name = formData.get('key_name');
+            data.key_value = formData.get('key_value');
+            break;
+        case 'oauth2':
+            data.client_id = formData.get('client_id');
+            data.client_secret = formData.get('client_secret');
+            data.token_url = formData.get('token_url');
             break;
     }
-
-    try {
-        const response = await fetch('{{ url_for("admin.add_system") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-        if (result.success) {
+    
+    fetch('/admin/core-banking/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('success', 'Banking system added successfully');
+            $('#addSystemModal').modal('hide');
             location.reload();
         } else {
-            showNotification('error', result.message || 'Error adding system');
+            showNotification('error', data.message || 'Failed to add banking system');
+            // Show field-specific errors if available
+            if (data.errors) {
+                Object.entries(data.errors).forEach(([field, error]) => {
+                    const input = form.querySelector(`[name="${field}"]`);
+                    if (input) {
+                        const errorDiv = input.nextElementSibling;
+                        errorDiv.textContent = error;
+                        errorDiv.classList.remove('hidden');
+                    }
+                });
+            }
         }
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('Error:', error);
-        showNotification('error', 'Error adding system');
-    }
+        showNotification('error', 'An error occurred while adding the banking system');
+    })
+    .finally(() => {
+        // Reset loading state
+        form.classList.remove('form-loading');
+        submitBtn.disabled = false;
+        submitBtn.querySelector('.submit-text').classList.remove('hidden');
+        submitBtn.querySelector('.loading-text').classList.add('hidden');
+    });
 }
 
 function showNotification(type, message) {
@@ -451,23 +809,153 @@ async function deleteSystem(systemId) {
     }
 }
 
-function editSystem(systemId) {
-    // Fetch system data and populate form
-    fetch(`/admin/core-banking/system/${systemId}`)
-        .then(response => response.json())
-        .then(data => {
-            const form = $('#editSystemForm');
-            form.find('[name="name"]').val(data.name);
-            form.find('[name="base_url"]').val(data.base_url);
-            form.find('[name="port"]').val(data.port);
-            form.find('[name="auth_type"]').val(data.auth_type).trigger('change');
-            form.find('[name="description"]').val(data.description);
-            $('#editSystemModal').modal('show');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('error', 'Error loading system data');
+async function editSystem(systemId) {
+    try {
+        const response = await fetch(`/admin/core-banking/${systemId}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            showNotification('error', data.message || 'Error loading system data');
+            return;
+        }
+
+        const system = data.system;
+        const form = document.getElementById('editSystemForm');
+        
+        // Set system ID
+        document.getElementById('editSystemId').value = systemId;
+        
+        // Set basic fields
+        form.querySelector('[name="name"]').value = system.name;
+        form.querySelector('[name="base_url"]').value = system.base_url;
+        form.querySelector('[name="port"]').value = system.port || '';
+        form.querySelector('[name="description"]').value = system.description || '';
+        
+        // Set auth type and trigger change event
+        const authTypeSelect = form.querySelector('[name="auth_type"]');
+        authTypeSelect.value = system.auth_type;
+        updateAuthFields(true);
+        
+        // Set auth fields based on type
+        if (system.auth_type === 'basic') {
+            form.querySelector('[name="username"]').value = system.username || '';
+            form.querySelector('[name="password"]').value = system.password || '';
+        } else if (system.auth_type === 'bearer') {
+            form.querySelector('[name="token"]').value = system.token || '';
+        } else if (system.auth_type === 'api_key') {
+            form.querySelector('[name="key_name"]').value = system.key_name || '';
+            form.querySelector('[name="key_value"]').value = system.key_value || '';
+        } else if (system.auth_type === 'oauth2') {
+            form.querySelector('[name="client_id"]').value = system.client_id || '';
+            form.querySelector('[name="client_secret"]').value = system.client_secret || '';
+            form.querySelector('[name="token_url"]').value = system.token_url || '';
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editSystemModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'Error loading system data');
+    }
+}
+
+async function submitEditSystem() {
+    const form = document.getElementById('editSystemForm');
+    const submitBtn = form.closest('.modal-content').querySelector('button[onclick="submitEditSystem()"]');
+    const systemId = document.getElementById('editSystemId').value;
+    
+    // Clear previous errors
+    form.querySelectorAll('.text-red-500').forEach(el => el.classList.add('hidden'));
+    
+    // Basic form validation
+    let isValid = true;
+    form.querySelectorAll('[required]').forEach(input => {
+        if (!input.value) {
+            isValid = false;
+            const errorDiv = input.nextElementSibling;
+            errorDiv.textContent = 'This field is required';
+            errorDiv.classList.remove('hidden');
+        }
+    });
+    
+    if (!isValid) return;
+    
+    // Show loading state
+    form.classList.add('form-loading');
+    submitBtn.disabled = true;
+    submitBtn.querySelector('.submit-text').classList.add('hidden');
+    submitBtn.querySelector('.loading-text').classList.remove('hidden');
+    
+    // Collect form data
+    const formData = new FormData(form);
+    const data = {
+        name: formData.get('name'),
+        base_url: formData.get('base_url'),
+        port: formData.get('port') ? parseInt(formData.get('port')) : null,
+        description: formData.get('description'),
+        auth_type: formData.get('auth_type'),
+    };
+
+    // Add auth credentials based on auth type
+    switch (data.auth_type) {
+        case 'basic':
+            data.username = formData.get('username');
+            data.password = formData.get('password');
+            break;
+        case 'bearer':
+            data.token = formData.get('token');
+            break;
+        case 'api_key':
+            data.key_name = formData.get('key_name');
+            data.key_value = formData.get('key_value');
+            break;
+        case 'oauth2':
+            data.client_id = formData.get('client_id');
+            data.client_secret = formData.get('client_secret');
+            data.token_url = formData.get('token_url');
+            break;
+    }
+    
+    try {
+        const response = await fetch(`/admin/core-banking/${systemId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(data)
         });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('success', 'Banking system updated successfully');
+            $('#editSystemModal').modal('hide');
+            location.reload();
+        } else {
+            showNotification('error', result.message || 'Failed to update banking system');
+            // Show field-specific errors if available
+            if (result.errors) {
+                Object.entries(result.errors).forEach(([field, error]) => {
+                    const input = form.querySelector(`[name="${field}"]`);
+                    if (input) {
+                        const errorDiv = input.nextElementSibling;
+                        errorDiv.textContent = error;
+                        errorDiv.classList.remove('hidden');
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'An error occurred while updating the banking system');
+    } finally {
+        // Reset loading state
+        form.classList.remove('form-loading');
+        submitBtn.disabled = false;
+        submitBtn.querySelector('.submit-text').classList.remove('hidden');
+        submitBtn.querySelector('.loading-text').classList.add('hidden');
+    }
 }
 </script>
 {% endblock %}

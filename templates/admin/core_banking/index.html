@@ -270,11 +270,11 @@
                             <td>{{ system.updated_at|datetime }}</td>
                             <td>
                                 <div class="flex space-x-2">
-                                    <a href="{{ url_for('admin.view_system', system_id=system.id) }}" 
-                                       class="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
-                                       title="View Details">
+                                    <button onclick="viewSystem({{ system.id }})" 
+                                            class="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
+                                            title="View Details">
                                         <i class="fas fa-eye"></i>
-                                    </a>
+                                    </button>
                                     <button onclick="editSystem({{ system.id }})" 
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                                             title="Edit">
@@ -495,11 +495,32 @@
         </div>
     </div>
 </div>
+<!-- System Details Modal -->
+<div class="modal fade" id="viewSystemModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="systemDetailsTitle">
+                    System Details
+                </h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-6">
+                <div id="systemDetailsContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Bootstrap Bundle with Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <!-- DataTables JS -->
@@ -670,7 +691,17 @@ $(document).ready(function() {
         language: {
             search: "",
             searchPlaceholder: "Search systems..."
-        }
+        },
+        columnDefs: [{
+            targets: -1, // Last column (actions)
+            orderable: false,
+            searchable: false
+        }]
+    });
+
+    // Prevent DataTables from handling clicks on action links
+    $('#systemsTable').on('click', 'a', function(e) {
+        e.stopPropagation();
     });
 });
 
@@ -956,6 +987,204 @@ async function submitEditSystem() {
         submitBtn.querySelector('.submit-text').classList.remove('hidden');
         submitBtn.querySelector('.loading-text').classList.add('hidden');
     }
+}
+
+function viewSystem(systemId) {
+    // Show loading state
+    $('#viewSystemModal').modal('show');
+    $('#systemDetailsContent').html('Loading...');
+    
+    // Fetch system details
+    fetch(`/api/core-banking/system/${systemId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const content = generateSystemDetailsHTML(data.data);
+                $('#systemDetailsContent').html(content);
+                initializeChart(data.data.chart_data);
+            } else {
+                showNotification('error', data.message || 'Failed to load system details');
+                $('#systemDetailsContent').html('Failed to load system details');
+            }
+        })
+        .catch(error => {
+            showNotification('error', 'Failed to load system details');
+            console.error('Error:', error);
+            $('#systemDetailsContent').html('Failed to load system details');
+        });
+}
+
+function generateSystemDetailsHTML(data) {
+    const { system, stats, endpoints, logs } = data;
+    
+    return `
+        <!-- System Info -->
+        <div class="lg:col-span-1">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="text-lg font-medium mb-4">System Information</h4>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+                        <p class="text-gray-900 dark:text-white">${system.name}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Base URL</label>
+                        <p class="text-gray-900 dark:text-white">${system.base_url}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Auth Type</label>
+                        <p class="text-gray-900 dark:text-white">${system.auth_type}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                        <p>${system.is_active ? 
+                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
+                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>'
+                        }</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="lg:col-span-2">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="text-lg font-medium mb-4">Statistics</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded p-3">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
+                        <p class="text-xl font-semibold">${stats.total_requests}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded p-3">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Error Rate</p>
+                        <p class="text-xl font-semibold">${((stats.error_requests / stats.total_requests) * 100 || 0).toFixed(1)}%</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded p-3">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Active Endpoints</p>
+                        <p class="text-xl font-semibold">${stats.active_endpoints}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded p-3">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Success Rate</p>
+                        <p class="text-xl font-semibold">${stats.success_rate.toFixed(1)}%</p>
+                    </div>
+                </div>
+                
+                <!-- Chart -->
+                <div class="mt-6">
+                    <canvas id="requestsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="lg:col-span-3">
+            <div class="space-y-6">
+                <!-- Endpoints Table -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-medium mb-4">Endpoints</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2">Name</th>
+                                    <th class="px-4 py-2">Path</th>
+                                    <th class="px-4 py-2">Method</th>
+                                    <th class="px-4 py-2">Status</th>
+                                    <th class="px-4 py-2">Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${endpoints.map(endpoint => `
+                                    <tr>
+                                        <td class="px-4 py-2">${endpoint.name}</td>
+                                        <td class="px-4 py-2">${endpoint.path}</td>
+                                        <td class="px-4 py-2">${endpoint.method}</td>
+                                        <td class="px-4 py-2">${endpoint.is_active ? 
+                                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
+                                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>'
+                                        }</td>
+                                        <td class="px-4 py-2">${data.endpoint_stats[endpoint.id].success_rate.toFixed(1)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent Logs -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-medium mb-4">Recent Logs</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2">Time</th>
+                                    <th class="px-4 py-2">Method</th>
+                                    <th class="px-4 py-2">URL</th>
+                                    <th class="px-4 py-2">Status</th>
+                                    <th class="px-4 py-2">Error</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${logs.map(log => `
+                                    <tr>
+                                        <td class="px-4 py-2">${new Date(log.created_at).toLocaleString()}</td>
+                                        <td class="px-4 py-2">${log.request_method}</td>
+                                        <td class="px-4 py-2">${log.request_url}</td>
+                                        <td class="px-4 py-2">${log.response_status || 'N/A'}</td>
+                                        <td class="px-4 py-2">${log.error_message || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function initializeChart(chartData) {
+    const ctx = document.getElementById('requestsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Successful Requests',
+                    data: chartData.success_data,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true
+                },
+                {
+                    label: 'Failed Requests',
+                    data: chartData.error_data,
+                    borderColor: '#EF4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Request History (Last 7 Days)'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
 }
 </script>
 {% endblock %}

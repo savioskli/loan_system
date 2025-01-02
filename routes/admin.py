@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from utils.decorators import admin_required
 import traceback
@@ -15,6 +15,7 @@ from services.config_manager import ConfigManager
 from services.api_manager import APIManager
 from services.core_banking_service import CoreBankingService
 from database.db_manager import DatabaseManager
+import json
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
@@ -321,22 +322,163 @@ def core_banking():
 def view_system(system_id):
     """View core banking system details"""
     try:
+        print(f"Loading system details for ID: {system_id}")
         # Get system details
         system = DatabaseManager.get_system_by_id(system_id)
         if not system:
+            print(f"System not found with ID: {system_id}")
             flash('Banking system not found', 'error')
             return redirect(url_for('admin.core_banking'))
 
+        print(f"Found system: {system.name}")
+
+        # Initialize empty data structures
+        endpoints = []
+        stats = {
+            'total_requests': 0,
+            'error_requests': 0,
+            'success_rate': 0,
+            'active_endpoints': 0
+        }
+        endpoint_stats = {}
+        logs = []
+        chart_labels = []
+        chart_success_data = []
+        chart_error_data = []
+
+        try:
+            # Get endpoints
+            print("Fetching endpoints...")
+            endpoints = DatabaseManager.get_system_endpoints(system_id)
+            print(f"Found {len(endpoints)} endpoints")
+            
+            # Update active endpoints count
+            stats['active_endpoints'] = len([e for e in endpoints if e.is_active])
+        except Exception as e:
+            print(f"Error getting endpoints: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+
+        try:
+            # Get system statistics
+            print("Fetching system stats...")
+            system_stats = DatabaseManager.get_system_stats(system_id)
+            if system_stats:
+                stats.update(system_stats)
+        except Exception as e:
+            print(f"Error getting system stats: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+
+        try:
+            # Get endpoint statistics
+            print("Fetching endpoint stats...")
+            for endpoint in endpoints:
+                try:
+                    endpoint_stats[endpoint.id] = DatabaseManager.get_endpoint_stats(endpoint.id)
+                except Exception as e:
+                    print(f"Error getting stats for endpoint {endpoint.id}: {str(e)}")
+                    endpoint_stats[endpoint.id] = {
+                        'total_requests': 0,
+                        'error_requests': 0,
+                        'success_rate': 0
+                    }
+        except Exception as e:
+            print(f"Error getting endpoint stats: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+
+        try:
+            # Get recent logs
+            print("Fetching recent logs...")
+            logs = DatabaseManager.get_logs(system_id=system_id, limit=50)
+            print(f"Found {len(logs)} logs")
+        except Exception as e:
+            print(f"Error getting logs: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+
+        # Prepare chart data
+        print("Preparing chart data...")
+        from datetime import datetime, timedelta
+        today = datetime.utcnow()
+        dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+        dates.reverse()
+        chart_labels = dates
+
+        for date in dates:
+            try:
+                day_logs = DatabaseManager.get_logs(
+                    system_id=system_id,
+                    start_date=f"{date} 00:00:00",
+                    end_date=f"{date} 23:59:59"
+                )
+                success_count = len([l for l in day_logs if l.response_status and l.response_status < 400])
+                error_count = len([l for l in day_logs if not l.response_status or l.response_status >= 400])
+            except Exception as e:
+                print(f"Error getting logs for date {date}: {str(e)}")
+                success_count = 0
+                error_count = 0
+            
+            chart_success_data.append(success_count)
+            chart_error_data.append(error_count)
+
+        print("Rendering template...")
+        return render_template('admin/core_banking/view.html',
+                             system=system,
+                             endpoints=endpoints,
+                             stats=stats,
+                             endpoint_stats=endpoint_stats,
+                             logs=logs,
+                             chart_labels=chart_labels,
+                             chart_success_data=chart_success_data,
+                             chart_error_data=chart_error_data)
+    except Exception as e:
+        import traceback
+        print(f"Error in view_system: {str(e)}")
+        print(traceback.format_exc())
+        flash(f'Error loading system details: {str(e)}', 'error')
+        return redirect(url_for('admin.core_banking'))
+
+@admin_bp.route('/api/core-banking/system/<int:system_id>')
+@login_required
+@admin_required
+def get_system_details(system_id):
+    """Get core banking system details as JSON"""
+    try:
+        # Get system details
+        system = DatabaseManager.get_system_by_id(system_id)
+        if not system:
+            return jsonify({
+                'status': 'error',
+                'message': 'Banking system not found'
+            }), 404
+
         # Get endpoints
         endpoints = DatabaseManager.get_system_endpoints(system_id)
-
+        
         # Get system statistics
         stats = DatabaseManager.get_system_stats(system_id)
+        if not stats:
+            stats = {
+                'total_requests': 0,
+                'error_requests': 0,
+                'success_rate': 0,
+                'active_endpoints': len([e for e in endpoints if e.is_active])
+            }
 
         # Get endpoint statistics
         endpoint_stats = {}
         for endpoint in endpoints:
-            endpoint_stats[endpoint.id] = DatabaseManager.get_endpoint_stats(endpoint.id)
+            try:
+                endpoint_stats[endpoint.id] = DatabaseManager.get_endpoint_stats(endpoint.id)
+            except Exception as e:
+                print(f"Error getting stats for endpoint {endpoint.id}: {str(e)}")
+                endpoint_stats[endpoint.id] = {
+                    'total_requests': 0,
+                    'error_requests': 0,
+                    'success_rate': 0
+                }
 
         # Get recent logs
         logs = DatabaseManager.get_logs(system_id=system_id, limit=50)
@@ -346,32 +488,89 @@ def view_system(system_id):
         today = datetime.utcnow()
         dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
         dates.reverse()
+        chart_labels = dates
 
-        success_data = []
-        error_data = []
+        chart_success_data = []
+        chart_error_data = []
+
         for date in dates:
-            day_logs = DatabaseManager.get_logs(
-                system_id=system_id,
-                start_date=f"{date} 00:00:00",
-                end_date=f"{date} 23:59:59"
-            )
-            success_count = len([l for l in day_logs if l.response_status and l.response_status < 400])
-            error_count = len([l for l in day_logs if not l.response_status or l.response_status >= 400])
-            success_data.append(success_count)
-            error_data.append(error_count)
+            try:
+                day_logs = DatabaseManager.get_logs(
+                    system_id=system_id,
+                    start_date=f"{date} 00:00:00",
+                    end_date=f"{date} 23:59:59"
+                )
+                success_count = len([l for l in day_logs if l.response_status and l.response_status < 400])
+                error_count = len([l for l in day_logs if not l.response_status or l.response_status >= 400])
+            except Exception as e:
+                print(f"Error getting logs for date {date}: {str(e)}")
+                success_count = 0
+                error_count = 0
+            
+            chart_success_data.append(success_count)
+            chart_error_data.append(error_count)
 
-        return render_template('admin/core_banking/view.html',
-                             system=system,
-                             endpoints=endpoints,
-                             stats=stats,
-                             endpoint_stats=endpoint_stats,
-                             logs=logs,
-                             chart_labels=dates,
-                             chart_success_data=success_data,
-                             chart_error_data=error_data)
+        # Convert system object to dict for JSON serialization
+        system_dict = {
+            'id': system.id,
+            'name': system.name,
+            'base_url': system.base_url,
+            'port': system.port,
+            'description': system.description,
+            'auth_type': system.auth_type,
+            'is_active': system.is_active,
+            'created_at': system.created_at.isoformat() if system.created_at else None,
+            'updated_at': system.updated_at.isoformat() if system.updated_at else None
+        }
+
+        # Convert logs to dict for JSON serialization
+        logs_list = [{
+            'id': log.id,
+            'endpoint_id': log.endpoint_id,
+            'request_method': log.request_method,
+            'request_url': log.request_url,
+            'response_status': log.response_status,
+            'error_message': log.error_message,
+            'created_at': log.created_at.isoformat() if log.created_at else None
+        } for log in logs]
+
+        # Convert endpoints to dict for JSON serialization
+        endpoints_list = [{
+            'id': e.id,
+            'name': e.name,
+            'path': e.path,
+            'method': e.method,
+            'description': e.description,
+            'parameters': json.loads(e.parameters) if e.parameters else {},
+            'headers': json.loads(e.headers) if e.headers else {},
+            'is_active': e.is_active,
+            'created_at': e.created_at.isoformat() if e.created_at else None,
+            'updated_at': e.updated_at.isoformat() if e.updated_at else None
+        } for e in endpoints]
+
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'system': system_dict,
+                'endpoints': endpoints_list,
+                'stats': stats,
+                'endpoint_stats': endpoint_stats,
+                'logs': logs_list,
+                'chart_data': {
+                    'labels': chart_labels,
+                    'success_data': chart_success_data,
+                    'error_data': chart_error_data
+                }
+            }
+        })
     except Exception as e:
-        flash(f'Error loading system details: {str(e)}', 'error')
-        return redirect(url_for('admin.core_banking'))
+        print(f"Error in get_system_details: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @admin_bp.route('/core-banking/add-system', methods=['POST'])
 @login_required

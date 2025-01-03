@@ -39,7 +39,7 @@ from models.sms_log import SMSLog
 
 # Import routes (excluding sms_templates for now)
 from routes.branch_routes import branch_bp
-from routes import client_types_bp
+from routes.client_types import client_types_bp
 from routes.main import main_bp
 from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
@@ -49,6 +49,7 @@ from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
 from routes.section_routes import sections_bp
+from routes.post_disbursement import bp as post_disbursement_bp
 from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
@@ -125,6 +126,7 @@ def create_app():
     app.register_blueprint(client_types_bp)
     app.register_blueprint(collection_schedule_bp)
     app.register_blueprint(core_banking_bp)
+    app.register_blueprint(post_disbursement_bp)
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

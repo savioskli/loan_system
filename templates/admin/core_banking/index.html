@@ -515,7 +515,7 @@
                 </button>
             </div>
             <div class="modal-body p-6">
-                <form id="addEndpointForm" class="space-y-6 relative">
+                <form id="addEndpointForm" class="space-y-6 relative" onsubmit="submitAddEndpoint(event)">
                     <input type="hidden" name="system_id" id="endpointSystemId">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -1277,6 +1277,10 @@ function initializeChart(chartData) {
 
 // Function to show add endpoint modal
 function showAddEndpointModal(systemId) {
+    if (!systemId) {
+        showNotification('error', 'System ID is required');
+        return;
+    }
     document.getElementById('endpointSystemId').value = systemId;
     const modal = new bootstrap.Modal(document.getElementById('addEndpointModal'));
     modal.show();
@@ -1285,54 +1289,79 @@ function showAddEndpointModal(systemId) {
 // Function to handle endpoint form submission
 function submitAddEndpoint(event) {
     event.preventDefault();
+    
     const form = document.getElementById('addEndpointForm');
+    const systemId = document.getElementById('endpointSystemId').value;
+    
+    if (!systemId) {
+        showNotification('error', 'System ID is required');
+        return;
+    }
+
     const formData = new FormData(form);
     
-    // Convert parameters and headers from JSON string to object
+    // Convert FormData to a plain object
+    const data = {
+        system_id: parseInt(systemId),
+        name: formData.get('name'),
+        path: formData.get('path'),
+        method: formData.get('method'),
+        description: formData.get('description') || '',
+        is_active: formData.get('is_active') === 'on'
+    };
+
+    // Handle JSON fields
     try {
         const parameters = formData.get('parameters');
-        if (parameters) {
-            formData.set('parameters', JSON.stringify(JSON.parse(parameters.trim())));
-        }
+        data.parameters = parameters && parameters.trim() ? JSON.parse(parameters) : {};
         
         const headers = formData.get('headers');
-        if (headers) {
-            formData.set('headers', JSON.stringify(JSON.parse(headers.trim())));
-        }
+        data.headers = headers && headers.trim() ? JSON.parse(headers) : {};
     } catch (error) {
         showNotification('error', 'Invalid JSON format in parameters or headers');
         return;
     }
     
-    // Convert FormData to JSON object
-    const data = Object.fromEntries(formData.entries());
-    data.is_active = formData.get('is_active') === 'on';
+    // Validate required fields
+    if (!data.name || !data.path || !data.method) {
+        showNotification('error', 'Please fill in all required fields');
+        return;
+    }
+    
+    console.log('Submitting endpoint data:', data);
     
     fetch('/admin/core-banking/endpoints/add', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.message || 'Network response was not ok');
+            });
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
             showNotification('success', 'Endpoint added successfully');
             $('#addEndpointModal').modal('hide');
-            // Refresh the table or update the UI as needed
             location.reload();
         } else {
-            showNotification('error', data.message || 'Failed to add endpoint');
+            throw new Error(result.message || 'Failed to add endpoint');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('error', 'An error occurred while adding the endpoint');
+        showNotification('error', error.message || 'An error occurred while adding the endpoint');
     });
 }
 
-// Add event listener for endpoint form submission
+// Add form submit event listener
 document.getElementById('addEndpointForm').addEventListener('submit', submitAddEndpoint);
 </script>
 {% endblock %}

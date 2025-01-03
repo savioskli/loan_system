@@ -217,3 +217,54 @@ def test_connection(system_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/admin/core-banking/endpoints/add', methods=['POST'])
+@login_required
+def add_endpoint():
+    """Add a new endpoint to a core banking system"""
+    try:
+        data = request.get_json()
+        print("Received endpoint data:", data)  # Debug print
+
+        # Basic validation
+        required_fields = ['system_id', 'name', 'path', 'method']
+        if not all(field in data for field in required_fields):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+        # Validate system exists
+        system = CoreBankingSystem.query.get(data['system_id'])
+        if not system:
+            return jsonify({'success': False, 'message': 'Core banking system not found'}), 404
+
+        # Create new endpoint
+        endpoint = CoreBankingEndpoint(
+            system_id=data['system_id'],
+            name=data['name'],
+            path=data['path'],
+            method=data['method'],
+            description=data.get('description'),
+            parameters=data.get('parameters', '{}'),
+            headers=data.get('headers', '{}'),
+            is_active=data.get('is_active', True)
+        )
+
+        db.session.add(endpoint)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Endpoint added successfully',
+            'endpoint': {
+                'id': endpoint.id,
+                'name': endpoint.name,
+                'path': endpoint.path,
+                'method': endpoint.method,
+                'description': endpoint.description,
+                'is_active': endpoint.is_active
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print("Error adding endpoint:", str(e))  # Debug print
+        return jsonify({'success': False, 'message': str(e)}), 500

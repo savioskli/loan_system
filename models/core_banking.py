@@ -145,11 +145,14 @@ class CoreBankingSystem(db.Model):
 
         connection = self.get_database_connection()
         try:
-            connection.database = self.database_name
             cursor = connection.cursor()
-            cursor.execute("SHOW TABLES")
-            tables = [table[0] for table in cursor.fetchall()]
+            # Use backticks to escape database name
+            cursor.execute(f"SHOW TABLES FROM `{self.database_name}`")
+            tables = [table[0].decode() if isinstance(table[0], bytes) else table[0] 
+                     for table in cursor.fetchall()]
             return tables
+        except mysql.connector.Error as err:
+            raise Exception(f"Failed to list tables: {str(err)}")
         finally:
             connection.close()
 
@@ -162,19 +165,22 @@ class CoreBankingSystem(db.Model):
         try:
             connection.database = self.database_name
             cursor = connection.cursor()
-            cursor.execute(f"DESCRIBE {table_name}")
+            # Use backticks to properly escape table names
+            cursor.execute(f"SHOW COLUMNS FROM `{table_name}`")
             columns = cursor.fetchall()
             schema = []
             for col in columns:
                 schema.append({
-                    'name': col[0],
-                    'type': col[1],
-                    'null': col[2],
-                    'key': col[3],
-                    'default': col[4],
-                    'extra': col[5]
+                    'name': col[0].decode() if isinstance(col[0], bytes) else col[0],
+                    'type': col[1].decode() if isinstance(col[1], bytes) else col[1],
+                    'null': col[2].decode() if isinstance(col[2], bytes) else col[2],
+                    'key': col[3].decode() if isinstance(col[3], bytes) else col[3],
+                    'default': col[4].decode() if isinstance(col[4], bytes) else col[4],
+                    'extra': col[5].decode() if isinstance(col[5], bytes) else col[5]
                 })
             return schema
+        except mysql.connector.Error as err:
+            raise Exception(f"Failed to get schema for table {table_name}: {str(err)}")
         finally:
             connection.close()
 

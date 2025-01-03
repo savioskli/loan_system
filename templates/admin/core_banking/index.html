@@ -136,7 +136,7 @@
         background-size: 1.5em 1.5em;
         padding-right: 2.5rem;
     }
-    
+
     .modal select:focus {
         outline: none;
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
@@ -475,6 +475,14 @@
                     <div id="editAuthFields" class="space-y-6">
                         <!-- Auth fields will be dynamically added here -->
                     </div>
+                    <div id="testConnectionResponse" class="mt-4 hidden">
+                        <div class="p-4 rounded-lg border">
+                            <p class="text-sm font-medium flex items-center">
+                                <i class="fas fa-circle-notch fa-spin mr-2 hidden" id="testResponseSpinner"></i>
+                                <span id="testResponseMessage"></span>
+                            </p>
+                        </div>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Description
@@ -491,6 +499,12 @@
             <div class="modal-footer border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
                 <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200" data-bs-dismiss="modal">
                     Cancel
+                </button>
+                <button type="button" id="editTestConnectionBtn" class="px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                    <span id="editTestConnectionBtnText">Test Connection</span>
+                    <span id="editTestConnectionBtnSpinner" class="hidden">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </span>
                 </button>
                 <button type="button" onclick="submitEditSystem()" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
                     <span class="submit-text">Save Changes</span>
@@ -1081,6 +1095,64 @@ async function submitEditSystem() {
     }
 }
 
+async function testEditConnection() {
+    const responseContainer = document.getElementById('testConnectionResponse');
+    const responseMessage = document.getElementById('testResponseMessage');
+    const spinner = document.getElementById('testResponseSpinner');
+    const btn = document.getElementById('editTestConnectionBtn');
+    
+    try {
+        // Show spinner and response container
+        responseContainer.classList.remove('hidden');
+        spinner.classList.remove('hidden');
+        btn.disabled = true;
+        
+        // Get form data
+        const formData = new FormData(document.getElementById('editSystemForm'));
+        const systemId = formData.get('system_id');
+        
+        // Prepare request data
+        const requestData = {
+            base_url: formData.get('base_url'),
+            port: formData.get('port'),
+            auth_type: formData.get('auth_type'),
+            username: formData.get('username'),
+            password: formData.get('password'),
+            token: formData.get('token'),
+            key_name: formData.get('key_name'),
+            key_value: formData.get('key_value'),
+            client_id: formData.get('client_id'),
+            client_secret: formData.get('client_secret'),
+            token_url: formData.get('token_url')
+        };
+        
+        // Make API call to test connection
+        const response = await fetch(`/admin/core-banking/${systemId}/test`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        // Update response message
+        responseMessage.textContent = data.message;
+        responseContainer.className = `p-4 rounded-lg border ${data.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`;
+        
+    } catch (error) {
+        // Handle error
+        responseMessage.textContent = 'Connection test failed: ' + error.message;
+        responseContainer.className = 'p-4 rounded-lg border bg-red-50 border-red-200 text-red-800';
+    } finally {
+        // Hide spinner and re-enable button
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+    }
+}
+
 function viewSystem(systemId) {
     // Show loading state
     $('#viewSystemModal').modal('show');
@@ -1108,6 +1180,38 @@ function viewSystem(systemId) {
 
 function generateSystemDetailsHTML(data) {
     const { system, stats, endpoints, logs } = data;
+    
+    // Generate endpoints HTML
+    const endpointsHTML = endpoints.map(endpoint => `
+        <tr>
+            <td class="px-4 py-2">${endpoint.name}</td>
+            <td class="px-4 py-2">${endpoint.path}</td>
+            <td class="px-4 py-2">${endpoint.method}</td>
+            <td class="px-4 py-2">${endpoint.is_active ? 
+                '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
+                '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>'
+            }</td>
+            <td class="px-4 py-2">${data.endpoint_stats[endpoint.id].success_rate.toFixed(1)}%</td>
+            <td class="px-4 py-2">
+                <button onclick="deleteEndpoint('${endpoint.id}')" class="text-red-600 hover:text-red-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Generate logs HTML
+    const logsHTML = logs.map(log => `
+        <tr>
+            <td class="px-4 py-2">${new Date(log.created_at).toLocaleString()}</td>
+            <td class="px-4 py-2">${log.request_method}</td>
+            <td class="px-4 py-2">${log.request_url}</td>
+            <td class="px-4 py-2">${log.response_status || 'N/A'}</td>
+            <td class="px-4 py-2">${log.error_message || '-'}</td>
+        </tr>
+    `).join('');
     
     return `
         <!-- System Info -->
@@ -1161,83 +1265,62 @@ function generateSystemDetailsHTML(data) {
                     </div>
                 </div>
                 
-                <!-- Chart -->
+                <!-- Chart Container -->
                 <div class="mt-6">
-                    <canvas id="requestsChart"></canvas>
+                    <canvas id="requestsChart" class="w-full"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Tables Section -->
+        <!-- Endpoints -->
         <div class="lg:col-span-3">
-            <div class="space-y-6">
-                <!-- Endpoints Table -->
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <h4 class="text-lg font-medium mb-4">Endpoints</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full">
-                            <thead>
-                                <tr>
-                                    <th class="px-4 py-2">Name</th>
-                                    <th class="px-4 py-2">Path</th>
-                                    <th class="px-4 py-2">Method</th>
-                                    <th class="px-4 py-2">Status</th>
-                                    <th class="px-4 py-2">Success Rate</th>
-                                    <th class="px-4 py-2">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${endpoints.map(endpoint => `
-                                    <tr>
-                                        <td class="px-4 py-2">${endpoint.name}</td>
-                                        <td class="px-4 py-2">${endpoint.path}</td>
-                                        <td class="px-4 py-2">${endpoint.method}</td>
-                                        <td class="px-4 py-2">${endpoint.is_active ? 
-                                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
-                                            '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>'
-                                        }</td>
-                                        <td class="px-4 py-2">${data.endpoint_stats[endpoint.id].success_rate.toFixed(1)}%</td>
-                                        <td class="px-4 py-2">
-                                            <button onclick="deleteEndpoint('${endpoint.id}')" class="text-red-600 hover:text-red-800">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="text-lg font-medium">Endpoints</h4>
+                    <button onclick="showAddEndpointModal('${system.id}')" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                        <i class="fas fa-plus mr-1.5"></i>
+                        Add Endpoint
+                    </button>
                 </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Path</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Success Rate</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${endpointsHTML}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-                <!-- Recent Logs -->
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <h4 class="text-lg font-medium mb-4">Recent Logs</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full">
-                            <thead>
-                                <tr>
-                                    <th class="px-4 py-2">Time</th>
-                                    <th class="px-4 py-2">Method</th>
-                                    <th class="px-4 py-2">URL</th>
-                                    <th class="px-4 py-2">Status</th>
-                                    <th class="px-4 py-2">Error</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${logs.map(log => `
-                                    <tr>
-                                        <td class="px-4 py-2">${new Date(log.created_at).toLocaleString()}</td>
-                                        <td class="px-4 py-2">${log.request_method}</td>
-                                        <td class="px-4 py-2">${log.request_url}</td>
-                                        <td class="px-4 py-2">${log.response_status || 'N/A'}</td>
-                                        <td class="px-4 py-2">${log.error_message || '-'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+        <!-- Recent Logs -->
+        <div class="lg:col-span-3">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="text-lg font-medium mb-4">Recent Logs</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">URL</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${logsHTML}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1406,5 +1489,72 @@ $('#addEndpointModal').on('hidden.bs.modal', function () {
 
 // Add form submit event listener
 document.getElementById('addEndpointForm').addEventListener('submit', submitAddEndpoint);
+
+// Test connection functionality for edit system modal
+async function testEditConnection() {
+    const responseContainer = document.getElementById('testConnectionResponse');
+    const responseMessage = document.getElementById('testResponseMessage');
+    const spinner = document.getElementById('testResponseSpinner');
+    const btn = document.getElementById('editTestConnectionBtn');
+    
+    try {
+        // Show spinner and response container
+        responseContainer.classList.remove('hidden');
+        spinner.classList.remove('hidden');
+        btn.disabled = true;
+        
+        // Get form data
+        const formData = new FormData(document.getElementById('editSystemForm'));
+        const systemId = formData.get('system_id');
+        
+        // Prepare request data
+        const requestData = {
+            base_url: formData.get('base_url'),
+            port: formData.get('port'),
+            auth_type: formData.get('auth_type'),
+            username: formData.get('username'),
+            password: formData.get('password'),
+            token: formData.get('token'),
+            key_name: formData.get('key_name'),
+            key_value: formData.get('key_value'),
+            client_id: formData.get('client_id'),
+            client_secret: formData.get('client_secret'),
+            token_url: formData.get('token_url')
+        };
+        
+        // Make API call to test connection
+        const response = await fetch(`/admin/core-banking/${systemId}/test`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        // Update response message
+        responseMessage.textContent = data.message;
+        responseContainer.className = `p-4 rounded-lg border ${data.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`;
+        
+    } catch (error) {
+        // Handle error
+        responseMessage.textContent = 'Connection test failed: ' + error.message;
+        responseContainer.className = 'p-4 rounded-lg border bg-red-50 border-red-200 text-red-800';
+    } finally {
+        // Hide spinner and re-enable button
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+    }
+}
+
+// Add event listener for test connection button
+document.addEventListener('DOMContentLoaded', function() {
+    const editTestConnectionBtn = document.getElementById('editTestConnectionBtn');
+    if (editTestConnectionBtn) {
+        editTestConnectionBtn.addEventListener('click', testEditConnection);
+    }
+});
 </script>
 {% endblock %}

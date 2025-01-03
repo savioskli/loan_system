@@ -1,27 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
-    const systemSelect = document.querySelector('select[name="core_banking_system"]');
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
     const fetchTablesBtn = document.getElementById('fetchTablesBtn');
-    const testConnectionBtn = document.getElementById('testConnectionBtn');
     const tablesContainer = document.getElementById('tablesContainer');
     const tablesList = document.getElementById('tablesList');
     const selectedTablesList = document.getElementById('selectedTablesList');
 
-    // Handle system type change
-    systemSelect.addEventListener('change', function() {
-        const apiKeyField = document.querySelector('input[name="api_key"]').closest('.space-y-2');
-        if (this.value === 'brnet') {
-            apiKeyField.style.display = 'block';
-        } else {
-            apiKeyField.style.display = 'none';
-        }
-    });
-
     // Get form configuration
     function getFormConfig() {
         return {
-            system_type: systemSelect.value,
             server_url: document.querySelector('input[name="server_url"]').value,
             port: document.querySelector('input[name="port"]').value,
             database: document.querySelector('input[name="database"]').value,
@@ -242,20 +229,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const config = configResult.config;
             
             // Fill in the form with active configuration
-            systemSelect.value = config.system_type;
             document.querySelector('input[name="server_url"]').value = config.server_url;
             document.querySelector('input[name="port"]').value = config.port;
             document.querySelector('input[name="database"]').value = config.database;
             document.querySelector('input[name="username"]').value = config.username;
             
-            // Show/hide API key field based on system type
-            const apiKeyField = document.querySelector('input[name="api_key"]').closest('.space-y-2');
-            if (config.system_type === 'brnet') {
-                apiKeyField.style.display = 'block';
-            } else {
-                apiKeyField.style.display = 'none';
-            }
-
             // Fetch tables and selected tables
             const [tablesResponse, savedTablesResponse] = await Promise.all([
                 fetch('/api/integrations/core-banking/fetch-tables', {
@@ -318,47 +296,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Test connection
-    if (testConnectionBtn) {
-        console.log('Test connection button found');
-        testConnectionBtn.addEventListener('click', async function() {
-            console.log('Test connection button clicked');
-            try {
-                const config = getFormConfig();
-                console.log('Form config:', config);
-                
-                const response = await fetch('/api/integrations/core-banking/test-connection', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(config)
-                });
-                console.log('Response received:', response);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log('Response parsed:', result);
-                
-                if (result.success) {
-                    console.log('Connection test successful');
-                    showNotification('success', result.message || 'Connection test successful');
-                } else {
-                    console.error('Connection test failed:', result.message);
-                    showNotification('error', result.message || 'Connection test failed');
-                }
-            } catch (error) {
-                console.error('Error in test connection:', error);
-                showNotification('error', 'Error testing connection: ' + error.message);
+    // Test connection for edit system modal
+    async function testEditConnection() {
+        const systemId = document.getElementById('editSystemId').value;
+        const baseUrl = document.getElementById('editBaseUrl').value;
+        const port = document.getElementById('editPort').value;
+        const authType = document.getElementById('editAuthType').value;
+        
+        // Get auth credentials based on type
+        let authData = {};
+        if (authType === 'basic') {
+            authData = {
+                username: document.getElementById('editUsername').value,
+                password: document.getElementById('editPassword').value
+            };
+        } else if (authType === 'bearer') {
+            authData = {
+                token: document.getElementById('editToken').value
+            };
+        } else if (authType === 'api_key') {
+            authData = {
+                key_name: document.getElementById('editKeyName').value,
+                key_value: document.getElementById('editKeyValue').value
+            };
+        } else if (authType === 'oauth2') {
+            authData = {
+                client_id: document.getElementById('editClientId').value,
+                client_secret: document.getElementById('editClientSecret').value,
+                token_url: document.getElementById('editTokenUrl').value
+            };
+        }
+        
+        // Show testing message
+        const testStatusDiv = document.getElementById('editTestStatus');
+        testStatusDiv.innerHTML = '<div class="alert alert-info">Testing connection...</div>';
+        
+        // Make test request
+        fetch(`/admin/core-banking/${systemId}/test`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                base_url: baseUrl,
+                port: port,
+                auth_type: authType,
+                ...authData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                testStatusDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            } else {
+                testStatusDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
             }
+        })
+        .catch(error => {
+            testStatusDiv.innerHTML = `<div class="alert alert-danger">Error testing connection: ${error}</div>`;
         });
-    } else {
-        console.error('Test connection button not found');
     }
+
+    // Add event listener for edit test connection button
+    document.addEventListener('DOMContentLoaded', function() {
+        const editTestConnectionBtn = document.getElementById('editTestConnectionBtn');
+        if (editTestConnectionBtn) {
+            editTestConnectionBtn.addEventListener('click', testEditConnection);
+        }
+    });
 
     // Handle form submission
     form.addEventListener('submit', async function(e) {
@@ -366,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const formData = {
-                system_type: systemSelect.value,
                 server_url: document.querySelector('input[name="server_url"]').value,
                 port: document.querySelector('input[name="port"]').value,
                 database: document.querySelector('input[name="database"]').value,
@@ -402,7 +406,4 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('error', 'Error saving configuration: ' + error.message);
         }
     });
-
-    // Trigger initial system selection check
-    systemSelect.dispatchEvent(new Event('change'));
 });

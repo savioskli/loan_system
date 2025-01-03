@@ -3,7 +3,7 @@ Core banking routes for managing banking system configurations
 """
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required
-from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
+from models.core_banking import CoreBankingSystem, CoreBankingEndpoint, CoreBankingLog
 from extensions import db
 from datetime import datetime
 import json
@@ -200,23 +200,115 @@ def delete_system(system_id):
 @bp.route('/admin/core-banking/<int:system_id>/test', methods=['POST'])
 @login_required
 def test_connection(system_id):
-    """Test connection to core banking system"""
+    """Test connection to core banking system database"""
     try:
+        # Get the system from database for logging purposes
         system = CoreBankingSystem.query.get_or_404(system_id)
         
-        # Get authentication headers
-        headers = system.get_auth_headers()
-        
-        # TODO: Implement actual connection test logic here
-        # This would typically involve making a test API call to the system
-        
-        return jsonify({
-            'success': True,
-            'message': 'Connection test successful'
-        })
+        # Get the updated data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+            
+        # Validate base URL and port
+        base_url = data.get('base_url', '').rstrip('/')
+        if not base_url:
+            return jsonify({
+                'success': False,
+                'message': 'Host/IP is required'
+            }), 400
+            
+        # Remove http:// or https:// prefix for MySQL connection
+        base_url = base_url.replace('http://', '').replace('https://', '')
+            
+        port = data.get('port')
+        if not port:
+            port = 3306  # Default MySQL port
+            
+        # Validate auth credentials
+        auth_type = data.get('auth_type')
+        if not auth_type or auth_type != 'basic':
+            return jsonify({
+                'success': False,
+                'message': 'Basic authentication is required for database connection'
+            }), 400
+            
+        if not all(k in data for k in ['username', 'password']):
+            return jsonify({
+                'success': False,
+                'message': 'Username and password are required'
+            }), 400
+            
+        # Test MySQL connection
+        try:
+            import mysql.connector
+            
+            conn = mysql.connector.connect(
+                host=base_url,
+                port=int(port),
+                user=data['username'],
+                password=data['password'],
+                connection_timeout=10  # 10 second timeout
+            )
+            
+            # If connection successful, try to get server version
+            cursor = conn.cursor()
+            cursor.execute("SELECT VERSION()")
+            version = cursor.fetchone()[0]
+            
+            # Close cursor and connection
+            cursor.close()
+            conn.close()
+            
+            # Log the successful test
+            log = CoreBankingLog(
+                system_id=system.id,
+                request_method='CONNECT',
+                request_url=f"mysql://{base_url}:{port}",
+                response_status=200,
+                response_body=f"Connected successfully. MySQL version: {version}"
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Connection successful! MySQL version: {version}'
+            })
+            
+        except mysql.connector.Error as err:
+            error_message = str(err)
+            
+            # Log the failed attempt
+            log = CoreBankingLog(
+                system_id=system.id,
+                request_method='CONNECT',
+                request_url=f"mysql://{base_url}:{port}",
+                error_message=error_message
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            if err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
+                message = "Access denied. Please check your username and password."
+            elif err.errno == mysql.connector.errorcode.CR_CONN_HOST_ERROR:
+                message = "Failed to connect to server. Please check the host and port."
+            else:
+                message = f"Database error: {error_message}"
+                
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
 
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'message': f'Error testing connection: {str(e)}'
+        }), 500
 
 @bp.route('/admin/core-banking/endpoints/add', methods=['POST'])
 @login_required

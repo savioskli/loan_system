@@ -34,7 +34,7 @@
 
     .dataTables_wrapper .dataTables_length select,
     .dataTables_wrapper .dataTables_filter input {
-        @apply bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md shadow-sm;
+        @apply bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 transition-colors duration-200;
     }
 
     .dataTables_wrapper .dataTables_paginate .paginate_button {
@@ -233,6 +233,10 @@
                         <i class="fas fa-table mr-2 text-gray-400"></i>
                         Banking Systems
                     </h2>
+                    <button onclick="showAddEndpointModal()" class="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200">
+                        <i class="fas fa-link mr-2"></i>
+                        Add Endpoint
+                    </button>
                 </div>
             </div>
 
@@ -270,6 +274,9 @@
                             <td>{{ system.updated_at|datetime }}</td>
                             <td>
                                 <div class="flex space-x-2">
+                                    <button onclick="showAddEndpointModal({{ system.id }})" class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200">
+                                        <i class="fas fa-link"></i>
+                                    </button>
                                     <button onclick="viewSystem({{ system.id }})" 
                                             class="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-300"
                                             title="View Details">
@@ -396,7 +403,7 @@
 </div>
 
 <!-- Edit System Modal -->
-<div class="modal fade" id="editSystemModal" tabindex="-1">
+<div class="modal fade" id="editSystemModal" tabindex="-1" aria-labelledby="editSystemModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
             <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
@@ -490,6 +497,87 @@
                     <span class="loading-text hidden">
                         <i class="fas fa-spinner fa-spin mr-2"></i>Saving...
                     </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Add Endpoint Modal -->
+<div class="modal fade" id="addEndpointModal" tabindex="-1" aria-labelledby="addEndpointModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Add Endpoint
+                </h3>
+                <button type="button" class="close text-gray-400 hover:text-gray-500" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-6">
+                <form id="addEndpointForm" class="space-y-6 relative">
+                    <input type="hidden" name="system_id" id="endpointSystemId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Endpoint Name *
+                            </label>
+                            <input type="text" name="name" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                HTTP Method *
+                            </label>
+                            <select name="method" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Path *
+                            <span class="text-xs text-gray-500">(e.g., /api/v1/users)</span>
+                        </label>
+                        <input type="text" name="path" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Description
+                        </label>
+                        <textarea name="description" rows="2" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Parameters
+                            <span class="text-xs text-gray-500">(JSON format)</span>
+                        </label>
+                        <textarea name="parameters" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white font-mono"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Headers
+                            <span class="text-xs text-gray-500">(JSON format)</span>
+                        </label>
+                        <textarea name="headers" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white font-mono"></textarea>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" name="is_active" checked class="h-4 w-4 text-primary border-gray-300 rounded">
+                        <label class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            Active
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="submit" form="addEndpointForm" class="px-4 py-2 text-sm font-medium text-white bg-secondary border border-transparent rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200">
+                    Save
                 </button>
             </div>
         </div>
@@ -1186,5 +1274,65 @@ function initializeChart(chartData) {
         }
     });
 }
+
+// Function to show add endpoint modal
+function showAddEndpointModal(systemId) {
+    document.getElementById('endpointSystemId').value = systemId;
+    const modal = new bootstrap.Modal(document.getElementById('addEndpointModal'));
+    modal.show();
+}
+
+// Function to handle endpoint form submission
+function submitAddEndpoint(event) {
+    event.preventDefault();
+    const form = document.getElementById('addEndpointForm');
+    const formData = new FormData(form);
+    
+    // Convert parameters and headers from JSON string to object
+    try {
+        const parameters = formData.get('parameters');
+        if (parameters) {
+            formData.set('parameters', JSON.stringify(JSON.parse(parameters.trim())));
+        }
+        
+        const headers = formData.get('headers');
+        if (headers) {
+            formData.set('headers', JSON.stringify(JSON.parse(headers.trim())));
+        }
+    } catch (error) {
+        showNotification('error', 'Invalid JSON format in parameters or headers');
+        return;
+    }
+    
+    // Convert FormData to JSON object
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = formData.get('is_active') === 'on';
+    
+    fetch('/admin/core-banking/endpoints/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('success', 'Endpoint added successfully');
+            $('#addEndpointModal').modal('hide');
+            // Refresh the table or update the UI as needed
+            location.reload();
+        } else {
+            showNotification('error', data.message || 'Failed to add endpoint');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('error', 'An error occurred while adding the endpoint');
+    });
+}
+
+// Add event listener for endpoint form submission
+document.getElementById('addEndpointForm').addEventListener('submit', submitAddEndpoint);
 </script>
 {% endblock %}

@@ -310,6 +310,74 @@ def test_connection(system_id):
             'message': f'Error testing connection: {str(e)}'
         }), 500
 
+@bp.route('/admin/core-banking/<int:system_id>/databases', methods=['GET'])
+@login_required
+def list_databases(system_id):
+    """List available databases for a core banking system"""
+    try:
+        system = CoreBankingSystem.query.get_or_404(system_id)
+        databases = system.list_databases()
+        return jsonify({'success': True, 'databases': databases})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/admin/core-banking/<int:system_id>/database', methods=['PUT'])
+@login_required
+def select_database(system_id):
+    """Select a database for a core banking system"""
+    try:
+        system = CoreBankingSystem.query.get_or_404(system_id)
+        data = request.get_json()
+        
+        if 'database_name' not in data:
+            return jsonify({'success': False, 'message': 'Database name is required'}), 400
+        
+        system.select_database(data['database_name'])
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Database selected successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/admin/core-banking/<int:system_id>/tables', methods=['GET', 'PUT'])
+@login_required
+def manage_tables(system_id):
+    """Manage tables for a core banking system"""
+    try:
+        system = CoreBankingSystem.query.get_or_404(system_id)
+        
+        if request.method == 'GET':
+            # Get available tables and their schemas
+            tables = []
+            for table_name in system.list_tables():
+                schema = system.get_table_schema(table_name)
+                tables.append({
+                    'name': table_name,
+                    'fields': schema
+                })
+            
+            # Get current table configuration
+            current_config = {}
+            if system.selected_tables:
+                current_config = json.loads(system.selected_tables)
+            
+            return jsonify({
+                'success': True, 
+                'tables': tables,
+                'current_config': current_config
+            })
+        else:  # PUT
+            data = request.get_json()
+            if 'table_configs' not in data:
+                return jsonify({'success': False, 'message': 'Table configurations are required'}), 400
+            
+            system.configure_tables(data['table_configs'])
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': 'Tables configured successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @bp.route('/admin/core-banking/endpoints/add', methods=['POST'])
 @login_required
 def add_endpoint():

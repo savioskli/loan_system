@@ -475,12 +475,40 @@
                     <div id="editAuthFields" class="space-y-6">
                         <!-- Auth fields will be dynamically added here -->
                     </div>
-                    <div id="testConnectionResponse" class="mt-4 hidden">
-                        <div class="p-4 rounded-lg border">
-                            <p class="text-sm font-medium flex items-center">
-                                <i class="fas fa-circle-notch fa-spin mr-2 hidden" id="testResponseSpinner"></i>
-                                <span id="testResponseMessage"></span>
-                            </p>
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Database Configuration</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Selected Database
+                                    <span class="field-tooltip">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span class="tooltip-text">The database to use for this core banking system</span>
+                                    </span>
+                                </label>
+                                <div class="flex space-x-2">
+                                    <input type="text" name="database_name" id="editDatabaseName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Database name" readonly>
+                                    <button type="button" onclick="listDatabases()" class="mt-1 px-4 py-2 bg-secondary text-white rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200">
+                                        <i class="fas fa-database mr-1"></i>
+                                        List
+                                    </button>
+                                </div>
+                                <div class="text-sm text-red-500 mt-1 hidden"></div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Table Configuration
+                                    <span class="field-tooltip">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span class="tooltip-text">Configure table mappings for this database</span>
+                                    </span>
+                                </label>
+                                <button type="button" onclick="configureTables()" class="mt-1 w-full px-4 py-2 bg-secondary text-white rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors duration-200">
+                                    <i class="fas fa-table mr-1"></i>
+                                    Configure Tables
+                                </button>
+                                <div class="text-sm text-info mt-2" id="editTableConfigStatus">No tables configured</div>
+                            </div>
                         </div>
                     </div>
                     <div>
@@ -491,7 +519,7 @@
                                 <span class="tooltip-text">Optional description of the banking system</span>
                             </span>
                         </label>
-                        <textarea name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Enter system description"></textarea>
+                        <textarea name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Enter description"></textarea>
                         <div class="text-sm text-red-500 mt-1 hidden"></div>
                     </div>
                 </form>
@@ -988,6 +1016,11 @@ async function editSystem(systemId) {
             form.querySelector('[name="token_url"]').value = system.token_url || '';
         }
         
+        // Set database configuration
+        document.getElementById('editDatabaseName').value = system.database_name || '';
+        document.getElementById('editTableConfigStatus').textContent = 
+            system.selected_tables ? `${Object.keys(JSON.parse(system.selected_tables)).length} table(s) configured` : 'No tables configured';
+        
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editSystemModal'));
         modal.show();
@@ -1032,6 +1065,7 @@ async function submitEditSystem() {
         port: formData.get('port') ? parseInt(formData.get('port')) : null,
         description: formData.get('description'),
         auth_type: formData.get('auth_type'),
+        database_name: document.getElementById('editDatabaseName').value
     };
 
     // Add auth credentials based on auth type
@@ -1172,8 +1206,8 @@ function viewSystem(systemId) {
             }
         })
         .catch(error => {
-            showNotification('error', 'Failed to load system details');
             console.error('Error:', error);
+            showNotification('error', 'Failed to load system details');
             $('#systemDetailsContent').html('Failed to load system details');
         });
 }
@@ -1284,17 +1318,17 @@ function generateSystemDetailsHTML(data) {
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead>
+                        <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Path</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Success Rate</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Path</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Method</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Success Rate</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             ${endpointsHTML}
                         </tbody>
                     </table>
@@ -1302,22 +1336,22 @@ function generateSystemDetailsHTML(data) {
             </div>
         </div>
 
-        <!-- Recent Logs -->
+        <!-- Logs -->
         <div class="lg:col-span-3">
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <h4 class="text-lg font-medium mb-4">Recent Logs</h4>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead>
+                        <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">URL</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Error</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Method</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">URL</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Error</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             ${logsHTML}
                         </tbody>
                     </table>
@@ -1412,7 +1446,6 @@ function submitAddEndpoint(event) {
         path: formData.get('path'),
         method: formData.get('method'),
         description: formData.get('description') || '',
-        is_active: formData.get('is_active') === 'on'
     };
 
     // Handle JSON fields
@@ -1556,5 +1589,297 @@ document.addEventListener('DOMContentLoaded', function() {
         editTestConnectionBtn.addEventListener('click', testEditConnection);
     }
 });
+
+// Function to list available databases
+async function listDatabases() {
+    const systemId = document.getElementById('editSystemId').value;
+    const databaseNameInput = document.getElementById('editDatabaseName');
+    const listBtn = databaseNameInput.nextElementSibling;
+    
+    try {
+        listBtn.disabled = true;
+        listBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Loading...';
+
+        const response = await fetch(`/admin/core-banking/${systemId}/databases`);
+        const data = await response.json();
+
+        if (!data.success) {
+            showNotification('error', data.message || 'Error loading databases');
+            return;
+        }
+
+        const databases = data.databases;
+        const modalContent = `
+            <div class="modal fade" id="databaseListModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+                        <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Select Database</h3>
+                            <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="space-y-2">
+                                ${databases.map(db => `
+                                    <button onclick="selectDatabase('${db}')" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200">
+                                        <i class="fas fa-database mr-2 text-gray-400"></i>
+                                        ${db}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let modalElement = document.getElementById('databaseListModal');
+        if (!modalElement) {
+            const div = document.createElement('div');
+            div.innerHTML = modalContent;
+            document.body.appendChild(div.firstElementChild);
+            modalElement = document.getElementById('databaseListModal');
+        } else {
+            modalElement.innerHTML = modalContent;
+        }
+
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'Error loading databases');
+    } finally {
+        listBtn.disabled = false;
+        listBtn.innerHTML = '<i class="fas fa-database mr-1"></i> List';
+    }
+}
+
+// Function to select a database
+async function selectDatabase(databaseName) {
+    const systemId = document.getElementById('editSystemId').value;
+    const databaseNameInput = document.getElementById('editDatabaseName');
+
+    try {
+        const response = await fetch(`/admin/core-banking/${systemId}/database`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ database_name: databaseName })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            databaseNameInput.value = databaseName;
+            document.getElementById('editTableConfigStatus').textContent = 'No tables configured';
+            showNotification('success', 'Database selected successfully');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('databaseListModal'));
+            modal.hide();
+        } else {
+            showNotification('error', data.message || 'Failed to select database');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'Error selecting database');
+    }
+}
+
+// Function to configure tables
+async function configureTables() {
+    const systemId = document.getElementById('editSystemId').value;
+    const databaseName = document.getElementById('editDatabaseName').value;
+
+    if (!databaseName) {
+        showNotification('error', 'Please select a database first');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/core-banking/${systemId}/tables`);
+        const data = await response.json();
+
+        if (!data.success) {
+            showNotification('error', data.message || 'Error loading tables');
+            return;
+        }
+
+        const tables = data.tables;
+        const currentConfig = data.current_config || {};
+
+        const modalContent = `
+            <div class="modal fade" id="tableConfigModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered modal-xl">
+                    <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+                        <div class="modal-header border-b border-gray-200 dark:border-gray-700 p-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Configure Tables</h3>
+                            <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <form id="tableConfigForm" class="space-y-6">
+                                <div class="grid grid-cols-1 gap-4" id="tableConfigContainer">
+                                    ${tables.map(table => `
+                                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                            <div class="flex items-center justify-between mb-4">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" id="table_${table.name}" name="selected_tables" value="${table.name}"
+                                                        class="h-4 w-4 text-primary border-gray-300 rounded"
+                                                        ${currentConfig[table.name] ? 'checked' : ''}>
+                                                    <label for="table_${table.name}" class="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                        ${table.name}
+                                                    </label>
+                                                </div>
+                                                <button type="button" onclick="toggleTableConfig('${table.name}')"
+                                                    class="text-sm text-primary hover:text-primary-dark">
+                                                    Configure Fields
+                                                </button>
+                                            </div>
+                                            <div id="config_${table.name}" class="hidden space-y-4">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        Key Field
+                                                    </label>
+                                                    <select name="key_field_${table.name}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                        ${table.fields.map(field => `
+                                                            <option value="${field.name}" ${currentConfig[table.name]?.key_field === field.name ? 'selected' : ''}>
+                                                                ${field.name} (${field.type})
+                                                            </option>
+                                                        `).join('')}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                        Field Mappings
+                                                    </label>
+                                                    <div class="space-y-2">
+                                                        ${table.fields.map(field => `
+                                                            <div class="flex items-center space-x-2">
+                                                                <span class="text-sm text-gray-600 dark:text-gray-400 w-1/3">${field.name}</span>
+                                                                <span class="text-gray-400">→</span>
+                                                                <input type="text" name="mapping_${table.name}_${field.name}"
+                                                                    value="${currentConfig[table.name]?.mappings?.[field.name] || ''}"
+                                                                    class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                                    placeholder="Target field name">
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
+                            <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200" data-bs-dismiss="modal">
+                                Cancel
+                            </button>
+                            <button type="button" onclick="saveTableConfig()" class="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
+                                Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let modalElement = document.getElementById('tableConfigModal');
+        if (!modalElement) {
+            const div = document.createElement('div');
+            div.innerHTML = modalContent;
+            document.body.appendChild(div.firstElementChild);
+            modalElement = document.getElementById('tableConfigModal');
+        } else {
+            modalElement.innerHTML = modalContent;
+        }
+
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+
+        Object.keys(currentConfig).forEach(tableName => {
+            if (document.getElementById(`table_${tableName}`).checked) {
+                toggleTableConfig(tableName);
+            }
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'Error loading table configuration');
+    }
+}
+
+// Function to toggle table configuration visibility
+function toggleTableConfig(tableName) {
+    const configDiv = document.getElementById(`config_${tableName}`);
+    const checkbox = document.getElementById(`table_${tableName}`);
+
+    if (checkbox.checked) {
+        configDiv.classList.remove('hidden');
+    } else {
+        configDiv.classList.add('hidden');
+    }
+
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            configDiv.classList.remove('hidden');
+        } else {
+            configDiv.classList.add('hidden');
+        }
+    });
+}
+
+// Function to save table configuration
+async function saveTableConfig() {
+    const systemId = document.getElementById('editSystemId').value;
+    const form = document.getElementById('tableConfigForm');
+    const selectedTables = Array.from(form.querySelectorAll('input[name="selected_tables"]:checked')).map(checkbox => checkbox.value);
+
+    const tableConfigs = {};
+    selectedTables.forEach(tableName => {
+        const keyField = form.querySelector(`[name="key_field_${tableName}"]`).value;
+        const mappings = {};
+
+        form.querySelectorAll(`[name^="mapping_${tableName}_"]`).forEach(input => {
+            const fieldName = input.name.replace(`mapping_${tableName}_`, '');
+            if (input.value) {
+                mappings[fieldName] = input.value;
+            }
+        });
+
+        tableConfigs[tableName] = {
+            name: tableName,
+            key_field: keyField,
+            mappings: mappings
+        };
+    });
+
+    try {
+        const response = await fetch(`/admin/core-banking/${systemId}/tables`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ table_configs: tableConfigs })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            showNotification('success', 'Table configuration saved successfully');
+            document.getElementById('editTableConfigStatus').textContent = `${Object.keys(tableConfigs).length} table(s) configured`;
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('tableConfigModal'));
+            modal.hide();
+        } else {
+            showNotification('error', data.message || 'Failed to save table configuration');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', 'Error saving table configuration');
+    }
+}
 </script>
 {% endblock %}

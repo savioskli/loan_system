@@ -4,7 +4,8 @@ Core banking models for managing external banking system integrations
 from extensions import db
 from datetime import datetime
 import json
-from services.encryption_service import encrypt_credentials, decrypt_credentials
+from utils.encryption import encrypt_value, decrypt_value
+import mysql.connector
 
 class CoreBankingSystem(db.Model):
     """Model for storing core banking system configurations"""
@@ -18,6 +19,8 @@ class CoreBankingSystem(db.Model):
     auth_type = db.Column(db.String(20), nullable=False)  # none, basic, bearer, api_key, oauth2
     auth_credentials = db.Column(db.Text)  # Encrypted JSON string
     headers = db.Column(db.Text)  # JSON string
+    database_name = db.Column(db.String(100))  # Name of the database to use
+    selected_tables = db.Column(db.Text)  # JSON string of selected tables and their configurations
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -31,7 +34,9 @@ class CoreBankingSystem(db.Model):
         if isinstance(self.headers, dict):
             self.headers = json.dumps(self.headers)
         if isinstance(self.auth_credentials, dict):
-            self.auth_credentials = encrypt_credentials(self.auth_credentials)
+            self.auth_credentials = encrypt_value(json.dumps(self.auth_credentials))
+        if isinstance(self.selected_tables, dict):
+            self.selected_tables = json.dumps(self.selected_tables)
 
     @property
     def headers_dict(self):
@@ -45,7 +50,15 @@ class CoreBankingSystem(db.Model):
         """Get auth credentials as dictionary"""
         if not self.auth_credentials:
             return {}
-        return decrypt_credentials(self.auth_credentials)
+        decrypted = decrypt_value(self.auth_credentials)
+        return json.loads(decrypted) if decrypted else {}
+
+    @property
+    def selected_tables_dict(self):
+        """Get selected tables as dictionary"""
+        if not self.selected_tables:
+            return {}
+        return json.loads(self.selected_tables)
 
     def get_auth_headers(self):
         """Generate authentication headers based on auth type"""
@@ -99,6 +112,112 @@ class CoreBankingSystem(db.Model):
             return all(k in auth_creds for k in ['client_id', 'client_secret', 'token_url'])
             
         return False
+
+    def get_database_connection(self):
+        """Get a connection to the core banking database"""
+        auth_creds = self.auth_credentials_dict
+        try:
+            connection = mysql.connector.connect(
+                host=self.base_url,
+                port=self.port,
+                user=auth_creds.get('username'),
+                password=auth_creds.get('password')
+            )
+            return connection
+        except mysql.connector.Error as err:
+            raise Exception(f"Failed to connect to database: {str(err)}")
+
+    def list_databases(self):
+        """List all available databases"""
+        connection = self.get_database_connection()
+        try:
+            cursor = connection.cursor()
+            cursor.execute("SHOW DATABASES")
+            databases = [db[0] for db in cursor.fetchall()]
+            return databases
+        finally:
+            connection.close()
+
+    def list_tables(self):
+        """List all tables in the selected database"""
+        if not self.database_name:
+            raise Exception("No database selected")
+
+        connection = self.get_database_connection()
+        try:
+            connection.database = self.database_name
+            cursor = connection.cursor()
+            cursor.execute("SHOW TABLES")
+            tables = [table[0] for table in cursor.fetchall()]
+            return tables
+        finally:
+            connection.close()
+
+    def get_table_schema(self, table_name):
+        """Get the schema for a specific table"""
+        if not self.database_name:
+            raise Exception("No database selected")
+
+        connection = self.get_database_connection()
+        try:
+            connection.database = self.database_name
+            cursor = connection.cursor()
+            cursor.execute(f"DESCRIBE {table_name}")
+            columns = cursor.fetchall()
+            schema = []
+            for col in columns:
+                schema.append({
+                    'name': col[0],
+                    'type': col[1],
+                    'null': col[2],
+                    'key': col[3],
+                    'default': col[4],
+                    'extra': col[5]
+                })
+            return schema
+        finally:
+            connection.close()
+
+    def select_database(self, database_name):
+        """Select a database to use"""
+        if database_name not in self.list_databases():
+            raise Exception(f"Database '{database_name}' does not exist")
+        self.database_name = database_name
+        db.session.commit()
+
+    def configure_tables(self, table_configs):
+        """Configure which tables to use and their mappings
+        
+        Args:
+            table_configs (dict): Dictionary of table configurations
+                Example: {
+                    'customers': {
+                        'name': 'customers',
+                        'key_field': 'customer_id',
+                        'mappings': {
+                            'customer_id': 'id',
+                            'customer_name': 'name',
+                            'phone_number': 'phone'
+                        }
+                    }
+                }
+        """
+        # Validate that all tables exist
+        available_tables = self.list_tables()
+        for table_name in table_configs:
+            if table_name not in available_tables:
+                raise Exception(f"Table '{table_name}' does not exist in database '{self.database_name}'")
+            
+            # Validate that mapped fields exist in the table
+            schema = self.get_table_schema(table_name)
+            schema_fields = [field['name'] for field in schema]
+            
+            for field in table_configs[table_name].get('mappings', {}).keys():
+                if field not in schema_fields:
+                    raise Exception(f"Field '{field}' does not exist in table '{table_name}'")
+
+        self.selected_tables = json.dumps(table_configs)
+        db.session.commit()
 
     def to_dict(self):
         """Convert model to dictionary"""

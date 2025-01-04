@@ -1657,3 +1657,88 @@ def get_metrics():
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
+
+@user_bp.route('/get_detailed_loans', methods=['GET'])
+@login_required
+def get_detailed_loans():
+    try:
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 400
+
+        # Get loan details endpoint
+        loan_details_endpoint = CoreBankingEndpoint.query.filter_by(
+            system_id=core_system.id,
+            name='loan_details',
+            is_active=True
+        ).first()
+
+        if not loan_details_endpoint:
+            return jsonify({'error': 'Loan details endpoint not configured'}), 400
+
+        # Connect to core banking database
+        try:
+            auth_credentials = json.loads(core_system.auth_credentials)
+        except (json.JSONDecodeError, TypeError):
+            auth_credentials = {'username': 'root', 'password': ''}
+            
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        conn = mysql.connector.connect(**core_banking_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Build query from endpoint configuration
+        endpoint_params = json.loads(loan_details_endpoint.parameters)
+        
+        # Construct the query
+        fields = ", ".join(endpoint_params['fields'])
+        tables = endpoint_params['tables'][0]
+        joins = " ".join([f"JOIN {join['table']} ON {join['on']}" for join in endpoint_params['joins']])
+        filters = " AND ".join([f"{filter_info['field']} = '{filter_info['value']}'" 
+                              for filter_info in endpoint_params['filters'].values()])
+
+        query = f"""
+            SELECT {fields}
+            FROM {tables}
+            JOIN (
+                SELECT LoanID, MAX(LedgerID) as latest_id
+                FROM LoanLedgerEntries
+                GROUP BY LoanID
+            ) latest ON LoanLedgerEntries.LoanID = latest.LoanID 
+                AND LoanLedgerEntries.LedgerID = latest.latest_id
+            {joins}
+            WHERE {filters}
+            ORDER BY LoanLedgerEntries.LoanID
+        """
+
+        cursor.execute(query)
+        loan_data = cursor.fetchall()
+
+        # Format dates for JSON serialization and ensure list format
+        formatted_data = []
+        for loan in loan_data:
+            loan_dict = dict(loan)  # Convert row proxy to dictionary
+            if loan_dict.get('DisbursementDate'):
+                loan_dict['DisbursementDate'] = loan_dict['DisbursementDate'].strftime('%Y-%m-%d')
+            if loan_dict.get('MaturityDate'):
+                loan_dict['MaturityDate'] = loan_dict['MaturityDate'].strftime('%Y-%m-%d')
+            formatted_data.append(loan_dict)
+
+        return jsonify({'data': formatted_data})
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching detailed loan data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()

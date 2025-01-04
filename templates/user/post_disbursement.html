@@ -280,27 +280,25 @@
 
     <div class="overflow-x-auto">
         <table id="loan-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-            <thead class="bg-gray-50 dark:bg-gray-800">
+            <thead class="bg-gray-50 dark:bg-gray-600">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account No.</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer Name</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days in Arrears</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total in Arrears</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classification</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account No.</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer Name</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outstanding</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Days in Arrears</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total in Arrears</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Classification</th>
                 </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600" id="loan-table-body">
                 {% for loan in loan_data|default([]) %}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Loan_Account_No_|default('') }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Customer_Name|default('') }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Outstanding_Balance|default(0)) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.Days_In_Arrears|default(0) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ '{:,.2f}'.format(loan.Total_In_Arrears|default(0)) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm {% if loan.Classification|default('') == 'NORMAL' %}text-green-600{% elif loan.Classification|default('') == 'WATCH' %}text-yellow-600{% elif loan.Classification|default('') in ['SUBSTANDARD', 'DOUBTFUL', 'LOSS'] %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ loan.Classification|default('N/A') }}
-                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${[loan.FirstName, loan.MiddleName, loan.LastName].filter(Boolean).join(' ') || loan.FullName || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0, 2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.ArrearsDays || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.ArrearsAmount || 0, 2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white" data-status="${loan.ApplicationStatus || ''}">${loan.ApplicationStatus || 'N/A'}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -727,5 +725,104 @@
                 }
             });
         }
+    </script>
+    <script>
+        // Function to load loan details
+        async function loadLoanDetails() {
+            try {
+                const response = await fetch('/user/get_detailed_loans');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading loan data:', data.error);
+                    return;
+                }
+
+                const tableBody = document.getElementById('loan-table-body');
+                tableBody.innerHTML = ''; // Clear existing rows
+                
+                data.data.forEach(loan => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 dark:hover:bg-gray-600';
+                    
+                    // Add status-based color classes
+                    const statusClass = getStatusClass(loan.ApplicationStatus);
+                    if (statusClass) {
+                        row.classList.add(statusClass);
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${[loan.FirstName, loan.MiddleName, loan.LastName].filter(Boolean).join(' ') || loan.FullName || ''}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0, 2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.ArrearsDays || 0}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.ArrearsAmount || 0, 2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white" data-status="${loan.ApplicationStatus || ''}">${loan.ApplicationStatus || 'N/A'}</td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Apply initial filters
+                applyFilters();
+                
+            } catch (error) {
+                console.error('Error loading loan data:', error);
+            }
+        }
+
+        // Function to get status-based color class
+        function getStatusClass(status) {
+            switch(status?.toUpperCase()) {
+                case 'NORMAL':
+                    return 'bg-green-50 dark:bg-green-900/20';
+                case 'WATCH':
+                    return 'bg-yellow-50 dark:bg-yellow-900/20';
+                case 'SUBSTANDARD':
+                    return 'bg-orange-50 dark:bg-orange-900/20';
+                case 'DOUBTFUL':
+                    return 'bg-red-50 dark:bg-red-900/20';
+                case 'LOSS':
+                    return 'bg-purple-50 dark:bg-purple-900/20';
+                default:
+                    return '';
+            }
+        }
+
+        // Initialize when document is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial data
+            loadLoanDetails();
+            
+            // Set up refresh interval (every 5 minutes)
+            setInterval(loadLoanDetails, 5 * 60 * 1000);
+            
+            // Date range handler
+            const dateRangeSelect = document.getElementById('date-range');
+            const customDateRange = document.getElementById('custom-date-range');
+            
+            dateRangeSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customDateRange.classList.remove('hidden');
+                } else {
+                    customDateRange.classList.add('hidden');
+                }
+            });
+
+            // Clear filters button handler
+            document.getElementById('clear-filters').addEventListener('click', function() {
+                document.getElementById('search').value = '';
+                document.getElementById('status').value = '';
+                document.getElementById('date-range').value = '';
+                document.getElementById('amount-range').value = '';
+                document.getElementById('start-date').value = '';
+                document.getElementById('end-date').value = '';
+                customDateRange.classList.add('hidden');
+                applyFilters();
+            });
+
+            // Apply filters button handler
+            document.getElementById('apply-filters').addEventListener('click', applyFilters);
+        });
     </script>
 {% endblock %}

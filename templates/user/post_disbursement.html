@@ -746,18 +746,19 @@
                     row.className = 'hover:bg-gray-50 dark:hover:bg-gray-600';
                     
                     // Add status-based color classes
-                    const statusClass = getStatusClass(loan.ApplicationStatus);
-                    if (statusClass) {
-                        row.classList.add(statusClass);
-                    }
+                    const arrearsDays = loan.ArrearsDays || 0;
+                    const classification = getLoanClassification(arrearsDays);
+                    const statusClasses = getStatusClasses(arrearsDays);
+                    row.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-600');
+                    statusClasses.forEach(className => row.classList.add(className));
                     
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${[loan.FirstName, loan.MiddleName, loan.LastName].filter(Boolean).join(' ') || loan.FullName || ''}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0, 2)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.ArrearsDays || 0}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${arrearsDays}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.ArrearsAmount || 0, 2)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white" data-status="${loan.ApplicationStatus || ''}">${loan.ApplicationStatus || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${getClassificationTextClass(classification)}" data-status="${classification}">${classification}</td>
                     `;
                     
                     tableBody.appendChild(row);
@@ -771,24 +772,52 @@
             }
         }
 
-        // Function to get status-based color class
-        function getStatusClass(status) {
-            switch(status?.toUpperCase()) {
+        // Function to get loan classification based on arrears days
+        function getLoanClassification(arrearsDays) {
+            if (arrearsDays <= 30) return 'NORMAL';
+            if (arrearsDays <= 90) return 'WATCH';
+            if (arrearsDays <= 180) return 'SUBSTANDARD';
+            if (arrearsDays <= 360) return 'DOUBTFUL';
+            return 'LOSS';
+        }
+
+        // Function to get status-based color classes
+        function getStatusClasses(arrearsDays) {
+            const classification = getLoanClassification(arrearsDays);
+            switch(classification) {
                 case 'NORMAL':
-                    return 'bg-green-50 dark:bg-green-900/20';
+                    return ['bg-green-50', 'dark:bg-green-900/20'];
                 case 'WATCH':
-                    return 'bg-yellow-50 dark:bg-yellow-900/20';
+                    return ['bg-yellow-50', 'dark:bg-yellow-900/20'];
                 case 'SUBSTANDARD':
-                    return 'bg-orange-50 dark:bg-orange-900/20';
+                    return ['bg-orange-50', 'dark:bg-orange-900/20'];
                 case 'DOUBTFUL':
-                    return 'bg-red-50 dark:bg-red-900/20';
+                    return ['bg-red-50', 'dark:bg-red-900/20'];
                 case 'LOSS':
-                    return 'bg-purple-50 dark:bg-purple-900/20';
+                    return ['bg-purple-50', 'dark:bg-purple-900/20'];
                 default:
-                    return '';
+                    return [];
             }
         }
 
+        // Function to get text color class for classification
+        function getClassificationTextClass(classification) {
+            switch(classification) {
+                case 'NORMAL':
+                    return 'text-green-600 dark:text-green-400';
+                case 'WATCH':
+                    return 'text-yellow-600 dark:text-yellow-400';
+                case 'SUBSTANDARD':
+                    return 'text-orange-600 dark:text-orange-400';
+                case 'DOUBTFUL':
+                    return 'text-red-600 dark:text-red-400';
+                case 'LOSS':
+                    return 'text-purple-600 dark:text-purple-400';
+                default:
+                    return 'text-gray-900 dark:text-white';
+            }
+        }
+        
         // Initialize when document is loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Load initial data

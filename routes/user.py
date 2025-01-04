@@ -15,7 +15,7 @@ from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 import os
 import json
@@ -26,6 +26,8 @@ from flask import current_app
 from routes.collection_schedule import collection_schedule_bp
 from services.collection_schedule_service import CollectionScheduleService
 import io
+import mysql.connector
+from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
 
 user_bp = Blueprint('user', __name__)
 
@@ -117,7 +119,7 @@ def dynamic_form(module_code):
             'Suba', 'Taveta', 'Thika', 'Timau', 'Ukunda', 'Vihiga', 'Voi', 'Wajir',
             'Watamu', 'Webuye', 'Westlands', 'Witu', 'Wote', 'Wundanyi', 'Yala'
         ]
-
+        
         # Render the form template
         return render_template('user/dynamic_form.html',
                             module=module,
@@ -915,110 +917,284 @@ def reports():
 @user_bp.route('/post-disbursement')
 @login_required
 def post_disbursement():
-    # Get loan grading data from Navision
-    tables, last_sync = get_cached_tables()
-    loan_data = []
+    current_app.logger.info("Starting post_disbursement route")
     
-    # Calculate key metrics
-    total_loans = 0
-    overdue_loans = {
+    # Define default values for overdue loans
+    default_overdue_loans = {
         'NORMAL': {'count': 0, 'amount': 0, 'description': '0-30 days'},
         'WATCH': {'count': 0, 'amount': 0, 'description': '31-90 days'},
         'SUBSTANDARD': {'count': 0, 'amount': 0, 'description': '91-180 days'},
         'DOUBTFUL': {'count': 0, 'amount': 0, 'description': '181-360 days'},
         'LOSS': {'count': 0, 'amount': 0, 'description': '>360 days'}
     }
-    total_outstanding = 0
-    total_in_arrears = 0
     
     try:
-        # Make request to mock server
-        response = requests.get(
-            'http://localhost:5003/api/beta/companies/loan-grading',
-            headers={'Database': 'navision_db'},
-            auth=('admin', 'admin123')
-        )
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        current_app.logger.info(f"Found core banking system: {core_system.name if core_system else None}")
         
-        if response.status_code == 200:
-            # The response format is {'value': [...]} so we need to get the 'value' key
-            loan_data = response.json().get('value', [])
-            for loan in loan_data:
-                total_loans += 1
-                total_outstanding += loan['Outstanding_Balance']
-                total_in_arrears += loan['Total_In_Arrears']
-                if loan['Classification'] in overdue_loans:
-                    overdue_loans[loan['Classification']]['count'] += 1
-                    overdue_loans[loan['Classification']]['amount'] += loan['Outstanding_Balance']
+        if not core_system:
+            flash('No active core banking system configured', 'error')
+            return render_template('user/post_disbursement.html', 
+                                total_loans=0,
+                                total_outstanding=0,
+                                total_in_arrears=0,
+                                recovery_rate=0,
+                                npl_ratio=0,
+                                npl_coverage_ratio=0,
+                                cost_of_risk=0,
+                                par30_ratio=0,
+                                total_provisions=0,
+                                classification_data={
+                                    'labels': [],
+                                    'counts': [],
+                                    'amounts': []
+                                },
+                                loan_data=[],
+                                overdue_loans=default_overdue_loans,
+                                last_sync=None,
+                                error='No active core banking system configured')
+
+        # Get loan grading endpoint
+        loan_grading_endpoint = CoreBankingEndpoint.query.filter_by(
+            system_id=core_system.id,
+            name='loan_grading',
+            is_active=True
+        ).first()
+        current_app.logger.info(f"Found loan grading endpoint: {loan_grading_endpoint.name if loan_grading_endpoint else None}")
+
+        if not loan_grading_endpoint:
+            flash('Loan grading endpoint not configured', 'error')
+            return render_template('user/post_disbursement.html',
+                                total_loans=0,
+                                total_outstanding=0,
+                                total_in_arrears=0,
+                                recovery_rate=0,
+                                npl_ratio=0,
+                                npl_coverage_ratio=0,
+                                cost_of_risk=0,
+                                par30_ratio=0,
+                                total_provisions=0,
+                                classification_data={
+                                    'labels': [],
+                                    'counts': [],
+                                    'amounts': []
+                                },
+                                loan_data=[],
+                                overdue_loans=default_overdue_loans,
+                                last_sync=None,
+                                error='Loan grading endpoint not configured')
+
+        # Connect to core banking database
+        try:
+            auth_credentials = json.loads(core_system.auth_credentials)
+        except (json.JSONDecodeError, TypeError):
+            auth_credentials = {'username': 'root', 'password': ''}
+            
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
+        
+        conn = mysql.connector.connect(**core_banking_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Build query from endpoint configuration
+        endpoint_params = json.loads(loan_grading_endpoint.parameters)
+        current_app.logger.info("Endpoint parameters loaded")
+        
+        # Start with base table
+        query = f"SELECT {', '.join(endpoint_params['fields'])} FROM {endpoint_params['tables'][0]}"
+        
+        # Add joins
+        for join in endpoint_params['joins']:
+            query += f" JOIN {join['table']} ON {join['on']}"
+        
+        # Add filters
+        where_clauses = []
+        for filter_name, filter_config in endpoint_params['filters'].items():
+            if 'value' in filter_config:
+                where_clauses.append(f"{filter_config['field']} = '{filter_config['value']}'")
+        
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+            
+        current_app.logger.info(f"Executing query: {query}")
+        cursor.execute(query)
+        loan_data = cursor.fetchall()
+        current_app.logger.info(f"Found {len(loan_data)} loans")
+        
+        # Initialize metrics
+        total_loans = len(loan_data)
+        total_outstanding = 0
+        total_in_arrears = 0
+        overdue_loans = {
+            'NORMAL': {'count': 0, 'amount': 0, 'description': '0-30 days'},
+            'WATCH': {'count': 0, 'amount': 0, 'description': '31-90 days'},
+            'SUBSTANDARD': {'count': 0, 'amount': 0, 'description': '91-180 days'},
+            'DOUBTFUL': {'count': 0, 'amount': 0, 'description': '181-360 days'},
+            'LOSS': {'count': 0, 'amount': 0, 'description': '>360 days'}
+        }
+
+        # Process loan data
+        for loan in loan_data:
+            outstanding_balance = float(loan['OutstandingBalance'])
+            arrears_amount = float(loan['ArrearsAmount'])
+            arrears_days = loan['ArrearsDays']
+
+            total_outstanding += outstanding_balance
+            total_in_arrears += arrears_amount
+            
+            # Classify loans
+            if arrears_days <= 30:
+                category = 'NORMAL'
+            elif 31 <= arrears_days <= 90:
+                category = 'WATCH'
+            elif 91 <= arrears_days <= 180:
+                category = 'SUBSTANDARD'
+            elif 181 <= arrears_days <= 360:
+                category = 'DOUBTFUL'
+            else:
+                category = 'LOSS'
+            
+            overdue_loans[category]['count'] += 1
+            overdue_loans[category]['amount'] += outstanding_balance
+
+        # Calculate metrics
+        # Recovery Rate = (Outstanding - Arrears) / Outstanding
+        try:
+            recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        except:
+            recovery_rate = float(0)
+        
+        # NPL Amount (Non-Performing Loans = Substandard + Doubtful + Loss)
+        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] + 
+                         overdue_loans['DOUBTFUL']['amount'] + 
+                         overdue_loans['LOSS']['amount'])
+        
+        # NPL Ratio = NPL Amount / Total Outstanding
+        try:
+            npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        except:
+            npl_ratio = float(0)
+        
+        # Provision rates for each category
+        provision_rates = {
+            'NORMAL': 0.01,      # 1%
+            'WATCH': 0.05,       # 5%
+            'SUBSTANDARD': 0.25, # 25%
+            'DOUBTFUL': 0.50,    # 50%
+            'LOSS': 1.00         # 100%
+        }
+        
+        # Calculate total provisions
+        total_provisions = float(sum(overdue_loans[category]['amount'] * rate 
+                             for category, rate in provision_rates.items()))
+        
+        # NPL Coverage Ratio = Total Provisions / NPL Amount
+        try:
+            npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else float(0)
+        except:
+            npl_coverage_ratio = float(0)
+        
+        # Cost of Risk = Total Provisions / Total Outstanding
+        try:
+            cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        except:
+            cost_of_risk = float(0)
+        
+        # PAR30 (Portfolio at Risk > 30 days)
+        par30_amount = float(sum(overdue_loans[grade]['amount'] 
+                         for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
+        try:
+            par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        except:
+            par30_ratio = float(0)
+
+        # Prepare chart data
+        classification_data = {
+            'labels': [
+                f"NORMAL ({overdue_loans['NORMAL']['description']})",
+                f"WATCH ({overdue_loans['WATCH']['description']})",
+                f"SUBSTANDARD ({overdue_loans['SUBSTANDARD']['description']})",
+                f"DOUBTFUL ({overdue_loans['DOUBTFUL']['description']})",
+                f"LOSS ({overdue_loans['LOSS']['description']})"
+            ],
+            'counts': [
+                overdue_loans['NORMAL']['count'],
+                overdue_loans['WATCH']['count'],
+                overdue_loans['SUBSTANDARD']['count'],
+                overdue_loans['DOUBTFUL']['count'],
+                overdue_loans['LOSS']['count']
+            ],
+            'amounts': [
+                float(overdue_loans['NORMAL']['amount']),
+                float(overdue_loans['WATCH']['amount']),
+                float(overdue_loans['SUBSTANDARD']['amount']),
+                float(overdue_loans['DOUBTFUL']['amount']),
+                float(overdue_loans['LOSS']['amount'])
+            ]
+        }
+
+        cursor.close()
+        conn.close()
+
+        return render_template(
+            'user/post_disbursement.html',
+            total_loans=int(total_loans),
+            total_outstanding=float(total_outstanding),
+            total_in_arrears=float(total_in_arrears),
+            recovery_rate=float(round(recovery_rate, 2)),
+            npl_ratio=float(round(npl_ratio, 2)),
+            npl_coverage_ratio=float(round(npl_coverage_ratio, 2)),
+            cost_of_risk=float(round(cost_of_risk, 2)),
+            par30_ratio=float(round(par30_ratio, 2)),
+            total_provisions=float(total_provisions),
+            classification_data=classification_data,
+            loan_data=loan_data,
+            overdue_loans=overdue_loans,
+            last_sync=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            error=None
+        )
+
     except Exception as e:
-        print(f"Error fetching loan data: {str(e)}")
-        flash('Error fetching loan data from core banking system', 'error')
-    
-    # Calculate recovery rate (recovered amount / total in arrears)
-    recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else 0
-    
-    # Calculate NPL ratio (non-performing loans / total outstanding)
-    npl_amount = overdue_loans['SUBSTANDARD']['amount'] + overdue_loans['DOUBTFUL']['amount'] + overdue_loans['LOSS']['amount']
-    npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else 0
-    
-    # Calculate NPL Coverage Ratio (provisions / NPL amount)
-    provision_rate = {
-        'NORMAL': 0.01,  # 1% provision
-        'WATCH': 0.05,   # 5% provision
-        'SUBSTANDARD': 0.25,  # 25% provision
-        'DOUBTFUL': 0.50,     # 50% provision
-        'LOSS': 1.00          # 100% provision
-    }
-    total_provisions = sum(overdue_loans[grade]['amount'] * rate for grade, rate in provision_rate.items())
-    npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else 0
-    
-    # Calculate Cost of Risk (total provisions / total outstanding)
-    cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
-    
-    # Calculate PAR30 (Portfolio at Risk > 30 days)
-    par30_amount = sum(overdue_loans[grade]['amount'] for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS'])
-    par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else 0
-    
-    # Prepare data for charts
-    classification_data = {
-        'labels': [
-            f"NORMAL ({overdue_loans['NORMAL']['description']})",
-            f"WATCH ({overdue_loans['WATCH']['description']})",
-            f"SUBSTANDARD ({overdue_loans['SUBSTANDARD']['description']})",
-            f"DOUBTFUL ({overdue_loans['DOUBTFUL']['description']})",
-            f"LOSS ({overdue_loans['LOSS']['description']})"
-        ],
-        'counts': [
-            overdue_loans['NORMAL']['count'],
-            overdue_loans['WATCH']['count'],
-            overdue_loans['SUBSTANDARD']['count'],
-            overdue_loans['DOUBTFUL']['count'],
-            overdue_loans['LOSS']['count']
-        ],
-        'amounts': [
-            overdue_loans['NORMAL']['amount'],
-            overdue_loans['WATCH']['amount'],
-            overdue_loans['SUBSTANDARD']['amount'],
-            overdue_loans['DOUBTFUL']['amount'],
-            overdue_loans['LOSS']['amount']
-        ]
-    }
-    
-    return render_template(
-        'user/post_disbursement.html',
-        total_loans=total_loans,
-        overdue_loans=overdue_loans,
-        total_outstanding=total_outstanding,
-        total_in_arrears=total_in_arrears,
-        recovery_rate=round(recovery_rate, 2),
-        npl_ratio=round(npl_ratio, 2),
-        npl_coverage_ratio=round(npl_coverage_ratio, 2),
-        cost_of_risk=round(cost_of_risk, 2),
-        par30_ratio=round(par30_ratio, 2),
-        total_provisions=total_provisions,
-        classification_data=classification_data,
-        loan_data=loan_data,
-        last_sync=last_sync
-    )
+        current_app.logger.error(f"Error in post disbursement endpoint: {str(e)}")
+        flash(f'Error fetching post disbursement data: {str(e)}', 'error')
+        
+        # Initialize default values for error case with proper float formatting
+        default_values = {
+            'total_loans': float(0),
+            'total_outstanding': float(0),
+            'total_in_arrears': float(0),
+            'recovery_rate': float(0),
+            'npl_ratio': float(0),
+            'npl_coverage_ratio': float(0),
+            'cost_of_risk': float(0),
+            'par30_ratio': float(0),
+            'total_provisions': float(0),
+            'classification_data': {
+                'labels': ['NORMAL', 'WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS'],
+                'counts': [0, 0, 0, 0, 0],
+                'amounts': [float(0), float(0), float(0), float(0), float(0)]
+            },
+            'loan_data': [],
+            'overdue_loans': {
+                'NORMAL': {'count': 0, 'amount': float(0), 'description': '0-30 days'},
+                'WATCH': {'count': 0, 'amount': float(0), 'description': '31-90 days'},
+                'SUBSTANDARD': {'count': 0, 'amount': float(0), 'description': '91-180 days'},
+                'DOUBTFUL': {'count': 0, 'amount': float(0), 'description': '181-360 days'},
+                'LOSS': {'count': 0, 'amount': float(0), 'description': '>360 days'}
+            },
+            'last_sync': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'error': str(e)
+        }
+        
+        return render_template('user/post_disbursement.html', **default_values)
 
 @user_bp.route('/analytics', methods=['GET'])
 @login_required
@@ -1309,3 +1485,136 @@ def search_customers():
         error_msg = f"Error fetching customers: {str(e)}"
         print(error_msg)
         return jsonify({'error': error_msg}), 500
+
+@user_bp.route('/api/metrics')
+@login_required
+def get_metrics():
+    try:
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        
+        if not core_system:
+            return jsonify({
+                'total_loans': 0,
+                'total_outstanding': 0,
+                'total_in_arrears': 0,
+                'recovery_rate': 0,
+                'npl_ratio': 0,
+                'npl_coverage_ratio': 0,
+                'cost_of_risk': 0,
+                'par30_ratio': 0,
+                'total_provisions': 0
+            })
+
+        # Get loan grading endpoint
+        loan_grading_endpoint = CoreBankingEndpoint.query.filter_by(
+            system_id=core_system.id,
+            name='loan_grading',
+            is_active=True
+        ).first()
+        
+        if not loan_grading_endpoint:
+            return jsonify({
+                'total_loans': 0,
+                'total_outstanding': 0,
+                'total_in_arrears': 0,
+                'recovery_rate': 0,
+                'npl_ratio': 0,
+                'npl_coverage_ratio': 0,
+                'cost_of_risk': 0,
+                'par30_ratio': 0,
+                'total_provisions': 0
+            })
+
+        # Connect to core banking database
+        try:
+            auth_credentials = json.loads(core_system.auth_credentials)
+        except (json.JSONDecodeError, TypeError):
+            auth_credentials = {'username': 'root', 'password': ''}
+            
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
+        connection = mysql.connector.connect(**core_banking_config)
+        cursor = connection.cursor(dictionary=True)
+
+        # Load endpoint parameters
+        try:
+            parameters = json.loads(loan_grading_endpoint.parameters)
+            query = parameters.get('query', '')
+        except (json.JSONDecodeError, TypeError):
+            query = """
+            SELECT LoanLedgerEntries.LoanID, 
+                   LoanLedgerEntries.MemberID,
+                   LoanLedgerEntries.DisbursedAmount,
+                   LoanLedgerEntries.OutstandingBalance,
+                   LoanLedgerEntries.ArrearsAmount,
+                   LoanLedgerEntries.ArrearsDays,
+                   LoanLedgerEntries.InterestAccrued,
+                   LoanApplications.LoanNo,
+                   LoanApplications.LoanAmount,
+                   LoanApplications.RepaymentPeriod,
+                   LoanApplications.InterestRate,
+                   LoanDisbursements.DisbursementDate,
+                   LoanDisbursements.RepaymentStartDate,
+                   LoanDisbursements.LoanStatus
+            FROM LoanLedgerEntries
+            JOIN LoanDisbursements ON LoanLedgerEntries.LoanID = LoanDisbursements.LoanAppID
+            JOIN LoanApplications ON LoanDisbursements.LoanAppID = LoanApplications.LoanAppID
+            WHERE LoanDisbursements.LoanStatus = 'Active'
+            """
+
+        current_app.logger.info(f"Executing query: {query}")
+        cursor.execute(query)
+        loans = cursor.fetchall()
+        current_app.logger.info(f"Found {len(loans)} loans")
+
+        # Calculate metrics
+        total_loans = len(loans)
+        total_outstanding = sum(loan['OutstandingBalance'] for loan in loans)
+        total_in_arrears = sum(loan['ArrearsAmount'] for loan in loans)
+        total_provisions = sum(loan['ArrearsAmount'] for loan in loans if loan['ArrearsDays'] > 90)
+        
+        # Calculate ratios
+        npl_ratio = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
+        npl_coverage_ratio = (total_provisions / total_in_arrears * 100) if total_in_arrears > 0 else 0
+        par30_ratio = (sum(loan['ArrearsAmount'] for loan in loans if loan['ArrearsDays'] > 30) / total_outstanding * 100) if total_outstanding > 0 else 0
+        recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else 0
+        cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            'total_loans': total_loans,
+            'total_outstanding': total_outstanding,
+            'total_in_arrears': total_in_arrears,
+            'recovery_rate': recovery_rate,
+            'npl_ratio': npl_ratio,
+            'npl_coverage_ratio': npl_coverage_ratio,
+            'cost_of_risk': cost_of_risk,
+            'par30_ratio': par30_ratio,
+            'total_provisions': total_provisions
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_metrics: {str(e)}")
+        return jsonify({
+            'total_loans': 0,
+            'total_outstanding': 0,
+            'total_in_arrears': 0,
+            'recovery_rate': 0,
+            'npl_ratio': 0,
+            'npl_coverage_ratio': 0,
+            'cost_of_risk': 0,
+            'par30_ratio': 0,
+            'total_provisions': 0,
+            'error': str(e)
+        }), 500

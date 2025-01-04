@@ -6,6 +6,58 @@ import json
 
 bp = Blueprint('post_disbursement', __name__)
 
+def execute_endpoint_query(core_system, endpoint):
+    """Execute a query for a specific endpoint"""
+    try:
+        parameters = json.loads(endpoint.parameters) if endpoint.parameters else {}
+        
+        # Connect to core banking database
+        conn = mysql.connector.connect(
+            host=core_system.base_url,
+            port=core_system.port or 3306,
+            user=core_system.auth_credentials.get('username'),
+            password=core_system.auth_credentials.get('password'),
+            database=core_system.database_name
+        )
+        
+        cursor = conn.cursor(dictionary=True)
+        
+        # Build the query
+        tables = parameters.get('tables', [])
+        fields = parameters.get('fields', ['*'])
+        joins = parameters.get('joins', [])
+        filters = parameters.get('filters', {})
+        group_by = parameters.get('group_by', [])
+        
+        # Construct the query
+        query = f"SELECT {', '.join(fields)} FROM {tables[0]}"
+        
+        # Add joins
+        for join in joins:
+            query += f" JOIN {join['table']} ON {join['on']}"
+            
+        # Add group by if present
+        if group_by:
+            query += f" GROUP BY {', '.join(group_by)}"
+            
+        cursor.execute(query)
+        result = cursor.fetchall()
+        
+        # Convert decimal values to float for JSON serialization
+        for row in result:
+            for key, value in row.items():
+                if isinstance(value, bytes):
+                    row[key] = float(value)
+        
+        cursor.close()
+        conn.close()
+        
+        return result[0] if result else {}  # Return first row since we're using aggregates
+        
+    except Exception as e:
+        current_app.logger.error(f"Error executing endpoint query: {str(e)}")
+        return {}
+
 @bp.route('/user/post-disbursement', methods=['GET'])
 def get_post_disbursement_data():
     """Get post disbursement data including loan classifications and loan data"""
@@ -18,62 +70,41 @@ def get_post_disbursement_data():
                 'message': 'No active core banking system configured'
             }), 400
 
-        # Get the loan grading endpoint configuration
-        loan_grading_endpoint = CoreBankingEndpoint.query.filter_by(
-            system_id=core_system.id,
-            name='loan_grading',
-            is_active=True
-        ).first()
+        # Get all required endpoints
+        endpoints = {
+            'loan_grading': CoreBankingEndpoint.query.filter_by(
+                system_id=core_system.id,
+                name='loan_grading',
+                is_active=True
+            ).first(),
+            'total_loans': CoreBankingEndpoint.query.filter_by(
+                system_id=core_system.id,
+                name='total_loans',
+                is_active=True
+            ).first(),
+            'outstanding_loans': CoreBankingEndpoint.query.filter_by(
+                system_id=core_system.id,
+                name='outstanding_loans',
+                is_active=True
+            ).first()
+        }
 
-        if not loan_grading_endpoint:
+        # Verify all required endpoints exist
+        missing_endpoints = [name for name, endpoint in endpoints.items() if not endpoint]
+        if missing_endpoints:
             return jsonify({
                 'status': 'error',
-                'message': 'Loan grading endpoint not configured'
+                'message': f'Missing required endpoints: {", ".join(missing_endpoints)}'
             }), 400
 
-        # Parse endpoint parameters
-        parameters = json.loads(loan_grading_endpoint.parameters) if loan_grading_endpoint.parameters else {}
-        table_name = parameters.get('table_name', 'loan_grading')
-        fields = parameters.get('fields', '*')
-
-        # Connect to core banking database
-        conn = mysql.connector.connect(
-            host=core_system.base_url,
-            port=core_system.port or 3306,
-            user=core_system.auth_credentials.get('username'),
-            password=core_system.auth_credentials.get('password'),
-            database=parameters.get('database', 'loan_system')
-        )
-
-        cursor = conn.cursor(dictionary=True)
-
-        # Get loan data
-        if fields == '*':
-            query = f"SELECT * FROM {table_name}"
-        else:
-            query = f"SELECT {', '.join(fields)} FROM {table_name}"
-
-        cursor.execute(query)
-        loans = cursor.fetchall()
-
-        # Get loan grading analysis
-        analysis_query = """
-        SELECT 
-            classification as risk_grade,
-            COUNT(*) as loan_count,
-            SUM(outstanding_balance) as total_exposure,
-            AVG(days_in_arrears) as avg_days_in_arrears,
-            MIN(days_in_arrears) as min_days_in_arrears,
-            MAX(days_in_arrears) as max_days_in_arrears
-        FROM loan_grading
-        GROUP BY classification
-        """
-        cursor.execute(analysis_query)
-        analysis = cursor.fetchall()
-
-        # Close database connection
-        cursor.close()
-        conn.close()
+        # Get loan grading data
+        loan_grading_data = execute_endpoint_query(core_system, endpoints['loan_grading'])
+        
+        # Get total loans data
+        total_loans_data = execute_endpoint_query(core_system, endpoints['total_loans'])
+        
+        # Get outstanding loans data
+        outstanding_loans_data = execute_endpoint_query(core_system, endpoints['outstanding_loans'])
 
         # Define loan classifications based on the data model
         loan_classifications = [
@@ -114,23 +145,13 @@ def get_post_disbursement_data():
             }
         ]
 
-        # Convert decimal values to float for JSON serialization
-        for loan in loans:
-            for key, value in loan.items():
-                if isinstance(value, bytes):
-                    loan[key] = float(value)
-
-        for item in analysis:
-            for key, value in item.items():
-                if isinstance(value, bytes):
-                    item[key] = float(value)
-
         return jsonify({
             'status': 'success',
             'data': {
                 'loan_classifications': loan_classifications,
-                'loans': loans,
-                'analysis': analysis
+                'loan_grading': loan_grading_data,
+                'total_loans': total_loans_data,
+                'outstanding_loans': outstanding_loans_data
             }
         })
 

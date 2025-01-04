@@ -921,11 +921,11 @@ def post_disbursement():
     
     # Define default values for overdue loans
     default_overdue_loans = {
-        'NORMAL': {'count': 0, 'amount': 0, 'description': '0-30 days'},
-        'WATCH': {'count': 0, 'amount': 0, 'description': '31-90 days'},
-        'SUBSTANDARD': {'count': 0, 'amount': 0, 'description': '91-180 days'},
-        'DOUBTFUL': {'count': 0, 'amount': 0, 'description': '181-360 days'},
-        'LOSS': {'count': 0, 'amount': 0, 'description': '>360 days'}
+        'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
+        'WATCH': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '31-90 days'},
+        'SUBSTANDARD': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '91-180 days'},
+        'DOUBTFUL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '181-360 days'},
+        'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '>360 days'}
     }
     
     try:
@@ -1009,62 +1009,101 @@ def post_disbursement():
         current_app.logger.info("Endpoint parameters loaded")
         
         # Start with base table
-        query = f"SELECT {', '.join(endpoint_params['fields'])} FROM {endpoint_params['tables'][0]}"
-        
-        # Add joins
-        for join in endpoint_params['joins']:
-            query += f" JOIN {join['table']} ON {join['on']}"
-        
-        # Add filters
-        where_clauses = []
-        for filter_name, filter_config in endpoint_params['filters'].items():
-            if 'value' in filter_config:
-                where_clauses.append(f"{filter_config['field']} = '{filter_config['value']}'")
-        
-        if where_clauses:
-            query += " WHERE " + " AND ".join(where_clauses)
+        query = """
+            SELECT 
+                l.LoanID,
+                l.OutstandingBalance,
+                l.ArrearsAmount,
+                l.ArrearsDays,
+                la.LoanNo,
+                la.LoanAmount,
+                ld.LoanStatus
+            FROM LoanLedgerEntries l
+            JOIN (
+                SELECT LoanID, MAX(LedgerID) as latest_id
+                FROM LoanLedgerEntries
+                GROUP BY LoanID
+            ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
+            JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
+            JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
+            WHERE ld.LoanStatus = 'Active'
+            ORDER BY l.LoanID
+        """
             
         current_app.logger.info(f"Executing query: {query}")
         cursor.execute(query)
         loan_data = cursor.fetchall()
-        current_app.logger.info(f"Found {len(loan_data)} loans")
+        current_app.logger.info(f"Found {len(loan_data)} active loans")
         
-        # Initialize metrics
-        total_loans = len(loan_data)
-        total_outstanding = 0
-        total_in_arrears = 0
+        # Initialize loan classification counters with proper float values
         overdue_loans = {
-            'NORMAL': {'count': 0, 'amount': 0, 'description': '0-30 days'},
-            'WATCH': {'count': 0, 'amount': 0, 'description': '31-90 days'},
-            'SUBSTANDARD': {'count': 0, 'amount': 0, 'description': '91-180 days'},
-            'DOUBTFUL': {'count': 0, 'amount': 0, 'description': '181-360 days'},
-            'LOSS': {'count': 0, 'amount': 0, 'description': '>360 days'}
+            'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
+            'WATCH': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '31-90 days'},
+            'SUBSTANDARD': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '91-180 days'},
+            'DOUBTFUL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '181-360 days'},
+            'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '>360 days'}
         }
 
         # Process loan data
+        total_outstanding = float(0)
+        total_in_arrears = float(0)
+        
+        # Debug: Print all loans before processing
+        current_app.logger.info("Raw loan data from database:")
         for loan in loan_data:
-            outstanding_balance = float(loan['OutstandingBalance'])
-            arrears_amount = float(loan['ArrearsAmount'])
-            arrears_days = loan['ArrearsDays']
+            current_app.logger.info(f"Loan {loan['LoanID']} - LoanNo: {loan['LoanNo']}, Balance: {loan['OutstandingBalance']}, Arrears: {loan['ArrearsAmount']}, Days: {loan['ArrearsDays']}")
+        
+        for loan in loan_data:
+            try:
+                # Extract values from loan ledger entries with proper error handling
+                loan_id = loan.get('LoanID', 'Unknown')
+                loan_no = loan.get('LoanNo', 'Unknown')
+                outstanding_balance = float(loan.get('OutstandingBalance', 0))
+                arrears_amount = float(loan.get('ArrearsAmount', 0))
+                arrears_days = int(loan.get('ArrearsDays', 0))
+                
+                current_app.logger.info(f"Processing Loan {loan_id} (No: {loan_no}): Balance={outstanding_balance}, Arrears={arrears_amount}, Days={arrears_days}")
+                
+                # Update totals
+                total_outstanding += outstanding_balance
+                total_in_arrears += arrears_amount
+                
+                # Classify loan based on arrears days
+                if arrears_days <= 30:
+                    category = 'NORMAL'
+                elif 31 <= arrears_days <= 90:
+                    category = 'WATCH'
+                elif 91 <= arrears_days <= 180:
+                    category = 'SUBSTANDARD'
+                elif 181 <= arrears_days <= 360:
+                    category = 'DOUBTFUL'
+                else:
+                    category = 'LOSS'
+                
+                # Update classification counters
+                overdue_loans[category]['count'] += 1
+                overdue_loans[category]['amount'] += outstanding_balance
+                
+                current_app.logger.info(f"Classified loan {loan_id} as {category}")
+            except Exception as e:
+                current_app.logger.error(f"Error processing loan {loan.get('LoanID', 'Unknown')}: {str(e)}")
+                continue
 
-            total_outstanding += outstanding_balance
-            total_in_arrears += arrears_amount
-            
-            # Classify loans
-            if arrears_days <= 30:
-                category = 'NORMAL'
-            elif 31 <= arrears_days <= 90:
-                category = 'WATCH'
-            elif 91 <= arrears_days <= 180:
-                category = 'SUBSTANDARD'
-            elif 181 <= arrears_days <= 360:
-                category = 'DOUBTFUL'
-            else:
-                category = 'LOSS'
-            
-            overdue_loans[category]['count'] += 1
-            overdue_loans[category]['amount'] += outstanding_balance
+        # Log classification totals
+        current_app.logger.info("\nFinal classification totals:")
+        for category, data in overdue_loans.items():
+            current_app.logger.info(f"{category}: Count={data['count']}, Amount={data['amount']}")
 
+        # Calculate percentages for each category
+        total_amount = sum(cat['amount'] for cat in overdue_loans.values())
+        if total_amount > 0:
+            for category in overdue_loans:
+                overdue_loans[category]['percentage'] = (overdue_loans[category]['amount'] / total_amount * 100)
+                current_app.logger.info(f"{category} percentage: {overdue_loans[category]['percentage']}%")
+        else:
+            for category in overdue_loans:
+                overdue_loans[category]['percentage'] = float(0)
+        
         # Calculate metrics
         # Recovery Rate = (Outstanding - Arrears) / Outstanding
         try:
@@ -1146,7 +1185,7 @@ def post_disbursement():
 
         return render_template(
             'user/post_disbursement.html',
-            total_loans=int(total_loans),
+            total_loans=len(loan_data),
             total_outstanding=float(total_outstanding),
             total_in_arrears=float(total_in_arrears),
             recovery_rate=float(round(recovery_rate, 2)),
@@ -1167,6 +1206,14 @@ def post_disbursement():
         flash(f'Error fetching post disbursement data: {str(e)}', 'error')
         
         # Initialize default values for error case with proper float formatting
+        default_overdue_loans = {
+            'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
+            'WATCH': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '31-90 days'},
+            'SUBSTANDARD': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '91-180 days'},
+            'DOUBTFUL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '181-360 days'},
+            'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '>360 days'}
+        }
+        
         default_values = {
             'total_loans': float(0),
             'total_outstanding': float(0),
@@ -1178,18 +1225,12 @@ def post_disbursement():
             'par30_ratio': float(0),
             'total_provisions': float(0),
             'classification_data': {
-                'labels': ['NORMAL', 'WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS'],
-                'counts': [0, 0, 0, 0, 0],
-                'amounts': [float(0), float(0), float(0), float(0), float(0)]
+                'labels': [],
+                'counts': [],
+                'amounts': []
             },
             'loan_data': [],
-            'overdue_loans': {
-                'NORMAL': {'count': 0, 'amount': float(0), 'description': '0-30 days'},
-                'WATCH': {'count': 0, 'amount': float(0), 'description': '31-90 days'},
-                'SUBSTANDARD': {'count': 0, 'amount': float(0), 'description': '91-180 days'},
-                'DOUBTFUL': {'count': 0, 'amount': float(0), 'description': '181-360 days'},
-                'LOSS': {'count': 0, 'amount': float(0), 'description': '>360 days'}
-            },
+            'overdue_loans': default_overdue_loans,
             'last_sync': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'error': str(e)
         }
@@ -1489,132 +1530,130 @@ def search_customers():
 @user_bp.route('/api/metrics')
 @login_required
 def get_metrics():
+    """Get updated metrics for the dashboard."""
     try:
-        # Get the active core banking system
-        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        # Connect to the database
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
         
-        if not core_system:
-            return jsonify({
-                'total_loans': 0,
-                'total_outstanding': 0,
-                'total_in_arrears': 0,
-                'recovery_rate': 0,
-                'npl_ratio': 0,
-                'npl_coverage_ratio': 0,
-                'cost_of_risk': 0,
-                'par30_ratio': 0,
-                'total_provisions': 0
-            })
-
-        # Get loan grading endpoint
-        loan_grading_endpoint = CoreBankingEndpoint.query.filter_by(
-            system_id=core_system.id,
-            name='loan_grading',
-            is_active=True
-        ).first()
+        # Get loan data using the same query as post_disbursement
+        query = """
+            SELECT 
+                l.LoanID,
+                l.OutstandingBalance,
+                l.ArrearsAmount,
+                l.ArrearsDays,
+                la.LoanNo,
+                la.LoanAmount,
+                ld.LoanStatus
+            FROM LoanLedgerEntries l
+            JOIN (
+                SELECT LoanID, MAX(LedgerID) as latest_id
+                FROM LoanLedgerEntries
+                GROUP BY LoanID
+            ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
+            JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
+            JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
+            WHERE ld.LoanStatus = 'Active'
+            ORDER BY l.LoanID
+        """
         
-        if not loan_grading_endpoint:
-            return jsonify({
-                'total_loans': 0,
-                'total_outstanding': 0,
-                'total_in_arrears': 0,
-                'recovery_rate': 0,
-                'npl_ratio': 0,
-                'npl_coverage_ratio': 0,
-                'cost_of_risk': 0,
-                'par30_ratio': 0,
-                'total_provisions': 0
-            })
-
-        # Connect to core banking database
-        try:
-            auth_credentials = json.loads(core_system.auth_credentials)
-        except (json.JSONDecodeError, TypeError):
-            auth_credentials = {'username': 'root', 'password': ''}
-            
-        core_banking_config = {
-            'host': core_system.base_url,
-            'port': core_system.port or 3306,
-            'user': auth_credentials.get('username', 'root'),
-            'password': auth_credentials.get('password', ''),
-            'database': core_system.database_name,
-            'auth_plugin': 'mysql_native_password'
+        cursor.execute(query)
+        loan_data = cursor.fetchall()
+        
+        # Initialize loan classification counters
+        overdue_loans = {
+            'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
+            'WATCH': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '31-90 days'},
+            'SUBSTANDARD': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '91-180 days'},
+            'DOUBTFUL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '181-360 days'},
+            'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '>360 days'}
         }
 
-        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
-        connection = mysql.connector.connect(**core_banking_config)
-        cursor = connection.cursor(dictionary=True)
-
-        # Load endpoint parameters
-        try:
-            parameters = json.loads(loan_grading_endpoint.parameters)
-            query = parameters.get('query', '')
-        except (json.JSONDecodeError, TypeError):
-            query = """
-            SELECT LoanLedgerEntries.LoanID, 
-                   LoanLedgerEntries.MemberID,
-                   LoanLedgerEntries.DisbursedAmount,
-                   LoanLedgerEntries.OutstandingBalance,
-                   LoanLedgerEntries.ArrearsAmount,
-                   LoanLedgerEntries.ArrearsDays,
-                   LoanLedgerEntries.InterestAccrued,
-                   LoanApplications.LoanNo,
-                   LoanApplications.LoanAmount,
-                   LoanApplications.RepaymentPeriod,
-                   LoanApplications.InterestRate,
-                   LoanDisbursements.DisbursementDate,
-                   LoanDisbursements.RepaymentStartDate,
-                   LoanDisbursements.LoanStatus
-            FROM LoanLedgerEntries
-            JOIN LoanDisbursements ON LoanLedgerEntries.LoanID = LoanDisbursements.LoanAppID
-            JOIN LoanApplications ON LoanDisbursements.LoanAppID = LoanApplications.LoanAppID
-            WHERE LoanDisbursements.LoanStatus = 'Active'
-            """
-
-        current_app.logger.info(f"Executing query: {query}")
-        cursor.execute(query)
-        loans = cursor.fetchall()
-        current_app.logger.info(f"Found {len(loans)} loans")
-
-        # Calculate metrics
-        total_loans = len(loans)
-        total_outstanding = sum(loan['OutstandingBalance'] for loan in loans)
-        total_in_arrears = sum(loan['ArrearsAmount'] for loan in loans)
-        total_provisions = sum(loan['ArrearsAmount'] for loan in loans if loan['ArrearsDays'] > 90)
+        # Process loan data
+        total_outstanding = float(0)
+        total_in_arrears = float(0)
         
-        # Calculate ratios
-        npl_ratio = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
-        npl_coverage_ratio = (total_provisions / total_in_arrears * 100) if total_in_arrears > 0 else 0
-        par30_ratio = (sum(loan['ArrearsAmount'] for loan in loans if loan['ArrearsDays'] > 30) / total_outstanding * 100) if total_outstanding > 0 else 0
-        recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else 0
-        cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else 0
+        for loan in loan_data:
+            outstanding_balance = float(loan.get('OutstandingBalance', 0))
+            arrears_amount = float(loan.get('ArrearsAmount', 0))
+            arrears_days = int(loan.get('ArrearsDays', 0))
+            
+            total_outstanding += outstanding_balance
+            total_in_arrears += arrears_amount
+            
+            # Classify loan based on arrears days
+            if arrears_days <= 30:
+                category = 'NORMAL'
+            elif 31 <= arrears_days <= 90:
+                category = 'WATCH'
+            elif 91 <= arrears_days <= 180:
+                category = 'SUBSTANDARD'
+            elif 181 <= arrears_days <= 360:
+                category = 'DOUBTFUL'
+            else:
+                category = 'LOSS'
+            
+            overdue_loans[category]['count'] += 1
+            overdue_loans[category]['amount'] += outstanding_balance
 
+        # Calculate percentages
+        total_amount = sum(cat['amount'] for cat in overdue_loans.values())
+        if total_amount > 0:
+            for category in overdue_loans:
+                overdue_loans[category]['percentage'] = (overdue_loans[category]['amount'] / total_amount * 100)
+        
+        # Calculate NPL amount and ratio
+        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] + 
+                         overdue_loans['DOUBTFUL']['amount'] + 
+                         overdue_loans['LOSS']['amount'])
+        npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        
+        # Calculate recovery rate
+        recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        
+        # Calculate provisions
+        total_provisions = float(sum(overdue_loans[category]['amount'] * rate 
+            for category, rate in {
+                'NORMAL': 0.01,      # 1%
+                'WATCH': 0.05,       # 5%
+                'SUBSTANDARD': 0.25, # 25%
+                'DOUBTFUL': 0.50,    # 50%
+                'LOSS': 1.00         # 100%
+            }.items()))
+        
+        # Calculate NPL coverage ratio
+        npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else float(0)
+        
+        # Calculate cost of risk
+        cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        
+        # Calculate PAR30
+        par30_amount = float(sum(overdue_loans[grade]['amount'] 
+                         for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
+        par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
+        
         cursor.close()
-        connection.close()
-
+        conn.close()
+        
         return jsonify({
-            'total_loans': total_loans,
-            'total_outstanding': total_outstanding,
-            'total_in_arrears': total_in_arrears,
-            'recovery_rate': recovery_rate,
-            'npl_ratio': npl_ratio,
-            'npl_coverage_ratio': npl_coverage_ratio,
-            'cost_of_risk': cost_of_risk,
-            'par30_ratio': par30_ratio,
-            'total_provisions': total_provisions
+            'metrics': {
+                'total_loans': len(loan_data),
+                'total_outstanding': float(total_outstanding),
+                'total_in_arrears': float(total_in_arrears),
+                'recovery_rate': float(round(recovery_rate, 2)),
+                'npl_ratio': float(round(npl_ratio, 2)),
+                'npl_coverage_ratio': float(round(npl_coverage_ratio, 2)),
+                'cost_of_risk': float(round(cost_of_risk, 2)),
+                'par30_ratio': float(round(par30_ratio, 2)),
+                'total_provisions': float(total_provisions),
+                'overdue_loans': overdue_loans
+            }
         })
-
+        
     except Exception as e:
-        current_app.logger.error(f"Error in get_metrics: {str(e)}")
+        current_app.logger.error(f"Error fetching metrics: {str(e)}")
         return jsonify({
-            'total_loans': 0,
-            'total_outstanding': 0,
-            'total_in_arrears': 0,
-            'recovery_rate': 0,
-            'npl_ratio': 0,
-            'npl_coverage_ratio': 0,
-            'cost_of_risk': 0,
-            'par30_ratio': 0,
-            'total_provisions': 0,
-            'error': str(e)
+            'error': 'Failed to fetch metrics',
+            'details': str(e)
         }), 500

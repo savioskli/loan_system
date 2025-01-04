@@ -203,27 +203,27 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for code, data in overdue_loans.items() %}
+                                    {% for category, data in overdue_loans.items() %}
                                     <tr class="border-t border-gray-200 dark:border-gray-700">
                                         <td class="py-2">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                                {% if code == 'NORMAL' %}
+                                                {% if category == 'NORMAL' %}
                                                     bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                                {% elif code == 'WATCH' %}
+                                                {% elif category == 'WATCH' %}
                                                     bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
-                                                {% elif code == 'SUBSTANDARD' %}
+                                                {% elif category == 'SUBSTANDARD' %}
                                                     bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
-                                                {% elif code == 'DOUBTFUL' %}
+                                                {% elif category == 'DOUBTFUL' %}
                                                     bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
                                                 {% else %}
                                                     bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
                                                 {% endif %}">
-                                                {{ code }} ({{ data.description }})
+                                                {{ category }} ({{ data.description }})
                                             </span>
                                         </td>
-                                        <td class="text-right py-2">{{ data.count }}</td>
+                                        <td class="text-right py-2">{{ '{:,.0f}'.format(data.count) }}</td>
                                         <td class="text-right py-2">{{ '{:,.2f}'.format(data.amount) }}</td>
-                                        <td class="text-right py-2">{{ '{:.2f}%'.format(data.amount / total_outstanding|default(0) * 100 if total_outstanding|default(0) > 0 else 0) }}</td>
+                                        <td class="text-right py-2">{{ '{:.2f}%'.format(data.percentage) }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -653,25 +653,29 @@
 
         function initializeClassificationChart() {
             const ctx = document.getElementById('classificationChart').getContext('2d');
+            const chartData = {{ overdue_loans|tojson }};
+            const labels = Object.entries(chartData).map(([category, data]) => `${category} (${data.description})`);
+            const percentages = Object.values(chartData).map(data => data.percentage);
+            
             new Chart(ctx, {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
-                    labels: {{ classification_data.labels|default([])|tojson }},
+                    labels: labels,
                     datasets: [{
-                        data: {{ classification_data.counts|default([])|tojson }},
+                        data: percentages,
                         backgroundColor: [
-                            'rgba(34, 197, 94, 0.8)',  // Green for Normal
-                            'rgba(234, 179, 8, 0.8)',  // Yellow for Watch
-                            'rgba(249, 115, 22, 0.8)', // Orange for Substandard
-                            'rgba(239, 68, 68, 0.8)',  // Red for Doubtful
-                            'rgba(147, 51, 234, 0.8)'  // Purple for Loss
+                            'rgba(34, 197, 94, 0.8)',  // Green for NORMAL
+                            'rgba(234, 179, 8, 0.8)',  // Yellow for WATCH
+                            'rgba(249, 115, 22, 0.8)', // Orange for SUBSTANDARD
+                            'rgba(239, 68, 68, 0.8)',  // Red for DOUBTFUL
+                            'rgba(147, 51, 234, 0.8)'  // Purple for LOSS
                         ],
                         borderColor: [
-                            'rgb(34, 197, 94)',
-                            'rgb(234, 179, 8)',
-                            'rgb(249, 115, 22)',
-                            'rgb(239, 68, 68)',
-                            'rgb(147, 51, 234)'
+                            'rgba(34, 197, 94, 1)',
+                            'rgba(234, 179, 8, 1)',
+                            'rgba(249, 115, 22, 1)',
+                            'rgba(239, 68, 68, 1)',
+                            'rgba(147, 51, 234, 1)'
                         ],
                         borderWidth: 1
                     }]
@@ -683,21 +687,39 @@
                         legend: {
                             position: 'right',
                             labels: {
-                                color: document.documentElement.classList.contains('dark') ? 'rgb(209, 213, 219)' : 'rgb(55, 65, 81)',
-                                padding: 15,
-                                font: {
-                                    size: 12
+                                color: document.documentElement.classList.contains('dark') ? '#fff' : '#000',
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map(function(label, i) {
+                                            const meta = chart.getDatasetMeta(0);
+                                            const style = meta.controller.getStyle(i);
+                                            const value = chart.data.datasets[0].data[i];
+                                            const amount = Object.values(chartData)[i].amount;
+                                            
+                                            return {
+                                                text: `${label} (${value.toFixed(1)}%)`,
+                                                fillStyle: style.backgroundColor,
+                                                strokeStyle: style.borderColor,
+                                                lineWidth: style.borderWidth,
+                                                hidden: isNaN(value) || meta.data[i].hidden,
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
                                 }
                             }
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + (b || 0), 0);
-                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                                    return `${label}: ${value} (${percentage}%)`;
+                                    const value = context.raw;
+                                    const amount = Object.values(chartData)[context.dataIndex].amount;
+                                    return [
+                                        `Percentage: ${value.toFixed(1)}%`,
+                                        `Amount: ${formatNumber(amount, 2)}`
+                                    ];
                                 }
                             }
                         }

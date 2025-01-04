@@ -10,20 +10,42 @@
         width: 100% !important;
     }
     input, textarea, select {
-        padding: 10px; /* Adjust padding as needed */
-        border-radius: 5px; /* Optional: for rounded corners */
-        border: 1px solid #ccc; /* Optional: border styling */
-        width: 100%; /* Ensure full width */
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        width: 100%;
     }
     .modal-content {
-        width: 80%; /* or a fixed width like 800px */
-        max-width: 1000px; /* Optional: set a maximum width */
-        margin: auto; /* Center the modal */
+        width: 80%;
+        max-width: 1000px;
+        margin: auto;
     }
-        /* New rule to reduce font size in modal dropdowns */
-        .modal-content select {
+    .modal-content select {
         font-size: 14px;
     }
+    .communication-item {
+        border-left: 4px solid #e5e7eb;
+        padding-left: 1rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    .communication-item::before {
+        content: '';
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        left: -8px;
+        top: 0;
+    }
+    .communication-type-sms::before { background-color: #10B981; }
+    .communication-type-email::before { background-color: #3B82F6; }
+    .communication-type-call::before { background-color: #F59E0B; }
+    .communication-type-letter::before { background-color: #6366F1; }
+    .communication-type-visit::before { background-color: #EC4899; }
+    .status-delivered { color: #059669; }
+    .status-failed { color: #DC2626; }
+    .status-pending { color: #D97706; }
 </style>
 {% endblock %}
 
@@ -38,26 +60,78 @@
                 <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Correspondence History</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400">View and manage client communications</p>
             </div>
-            <button id="newCorrespondenceBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark focus:ring-4 focus:ring-primary-light transition-colors duration-200">
-                <i class="fas fa-plus mr-2"></i>New Communication
-            </button>
+            <div class="flex gap-2">
+                <button id="syncBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-secondary rounded-lg hover:bg-secondary-dark focus:ring-4 focus:ring-secondary-light transition-colors duration-200">
+                    <i class="fas fa-sync-alt mr-2"></i>Sync
+                </button>
+                <button id="newCorrespondenceBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark focus:ring-4 focus:ring-primary-light transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i>New Communication
+                </button>
+            </div>
         </div>
 
-        <!-- Client Selection -->
-        <div class="mb-6">
-            <label for="clientSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Client</label>
-            <select id="clientSelect" class="w-full px-4 py-2.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
-                <option></option>
-            </select>
+        <!-- Filters Section -->
+        <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label for="clientSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by Client</label>
+                <select id="clientSelect" class="w-full px-4 py-2.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">All Clients</option>
+                </select>
+            </div>
+            <div>
+                <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
+                <input type="date" id="startDate" class="w-full px-4 py-2.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg">
+            </div>
+            <div>
+                <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
+                <input type="date" id="endDate" class="w-full px-4 py-2.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg">
+            </div>
+            <div>
+                <label for="typeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                <select id="typeFilter" class="w-full px-4 py-2.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg">
+                    <option value="">All Types</option>
+                    <option value="sms">SMS</option>
+                    <option value="email">Email</option>
+                    <option value="call">Call</option>
+                    <option value="letter">Letter</option>
+                    <option value="visit">Visit</option>
+                </select>
+            </div>
         </div>
 
-        <!-- Communications List -->
-        <div id="correspondenceList" class="space-y-4">
-            <!-- Timeline view -->
-            <div class="flow-root">
-                <ul role="list" class="-mb-8">
-                    <!-- Communications will be inserted here -->
-                </ul>
+        <!-- Communications Table -->
+        <div class="overflow-x-auto relative">
+            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                        <th scope="col" class="py-3 px-6">Date</th>
+                        <th scope="col" class="py-3 px-6">Member</th>
+                        <th scope="col" class="py-3 px-6">Type</th>
+                        <th scope="col" class="py-3 px-6">Message</th>
+                        <th scope="col" class="py-3 px-6">Status</th>
+                        <th scope="col" class="py-3 px-6">Response</th>
+                        <th scope="col" class="py-3 px-6">Sent By</th>
+                    </tr>
+                </thead>
+                <tbody id="communicationsTable">
+                    <!-- Communications will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-4">
+            <div class="flex items-center">
+                <label class="mr-2">Per page:</label>
+                <select id="perPage" class="px-3 py-1.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="flex items-center space-x-2" id="pagination">
+                <!-- Pagination buttons will be added here -->
             </div>
         </div>
     </div>
@@ -73,14 +147,14 @@
         <form id="newCorrespondenceForm" class="space-y-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flex flex-wrap -mx-2 space-y-4">
-                <!-- Client Identification -->
+                <!-- Client Selection -->
                 <div class="w-1/2 px-2">
                     <label for="clientSelect2" class="block text-sm font-medium text-gray-700">Select Client</label>
                     <select id="clientSelect2" name="client_name" required class="form-select w-full"></select>
                 </div>
                 <div class="w-1/2 px-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Number</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="account_no" name="account_no" required>
+                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="account_no" name="account_no" required readonly>
                 </div>
                 
                 <!-- Communication Details -->
@@ -94,58 +168,14 @@
                         <option value="visit">Visit</option>
                     </select>
                 </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message</label>
-                    <textarea class="w-full border border-gray-300 rounded-lg p-1.5" id="message" name="message" required></textarea>
+                <div class="w-full px-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message/Notes</label>
+                    <textarea class="w-full border border-gray-300 rounded-lg p-1.5" id="message" name="message" required rows="3"></textarea>
                 </div>
                 
-                <!-- Status and Outcome -->
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="status" name="status" required>
-                        <option value="Completed">Completed</option>
-                        <option value="Failed">Failed</option>
-                        <option value="Pending" selected>Pending</option>
-                    </select>
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Status</label>
-                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="delivery_status" name="delivery_status">
-                        <option value="Delivered">Delivered</option>
-                        <option value="Failed">Failed</option>
-                    </select>
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Time</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="datetime-local" id="delivery_time" name="delivery_time">
-                </div>
-                
-                <!-- Call Details -->
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Duration (seconds)</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="number" id="call_duration" name="call_duration">
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Outcome</label>
-                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="call_outcome" name="call_outcome">
-                        <option value="answered">Answered</option>
-                        <option value="no_answer">No Answer</option>
-                        <option value="voicemail">Voicemail</option>
-                    </select>
-                </div>
-                
-                <!-- Visit Details -->
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="location" name="location">
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Purpose</label>
-                    <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="visit_purpose" name="visit_purpose">
-                </div>
-                <div class="w-1/2 px-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Outcome</label>
-                    <textarea class="w-full border border-gray-300 rounded-lg p-1.5" id="visit_outcome" name="visit_outcome"></textarea>
+                <!-- Dynamic Fields Container -->
+                <div id="dynamicFields" class="w-full px-2 grid grid-cols-2 gap-4">
+                    <!-- Dynamic fields will be inserted here based on type -->
                 </div>
             </div>
             <div class="flex justify-end space-x-4">
@@ -159,89 +189,212 @@
         </form>
     </div>
 </div>
-
-
-
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const typeSelect = document.getElementById('type');
-        const fields = {
-            delivery_status: document.getElementById('delivery_status').closest('div'),
-            delivery_time: document.getElementById('delivery_time').closest('div'),
-            call_duration: document.getElementById('call_duration').closest('div'),
-            call_outcome: document.getElementById('call_outcome').closest('div'),
-            location: document.getElementById('location').closest('div'),
-            visit_purpose: document.getElementById('visit_purpose').closest('div'),
-            visit_outcome: document.getElementById('visit_outcome').closest('div')
-        };
-
-        // Hide all optional fields initially
-        function hideAllFields() {
-            for (let key in fields) {
-                fields[key].style.display = 'none';
-            }
-        }
-
-        function toggleFields() {
-            hideAllFields();
-            const type = typeSelect.value;
-
-            if (type === 'sms' || type === 'email') {
-                fields.delivery_status.style.display = 'block';
-                fields.delivery_time.style.display = 'block';
-            } else if (type === 'call') {
-                fields.call_duration.style.display = 'block';
-                fields.call_outcome.style.display = 'block';
-            } else if (type === 'visit') {
-                fields.location.style.display = 'block';
-                fields.visit_purpose.style.display = 'block';
-                fields.visit_outcome.style.display = 'block';
-            }
-        }
-
-        // Initial hide
-        hideAllFields();
-
-        // Listen for changes
-        typeSelect.addEventListener('change', toggleFields);
-    });
-</script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const clientSelect = document.getElementById('clientSelect2');
-
-        // Function to load account numbers for the selected client
-        function loadAccountNumbers(clientId) {
-            $.ajax({
-                url: `http://localhost:5003/api/mock/clients/${clientId}/accounts`,
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    console.log('Accounts for client:', data);
-                    const accountInput = document.getElementById('account_no');
-                    accountInput.value = data.accounts.join(', '); // Assuming data.accounts is an array
-                },
-                error: function(error) {
-                    console.error('Error loading accounts:', error);
-                }
-            });
-        }
-
-        clientSelect.addEventListener('change', function() {
-            const selectedClientId = this.value;
-            if (selectedClientId) {
-                loadAccountNumbers(selectedClientId);
-            }
-        });
-    });
-</script>
 {% endblock %}
 
 {% block extra_js %}
-
-
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="{{ url_for('static', filename='js/correspondence.js') }}"></script>
+<script>
+    $(document).ready(function() {
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        function formatNoMatches(term) {
+            return 'No matches found';
+        }
+        
+        function formatSearching() {
+            return 'Searching...';
+        }
+        
+        function formatInputTooShort(term, minLength) {
+            return 'Please enter ' + minLength + ' or more characters';
+        }
+
+        // Initialize Select2 for client search
+        $('#clientSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a client...',
+            allowClear: true,
+            minimumInputLength: 2,
+            ajax: {
+                url: '/user/loans/clients/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.clients.map(function(client) {
+                            return {
+                                id: client.account_no,
+                                text: client.name + ' (' + client.account_no + ')'
+                            };
+                        }),
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching clients:', errorThrown);
+                    return {
+                        results: []
+                    };
+                },
+                cache: true
+            }
+        });
+
+        function loadCommunications(page = 1) {
+            const filters = {
+                page: page,
+                per_page: $('#perPage').val() || 10,
+                member_id: $('#clientSelect').val() || '',
+                start_date: $('#startDate').val() || '',
+                end_date: $('#endDate').val() || '',
+                type: $('#typeFilter').val() || ''
+            };
+            
+            // Show loading state
+            $('#communicationsTable').html(`
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="flex items-center justify-center">
+                            <i class="fas fa-circle-notch fa-spin mr-2"></i>
+                            Loading communications...
+                        </div>
+                    </td>
+                </tr>
+            `);
+            
+            $.get('/user/loans/communications', filters)
+                .done(function(response) {
+                    currentPage = response.page;
+                    totalPages = response.total_pages;
+                    
+                    // Clear existing rows
+                    $('#communicationsTable').empty();
+                    
+                    if (!response.communications || response.communications.length === 0) {
+                        $('#communicationsTable').html(`
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-gray-500">
+                                    No communications found${Object.values(filters).some(v => v) ? ' matching the selected filters' : ''}
+                                </td>
+                            </tr>
+                        `);
+                        return;
+                    }
+                    
+                    // Add new rows
+                    response.communications.forEach(function(comm) {
+                        const row = `
+                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="py-4 px-6">${comm.created_at || 'N/A'}</td>
+                                <td class="py-4 px-6">
+                                    ${comm.member_name || 'N/A'}
+                                    ${comm.member_no ? `<br><span class="text-xs text-gray-500">${comm.member_no}</span>` : ''}
+                                </td>
+                                <td class="py-4 px-6">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        ${comm.type === 'sms' ? 'bg-green-100 text-green-800' : ''}
+                                        ${comm.type === 'email' ? 'bg-blue-100 text-blue-800' : ''}
+                                        ${comm.type === 'call' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                        ${comm.type === 'letter' ? 'bg-purple-100 text-purple-800' : ''}
+                                        ${comm.type === 'visit' ? 'bg-pink-100 text-pink-800' : ''}">
+                                        ${comm.type || 'unknown'}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="max-w-md overflow-hidden text-ellipsis">
+                                        ${comm.message || 'N/A'}
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        ${comm.status === 'delivered' ? 'bg-green-100 text-green-800' : ''}
+                                        ${comm.status === 'failed' ? 'bg-red-100 text-red-800' : ''}
+                                        ${comm.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}">
+                                        ${comm.status || 'unknown'}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6">${comm.response || '-'}</td>
+                                <td class="py-4 px-6">${comm.sent_by || 'System'}</td>
+                            </tr>
+                        `;
+                        $('#communicationsTable').append(row);
+                    });
+                    
+                    // Update pagination
+                    updatePagination();
+                })
+                .fail(function(error) {
+                    console.error('Error loading communications:', error);
+                    $('#communicationsTable').html(`
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-red-500">
+                                Error loading communications. Please try again.
+                            </td>
+                        </tr>
+                    `);
+                });
+        }
+
+        function updatePagination() {
+            const pagination = $('#pagination');
+            pagination.empty();
+            
+            if (totalPages <= 1) {
+                return;
+            }
+            
+            // Previous button
+            pagination.append(`
+                <button class="px-3 py-1 rounded-md ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                        ${currentPage === 1 ? 'disabled' : 'onclick="loadCommunications(' + (currentPage - 1) + ')"'}>
+                    Previous
+                </button>
+            `);
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === currentPage) {
+                    pagination.append(`
+                        <button class="px-3 py-1 bg-primary text-white rounded-md">
+                            ${i}
+                        </button>
+                    `);
+                } else {
+                    pagination.append(`
+                        <button class="px-3 py-1 bg-white text-gray-700 hover:bg-gray-50 rounded-md" 
+                                onclick="loadCommunications(${i})">
+                            ${i}
+                        </button>
+                    `);
+                }
+            }
+            
+            // Next button
+            pagination.append(`
+                <button class="px-3 py-1 rounded-md ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                        ${currentPage === totalPages ? 'disabled' : 'onclick="loadCommunications(' + (currentPage + 1) + ')"'}>
+                    Next
+                </button>
+            `);
+        }
+        
+        // Event listeners for filters
+        $('#clientSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
+            loadCommunications(1);
+        });
+
+        // Initialize table on page load
+        loadCommunications(1);
+    });
+</script>
 {% endblock %}

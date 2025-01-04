@@ -58,7 +58,88 @@ class Correspondence(db.Model):
             'location': self.location,
             'visit_purpose': self.visit_purpose,
             'visit_outcome': self.visit_outcome,
-            'staff_id': self.staff_id,
-            'loan_id': self.loan_id,
+            'staff': self.staff.to_dict() if self.staff else None,
+            'loan': self.loan.to_dict() if self.loan else None,
             'attachment_path': self.attachment_path
         }
+
+    @classmethod
+    def sync_from_core_banking(cls, member_id=None, loan_id=None, start_date=None, end_date=None):
+        """
+        Sync communications from core banking system
+        """
+        from utils.core_banking import get_endpoint_data
+        
+        # Prepare parameters for the API call
+        params = {}
+        if member_id:
+            params['member_id'] = member_id
+        if loan_id:
+            params['loan_id'] = loan_id
+        if start_date:
+            params['start_date'] = start_date.isoformat()
+        if end_date:
+            params['end_date'] = end_date.isoformat()
+            
+        # Get communications from core banking
+        communications = get_endpoint_data('loan_communications', params)
+        
+        if not communications:
+            return []
+            
+        synced_records = []
+        for comm in communications:
+            # Check if communication already exists
+            existing = cls.query.filter_by(
+                loan_id=comm['LoanID'],
+                created_at=datetime.fromisoformat(comm['SentDate'])
+            ).first()
+            
+            if not existing:
+                # Create new communication record
+                new_comm = cls(
+                    loan_id=comm['LoanID'],
+                    account_no=comm.get('LoanNo', ''),
+                    client_name=comm.get('MemberName', ''),
+                    type=comm['CommunicationType'].lower(),
+                    message=comm['MessageContent'],
+                    status='completed',
+                    sent_by=comm.get('SentByUser', ''),
+                    created_at=datetime.fromisoformat(comm['SentDate']),
+                    delivery_status=comm['DeliveryStatus'],
+                    delivery_time=datetime.fromisoformat(comm['SentDate']),
+                    staff_id=comm.get('SentBy', 1),  # Default to admin if not found
+                )
+                
+                if comm.get('ResponseReceived'):
+                    new_comm.message += f"\n\nResponse: {comm['ResponseReceived']}"
+                    new_comm.updated_at = datetime.fromisoformat(comm['ResponseDate']) if comm.get('ResponseDate') else None
+                
+                db.session.add(new_comm)
+                synced_records.append(new_comm)
+        
+        if synced_records:
+            db.session.commit()
+            
+        return synced_records
+
+    @classmethod
+    def get_communications(cls, member_id=None, loan_id=None, start_date=None, end_date=None, sync_first=True):
+        """
+        Get all communications, optionally syncing from core banking first
+        """
+        if sync_first:
+            cls.sync_from_core_banking(member_id, loan_id, start_date, end_date)
+        
+        query = cls.query
+        
+        if member_id:
+            query = query.join(cls.loan).filter(cls.loan.has(member_id=member_id))
+        if loan_id:
+            query = query.filter_by(loan_id=loan_id)
+        if start_date:
+            query = query.filter(cls.created_at >= start_date)
+        if end_date:
+            query = query.filter(cls.created_at <= end_date)
+            
+        return query.order_by(cls.created_at.desc()).all()

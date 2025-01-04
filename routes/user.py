@@ -736,50 +736,213 @@ def register_client(submission_id):
 @user_bp.route('/api/clients/search', methods=['GET'])
 @login_required
 def search_clients():
+    """Search for clients/members"""
     query = request.args.get('q', '')
     page = int(request.args.get('page', 1))
     
-    print(f"Search request - Query: {query}, Page: {page}")
+    current_app.logger.info(f"Client search request - Query: {query}, Page: {page}")
+    
+    if not query or len(query) < 2:
+        return jsonify({
+            'items': [],
+            'has_more': False
+        })
     
     try:
         # Call mock core banking API
-        response = requests.get(f'http://localhost:5003/api/mock/clients/search', params={
-            'search': query,  # Changed from 'q' to 'search' to match mock server
-            'page': page
-        })
+        api_url = current_app.config['CORE_BANKING_API_URL']
+        response = requests.get(
+            f"{api_url}/members/search",
+            params={
+                'search_term': query,
+                'page': page,
+                'limit': 10
+            },
+            headers={
+                'Authorization': f"Bearer {current_app.config['CORE_BANKING_API_KEY']}"
+            }
+        )
         
-        print(f"Mock API request URL: {response.url}")
-        print(f"Mock API status code: {response.status_code}")
+        current_app.logger.info(f"Core banking API response status: {response.status_code}")
         
         if response.ok:
             data = response.json()
-            print(f"Mock API response: {data}")
-            result = {
-                'items': [{
-                    'id': client['id'],
-                    'text': f"{client['name']} ({client['account_number']})"
-                } for client in data['clients']],
-                'has_more': data['has_more']
-            }
-            print(f"Sending to frontend: {result}")
-            return jsonify(result)
+            current_app.logger.info(f"Core banking API response data: {data}")
+            
+            # Transform the response to match Select2 format
+            items = [{
+                'id': str(member['id']),
+                'text': f"{member.get('full_name', '')} ({member.get('member_no', '')})",
+                'member_no': member.get('member_no', '')
+            } for member in data.get('members', [])]
+            
+            return jsonify({
+                'items': items,
+                'has_more': data.get('has_more', False)
+            })
         else:
-            error_msg = f"Failed to fetch clients: {response.status_code} - {response.text}"
-            print(error_msg)
-            return jsonify({'error': error_msg}), 500
+            current_app.logger.error(f"Core banking API error: {response.status_code} - {response.text}")
+            return jsonify({
+                'error': 'Failed to fetch members',
+                'items': [],
+                'has_more': False
+            }), 500
+            
     except Exception as e:
-        error_msg = f"Error fetching clients: {str(e)}"
-        print(error_msg)
-        return jsonify({'error': error_msg}), 500
+        current_app.logger.error(f"Error searching members: {str(e)}")
+        return jsonify({
+            'error': 'Failed to search members',
+            'items': [],
+            'has_more': False
+        }), 500
 
 @user_bp.route('/correspondence')
 @login_required
 def correspondence():
     return render_template('user/correspondence.html')
 
+@user_bp.route('/api/communications', methods=['GET'])
+@login_required
+def get_communications():
+    """Get communication history with optional filters"""
+    from models.correspondence import Correspondence
+    
+    member_id = request.args.get('member_id', type=int)
+    loan_id = request.args.get('loan_id', type=int)
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    sync = request.args.get('sync', 'true').lower() == 'true'
+    
+    # Convert date strings to datetime if provided
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        
+    try:
+        communications = Correspondence.get_communications(
+            member_id=member_id,
+            loan_id=loan_id,
+            start_date=start_date,
+            end_date=end_date,
+            sync_first=sync
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'data': [comm.to_dict() for comm in communications]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching communications: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch communications'
+        }), 500
+
+@user_bp.route('/api/communications/sync', methods=['POST'])
+@login_required
+def sync_communications():
+    """Force sync communications from core banking"""
+    from models.correspondence import Correspondence
+    
+    member_id = request.json.get('member_id', type=int)
+    loan_id = request.json.get('loan_id', type=int)
+    start_date = request.json.get('start_date')
+    end_date = request.json.get('end_date')
+    
+    # Convert date strings to datetime if provided
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        
+    try:
+        synced_records = Correspondence.sync_from_core_banking(
+            member_id=member_id,
+            loan_id=loan_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully synced {len(synced_records)} new communications',
+            'data': [comm.to_dict() for comm in synced_records]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error syncing communications: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to sync communications'
+        }), 500
+
+@user_bp.route('/api/communications', methods=['POST'])
+@login_required
+def create_communication():
+    """Create a new communication record"""
+    from models.correspondence import Correspondence
+    from models.staff import Staff
+    
+    try:
+        data = request.json
+        
+        # Get current staff member
+        staff = Staff.query.filter_by(user_id=current_user.id).first()
+        if not staff:
+            return jsonify({
+                'status': 'error',
+                'message': 'Staff record not found'
+            }), 404
+            
+        # Create new communication
+        new_comm = Correspondence(
+            account_no=data['account_no'],
+            client_name=data['client_name'],
+            type=data['type'],
+            message=data['message'],
+            status=data.get('status', 'pending'),
+            sent_by=current_user.username,
+            staff_id=staff.id,
+            loan_id=data['loan_id'],
+            recipient=data.get('recipient'),
+            delivery_status=data.get('delivery_status'),
+            delivery_time=datetime.strptime(data['delivery_time'], '%Y-%m-%dT%H:%M') if data.get('delivery_time') else None,
+            call_duration=data.get('call_duration'),
+            call_outcome=data.get('call_outcome'),
+            location=data.get('location'),
+            visit_purpose=data.get('visit_purpose'),
+            visit_outcome=data.get('visit_outcome')
+        )
+        
+        db.session.add(new_comm)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Communication created successfully',
+            'data': new_comm.to_dict()
+        }), 201
+        
+    except KeyError as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Missing required field: {str(e)}'
+        }), 400
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating communication: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to create communication'
+        }), 500
+
 @user_bp.route('/api/correspondence/<client_id>')
 @login_required
 def get_correspondence(client_id):
+    """Get correspondence for a client."""
     # Call mock core banking API
     response = requests.get(f'http://localhost:5003/api/correspondence/{client_id}')
     
@@ -1498,10 +1661,7 @@ def search_customers():
     
     try:
         # Call mock core banking API
-        response = requests.get('http://localhost:5003/api/mock/customers/search', params={
-            'q': query,  # Changed from 'search' to 'q' to match frontend
-            'page': page
-        })
+        response = requests.get('http://localhost:5003/api/mock/customers/search', params={'q': query})
         
         print(f"Mock API request URL: {response.url}")
         print(f"Mock API status code: {response.status_code}")
@@ -1742,3 +1902,93 @@ def get_detailed_loans():
             cursor.close()
         if 'conn' in locals():
             conn.close()
+
+@user_bp.route('/loans/communications', methods=['GET'])
+@login_required
+def get_loan_communications():
+    """Get communication history with pagination and filters"""
+    try:
+        # Get filter parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        member_id = request.args.get('member_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        comm_type = request.args.get('type')
+
+        current_app.logger.info(f"Fetching communications with filters: member_id={member_id}, start_date={start_date}, end_date={end_date}, type={comm_type}")
+
+        # Build base query
+        query = db.session.query(
+            Correspondence.id,
+            Correspondence.account_no.label('member_no'),
+            Correspondence.client_name.label('member_name'),
+            Correspondence.type,
+            Correspondence.message,
+            Correspondence.status,
+            Correspondence.created_at,
+            Correspondence.delivery_status.label('response'),
+            db.func.coalesce(Staff.username, Correspondence.sent_by).label('sent_by')
+        ).outerjoin(Staff, Correspondence.staff_id == Staff.id)
+
+        # Apply filters
+        if member_id:
+            query = query.filter(Correspondence.account_no == member_id)
+        
+        if start_date:
+            query = query.filter(db.func.date(Correspondence.created_at) >= start_date)
+        
+        if end_date:
+            query = query.filter(db.func.date(Correspondence.created_at) <= end_date)
+        
+        if comm_type:
+            query = query.filter(Correspondence.type == comm_type)
+        
+        # Get total count
+        total = query.count()
+        current_app.logger.info(f"Total count: {total}")
+        
+        # Apply ordering and pagination
+        communications = query.order_by(Correspondence.created_at.desc())\
+            .offset((page - 1) * per_page)\
+            .limit(per_page)\
+            .all()
+        
+        current_app.logger.info(f"Retrieved {len(communications)} records")
+        
+        # Format results
+        formatted_comms = []
+        for comm in communications:
+            formatted_comms.append({
+                'id': comm.id,
+                'member_name': comm.member_name,
+                'member_no': comm.member_no,
+                'type': comm.type.lower() if comm.type else '',
+                'message': comm.message,
+                'status': comm.status.lower() if comm.status else '',
+                'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'response': comm.response,
+                'sent_by': comm.sent_by
+            })
+        
+        response_data = {
+            'communications': formatted_comms,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        }
+        current_app.logger.info(f"Returning response: {response_data}")
+        
+        return jsonify(response_data)
+            
+    except Exception as e:
+        current_app.logger.error(f"Error fetching communications: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'communications': [],
+            'total': 0,
+            'page': 1,
+            'per_page': 10,
+            'total_pages': 0
+        }), 500

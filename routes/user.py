@@ -586,7 +586,7 @@ def convert_to_client(submission_id):
             # Get client types and products
             client_types = ClientType.query.filter_by(status=True).all()
             products = Product.query.filter_by(status='Active').all()
-            
+
             # Pre-fill form data from the prospect submission
             form_data = submission.form_data
             
@@ -1150,7 +1150,7 @@ def post_disbursement():
 
         # Connect to core banking database
         try:
-            auth_credentials = json.loads(core_system.auth_credentials)
+            auth_credentials = core_system.auth_credentials_dict
         except (json.JSONDecodeError, TypeError):
             auth_credentials = {'username': 'root', 'password': ''}
             
@@ -1167,6 +1167,31 @@ def post_disbursement():
         conn = mysql.connector.connect(**core_banking_config)
         cursor = conn.cursor(dictionary=True)
 
+        # List tables to check the correct table name
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        current_app.logger.info(f"Available tables: {tables}")
+        
+        # Check table schema
+        cursor.execute("DESCRIBE LoanLedgerEntries")
+        columns = cursor.fetchall()
+        current_app.logger.info(f"Table schema: {columns}")
+        
+        # Check LoanApplications schema
+        cursor.execute("DESCRIBE LoanApplications")
+        loan_columns = cursor.fetchall()
+        current_app.logger.info(f"LoanApplications schema: {loan_columns}")
+        
+        # Check Members schema
+        cursor.execute("DESCRIBE Members")
+        member_columns = cursor.fetchall()
+        current_app.logger.info(f"Members schema: {member_columns}")
+        
+        # Check Users schema
+        cursor.execute("DESCRIBE Users")
+        user_columns = cursor.fetchall()
+        current_app.logger.info(f"Users schema: {user_columns}")
+        
         # Build query from endpoint configuration
         endpoint_params = json.loads(loan_grading_endpoint.parameters)
         current_app.logger.info("Endpoint parameters loaded")
@@ -1839,22 +1864,46 @@ def get_detailed_loans():
 
         # Connect to core banking database
         try:
-            auth_credentials = json.loads(core_system.auth_credentials)
+            auth_credentials = core_system.auth_credentials_dict
         except (json.JSONDecodeError, TypeError):
             auth_credentials = {'username': 'root', 'password': ''}
             
         core_banking_config = {
             'host': core_system.base_url,
             'port': core_system.port or 3306,
-            'user': auth_credentials.get('username', 'root'),
-            'password': auth_credentials.get('password', ''),
-            'database': core_system.database_name,
-            'auth_plugin': 'mysql_native_password'
+            'user': auth_credentials.get('username'),
+            'password': auth_credentials.get('password'),
+            'database': core_system.database_name
         }
 
         conn = mysql.connector.connect(**core_banking_config)
         cursor = conn.cursor(dictionary=True)
 
+        # List tables to check the correct table name
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        current_app.logger.info(f"Available tables: {tables}")
+        
+        # Check table schema
+        cursor.execute("DESCRIBE LoanCommunicationLog")
+        columns = cursor.fetchall()
+        current_app.logger.info(f"Table schema: {columns}")
+        
+        # Check LoanApplications schema
+        cursor.execute("DESCRIBE LoanApplications")
+        loan_columns = cursor.fetchall()
+        current_app.logger.info(f"LoanApplications schema: {loan_columns}")
+        
+        # Check Members schema
+        cursor.execute("DESCRIBE Members")
+        member_columns = cursor.fetchall()
+        current_app.logger.info(f"Members schema: {member_columns}")
+        
+        # Check Users schema
+        cursor.execute("DESCRIBE Users")
+        user_columns = cursor.fetchall()
+        current_app.logger.info(f"Users schema: {user_columns}")
+        
         # Build query from endpoint configuration
         endpoint_params = json.loads(loan_details_endpoint.parameters)
         
@@ -1912,11 +1961,12 @@ def get_loan_communications():
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         member_id = request.args.get('member_id')
+        loan_id = request.args.get('loan_id')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         comm_type = request.args.get('type')
 
-        current_app.logger.info(f"Fetching communications with filters: member_id={member_id}, start_date={start_date}, end_date={end_date}, type={comm_type}")
+        current_app.logger.info(f"Fetching communications with filters: member_id={member_id}, loan_id={loan_id}, start_date={start_date}, end_date={end_date}, type={comm_type}")
 
         # Build base query
         query = db.session.query(
@@ -1991,4 +2041,196 @@ def get_loan_communications():
             'page': 1,
             'per_page': 10,
             'total_pages': 0
+        }), 500
+
+@user_bp.route('/loans/communications/core', methods=['GET'])
+@login_required
+def get_core_loan_communications():
+    """Get communication history from core banking with pagination and filters"""
+    try:
+        # Get filter parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        member_id = request.args.get('member_id')
+        loan_id = request.args.get('loan_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        communication_type = request.args.get('communication_type')
+
+        current_app.logger.info(f"Fetching core banking communications with filters: member_id={member_id}, loan_id={loan_id}, start_date={start_date}, end_date={end_date}, type={communication_type}")
+
+        # Get core banking system details
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            raise Exception("No active core banking system configured")
+
+        # Get auth credentials
+        auth_creds = core_system.auth_credentials_dict
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(
+            host=core_system.base_url,
+            port=core_system.port or 3306,
+            user=auth_creds.get('username'),
+            password=auth_creds.get('password'),
+            database=core_system.database_name
+        )
+        
+        cursor = conn.cursor(dictionary=True)
+        
+        # List tables to check the correct table name
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        current_app.logger.info(f"Available tables: {tables}")
+        
+        # Check table schema
+        cursor.execute("DESCRIBE LoanCommunicationLog")
+        columns = cursor.fetchall()
+        current_app.logger.info(f"Table schema: {columns}")
+        
+        # Check LoanApplications schema
+        cursor.execute("DESCRIBE LoanApplications")
+        loan_columns = cursor.fetchall()
+        current_app.logger.info(f"LoanApplications schema: {loan_columns}")
+        
+        # Check Members schema
+        cursor.execute("DESCRIBE Members")
+        member_columns = cursor.fetchall()
+        current_app.logger.info(f"Members schema: {member_columns}")
+        
+        # Check Users schema
+        cursor.execute("DESCRIBE Users")
+        user_columns = cursor.fetchall()
+        current_app.logger.info(f"Users schema: {user_columns}")
+        
+        # Build base query
+        query = """
+            SELECT 
+                lcl.LogID as id,
+                la.LoanNo as loan_no,
+                m.FullName as client_name,
+                lcl.CommunicationType as comm_type,
+                lcl.MessageContent as message,
+                lcl.DeliveryStatus as status,
+                lcl.SentDate as created_at,
+                lcl.ResponseReceived as delivery_status,
+                u.FullName as sent_by
+            FROM LoanCommunicationLog lcl
+            JOIN LoanApplications la ON la.LoanAppID = lcl.LoanID
+            JOIN Members m ON m.MemberID = lcl.MemberID
+            JOIN Users u ON u.UserID = lcl.SentBy
+        """
+        conditions = []
+        
+        # Add filters
+        if member_id:
+            conditions.append(f"lcl.MemberID = '{member_id}'")
+        
+        if loan_id:
+            conditions.append(f"lcl.LoanID = '{loan_id}'")
+        
+        if start_date:
+            conditions.append(f"DATE(lcl.SentDate) >= '{start_date}'")
+        
+        if end_date:
+            conditions.append(f"DATE(lcl.SentDate) <= '{end_date}'")
+        
+        if communication_type:
+            conditions.append(f"lcl.CommunicationType = '{communication_type}'")
+        
+        # Add WHERE clause if conditions exist
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+            
+        # Add ordering
+        query += " ORDER BY lcl.SentDate DESC"
+        
+        # Get total count
+        count_query = f"SELECT COUNT(*) as total FROM ({query}) as subquery"
+        cursor.execute(count_query)
+        total = cursor.fetchone()['total']
+        current_app.logger.info(f"Total count: {total}")
+        
+        # Add pagination
+        query += f" LIMIT {per_page} OFFSET {(page - 1) * per_page}"
+        
+        # Execute final query
+        cursor.execute(query)
+        communications = cursor.fetchall()
+        current_app.logger.info(f"Retrieved {len(communications)} records")
+        
+        # Format results
+        formatted_comms = []
+        for comm in communications:
+            formatted_comms.append({
+                'id': comm['id'],
+                'member_name': comm['client_name'],
+                'member_no': member_id if member_id else '',
+                'loan_no': comm['loan_no'],
+                'type': comm['comm_type'].lower() if comm['comm_type'] else '',
+                'message': comm['message'],
+                'status': comm['status'].lower() if comm['status'] else '',
+                'created_at': comm['created_at'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(comm['created_at'], datetime) else comm['created_at'],
+                'response': comm['delivery_status'],
+                'sent_by': comm['sent_by']
+            })
+        
+        response_data = {
+            'communications': formatted_comms,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        }
+        current_app.logger.info(f"Returning response: {response_data}")
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(response_data)
+            
+    except Exception as e:
+        current_app.logger.error(f"Error fetching core banking communications: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'communications': [],
+            'total': 0,
+            'page': 1,
+            'per_page': 10,
+            'total_pages': 0
+        }), 500
+
+@user_bp.route('/clients/<int:client_id>/loans', methods=['GET'])
+@login_required
+def get_client_loans(client_id):
+    """Get loans for a specific client"""
+    try:
+        # Build query
+        query = db.session.query(
+            Loan.id,
+            Loan.account_no,
+            LoanProduct.name.label('product_name')
+        ).join(
+            LoanProduct, Loan.product_id == LoanProduct.id
+        ).filter(
+            Loan.member_id == client_id
+        ).order_by(
+            Loan.created_at.desc()
+        )
+        
+        loans = query.all()
+        
+        return jsonify({
+            'loans': [{
+                'id': loan.id,
+                'account_no': loan.account_no,
+                'product_name': loan.product_name
+            } for loan in loans]
+        })
+            
+    except Exception as e:
+        current_app.logger.error(f"Error fetching client loans: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'loans': []
         }), 500

@@ -33,6 +33,10 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_HTTPONLY = True
     
+    # Core Banking API
+    CORE_BANKING_API_URL = 'http://localhost:5003/api'  # Change in production
+    CORE_BANKING_API_TOKEN = 'dev-token'  # Change in production
+    
     # Application
     SYSTEM_NAME = "Loan Management System"
     THEME_MODE = "light"  # or "dark"

@@ -79,7 +79,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.0f}'.format(total_loans|default(0)) }}</p>
+                    <p id="total-loans" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.0f}'.format(total_loans|default(0)) }}</p>
                     <p class="text-xs text-gray-500 mt-1">
                         <i class="fas fa-circle-info mr-1"></i>Sum of all active loans
                     </p>
@@ -89,7 +89,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding|default(0)) }}</p>
+                    <p id="total-outstanding" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding|default(0)) }}</p>
                     <p class="text-xs text-gray-500 mt-1">
                         <i class="fas fa-circle-info mr-1"></i>Sum of all outstanding balances
                     </p>
@@ -100,7 +100,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Amount</h3>
                     </div>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_provisions|default(0)) }}</p>
+                    <p id="total-provisions" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_provisions|default(0)) }}</p>
                     <p class="text-xs text-gray-500 mt-1">
                         <i class="fas fa-circle-info mr-1"></i>Sum of all non-performing loans
                     </p>
@@ -109,7 +109,7 @@
                 <!-- Total in Arrears -->
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total in Arrears</h3>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears|default(0)) }}</p>
+                    <p id="total-in-arrears" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears|default(0)) }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Overdue Amount</p>
                     <p class="text-xs text-gray-500 mt-1">
                         <i class="fas fa-circle-info mr-1"></i>Sum of all overdue payments
@@ -124,7 +124,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</h3>
                     </div>
-                    <p class="text-2xl font-bold {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                    <p id="npl-ratio" class="text-2xl font-bold {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
                         {{ '{:.2f}'.format(npl_ratio|default(0)) }}%
                     </p>
                     <p class="text-xs {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
@@ -138,7 +138,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Coverage</h3>
                     </div>
-                    <p class="text-2xl font-bold {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-900{% endif %} dark:text-white">
+                    <p id="npl-coverage" class="text-2xl font-bold {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-900{% endif %} dark:text-white">
                         {{ '{:.2f}'.format(npl_coverage_ratio|default(0)) }}%
                     </p>
                     <p class="text-xs {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-500{% endif %} mt-1">
@@ -152,7 +152,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">PAR > 30 Days</h3>
                     </div>
-                    <p class="text-2xl font-bold {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                    <p id="par30" class="text-2xl font-bold {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
                         {{ '{:.2f}'.format(par30_ratio|default(0)) }}%
                     </p>
                     <p class="text-xs {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
@@ -161,27 +161,13 @@
                     </p>
                     <p class="text-xs text-gray-500 mt-1">%(Loans Overdue > 30 Days / Total Portfolio)</p>
                 </div>
-                <!-- Cost of Risk -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Cost of Risk</h3>
-                    </div>
-                    <p class="text-2xl font-bold {% if (cost_of_risk|default(0)) > 2 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.2f}'.format(cost_of_risk|default(0)) }}%
-                    </p>
-                    <p class="text-xs {% if (cost_of_risk|default(0)) > 2 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
-                        <i class="fas {% if (cost_of_risk|default(0)) > 2 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
-                        {% if (cost_of_risk|default(0)) > 2 %}Alert: Above 2%{% else %}Target: Below 2%{% endif %}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">%(Total Provisions / Total Portfolio)</p>
-                </div>
                 <!-- Recovery Rate -->
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</h3>
                     </div>
-                    <p class="text-2xl font-bold {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.1f}'.format(recovery_rate|default(0)) }}%
+                    <p id="recovery-rate" class="text-2xl font-bold {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-900{% endif %} dark:text-white">
+                        {{ '{:.2f}'.format(recovery_rate|default(0)) }}%
                     </p>
                     <p class="text-xs {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-500{% endif %} mt-1">
                         <i class="fas {% if (recovery_rate|default(0)) < 90 %}fa-triangle-exclamation{% elif (recovery_rate|default(0)) >= 90 %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-1"></i>
@@ -575,6 +561,96 @@
             initializeClassificationChart();
         });
 
+        function initializeMetricsUpdate() {
+            // Update metrics every 60 seconds
+            function updateMetrics() {
+                fetch('/user/api/metrics')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            console.error('Error fetching metrics:', data.error, data.details);
+                            return;
+                        }
+                        
+                        const metrics = data.metrics;
+                        
+                        // Update metrics with proper error handling and formatting
+                        document.getElementById('total-loans').textContent = formatNumber(metrics.total_loans || 0, 0);
+                        document.getElementById('total-outstanding').textContent = formatNumber(metrics.total_outstanding || 0, 2);
+                        document.getElementById('total-provisions').textContent = formatNumber(metrics.total_provisions || 0, 2);
+                        document.getElementById('total-in-arrears').textContent = formatNumber(metrics.total_in_arrears || 0, 2);
+                        
+                        // Update ratios with proper error handling
+                        const nplRatio = metrics.npl_ratio || 0;
+                        const nplCoverage = metrics.npl_coverage_ratio || 0;
+                        const par30 = metrics.par30_ratio || 0;
+                        const recoveryRate = metrics.recovery_rate || 0;
+                        const costOfRisk = metrics.cost_of_risk || 0;
+                        
+                        document.getElementById('npl-ratio').textContent = formatNumber(nplRatio, 2) + '%';
+                        document.getElementById('npl-coverage').textContent = formatNumber(nplCoverage, 2) + '%';
+                        document.getElementById('par30').textContent = formatNumber(par30, 2) + '%';
+                        document.getElementById('recovery-rate').textContent = formatNumber(recoveryRate, 1) + '%';
+                        
+                        // Update metric status classes
+                        updateMetricStatus('npl-ratio', nplRatio, 5, '>');
+                        updateMetricStatus('npl-coverage', nplCoverage, 100, '<');
+                        updateMetricStatus('par30', par30, 10, '>');
+                        updateMetricStatus('recovery-rate', recoveryRate, 90, '<');
+                        
+                        // Update last updated timestamp
+                        const now = new Date();
+                        document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching metrics:', error);
+                    });
+            }
+            
+            // Initial update
+            updateMetrics();
+            
+            // Update every 60 seconds
+            setInterval(updateMetrics, 60000);
+        }
+        
+        // Helper function to format numbers with commas and decimals
+        function formatNumber(value, decimals) {
+            if (typeof value !== 'number') {
+                value = parseFloat(value) || 0;
+            }
+            return value.toLocaleString('en-US', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+        
+        // Helper function to update metric status classes
+        function updateMetricStatus(elementId, value, threshold, comparison) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            // Remove existing status classes
+            element.classList.remove('text-red-600', 'text-yellow-600', 'text-green-600', 'text-gray-900');
+            
+            // Add appropriate status class
+            if (comparison === '>') {
+                if (value > threshold) {
+                    element.classList.add('text-red-600');
+                } else {
+                    element.classList.add('text-gray-900');
+                }
+            } else if (comparison === '<') {
+                if (value < threshold) {
+                    element.classList.add('text-yellow-600');
+                } else if (value >= threshold) {
+                    element.classList.add('text-green-600');
+                } else {
+                    element.classList.add('text-gray-900');
+                }
+            }
+        }
+
         function initializeClassificationChart() {
             const ctx = document.getElementById('classificationChart').getContext('2d');
             new Chart(ctx, {
@@ -628,57 +704,6 @@
                     }
                 }
             });
-        }
-
-        function initializeMetricsUpdate() {
-            // Update metrics every 60 seconds
-            setInterval(function() {
-                fetch('/api/metrics')
-                    .then(response => response.json())
-                    .then(data => {
-                        // Update metrics with proper error handling
-                        document.getElementById('total-loans').textContent = formatNumber(data.total_loans || 0, 0);
-                        document.getElementById('total-outstanding').textContent = formatNumber(data.total_outstanding || 0, 2);
-                        document.getElementById('total-provisions').textContent = formatNumber(data.total_provisions || 0, 2);
-                        document.getElementById('total-in-arrears').textContent = formatNumber(data.total_in_arrears || 0, 2);
-                        
-                        // Update ratios with proper error handling
-                        const nplRatio = data.npl_ratio || 0;
-                        const nplCoverage = data.npl_coverage_ratio || 0;
-                        const par30 = data.par30_ratio || 0;
-                        const recoveryRate = data.recovery_rate || 0;
-                        
-                        document.getElementById('npl-ratio').textContent = formatNumber(nplRatio, 2) + '%';
-                        document.getElementById('npl-coverage').textContent = formatNumber(nplCoverage, 2) + '%';
-                        document.getElementById('par30').textContent = formatNumber(par30, 2) + '%';
-                        document.getElementById('recovery-rate').textContent = formatNumber(recoveryRate, 1) + '%';
-                        
-                        // Update status colors
-                        updateMetricStatus('npl-ratio', nplRatio, 5, 'above');
-                        updateMetricStatus('npl-coverage', nplCoverage, 100, 'below');
-                        updateMetricStatus('par30', par30, 10, 'above');
-                        updateMetricStatus('recovery-rate', recoveryRate, 90, 'below');
-                    })
-                    .catch(error => {
-                        console.error('Error updating metrics:', error);
-                    });
-            }, 60000);
-        }
-        
-        function formatNumber(value, decimals) {
-            return new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: decimals,
-                maximumFractionDigits: decimals
-            }).format(value);
-        }
-        
-        function updateMetricStatus(elementId, value, threshold, comparison) {
-            const element = document.getElementById(elementId);
-            if (!element) return;
-            
-            const isAlert = comparison === 'above' ? value > threshold : value < threshold;
-            element.classList.remove('text-green-600', 'text-yellow-600', 'text-red-600');
-            element.classList.add(isAlert ? 'text-red-600' : 'text-green-600');
         }
     </script>
 {% endblock %}

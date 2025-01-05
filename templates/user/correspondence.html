@@ -520,6 +520,87 @@
         
         // Load initial data
         loadCommunications(1);
+
+        // New Communication Modal Handlers
+        $('#newCorrespondenceBtn').click(function() {
+            $('#newCorrespondenceModal').removeClass('hidden');
+        });
+
+        $('#closeCorrespondenceModal').click(function() {
+            $('#newCorrespondenceModal').addClass('hidden');
+            $('#newCorrespondenceForm')[0].reset();
+        });
+
+        // Initialize Select2 for client search in modal
+        $('#clientSelect2').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a client...',
+            dropdownParent: $('#newCorrespondenceModal'),
+            language: {
+                noMatches: formatNoMatches,
+                searching: formatSearching,
+                inputTooShort: formatInputTooShort
+            },
+            minimumInputLength: 3,
+            ajax: {
+                url: '/user/search/clients',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    return {
+                        results: data.clients.map(function(client) {
+                            return {
+                                id: client.id,
+                                text: `${client.name} (${client.member_no})`,
+                                member_no: client.member_no
+                            };
+                        }),
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                }
+            }
+        }).on('select2:select', function(e) {
+            const data = e.params.data;
+            $('#account_no').val(data.member_no);
+        });
+
+        // Handle form submission
+        $('#newCorrespondenceForm').submit(function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                client_id: $('#clientSelect2').val(),
+                account_no: $('#account_no').val(),
+                type: $('#type').val(),
+                message: $('#message').val()
+            };
+
+            $.ajax({
+                url: '/user/loans/communications/new',
+                method: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        $('#newCorrespondenceModal').addClass('hidden');
+                        $('#newCorrespondenceForm')[0].reset();
+                        loadCommunications(1);
+                    } else {
+                        alert(response.error || 'Failed to save communication');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error saving communication: ' + error);
+                }
+            });
+        });
     });
 </script>
 {% endblock %}

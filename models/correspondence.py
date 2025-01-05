@@ -30,11 +30,9 @@ class Correspondence(db.Model):
     
     # Relationships
     staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
-    loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     attachment_path = db.Column(db.String(500))
     
     staff = db.relationship('Staff', backref=db.backref('correspondence', lazy=True))
-    loan = db.relationship('Loan', backref=db.backref('correspondence', lazy=True))
     
     def __repr__(self):
         return f'<Correspondence {self.id} - {self.type}>'
@@ -58,13 +56,12 @@ class Correspondence(db.Model):
             'location': self.location,
             'visit_purpose': self.visit_purpose,
             'visit_outcome': self.visit_outcome,
-            'staff': self.staff.to_dict() if self.staff else None,
-            'loan': self.loan.to_dict() if self.loan else None,
+            'staff_id': self.staff_id,
             'attachment_path': self.attachment_path
         }
 
     @classmethod
-    def sync_from_core_banking(cls, member_id=None, loan_id=None, start_date=None, end_date=None):
+    def sync_from_core_banking(cls, member_id=None, start_date=None, end_date=None):
         """
         Sync communications from core banking system
         """
@@ -74,8 +71,6 @@ class Correspondence(db.Model):
         params = {}
         if member_id:
             params['member_id'] = member_id
-        if loan_id:
-            params['loan_id'] = loan_id
         if start_date:
             params['start_date'] = start_date.isoformat()
         if end_date:
@@ -91,14 +86,12 @@ class Correspondence(db.Model):
         for comm in communications:
             # Check if communication already exists
             existing = cls.query.filter_by(
-                loan_id=comm['LoanID'],
                 created_at=datetime.fromisoformat(comm['SentDate'])
             ).first()
             
             if not existing:
                 # Create new communication record
                 new_comm = cls(
-                    loan_id=comm['LoanID'],
                     account_no=comm.get('LoanNo', ''),
                     client_name=comm.get('MemberName', ''),
                     type=comm['CommunicationType'].lower(),
@@ -124,19 +117,17 @@ class Correspondence(db.Model):
         return synced_records
 
     @classmethod
-    def get_communications(cls, member_id=None, loan_id=None, start_date=None, end_date=None, sync_first=True):
+    def get_communications(cls, member_id=None, start_date=None, end_date=None, sync_first=True):
         """
         Get all communications, optionally syncing from core banking first
         """
         if sync_first:
-            cls.sync_from_core_banking(member_id, loan_id, start_date, end_date)
+            cls.sync_from_core_banking(member_id, start_date, end_date)
         
         query = cls.query
         
         if member_id:
-            query = query.join(cls.loan).filter(cls.loan.has(member_id=member_id))
-        if loan_id:
-            query = query.filter_by(loan_id=loan_id)
+            query = query.join(cls.staff).filter(cls.staff.has(member_id=member_id))
         if start_date:
             query = query.filter(cls.created_at >= start_date)
         if end_date:

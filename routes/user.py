@@ -878,67 +878,6 @@ def sync_communications():
             'message': 'Failed to sync communications'
         }), 500
 
-@user_bp.route('/api/communications', methods=['POST'])
-@login_required
-def create_communication():
-    """Create a new communication record"""
-    from models.correspondence import Correspondence
-    from models.staff import Staff
-    
-    try:
-        data = request.json
-        
-        # Get current staff member
-        staff = Staff.query.filter_by(user_id=current_user.id).first()
-        if not staff:
-            return jsonify({
-                'status': 'error',
-                'message': 'Staff record not found'
-            }), 404
-            
-        # Create new communication
-        new_comm = Correspondence(
-            account_no=data['account_no'],
-            client_name=data['client_name'],
-            type=data['type'],
-            message=data['message'],
-            status=data.get('status', 'pending'),
-            sent_by=current_user.username,
-            staff_id=staff.id,
-            loan_id=data['loan_id'],
-            recipient=data.get('recipient'),
-            delivery_status=data.get('delivery_status'),
-            delivery_time=datetime.strptime(data['delivery_time'], '%Y-%m-%dT%H:%M') if data.get('delivery_time') else None,
-            call_duration=data.get('call_duration'),
-            call_outcome=data.get('call_outcome'),
-            location=data.get('location'),
-            visit_purpose=data.get('visit_purpose'),
-            visit_outcome=data.get('visit_outcome')
-        )
-        
-        db.session.add(new_comm)
-        db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Communication created successfully',
-            'data': new_comm.to_dict()
-        }), 201
-        
-    except KeyError as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Missing required field: {str(e)}'
-        }), 400
-        
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error creating communication: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': 'Failed to create communication'
-        }), 500
-
 @user_bp.route('/api/correspondence/<client_id>')
 @login_required
 def get_correspondence(client_id):
@@ -959,34 +898,6 @@ def get_correspondence(client_id):
         })
     else:
         return jsonify({'error': 'Failed to fetch correspondence'}), 500
-
-@user_bp.route('/api/correspondence', methods=['POST'])
-@login_required
-def save_correspondence():
-    data = request.form  # Get the form data from the request
-    client_id = data.get('client_name')  # Adjusted to match the form field names
-    communication_type = data.get('type')
-    content = data.get('message')  # Adjusted to match the form field names
-    account_no = data.get('account_no')
-    sent_by = current_user.username  # Assuming sent_by is the current user's username
-
-    # Validate data here (e.g., check if fields are not empty)
-    if not client_id or not communication_type or not content or not account_no or not sent_by:
-        return jsonify({'success': False, 'message': 'All fields are required.'}), 400
-    
-    # Create a new Correspondence object
-    new_correspondence = Correspondence(
-        account_no=account_no,
-        client_name=client_id,
-        type=communication_type,
-        message=content,
-        status='pending',
-        sent_by=sent_by
-    )
-    db.session.add(new_correspondence)
-    db.session.commit()  # Save to the database
-
-    return jsonify({'success': True, 'message': 'Correspondence saved successfully'}), 201
 
 @user_bp.route('/manage-calendar')
 @login_required

@@ -204,6 +204,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const clientData = $('#clientSelect2').select2('data')[0];
             if (clientData) {
                 updateRecipientField(clientData);
+                // Set both account_no and loan_id
+                $('#account_no').val(clientData.member_no);
+                $('input[name="loan_id"]').val(clientData.member_no);
             }
         });
 
@@ -213,30 +216,36 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Form submitted');
             
             const formData = new FormData(this);
-            console.log('Form data:', Object.fromEntries(formData));
+            const jsonData = {};
+            formData.forEach((value, key) => {
+                jsonData[key] = value;
+            });
+            console.log('JSON data:', jsonData);
 
             // Basic validation
-            if (!formData.get('client_name')) {
+            if (!jsonData.client_name) {
                 alert('Please select a client');
                 return;
             }
 
-            if (!formData.get('type')) {
+            if (!jsonData.type) {
                 alert('Please select a communication type');
                 return;
             }
 
-            if (!formData.get('message')) {
+            if (!jsonData.message) {
                 alert('Please enter a message');
                 return;
             }
 
             $.ajax({
-                url: '/user/loans/communications/new',
+                url: '/api/communications',
                 method: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
+                data: JSON.stringify(jsonData),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': $('input[name=csrf_token]').val()
+                },
                 success: function(response) {
                     console.log('Communication saved:', response);
                     if (response.success) {

@@ -200,62 +200,54 @@
                     <div class="w-1/2 px-2 mb-4">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
                         <select class="w-full border border-gray-300 rounded-lg p-1.5" id="status" name="status" required>
-                            <option value="">Select Status</option>
-                            <option value="sent">Sent</option>
+                            <option value="pending">Pending</option>
                             <option value="delivered">Delivered</option>
                             <option value="failed">Failed</option>
-                            <option value="pending">Pending</option>
                         </select>
                     </div>
-
-                    <!-- SMS/Email Fields -->
-                    <div id="smsEmailFields" style="display: none;">
-                        <div class="w-full px-2 mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipient</label>
-                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="recipient" name="recipient">
-                        </div>
-                        <div class="w-full px-2 mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Status</label>
-                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="delivery_status" name="delivery_status">
-                        </div>
-                        <div class="w-full px-2 mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Time</label>
-                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="datetime-local" id="delivery_time" name="delivery_time">
-                        </div>
+                    
+                    <!-- SMS/Email specific fields -->
+                    <div id="smsEmailFields" class="w-full px-2 mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipient</label>
+                        <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="recipient" name="recipient">
                     </div>
-
-                    <!-- Call Fields -->
-                    <div id="callFields" style="display: none;">
-                        <div class="w-full px-2 mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Duration (seconds)</label>
+                    
+                    <!-- Call specific fields -->
+                    <div id="callFields" class="w-full px-2 mb-4 hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Duration (minutes)</label>
                             <input class="w-full border border-gray-300 rounded-lg p-1.5" type="number" id="call_duration" name="call_duration">
                         </div>
-                        <div class="w-full px-2 mb-4">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Outcome</label>
-                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="call_outcome" name="call_outcome">
+                            <select class="w-full border border-gray-300 rounded-lg p-1.5" id="call_outcome" name="call_outcome">
+                                <option value="successful">Successful</option>
+                                <option value="no_answer">No Answer</option>
+                                <option value="voicemail">Left Voicemail</option>
+                                <option value="wrong_number">Wrong Number</option>
+                            </select>
                         </div>
                     </div>
-
-                    <!-- Visit Fields -->
-                    <div id="visitFields" style="display: none;">
-                        <div class="w-full px-2 mb-4">
+                    
+                    <!-- Visit specific fields -->
+                    <div id="visitFields" class="w-full px-2 mb-4 hidden">
+                        <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
                             <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="location" name="location">
                         </div>
-                        <div class="w-full px-2 mb-4">
+                        <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Purpose</label>
                             <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="visit_purpose" name="visit_purpose">
                         </div>
-                        <div class="w-full px-2 mb-4">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Outcome</label>
-                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="visit_outcome" name="visit_outcome">
+                            <select class="w-full border border-gray-300 rounded-lg p-1.5" id="visit_outcome" name="visit_outcome">
+                                <option value="successful">Successful</option>
+                                <option value="not_available">Not Available</option>
+                                <option value="rescheduled">Rescheduled</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
                         </div>
-                    </div>
-
-                    <!-- Attachment Field -->
-                    <div class="w-full px-2 mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment</label>
-                        <input class="w-full border border-gray-300 rounded-lg p-1.5" type="file" id="attachment" name="attachment">
                     </div>
                 </div>
             </div>
@@ -274,415 +266,5 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script>
-    $(document).ready(function() {
-        let currentPage = 1;
-        let totalPages = 1;
-        
-        function formatNoMatches(term) {
-            return 'No matches found';
-        }
-        
-        function formatSearching() {
-            return 'Searching...';
-        }
-        
-        function formatInputTooShort(term, minLength) {
-            return 'Please enter ' + minLength + ' or more characters';
-        }
-
-        // Initialize Select2 for client search
-        $('#clientSelect').select2({
-            theme: 'bootstrap-5',
-            placeholder: 'Search for a client...',
-            language: {
-                noMatches: formatNoMatches,
-                searching: formatSearching,
-                inputTooShort: formatInputTooShort
-            },
-            minimumInputLength: 3,
-            ajax: {
-                url: '/user/search/clients',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return {
-                        q: params.term,
-                        page: params.page || 1
-                    };
-                },
-                processResults: function(data, params) {
-                    return {
-                        results: data.clients.map(function(client) {
-                            return {
-                                id: client.id,
-                                text: `${client.name} (${client.member_no})`
-                            };
-                        }),
-                        pagination: {
-                            more: data.has_more
-                        }
-                    };
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error fetching clients:', errorThrown);
-                },
-                cache: true
-            }
-        }).on('change', function() {
-            // When client changes, update loan options
-            const clientId = $(this).val();
-            if (clientId) {
-                $.get(`/user/clients/${clientId}/loans`)
-                    .done(function(response) {
-                        const loanSelect = $('#loanSelect');
-                        loanSelect.empty();
-                        loanSelect.append('<option value="">All Loans</option>');
-                        
-                        response.loans.forEach(function(loan) {
-                            loanSelect.append(`<option value="${loan.id}">${loan.account_no} - ${loan.product_name}</option>`);
-                        });
-                    })
-                    .fail(function(jqXHR, textStatus, errorThrown) {
-                        console.error('Error fetching loans:', errorThrown);
-                    });
-            } else {
-                $('#loanSelect').empty().append('<option value="">All Loans</option>');
-            }
-        });
-        
-        function loadCommunications(page = 1) {
-            const filters = {
-                page: page,
-                per_page: $('#perPage').val() || 10,
-                member_id: $('#clientSelect').val() || '',
-                loan_id: $('#loanSelect').val() || '',
-                start_date: $('#startDate').val() || '',
-                end_date: $('#endDate').val() || '',
-                type: $('#typeFilter').val() || ''
-            };
-            
-            // Show loading state
-            $('#communicationsList').html(`
-                <div class="text-center py-4">
-                    <div class="flex items-center justify-center">
-                        <i class="fas fa-circle-notch fa-spin mr-2"></i>
-                        Loading communications...
-                    </div>
-                </div>
-            `);
-            
-            $.get('/user/loans/communications', filters)
-                .done(function(response) {
-                    currentPage = response.page;
-                    totalPages = response.total_pages;
-                    
-                    // Clear existing rows
-                    $('#communicationsList').empty();
-                    
-                    if (!response.communications || response.communications.length === 0) {
-                        $('#communicationsList').html(`
-                            <p class="text-center text-gray-500 dark:text-gray-400">No communications found${Object.values(filters).some(v => v) ? ' matching the selected filters' : ''}</p>
-                        `);
-                        return;
-                    }
-                    
-                    // Add new rows
-                    response.communications.forEach(function(comm) {
-                        const row = `
-                            <div class="communication-item communication-type-${comm.type}">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <h3 class="text-lg font-medium">${comm.member_name}</h3>
-                                        <p class="text-sm text-gray-500">Member: ${comm.member_no}</p>
-                                        <p class="text-sm text-gray-500">Loan: ${comm.loan_no}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-sm font-medium status-${comm.status}">${comm.status}</span>
-                                        <p class="text-sm text-gray-500">${comm.created_at}</p>
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <p class="text-gray-700">${comm.message}</p>
-                                </div>
-                                <div class="mt-2 text-sm text-gray-500">
-                                    <span class="capitalize">${comm.type}</span> • Sent by ${comm.sent_by}
-                                    ${comm.response ? `• Response: ${comm.response}` : ''}
-                                </div>
-                            </div>
-                        `;
-                        $('#communicationsList').append(row);
-                    });
-                    
-                    // Update pagination
-                    const pagination = $('#systemPagination');
-                    pagination.empty();
-                    
-                    if (totalPages > 1) {
-                        // Previous button
-                        pagination.append(`
-                            <button 
-                                class="px-3 py-1 rounded-md ${page === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                                ${page === 1 ? 'disabled' : `onclick="loadCommunications(${page - 1})"`}
-                            >
-                                Previous
-                            </button>
-                        `);
-                        
-                        // Page numbers
-                        for (let i = 1; i <= totalPages; i++) {
-                            pagination.append(`
-                                <button 
-                                    class="px-3 py-1 rounded-md ${i === page ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}"
-                                    onclick="loadCommunications(${i})"
-                                >
-                                    ${i}
-                                </button>
-                            `);
-                        }
-                        
-                        // Next button
-                        pagination.append(`
-                            <button 
-                                class="px-3 py-1 rounded-md ${page === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                                ${page === totalPages ? 'disabled' : `onclick="loadCommunications(${page + 1})"`}
-                            >
-                                Next
-                            </button>
-                        `);
-                    }
-                })
-                .fail(function(error) {
-                    console.error('Error loading communications:', error);
-                    $('#communicationsList').html(
-                        '<p class="text-center text-red-500">Error loading communications</p>'
-                    );
-                });
-        }
-
-        function loadCoreCommunications(page = 1) {
-            const filters = {
-                page: page,
-                per_page: $('#perPage').val(),
-                member_id: $('#clientSelect').val(),
-                loan_id: $('#loanSelect').val(),
-                start_date: $('#startDate').val(),
-                end_date: $('#endDate').val(),
-                communication_type: $('#typeFilter').val()
-            };
-            
-            $.get('/user/loans/communications/core', filters)
-                .done(function(response) {
-                    const list = $('#coreCommunicationsList');
-                    list.empty();
-                    
-                    if (response.error) {
-                        list.append(`<p class="text-center text-red-500">${response.error}</p>`);
-                        return;
-                    }
-                    
-                    if (response.communications.length === 0) {
-                        list.append('<p class="text-center text-gray-500 dark:text-gray-400">No communications found</p>');
-                        return;
-                    }
-                    
-                    response.communications.forEach(function(comm) {
-                        list.append(`
-                            <div class="communication-item communication-type-${comm.type}">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <h3 class="text-lg font-medium">${comm.member_name}</h3>
-                                        <p class="text-sm text-gray-500">Member: ${comm.member_no}</p>
-                                        <p class="text-sm text-gray-500">Loan: ${comm.loan_no}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-sm font-medium status-${comm.status}">${comm.status}</span>
-                                        <p class="text-sm text-gray-500">${comm.created_at}</p>
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <p class="text-gray-700">${comm.message}</p>
-                                </div>
-                                <div class="mt-2 text-sm text-gray-500">
-                                    <span class="capitalize">${comm.type}</span> • Sent by ${comm.sent_by}
-                                    ${comm.response ? `• Response: ${comm.response}` : ''}
-                                </div>
-                            </div>
-                        `);
-                    });
-                    
-                    // Update pagination
-                    const pagination = $('#corePagination');
-                    pagination.empty();
-                    
-                    if (response.total_pages > 1) {
-                        // Previous button
-                        pagination.append(`
-                            <button 
-                                class="px-3 py-1 rounded-md ${page === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                                ${page === 1 ? 'disabled' : `onclick="loadCoreCommunications(${page - 1})"`}
-                            >
-                                Previous
-                            </button>
-                        `);
-                        
-                        // Page numbers
-                        for (let i = 1; i <= response.total_pages; i++) {
-                            pagination.append(`
-                                <button 
-                                    class="px-3 py-1 rounded-md ${i === page ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}"
-                                    onclick="loadCoreCommunications(${i})"
-                                >
-                                    ${i}
-                                </button>
-                            `);
-                        }
-                        
-                        // Next button
-                        pagination.append(`
-                            <button 
-                                class="px-3 py-1 rounded-md ${page === response.total_pages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                                ${page === response.total_pages ? 'disabled' : `onclick="loadCoreCommunications(${page + 1})"`}
-                            >
-                                Next
-                            </button>
-                        `);
-                    }
-                })
-                .fail(function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error loading core communications:', errorThrown);
-                    $('#coreCommunicationsList').html(
-                        '<p class="text-center text-red-500">Error loading communications</p>'
-                    );
-                });
-        }
-        
-        // Event listeners for filters
-        $('#clientSelect, #loanSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
-            loadCommunications(1);
-        });
-
-        // Tab switching
-        $('.tab').click(function() {
-            $('.tab').removeClass('active');
-            $(this).addClass('active');
-            
-            $('.tab-content').removeClass('active');
-            $(`#${$(this).data('tab')}Tab`).addClass('active');
-            
-            // Load appropriate data
-            if ($(this).data('tab') === 'system') {
-                loadCommunications(1);
-            } else {
-                loadCoreCommunications(1);
-            }
-        });
-        
-        // Load initial data
-        loadCommunications(1);
-
-        // New Communication Modal Handlers
-        $('#newCorrespondenceBtn').click(function() {
-            $('#newCorrespondenceModal').removeClass('hidden');
-        });
-
-        $('#closeCorrespondenceModal').click(function() {
-            $('#newCorrespondenceModal').addClass('hidden');
-            $('#newCorrespondenceForm')[0].reset();
-        });
-
-        // Initialize Select2 for client search in modal
-        $('#clientSelect2').select2({
-            theme: 'bootstrap-5',
-            placeholder: 'Search for a client...',
-            dropdownParent: $('#newCorrespondenceModal'),
-            language: {
-                noMatches: formatNoMatches,
-                searching: formatSearching,
-                inputTooShort: formatInputTooShort
-            },
-            minimumInputLength: 3,
-            ajax: {
-                url: '/user/search/clients',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return {
-                        q: params.term,
-                        page: params.page || 1
-                    };
-                },
-                processResults: function(data, params) {
-                    return {
-                        results: data.clients.map(function(client) {
-                            return {
-                                id: client.id,
-                                text: `${client.name} (${client.member_no})`,
-                                member_no: client.member_no
-                            };
-                        }),
-                        pagination: {
-                            more: data.has_more
-                        }
-                    };
-                }
-            }
-        }).on('select2:select', function(e) {
-            const data = e.params.data;
-            $('#account_no').val(data.member_no);
-        });
-
-        // Handle form submission
-        $('#newCorrespondenceForm').submit(function(e) {
-            e.preventDefault();
-            
-            const formData = {
-                client_id: $('#clientSelect2').val(),
-                account_no: $('#account_no').val(),
-                type: $('#type').val(),
-                message: $('#message').val()
-            };
-
-            $.ajax({
-                url: '/user/loans/communications/new',
-                method: 'POST',
-                data: formData,
-                success: function(response) {
-                    if (response.success) {
-                        $('#newCorrespondenceModal').addClass('hidden');
-                        $('#newCorrespondenceForm')[0].reset();
-                        loadCommunications(1);
-                    } else {
-                        alert(response.error || 'Failed to save communication');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    alert('Error saving communication: ' + error);
-                }
-            });
-        });
-
-        // Show/hide dynamic fields based on communication type
-        $('#type').on('change', function() {
-            const type = $(this).val();
-            
-            // Hide all dynamic fields first
-            $('#smsEmailFields, #callFields, #visitFields').hide();
-            
-            // Show relevant fields based on type
-            switch(type) {
-                case 'sms':
-                case 'email':
-                    $('#smsEmailFields').show();
-                    break;
-                case 'call':
-                    $('#callFields').show();
-                    break;
-                case 'visit':
-                    $('#visitFields').show();
-                    break;
-            }
-        });
-    });
-</script>
+<script src="{{ url_for('static', filename='js/correspondence.js') }}"></script>
 {% endblock %}

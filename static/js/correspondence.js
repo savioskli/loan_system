@@ -3,18 +3,28 @@ console.log('Correspondence.js loaded');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded');
     
+    let currentPage = 1;
+    let totalPages = 1;
+
     // Initialize client select with search
     $(document).ready(function() {
-        const select = $('#clientSelect');
+        initializeClientSelect('#clientSelect', false);
+        initializeClientSelect('#clientSelect2', true);
+        initializeEventListeners();
+        loadCommunications(1);
+    });
 
-        // Initialize Select2
-        select.select2({
+    function initializeClientSelect(selector, isModal) {
+        console.log('Initializing select2 for:', selector);
+        const select = $(selector);
+
+        const config = {
             theme: 'bootstrap-5',
             placeholder: 'Search for a client...',
             allowClear: true,
             width: '100%',
             ajax: {
-                url: 'http://localhost:5003/api/mock/clients/search', // Updated URL
+                url: '/api/customers/search',
                 dataType: 'json',
                 delay: 250,
                 data: function(params) {
@@ -30,7 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     return {
                         results: data.clients.map(item => ({
                             id: item.id,
-                            text: item.name // Use the correct property for display
+                            text: `${item.name} (${item.member_no})`,
+                            member_no: item.member_no,
+                            phone: item.phone,
+                            email: item.email
                         })),
                         pagination: {
                             more: data.has_more
@@ -49,290 +62,346 @@ document.addEventListener('DOMContentLoaded', function() {
             templateSelection: function(data) {
                 return data.text || data.id;
             }
-        }).on('select2:select', function(e) {
-            console.log('Selected:', e.params.data);
-            loadCorrespondence(e.params.data.id);
-        });
-    });
+        };
 
-        // Initialize client select with search
-        $(document).ready(function() {
-            const select = $('#clientSelect2');
-    
-            // Initialize Select2
-            select.select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Search for a client...',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: 'http://localhost:5003/api/mock/clients/search', // Updated URL
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        console.log('Search params:', params);
-                        return {
-                            q: params.term || '',
-                            page: params.page || 1
-                        };
-                    },
-                    processResults: function(data, params) {
-                        console.log('Received data:', data);
-                        params.page = params.page || 1;
-                        return {
-                            results: data.clients.map(item => ({
-                                id: item.id,
-                                text: item.name // Use the correct property for display
-                            })),
-                            pagination: {
-                                more: data.has_more
-                            }
-                        };
-                    },
-                    cache: true
-                },
-                minimumInputLength: 1,
-                templateResult: function(data) {
-                    if (data.loading) {
-                        return data.text;
-                    }
-                    return $('<span>' + data.text + '</span>');
-                },
-                templateSelection: function(data) {
-                    return data.text || data.id;
-                }
-            }).on('select2:select', function(e) {
+        // Add modal-specific configurations
+        if (isModal) {
+            config.dropdownParent = $('#newCorrespondenceModal');
+        }
+
+        // Initialize Select2
+        select.select2(config)
+            .on('select2:select', function(e) {
                 console.log('Selected:', e.params.data);
-                loadCorrespondence(e.params.data.id);
+                const data = e.params.data;
+                if (isModal) {
+                    $('#account_no').val(data.member_no);
+                    updateRecipientField(data);
+                } else {
+                    updateLoanOptions(data.id);
+                }
+            })
+            .on('select2:clear', function() {
+                if (!isModal) {
+                    updateLoanOptions(null);
+                }
+            })
+            .on('select2:error', function(e) {
+                console.error('Select2 error:', e);
+            });
+    }
+
+    function updateLoanOptions(clientId) {
+        console.log('Updating loan options for client:', clientId);
+        if (clientId) {
+            $.get(`/user/clients/${clientId}/loans`)
+                .done(function(response) {
+                    console.log('Loan options received:', response);
+                    const loanSelect = $('#loanSelect');
+                    loanSelect.empty();
+                    loanSelect.append('<option value="">All Loans</option>');
+                    
+                    if (response.loans && Array.isArray(response.loans)) {
+                        response.loans.forEach(function(loan) {
+                            loanSelect.append(`<option value="${loan.id}">${loan.account_no} - ${loan.product_name}</option>`);
+                        });
+                    }
+                })
+                .fail(function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching loans:', errorThrown);
+                });
+        } else {
+            $('#loanSelect').empty().append('<option value="">All Loans</option>');
+        }
+    }
+
+    function updateRecipientField(clientData) {
+        console.log('Updating recipient field with client data:', clientData);
+        if (!clientData) return;
+        
+        const commType = $('#type').val();
+        if (commType === 'sms' && clientData.phone) {
+            $('#recipient').val(clientData.phone);
+        } else if (commType === 'email' && clientData.email) {
+            $('#recipient').val(clientData.email);
+        }
+    }
+
+    function initializeEventListeners() {
+        console.log('Initializing event listeners');
+        
+        // Filter change handlers
+        $('#clientSelect, #loanSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
+            console.log('Filter changed:', $(this).attr('id'));
+            loadCommunications(1);
+        });
+
+        // Tab switching
+        $('.tab').click(function() {
+            console.log('Tab clicked:', $(this).data('tab'));
+            $('.tab').removeClass('active');
+            $(this).addClass('active');
+            
+            $('.tab-content').removeClass('active');
+            $(`#${$(this).data('tab')}Tab`).addClass('active');
+            
+            if ($(this).data('tab') === 'system') {
+                loadCommunications(1);
+            } else {
+                loadCoreCommunications(1);
+            }
+        });
+
+        // Modal handlers
+        $('#newCorrespondenceBtn').click(function() {
+            console.log('Opening new correspondence modal');
+            $('#newCorrespondenceModal').removeClass('hidden');
+        });
+
+        $('#closeCorrespondenceModal').click(function() {
+            console.log('Closing correspondence modal');
+            $('#newCorrespondenceModal').addClass('hidden');
+            $('#newCorrespondenceForm')[0].reset();
+            $('#clientSelect2').val(null).trigger('change');
+        });
+
+        // Communication type change handler
+        $('#type').on('change', function() {
+            const type = $(this).val();
+            console.log('Communication type changed:', type);
+            
+            // Hide all dynamic fields first
+            $('#smsEmailFields, #callFields, #visitFields').addClass('hidden');
+            
+            // Show relevant fields based on type
+            switch(type) {
+                case 'sms':
+                case 'email':
+                    $('#smsEmailFields').removeClass('hidden');
+                    break;
+                case 'call':
+                    $('#callFields').removeClass('hidden');
+                    break;
+                case 'visit':
+                    $('#visitFields').removeClass('hidden');
+                    break;
+            }
+            
+            // Update recipient field if client is selected
+            const clientData = $('#clientSelect2').select2('data')[0];
+            if (clientData) {
+                updateRecipientField(clientData);
+            }
+        });
+
+        // Form submission
+        $('#newCorrespondenceForm').submit(function(e) {
+            e.preventDefault();
+            console.log('Form submitted');
+            
+            const formData = new FormData(this);
+            console.log('Form data:', Object.fromEntries(formData));
+
+            // Basic validation
+            if (!formData.get('client_name')) {
+                alert('Please select a client');
+                return;
+            }
+
+            if (!formData.get('type')) {
+                alert('Please select a communication type');
+                return;
+            }
+
+            if (!formData.get('message')) {
+                alert('Please enter a message');
+                return;
+            }
+
+            $.ajax({
+                url: '/user/loans/communications/new',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    console.log('Communication saved:', response);
+                    if (response.success) {
+                        $('#newCorrespondenceModal').addClass('hidden');
+                        $('#newCorrespondenceForm')[0].reset();
+                        $('#clientSelect2').val(null).trigger('change');
+                        loadCommunications(1);
+                    } else {
+                        alert(response.error || 'Failed to save communication');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving communication:', error);
+                    alert('Error saving communication. Please try again.');
+                }
             });
         });
-
-    // Load correspondence for a client
-    function loadCorrespondence(clientId) {
-        console.log('Loading correspondence for client:', clientId);
-        // Fetch account numbers for the selected client
-        $.ajax({
-            url: `http://localhost:5003/api/mock/clients/${clientId}/accounts`,
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                console.log('Accounts for client:', data);
-                // Assuming data.accounts is an array of account numbers
-                const accountInput = $('#account_no');
-                accountInput.val(data.accounts.join(', ')); // Display account numbers as comma-separated
-            },
-            error: function(error) {
-                console.error('Error loading accounts:', error);
-            }
-        });
-        $.ajax({
-            url: '/user/api/correspondence/' + clientId,
-            method: 'GET',
-            success: function(data) {
-                console.log('Correspondence loaded:', data);
-                displayCorrespondence(data.correspondence);
-                setupPagination(data.total, data.current_page, data.per_page);
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading correspondence:', error);
-            }
-        });
     }
 
-    // Display correspondence in timeline view
-    function displayCorrespondence(correspondence) {
-        const list = $('#correspondenceList ul');
-        list.empty();
-
-        // Add padding to the results section
-        $('#correspondenceList').css('padding-top', '10px');
-
-        if (!correspondence || correspondence.length === 0) {
-            list.append('<li class="text-center text-gray-500 py-4">No correspondence found</li>');
-            return;
-        }
-
-        correspondence.forEach(function(item) {
-            const html = `
-                <li class="bg-white shadow-md rounded-lg p-4 mb-4">
-                    <div class="relative flex space-x-3">
-                        <div>
-                            <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white bg-${getTypeColor(item.type)}">
-                                ${getTypeIcon(item.type)}
-                            </span>
-                        </div>
-                        <div class="flex min-w-0 flex-1 justify-between space-x-4">
-                            <div>
-                                <p class="text-sm font-semibold text-gray-900">${item.content}</p>
-                            </div>
-                            <div class="whitespace-nowrap text-sm text-gray-500">
-                                <span>${formatDate(item.created_at)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </li>
-            `;
-            list.append(html);
-        });
-    }
-
-    // Helper functions
-    function getTypeColor(type) {
-        const colors = {
-            'email': 'blue-500',
-            'sms': 'green-500',
-            'call': 'yellow-500'
+    function loadCommunications(page = 1) {
+        const filters = {
+            page: page,
+            per_page: $('#perPage').val() || 10,
+            member_id: $('#clientSelect').val() || '',
+            loan_id: $('#loanSelect').val() || '',
+            start_date: $('#startDate').val() || '',
+            end_date: $('#endDate').val() || '',
+            type: $('#typeFilter').val() || ''
         };
-        return colors[type] || 'gray-500';
-    }
-
-    function getTypeIcon(type) {
-        const icons = {
-            'email': '<i class="fas fa-envelope text-white"></i>',
-            'sms': '<i class="fas fa-sms text-white"></i>',
-            'call': '<i class="fas fa-phone text-white"></i>'
-        };
-        return icons[type] || '<i class="fas fa-comment text-white"></i>';
-    }
-
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
-    function setupPagination(total, currentPage, perPage) {
-        const totalPages = Math.ceil(total / perPage);
-        const paginationContainer = $('#pagination');
-
-        paginationContainer.empty(); // Clear existing pagination
-
-        if (currentPage > 1) {
-            paginationContainer.append(`<button onclick="loadPage(${currentPage - 1})">Previous</button>`);
-        }
-
-        for (let i = 1; i <= totalPages; i++) {
-            paginationContainer.append(`<button onclick="loadPage(${i})">${i}</button>`);
-        }
-
-        if (currentPage < totalPages) {
-            paginationContainer.append(`<button onclick="loadPage(${currentPage + 1})">Next</button>`);
-        }
-    }
-
-    function loadPage(page) {
-        $.ajax({
-            url: `/user/api/correspondence?page=${page}`,
-            method: 'GET',
-            success: function(data) {
-                displayCorrespondence(data.correspondence);
-                setupPagination(data.total, data.current_page, data.per_page);
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading correspondence:', error);
-            }
-        });
-    }
-
-    function saveCorrespondence() {
-        const correspondenceData = {
-            account_no: document.getElementById('account_no').value,
-            client_name: document.getElementById('client_name').value,
-            type: document.getElementById('type').value,
-            message: document.getElementById('message').value,
-            status: document.getElementById('status').value,
-            sent_by: document.getElementById('sent_by').value,
-            recipient: document.getElementById('recipient').value,
-            delivery_status: document.getElementById('delivery_status').value,
-            delivery_time: document.getElementById('delivery_time').value,
-            call_duration: document.getElementById('call_duration').value,
-            call_outcome: document.getElementById('call_outcome').value,
-            location: document.getElementById('location').value,
-            visit_purpose: document.getElementById('visit_purpose').value,
-            visit_outcome: document.getElementById('visit_outcome').value,
-            staff_id: document.getElementById('staff_id').value,
-            loan_id: document.getElementById('loan_id').value,
-            attachment_path: document.getElementById('attachment_path').value,
-        };
-
-        createCorrespondence(correspondenceData);
-    }
-
-   function createCorrespondence(data) {
-       const csrfToken = document.querySelector('input[name="csrf_token"]').value; // Get CSRF token
-       const formData = new FormData();
-       formData.append('csrf_token', csrfToken);
-       for (const key in data) {
-           formData.append(key, data[key]);
-       }
-   
-       console.log('Form Data:', Array.from(formData.entries()));
-       fetch('/api/correspondence', {
-           method: 'POST',
-           body: formData, // Send as FormData
-       })
-       .then(response => response.json())
-       .then(data => {
-           if (data.success) {
-               alert('Correspondence saved successfully!');
-           } else {
-               alert('Error saving correspondence: ' + data.message);
-           }
-       })
-       .catch(error => {
-           console.error('Error:', error);
-           alert('An unexpected error occurred.');
-       });
-   }
-
-    // Modal handling
-    const modal = document.getElementById('newCorrespondenceModal');
-    const newCorrespondenceBtn = document.getElementById('newCorrespondenceBtn');
-    const closeModalBtn = document.getElementById('closeCorrespondenceModal');
-
-    function openNewCorrespondenceModal() {
-        modal.classList.remove('hidden');
-    }
-
-    function closeNewCorrespondenceModal() {
-        modal.classList.add('hidden');
-    }
-
-    newCorrespondenceBtn.addEventListener('click', openNewCorrespondenceModal);
-    closeModalBtn.addEventListener('click', closeNewCorrespondenceModal);
-
-    // Handle new correspondence form submission
-    $('#newCorrespondenceForm').on('submit', function(e) {
-        e.preventDefault();
         
-        const clientId = $('#clientSelect2').val();
-        if (!clientId) {
-            // alert('Please select a client first'); 
-            return;
-        }
-
-        const formData = new FormData(this);
-        formData.append('client_id', clientId);
-
+        console.log('Loading communications with filters:', filters);
+        
         $.ajax({
-            url: '/user/api/correspondence',
-            method: 'POST',
-            data: formData,
-            processData: false,
-            //contentType: false,
+            url: '/user/loans/communications',
+            method: 'GET',
+            data: filters,
             success: function(response) {
-                closeNewCorrespondenceModal();
-                loadCorrespondence(clientId);
+                console.log('Communications loaded:', response);
+                if (response.error) {
+                    $('#communicationsList').html(`<p class="text-center text-red-500">${response.error}</p>`);
+                    return;
+                }
+                displayCommunications(response.communications || []);
+                updatePagination(response.page, response.total_pages, 'system');
             },
             error: function(xhr, status, error) {
-                console.error('Error saving correspondence:', error);
-                alert('Failed to save correspondence');
+                console.error('Error loading communications:', error);
+                $('#communicationsList').html('<p class="text-center text-red-500">Error loading communications</p>');
             }
         });
-    });
+    }
+
+    function loadCoreCommunications(page = 1) {
+        const filters = {
+            page: page,
+            per_page: $('#perPage').val() || 10,
+            member_id: $('#clientSelect').val() || '',
+            loan_id: $('#loanSelect').val() || '',
+            start_date: $('#startDate').val() || '',
+            end_date: $('#endDate').val() || '',
+            type: $('#typeFilter').val() || ''
+        };
+        
+        console.log('Loading core communications with filters:', filters);
+        
+        $.ajax({
+            url: '/user/loans/communications/core',
+            method: 'GET',
+            data: filters,
+            success: function(response) {
+                console.log('Core communications loaded:', response);
+                if (response.error) {
+                    $('#coreCommunicationsList').html(`<p class="text-center text-red-500">${response.error}</p>`);
+                    return;
+                }
+                displayCoreCommunications(response.communications || []);
+                updatePagination(response.page, response.total_pages, 'core');
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading core communications:', error);
+                $('#coreCommunicationsList').html('<p class="text-center text-red-500">Error loading communications</p>');
+            }
+        });
+    }
+
+    function displayCommunications(communications) {
+        const container = $('#communicationsList');
+        container.empty();
+        
+        if (communications.length === 0) {
+            container.html('<p class="text-center text-gray-500">No communications found</p>');
+            return;
+        }
+        
+        communications.forEach(comm => {
+            container.append(createCommunicationItem(comm));
+        });
+    }
+
+    function displayCoreCommunications(communications) {
+        const container = $('#coreCommunicationsList');
+        container.empty();
+        
+        if (communications.length === 0) {
+            container.html('<p class="text-center text-gray-500">No communications found</p>');
+            return;
+        }
+        
+        communications.forEach(comm => {
+            container.append(createCommunicationItem(comm));
+        });
+    }
+
+    function createCommunicationItem(comm) {
+        return `
+            <div class="communication-item communication-type-${comm.type}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-medium">${comm.member_name}</h3>
+                        <p class="text-sm text-gray-500">Member: ${comm.member_no}</p>
+                        <p class="text-sm text-gray-500">Loan: ${comm.loan_no || 'N/A'}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-medium status-${comm.status}">${comm.status}</span>
+                        <p class="text-sm text-gray-500">${comm.created_at}</p>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <p class="text-gray-700">${comm.message}</p>
+                </div>
+                <div class="mt-2 text-sm text-gray-500">
+                    <span class="capitalize">${comm.type}</span> • Sent by ${comm.sent_by}
+                    ${comm.response ? ` • Response: ${comm.response}` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function updatePagination(currentPage, totalPages, type) {
+        const container = type === 'system' ? $('#systemPagination') : $('#corePagination');
+        container.empty();
+        
+        if (totalPages <= 1) return;
+        
+        const loadFunc = type === 'system' ? loadCommunications : loadCoreCommunications;
+        
+        // Previous button
+        container.append(`
+            <button 
+                class="px-3 py-1 rounded-md ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
+                ${currentPage === 1 ? 'disabled' : ''}
+                onclick="${currentPage > 1 ? `${loadFunc.name}(${currentPage - 1})` : ''}"
+            >
+                Previous
+            </button>
+        `);
+        
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            container.append(`
+                <button 
+                    class="px-3 py-1 rounded-md ${i === currentPage ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}"
+                    onclick="${loadFunc.name}(${i})"
+                >
+                    ${i}
+                </button>
+            `);
+        }
+        
+        // Next button
+        container.append(`
+            <button 
+                class="px-3 py-1 rounded-md ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
+                ${currentPage === totalPages ? 'disabled' : ''}
+                onclick="${currentPage < totalPages ? `${loadFunc.name}(${currentPage + 1})` : ''}"
+            >
+                Next
+            </button>
+        `);
+    }
 });

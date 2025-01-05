@@ -144,41 +144,10 @@
 
         <!-- System Correspondence Tab -->
         <div id="systemTab" class="tab-content active">
-            <!-- Communications Table -->
-            <div class="overflow-x-auto relative">
-                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                        <tr>
-                            <th scope="col" class="py-3 px-6">Date</th>
-                            <th scope="col" class="py-3 px-6">Member</th>
-                            <th scope="col" class="py-3 px-6">Type</th>
-                            <th scope="col" class="py-3 px-6">Message</th>
-                            <th scope="col" class="py-3 px-6">Status</th>
-                            <th scope="col" class="py-3 px-6">Response</th>
-                            <th scope="col" class="py-3 px-6">Sent By</th>
-                        </tr>
-                    </thead>
-                    <tbody id="communicationsTable">
-                        <!-- Communications will be loaded here -->
-                    </tbody>
-                </table>
+            <div id="communicationsList" class="space-y-4">
+                <!-- Communications will be loaded here -->
             </div>
-
-            <!-- Pagination -->
-            <div class="flex items-center justify-between mt-4">
-                <div class="flex items-center">
-                    <label class="mr-2">Per page:</label>
-                    <select id="perPage" class="px-3 py-1.5 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2" id="pagination">
-                    <!-- Pagination buttons will be added here -->
-                </div>
-            </div>
+            <div id="systemPagination" class="mt-6 flex justify-center items-center space-x-2"></div>
         </div>
 
         <!-- Core Banking Correspondence Tab -->
@@ -334,15 +303,13 @@
             };
             
             // Show loading state
-            $('#communicationsTable').html(`
-                <tr>
-                    <td colspan="7" class="text-center py-4">
-                        <div class="flex items-center justify-center">
-                            <i class="fas fa-circle-notch fa-spin mr-2"></i>
-                            Loading communications...
-                        </div>
-                    </td>
-                </tr>
+            $('#communicationsList').html(`
+                <div class="text-center py-4">
+                    <div class="flex items-center justify-center">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i>
+                        Loading communications...
+                    </div>
+                </div>
             `);
             
             $.get('/user/loans/communications', filters)
@@ -351,15 +318,11 @@
                     totalPages = response.total_pages;
                     
                     // Clear existing rows
-                    $('#communicationsTable').empty();
+                    $('#communicationsList').empty();
                     
                     if (!response.communications || response.communications.length === 0) {
-                        $('#communicationsTable').html(`
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-gray-500">
-                                    No communications found${Object.values(filters).some(v => v) ? ' matching the selected filters' : ''}
-                                </td>
-                            </tr>
+                        $('#communicationsList').html(`
+                            <p class="text-center text-gray-500 dark:text-gray-400">No communications found${Object.values(filters).some(v => v) ? ' matching the selected filters' : ''}</p>
                         `);
                         return;
                     }
@@ -367,121 +330,76 @@
                     // Add new rows
                     response.communications.forEach(function(comm) {
                         const row = `
-                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td class="py-4 px-6">${comm.created_at || 'N/A'}</td>
-                                <td class="py-4 px-6">
-                                    ${comm.member_name || 'N/A'}
-                                    ${comm.member_no ? `<br><span class="text-xs text-gray-500">${comm.member_no}</span>` : ''}
-                                </td>
-                                <td class="py-4 px-6">
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                        ${comm.type === 'sms' ? 'bg-green-100 text-green-800' : ''}
-                                        ${comm.type === 'email' ? 'bg-blue-100 text-blue-800' : ''}
-                                        ${comm.type === 'call' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                        ${comm.type === 'letter' ? 'bg-purple-100 text-purple-800' : ''}
-                                        ${comm.type === 'visit' ? 'bg-pink-100 text-pink-800' : ''}">
-                                        ${comm.type || 'unknown'}
-                                    </span>
-                                </td>
-                                <td class="py-4 px-6">
-                                    <div class="max-w-md overflow-hidden text-ellipsis">
-                                        ${comm.message || 'N/A'}
+                            <div class="communication-item communication-type-${comm.type}">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-lg font-medium">${comm.member_name}</h3>
+                                        <p class="text-sm text-gray-500">Member: ${comm.member_no}</p>
+                                        <p class="text-sm text-gray-500">Loan: ${comm.loan_no}</p>
                                     </div>
-                                </td>
-                                <td class="py-4 px-6">
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                        ${comm.status === 'delivered' ? 'bg-green-100 text-green-800' : ''}
-                                        ${comm.status === 'failed' ? 'bg-red-100 text-red-800' : ''}
-                                        ${comm.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}">
-                                        ${comm.status || 'unknown'}
-                                    </span>
-                                </td>
-                                <td class="py-4 px-6">${comm.response || '-'}</td>
-                                <td class="py-4 px-6">${comm.sent_by || 'System'}</td>
-                            </tr>
+                                    <div class="text-right">
+                                        <span class="text-sm font-medium status-${comm.status}">${comm.status}</span>
+                                        <p class="text-sm text-gray-500">${comm.created_at}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <p class="text-gray-700">${comm.message}</p>
+                                </div>
+                                <div class="mt-2 text-sm text-gray-500">
+                                    <span class="capitalize">${comm.type}</span> • Sent by ${comm.sent_by}
+                                    ${comm.response ? `• Response: ${comm.response}` : ''}
+                                </div>
+                            </div>
                         `;
-                        $('#communicationsTable').append(row);
+                        $('#communicationsList').append(row);
                     });
                     
                     // Update pagination
-                    updatePagination();
+                    const pagination = $('#systemPagination');
+                    pagination.empty();
+                    
+                    if (totalPages > 1) {
+                        // Previous button
+                        pagination.append(`
+                            <button 
+                                class="px-3 py-1 rounded-md ${page === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
+                                ${page === 1 ? 'disabled' : `onclick="loadCommunications(${page - 1})"`}
+                            >
+                                Previous
+                            </button>
+                        `);
+                        
+                        // Page numbers
+                        for (let i = 1; i <= totalPages; i++) {
+                            pagination.append(`
+                                <button 
+                                    class="px-3 py-1 rounded-md ${i === page ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}"
+                                    onclick="loadCommunications(${i})"
+                                >
+                                    ${i}
+                                </button>
+                            `);
+                        }
+                        
+                        // Next button
+                        pagination.append(`
+                            <button 
+                                class="px-3 py-1 rounded-md ${page === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
+                                ${page === totalPages ? 'disabled' : `onclick="loadCommunications(${page + 1})"`}
+                            >
+                                Next
+                            </button>
+                        `);
+                    }
                 })
                 .fail(function(error) {
                     console.error('Error loading communications:', error);
-                    $('#communicationsTable').html(`
-                        <tr>
-                            <td colspan="7" class="text-center py-4 text-red-500">
-                                Error loading communications. Please try again.
-                            </td>
-                        </tr>
-                    `);
+                    $('#communicationsList').html(
+                        '<p class="text-center text-red-500">Error loading communications</p>'
+                    );
                 });
         }
 
-        function updatePagination() {
-            const pagination = $('#pagination');
-            pagination.empty();
-            
-            if (totalPages <= 1) {
-                return;
-            }
-            
-            // Previous button
-            pagination.append(`
-                <button class="px-3 py-1 rounded-md ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
-                        ${currentPage === 1 ? 'disabled' : 'onclick="loadCommunications(' + (currentPage - 1) + ')"'}>
-                    Previous
-                </button>
-            `);
-            
-            // Page numbers
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === currentPage) {
-                    pagination.append(`
-                        <button class="px-3 py-1 bg-primary text-white rounded-md">
-                            ${i}
-                        </button>
-                    `);
-                } else {
-                    pagination.append(`
-                        <button class="px-3 py-1 bg-white text-gray-700 hover:bg-gray-50 rounded-md" 
-                                onclick="loadCommunications(${i})">
-                            ${i}
-                        </button>
-                    `);
-                }
-            }
-            
-            // Next button
-            pagination.append(`
-                <button class="px-3 py-1 rounded-md ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
-                        ${currentPage === totalPages ? 'disabled' : 'onclick="loadCommunications(' + (currentPage + 1) + ')"'}>
-                    Next
-                </button>
-            `);
-        }
-        
-        // Event listeners for filters
-        $('#clientSelect, #loanSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
-            loadCommunications(1);
-        });
-
-        // Tab switching
-        $('.tab').click(function() {
-            $('.tab').removeClass('active');
-            $(this).addClass('active');
-            
-            $('.tab-content').removeClass('active');
-            $(`#${$(this).data('tab')}Tab`).addClass('active');
-            
-            // Load appropriate data
-            if ($(this).data('tab') === 'system') {
-                loadCommunications(1);
-            } else {
-                loadCoreCommunications(1);
-            }
-        });
-        
         function loadCoreCommunications(page = 1) {
             const filters = {
                 page: page,
@@ -578,6 +496,27 @@
                     );
                 });
         }
+        
+        // Event listeners for filters
+        $('#clientSelect, #loanSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
+            loadCommunications(1);
+        });
+
+        // Tab switching
+        $('.tab').click(function() {
+            $('.tab').removeClass('active');
+            $(this).addClass('active');
+            
+            $('.tab-content').removeClass('active');
+            $(`#${$(this).data('tab')}Tab`).addClass('active');
+            
+            // Load appropriate data
+            if ($(this).data('tab') === 'system') {
+                loadCommunications(1);
+            } else {
+                loadCoreCommunications(1);
+            }
+        });
         
         // Load initial data
         loadCommunications(1);

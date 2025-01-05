@@ -38,9 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Received data:', data);
                     params.page = params.page || 1;
                     return {
-                        results: data.clients.map(item => ({
+                        results: data.items.map(item => ({
                             id: item.id,
-                            text: `${item.name} (${item.member_no})`,
+                            text: item.text,
                             member_no: item.member_no,
                             phone: item.phone,
                             email: item.email
@@ -52,16 +52,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 cache: true
             },
-            minimumInputLength: 1,
-            templateResult: function(data) {
-                if (data.loading) {
-                    return data.text;
-                }
-                return $('<span>' + data.text + '</span>');
-            },
-            templateSelection: function(data) {
-                return data.text || data.id;
-            }
+            minimumInputLength: 2,
+            templateResult: formatClient,
+            templateSelection: formatClientSelection
         };
 
         // Add modal-specific configurations
@@ -89,6 +82,26 @@ document.addEventListener('DOMContentLoaded', function() {
             .on('select2:error', function(e) {
                 console.error('Select2 error:', e);
             });
+    }
+
+    function formatClient(client) {
+        if (!client.id) return client.text;
+        return $(`
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">${client.text}</div>
+                    <div class="text-muted small">
+                        ${client.phone ? `<i class="bi bi-telephone"></i> ${client.phone}` : ''}
+                        ${client.email ? `<i class="bi bi-envelope ms-2"></i> ${client.email}` : ''}
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    function formatClientSelection(client) {
+        if (!client.id) return client.text;
+        return client.text;
     }
 
     function updateLoanOptions(clientId) {

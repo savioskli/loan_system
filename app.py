@@ -57,6 +57,7 @@ from routes.correspondence import correspondence_bp
 from routes.thresholds import thresholds_bp
 from routes.collection_schedule import collection_schedule_bp
 from routes.core_banking import bp as core_banking_bp
+from routes.api import api_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -127,6 +128,7 @@ def create_app():
     app.register_blueprint(collection_schedule_bp)
     app.register_blueprint(core_banking_bp)
     app.register_blueprint(post_disbursement_bp)
+    app.register_blueprint(api_bp)  # Register the API blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp
@@ -182,6 +184,7 @@ def create_app():
     csrf.exempt(email_templates_bp)
     csrf.exempt(thresholds_bp)
     csrf.exempt(user_bp)
+    csrf.exempt(api_bp)
 
     # Flask-Login configuration
     @login_manager.user_loader

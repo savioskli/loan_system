@@ -248,13 +248,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 success: function(response) {
                     console.log('Communication saved:', response);
-                    if (response.success) {
+                    if (response.status === 'success') {
                         $('#newCorrespondenceModal').addClass('hidden');
                         $('#newCorrespondenceForm')[0].reset();
                         $('#clientSelect2').val(null).trigger('change');
                         loadCommunications(1);
                     } else {
-                        alert(response.error || 'Failed to save communication');
+                        alert(response.message || 'Failed to save communication');
                     }
                 },
                 error: function(xhr, status, error) {

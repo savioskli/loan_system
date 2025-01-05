@@ -38,13 +38,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Received data:', data);
                     params.page = params.page || 1;
                     return {
-                        results: data.items.map(item => ({
-                            id: item.id,
-                            text: item.text,
-                            member_no: item.member_no,
-                            phone: item.phone,
-                            email: item.email
-                        })),
+                        results: data.items.map(item => {
+                            const name = item.text.split(' (')[0];
+                            return {
+                                id: name,  
+                                text: item.text,
+                                member_no: item.member_no,
+                                phone: item.phone,
+                                email: item.email
+                            };
+                        }),
                         pagination: {
                             more: data.has_more
                         }

@@ -42,24 +42,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Initialize Select2 for both staff select fields
-    $('#staffSelect, #filterStaff').select2(staffSelect2Config);
+    $(document).ready(function() {
+        // Initialize Select2 for both staff select fields
+        $('#staffSelect, #filterStaff').select2(staffSelect2Config);
 
-    $('#loanSelect').select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Select a loan',
-        ajax: {
-            url: '/api/collection-schedules/loans',
-            dataType: 'json',
-            processResults: function(data) {
-                return {
-                    results: data.map(loan => ({
-                        id: loan.id,
-                        text: `${loan.account_no} - ${loan.borrower_name} (${loan.status})`
-                    }))
-                };
+        // Initialize client select
+        initializeClientSelect('#collectionClientSelect', true);
+
+        $('#loanSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select a loan',
+            ajax: {
+                url: '/api/collection-schedules/loans',
+                dataType: 'json',
+                processResults: function(data) {
+                    return {
+                        results: data.map(loan => ({
+                            id: loan.id,
+                            text: `${loan.account_no} - ${loan.borrower_name} (${loan.status})`
+                        }))
+                    };
+                }
             }
-        }
+        });
     });
 
     // Modal event listeners
@@ -77,6 +82,95 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#newCollectionScheduleForm')[0].reset();
         $('#staffSelect').val(null).trigger('change');
         $('#loanSelect').val(null).trigger('change');
+    }
+
+    function initializeClientSelect(selector, isModal) {
+        console.log('Initializing select2 for:', selector);
+        const select = $(selector);
+
+        const config = {
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a client...',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: '/api/customers/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    console.log('Search params:', params);
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    console.log('Received data:', data);
+                    params.page = params.page || 1;
+                    return {
+                        results: data.items.map(item => {
+                            const name = item.text.split(' (')[0];
+                            return {
+                                id: name,
+                                text: item.text,
+                                member_no: item.member_no,
+                                phone: item.phone,
+                                email: item.email
+                            };
+                        }),
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2,
+            templateResult: formatClient,
+            templateSelection: formatClientSelection
+        };
+
+        // Add modal-specific configurations
+        if (isModal) {
+            config.dropdownParent = $('#newCollectionScheduleModal');
+        }
+
+        // Initialize Select2
+        select.select2(config)
+            .on('select2:select', function(e) {
+                console.log('Selected:', e.params.data);
+                const data = e.params.data;
+                if (isModal) {
+                    // Handle modal-specific selection if needed
+                    console.log('Client selected in modal:', data);
+                }
+            })
+            .on('select2:clear', function() {
+                console.log('Selection cleared');
+            })
+            .on('select2:error', function(e) {
+                console.error('Select2 error:', e);
+            });
+    }
+
+    function formatClient(client) {
+        if (!client.id) return client.text;
+        return $(`
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">${client.text}</div>
+                    <div class="text-muted small">
+                        ${client.phone ? `<i class="bi bi-telephone"></i> ${client.phone}` : ''}
+                        ${client.email ? `<i class="bi bi-envelope ms-2"></i> ${client.email}` : ''}
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    function formatClientSelection(client) {
+        if (!client.id) return client.text;
+        return client.text;
     }
 
     // Load collection schedules

@@ -95,44 +95,47 @@
         </div>
 
         <!-- Filters Section -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
-                <select id="clientSelect" class="form-select"></select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loan</label>
-                <select id="loanSelect" class="form-select">
-                    <option value="">All Loans</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                <input type="date" id="startDate" class="form-input">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                <input type="date" id="endDate" class="form-input">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                <select id="typeFilter" class="form-select">
-                    <option value="">All Types</option>
-                    <option value="sms">SMS</option>
-                    <option value="email">Email</option>
-                    <option value="call">Call</option>
-                    <option value="letter">Letter</option>
-                    <option value="visit">Visit</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per Page</label>
-                <select id="perPage" class="form-select">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+            <div class="grid grid-cols-5 gap-4">
+                <!-- Client Filter -->
+                <div class="col-span-2">
+                    <label for="clientSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
+                    <select id="clientSelect" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></select>
+                </div>
+
+                <!-- Type Filter -->
+                <div class="col-span-1">
+                    <label for="typeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <select id="typeFilter" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">All Types</option>
+                        <option value="sms">SMS</option>
+                        <option value="email">Email</option>
+                        <option value="call">Call</option>
+                        <option value="visit">Visit</option>
+                    </select>
+                </div>
+
+                <!-- Per Page -->
+                <div class="col-span-1">
+                    <label for="perPage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per Page</label>
+                    <select id="perPage" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="col-span-1">
+                    <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                    <input type="date" id="startDate" class="form-input w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-1.5">
+                </div>
+
+                <div class="col-span-1">
+                    <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                    <input type="date" id="endDate" class="form-input w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-1.5">
+                </div>
             </div>
         </div>
 

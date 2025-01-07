@@ -74,12 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#account_no').val(data.member_no);
                     updateRecipientField(data);
                 } else {
-                    updateLoanOptions(data.id);
+                    // Removed updateLoanOptions(data.id);
                 }
             })
             .on('select2:clear', function() {
                 if (!isModal) {
-                    updateLoanOptions(null);
+                    // Removed updateLoanOptions(null);
                 }
             })
             .on('select2:error', function(e) {
@@ -107,29 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return client.text;
     }
 
-    function updateLoanOptions(clientId) {
-        console.log('Updating loan options for client:', clientId);
-        if (clientId) {
-            $.get(`/user/clients/${clientId}/loans`)
-                .done(function(response) {
-                    console.log('Loan options received:', response);
-                    const loanSelect = $('#loanSelect');
-                    loanSelect.empty();
-                    loanSelect.append('<option value="">All Loans</option>');
-                    
-                    if (response.loans && Array.isArray(response.loans)) {
-                        response.loans.forEach(function(loan) {
-                            loanSelect.append(`<option value="${loan.id}">${loan.account_no} - ${loan.product_name}</option>`);
-                        });
-                    }
-                })
-                .fail(function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error fetching loans:', errorThrown);
-                });
-        } else {
-            $('#loanSelect').empty().append('<option value="">All Loans</option>');
-        }
-    }
+    // Removed function updateLoanOptions(clientId)
 
     function updateRecipientField(clientData) {
         console.log('Updating recipient field with client data:', clientData);
@@ -146,8 +124,27 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeEventListeners() {
         console.log('Initializing event listeners');
         
+        // Initialize Select2 for type filter
+        $('#typeFilter').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'All Types'
+        });
+
+        // Initialize Select2 for per page filter
+        $('#perPage').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            minimumResultsForSearch: Infinity // Disable search
+        });
+
+        // Initialize date pickers with better formatting
+        $('#startDate, #endDate').on('change', function() {
+            loadCommunications(1);
+        });
+        
         // Filter change handlers
-        $('#clientSelect, #loanSelect, #startDate, #endDate, #typeFilter, #perPage').on('change', function() {
+        $('#clientSelect, #typeFilter, #perPage, #startDate, #endDate').on('change', function() {
             console.log('Filter changed:', $(this).attr('id'));
             loadCommunications(1);
         });
@@ -273,7 +270,6 @@ document.addEventListener('DOMContentLoaded', function() {
             page: page,
             per_page: $('#perPage').val() || 10,
             member_id: $('#clientSelect').val() || '',
-            loan_id: $('#loanSelect').val() || '',
             start_date: $('#startDate').val() || '',
             end_date: $('#endDate').val() || '',
             type: $('#typeFilter').val() || ''
@@ -306,7 +302,6 @@ document.addEventListener('DOMContentLoaded', function() {
             page: page,
             per_page: $('#perPage').val() || 10,
             member_id: $('#clientSelect').val() || '',
-            loan_id: $('#loanSelect').val() || '',
             start_date: $('#startDate').val() || '',
             end_date: $('#endDate').val() || '',
             type: $('#typeFilter').val() || ''

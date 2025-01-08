@@ -11,23 +11,29 @@ document.addEventListener('DOMContentLoaded', function() {
         allowClear: true,
         width: '100%',
         ajax: {
-            url: '/api/collection-schedules/staff',
+            url: '/api/users/search',
             dataType: 'json',
             delay: 250,
             data: function(params) {
+                console.log('Sending search:', params.term);
                 return {
-                    search: params.term,
+                    query: params.term, // Change 'search' to 'query'
                     page: params.page || 1
                 };
             },
-            processResults: function(data) {
-                return {
-                    results: data.map(staff => ({
-                        id: staff.id,
-                        text: `${staff.name} (${staff.branch || 'No Branch'})`
-                    }))
-                };
-            },
+                    processResults: function(data) {
+                        console.log('Received data:', data);
+                        if (!data || !Array.isArray(data.staff)) {
+                            console.error('Expected data.staff to be an array:', data);
+                            return { results: [] }; // Return an empty array if the format is incorrect
+                        }
+                        return {
+                            results: data.staff.map(item => ({
+                                id: item.UserID, // Ensure this matches your API response
+                                text: item.FullName // Ensure this matches your API response
+                            }))
+                        };
+                    },
             cache: true
         },
         minimumInputLength: 0,
@@ -84,94 +90,77 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#loanSelect').val(null).trigger('change');
     }
 
-    function initializeClientSelect(selector, isModal) {
-        console.log('Initializing select2 for:', selector);
-        const select = $(selector);
+function initializeClientSelect(selector, isModal) {
+    console.log('Initializing select2 for:', selector);
+    const select = $(selector);
 
-        const config = {
-            theme: 'bootstrap-5',
-            placeholder: 'Search for a client...',
-            allowClear: true,
-            width: '100%',
-            ajax: {
-                url: '/api/customers/search',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    console.log('Search params:', params);
-                    return {
-                        q: params.term || '',
-                        page: params.page || 1
-                    };
-                },
-                processResults: function(data, params) {
-                    console.log('Received data:', data);
-                    params.page = params.page || 1;
-                    return {
-                        results: data.items.map(item => {
-                            const name = item.text.split(' (')[0];
-                            return {
-                                id: name,
-                                text: item.text,
-                                member_no: item.member_no,
-                                phone: item.phone,
-                                email: item.email
-                            };
-                        }),
-                        pagination: {
-                            more: data.has_more
-                        }
-                    };
-                },
-                cache: true
+    const config = {
+        theme: 'bootstrap-5',
+        placeholder: 'Search for a client...',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: '/api/customers/search', // Updated URL to match the new endpoint
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                console.log('Search params:', params);
+                return {
+                    q: params.term || '', // Changed to match the expected query parameter
+                    page: params.page || 1,
+                    per_page: 10 // Set a default limit for pagination
+                };
             },
-            minimumInputLength: 2,
-            templateResult: formatClient,
-            templateSelection: formatClientSelection
-        };
-
-        // Add modal-specific configurations
-        if (isModal) {
-            config.dropdownParent = $('#newCollectionScheduleModal');
+          processResults: function(data) {
+              console.log('Received data:', data);
+              if (!data || !Array.isArray(data.items)) {
+                  console.error('Expected data.items to be an array:', data);
+                  return { results: [] }; // Return an empty array if the format is incorrect
+              }
+              return {
+                  results: data.items.map(item => ({
+                      id: item.id, // Use the id from the API response
+                      text: item.text // Use the text from the API response
+                  })),
+                  pagination: {
+                      more: data.has_more // Handle pagination
+                  }
+              };
+          },
+            cache: true
+        },
+        minimumInputLength: 2,
+        templateResult: function(client) {
+            return client.loading ? 'Loading...' : client.text; // Simplified result template
+        },
+        templateSelection: function(client) {
+            return client.text; // Return the selected text
         }
+    };
 
-        // Initialize Select2
-        select.select2(config)
-            .on('select2:select', function(e) {
-                console.log('Selected:', e.params.data);
-                const data = e.params.data;
-                if (isModal) {
-                    // Handle modal-specific selection if needed
-                    console.log('Client selected in modal:', data);
-                }
-            })
-            .on('select2:clear', function() {
-                console.log('Selection cleared');
-            })
-            .on('select2:error', function(e) {
-                console.error('Select2 error:', e);
-            });
+    // Add modal-specific configurations
+    if (isModal) {
+        config.dropdownParent = $('#newCollectionScheduleModal');
     }
 
-    function formatClient(client) {
-        if (!client.id) return client.text;
-        return $(`
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="fw-bold">${client.text}</div>
-                    <div class="text-muted small">
-                        ${client.phone ? `<i class="bi bi-telephone"></i> ${client.phone}` : ''}
-                        ${client.email ? `<i class="bi bi-envelope ms-2"></i> ${client.email}` : ''}
-                    </div>
-                </div>
-            </div>
-        `);
-    }
+    // Initialize Select2
+    select.select2(config)
+        .on('select2:select', function(e) {
+            console.log('Selected:', e.params.data);
+            const data = e.params.data;
+            if (isModal) {
+                // Handle modal-specific selection if needed
+                console.log('Client selected in modal:', data);
+            }
+        })
+        .on('select2:clear', function() {
+            console.log('Selection cleared');
+        })
+        .on('select2:error', function(e) {
+            console.error('Select2 error:', e);
+        });
+}
 
-    function formatClientSelection(client) {
-        if (!client.id) return client.text;
-        return client.text;
-    }
 
     // Load collection schedules
     function loadCollectionSchedules(filters = {}) {
@@ -463,35 +452,6 @@ document.addEventListener('DOMContentLoaded', function() {
         alert(`${title}: ${message}`);
     }
 
-    // Function to fetch staff data from the search_users endpoint
-    function fetchStaffData() {
-        fetch('/users/search?limit=100')  // Updated endpoint path and added limit parameter
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                const staffSelect = document.getElementById('staffSelect');
-                // Clear existing options
-                staffSelect.innerHTML = '<option value="">--Select Staff--</option>';
-                // Add new options from the response
-                data.staff.forEach(staff => {
-                    const option = document.createElement('option');
-                    option.value = staff.id;
-                    option.textContent = staff.name;
-                    staffSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching staff data:', error);
-                showNotification('Error', 'Failed to load staff data');
-            });
-    }
-
-    // Call the function to fetch and populate staff data on page load
-    fetchStaffData();
 
     // Initialize collection schedules on page load
     loadCollectionSchedules();

@@ -39,35 +39,19 @@ def search_customers():
         # Calculate offset for pagination
         offset = (page - 1) * per_page
 
-        # Search query with LIKE for multiple fields
+        # Search query with LIKE for FullName
         search_term = f"%{query}%"
         sql = """
             SELECT 
                 MemberID,
-                MemberNo,
-                FirstName,
-                MiddleName,
-                LastName,
-                FullName,
-                PhoneNumber,
-                Email,
-                Status
+                FullName
             FROM Members 
             WHERE 
-                MemberNo LIKE %s OR
-                FirstName LIKE %s OR
-                MiddleName LIKE %s OR
-                LastName LIKE %s OR
-                PhoneNumber LIKE %s OR
-                Email LIKE %s OR
                 FullName LIKE %s
             AND Status = 'Active'
             LIMIT %s OFFSET %s
         """
-        cursor.execute(sql, (
-            search_term, search_term, search_term, search_term, 
-            search_term, search_term, search_term, per_page, offset
-        ))
+        cursor.execute(sql, (search_term, per_page, offset))
         members = cursor.fetchall()
 
         # Get total count for pagination
@@ -75,19 +59,10 @@ def search_customers():
             SELECT COUNT(*) as count
             FROM Members 
             WHERE 
-                (MemberNo LIKE %s OR
-                FirstName LIKE %s OR
-                MiddleName LIKE %s OR
-                LastName LIKE %s OR
-                PhoneNumber LIKE %s OR
-                Email LIKE %s OR
-                FullName LIKE %s)
+                FullName LIKE %s
             AND Status = 'Active'
         """
-        cursor.execute(count_sql, (
-            search_term, search_term, search_term, search_term, 
-            search_term, search_term, search_term
-        ))
+        cursor.execute(count_sql, (search_term,))
         total_count = cursor.fetchone()['count']
 
         cursor.close()
@@ -97,12 +72,9 @@ def search_customers():
         return jsonify({
             'items': [{
                 'id': str(member['MemberID']),
-                'text': f"{member['FullName']} ({member['MemberNo']})",
-                'member_no': member['MemberNo'],
-                'phone': member.get('PhoneNumber', ''),
-                'email': member.get('Email', '')
+                'text': member['FullName']  # Return only FullName
             } for member in members],
-            'has_more': total_count > (page * per_page)
+            'has_more': total_count > (page * per_page)  # Check if there are more results
         })
 
     except Exception as e:
@@ -112,6 +84,54 @@ def search_customers():
             'has_more': False,
             'error': 'An error occurred while searching'
         }), 500
+@api_bp.route('/users/search', methods=['GET'])
+@login_required
+def search_users():
+    """Search users from the database."""
+    try:
+        # Extract query parameters
+        search_query = request.args.get('query', '').strip()
+
+        if not search_query:
+            return jsonify({'staff': []})
+
+        # Connect to the database
+        conn = mysql.connector.connect(
+            host=db_config['host'],
+            user=db_config['user'],
+            password=db_config['password'],
+            database='sacco_db',  # Use the appropriate database
+            auth_plugin=db_config['auth_plugin']
+        )
+        cursor = conn.cursor(dictionary=True)
+
+        # Search query with LIKE for multiple fields
+        search_term = f"%{search_query}%"
+        sql = """
+            SELECT 
+                UserID,
+                FullName
+            FROM Users 
+            WHERE 
+                FullName LIKE %s
+            AND status = 'Active'
+        """
+        cursor.execute(sql, (search_term,))  # Corrected to include a comma
+
+        staff_members = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Transform the results to match the expected format
+        staff_list = [{'UserID': staff['UserID'], 'FullName': staff['FullName']} for staff in staff_members]
+
+        # Return the data as a JSON response
+        return jsonify({'staff': staff_list})
+
+    except Exception as e:
+        current_app.logger.error(f'Error in user search: {str(e)}')
+        return jsonify({'staff': [], 'error': 'An error occurred while searching'}), 500
 
 @api_bp.route('/communications', methods=['POST'])
 @login_required

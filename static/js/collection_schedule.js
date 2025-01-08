@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     $(document).ready(function() {
         // Initialize Select2 for both staff select fields
-        $('#staffSelect, #filterStaff').select2(staffSelect2Config);
+        $('#staffSelect').select2(staffSelect2Config);
 
         // Initialize client select
         initializeClientSelect('#collectionClientSelect', true);
@@ -462,6 +462,36 @@ document.addEventListener('DOMContentLoaded', function() {
         // Implement your notification system here
         alert(`${title}: ${message}`);
     }
+
+    // Function to fetch staff data from the search_users endpoint
+    function fetchStaffData() {
+        fetch('/users/search?limit=100')  // Updated endpoint path and added limit parameter
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const staffSelect = document.getElementById('staffSelect');
+                // Clear existing options
+                staffSelect.innerHTML = '<option value="">--Select Staff--</option>';
+                // Add new options from the response
+                data.staff.forEach(staff => {
+                    const option = document.createElement('option');
+                    option.value = staff.id;
+                    option.textContent = staff.name;
+                    staffSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching staff data:', error);
+                showNotification('Error', 'Failed to load staff data');
+            });
+    }
+
+    // Call the function to fetch and populate staff data on page load
+    fetchStaffData();
 
     // Initialize collection schedules on page load
     loadCollectionSchedules();

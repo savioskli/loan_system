@@ -1962,7 +1962,7 @@ def get_core_loan_communications():
         )
         
         cursor = conn.cursor(dictionary=True)
-        
+
         # List tables to check the correct table name
         cursor.execute("SHOW TABLES")
         tables = cursor.fetchall()
@@ -2260,3 +2260,53 @@ def api_get_metrics():
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
+
+@user_bp.route('/search_staff', methods=['GET'])
+@login_required
+def search_staff():
+    try:
+        # Query the Staff model to get all staff members
+        staff_members = Staff.query.all()
+        # Format the data as a list of dictionaries
+        staff_list = [{'id': staff.id, 'name': staff.name, 'username': staff.username, 'role': staff.role, 'status': staff.status} for staff in staff_members]
+        # Return the data as a JSON response
+        return jsonify(staff_list)
+    except Exception as e:
+        logger.error(f"Error fetching staff data: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching staff data.'}), 500
+
+@user_bp.route('/users/search', methods=['GET'])
+@login_required
+def search_users():
+    try:
+        # Extract query parameters
+        search_query = request.args.get('query', '', type=str)
+        role = request.args.get('role', None, type=str)
+        status = request.args.get('status', 'Active', type=str)
+        branch_id = request.args.get('branch_id', None, type=int)
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 10, type=int)
+
+        # Build query
+        query = Staff.query
+
+        if search_query:
+            query = query.filter(or_(Staff.username.ilike(f'%{search_query}%'), Staff.full_name.ilike(f'%{search_query}%')))
+        if role:
+            query = query.filter_by(role=role)
+        if status:
+            query = query.filter_by(status=status)
+        if branch_id:
+            query = query.filter_by(branch_id=branch_id)
+
+        # Pagination
+        paginated_query = query.paginate(page=page, per_page=limit, error_out=False)
+
+        # Format the data as a list of dictionaries
+        staff_list = [{'id': staff.id, 'name': staff.name, 'username': staff.username, 'role': staff.role, 'status': staff.status} for staff in paginated_query.items]
+
+        # Return the data as a JSON response
+        return jsonify({'staff': staff_list, 'total': paginated_query.total, 'pages': paginated_query.pages})
+    except Exception as e:
+        logger.error(f"Error fetching staff data: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching staff data.'}), 500

@@ -2337,3 +2337,14 @@ def auction_process():
         current_app.logger.error(f"Error rendering auction process page: {str(e)}")
         flash('An error occurred while loading the auction process page', 'error')
         return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/field-visits')
+@login_required
+def field_visits():
+    """Render the field visits page"""
+    try:
+        return render_template('user/field_visits.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering field visits page: {str(e)}")
+        flash('An error occurred while loading the field visits page', 'error')
+        return redirect(url_for('user.dashboard'))

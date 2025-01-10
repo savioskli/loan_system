@@ -5,6 +5,7 @@ from config import db_config
 from models.correspondence import Correspondence
 from models.staff import Staff
 from models.loan import Loan
+from models.collection_schedule import CollectionSchedule
 from datetime import datetime
 from extensions import db, csrf
 
@@ -21,6 +22,7 @@ def search_customers():
         per_page = int(request.args.get('per_page', 10))
 
         if not query:
+            current_app.logger.info('No query provided, returning empty result')
             return jsonify({
                 'items': [],
                 'has_more': False
@@ -73,6 +75,7 @@ def search_customers():
         conn.close()
 
         # Transform the results to match Select2 format
+        current_app.logger.info('Returning search results')
         return jsonify({
             'items': [{
                 'id': str(member['MemberID']),
@@ -87,12 +90,13 @@ def search_customers():
 
     except Exception as e:
         current_app.logger.error(f'Error in customer search: {str(e)}')
+        current_app.logger.info('Returning error response')
         return jsonify({
             'items': [],
             'has_more': False,
             'error': 'An error occurred while searching'
         }), 500
-        
+
 @api_bp.route('/users/search', methods=['GET'])
 @login_required
 def search_users():
@@ -102,6 +106,7 @@ def search_users():
         search_query = request.args.get('query', '').strip()
 
         if not search_query:
+            current_app.logger.info('No query provided, returning empty result')
             return jsonify({'staff': []})
 
         # Connect to the database
@@ -119,7 +124,8 @@ def search_users():
         sql = """
             SELECT 
                 UserID,
-                FullName
+                FullName,
+                BranchID
             FROM Users 
             WHERE 
                 FullName LIKE %s
@@ -133,13 +139,15 @@ def search_users():
         conn.close()
 
         # Transform the results to match the expected format
-        staff_list = [{'UserID': staff['UserID'], 'FullName': staff['FullName']} for staff in staff_members]
+        staff_list = [{'UserID': staff['UserID'], 'FullName': staff['FullName'], 'BranchID': staff['BranchID']} for staff in staff_members]
 
+        current_app.logger.info('Returning search results')
         # Return the data as a JSON response
         return jsonify({'staff': staff_list})
 
     except Exception as e:
         current_app.logger.error(f'Error in user search: {str(e)}')
+        current_app.logger.info('Returning error response')
         return jsonify({'staff': [], 'error': 'An error occurred while searching'}), 500
 
 @api_bp.route('/communications', methods=['POST'])
@@ -153,6 +161,8 @@ def create_communication():
         # Get current staff member
         staff = Staff.query.filter_by(username=current_user.username).first()
         if not staff:
+            current_app.logger.error('Staff record not found')
+            current_app.logger.info('Returning error response')
             return jsonify({
                 'status': 'error',
                 'message': 'Staff record not found'
@@ -179,6 +189,7 @@ def create_communication():
             )
         except KeyError as e:
             current_app.logger.error(f"Missing required field: {e}")
+            current_app.logger.info('Returning error response')
             return jsonify({
                 'status': 'error',
                 'message': f'Missing required field: {str(e)}'
@@ -187,6 +198,8 @@ def create_communication():
         db.session.add(new_comm)
         db.session.commit()
         
+        current_app.logger.info('Communication created successfully')
+        current_app.logger.info('Returning success response')
         return jsonify({
             'status': 'success',
             'message': 'Communication created successfully',
@@ -196,7 +209,68 @@ def create_communication():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error creating communication: {str(e)}")
+        current_app.logger.info('Returning error response')
         return jsonify({
             'status': 'error',
             'message': 'Failed to create communication'
+        }), 500
+
+@api_bp.route('/new-collection-schedules', methods=['POST'])
+@login_required
+def create_collection_schedule():
+    """Create a new collection schedule"""
+    try:
+        data = request.json
+        current_app.logger.info(f"Received data: {data}")
+        
+        # Get current staff member
+        staff = Staff.query.filter_by(username=current_user.username).first()
+        if not staff:
+            current_app.logger.error('Staff record not found')
+            return jsonify({
+                'status': 'error',
+                'message': 'Staff record not found'
+            }), 404
+
+        # Create new collection schedule
+        try:
+            new_schedule = CollectionSchedule(
+                staff_id=staff.id,
+                client_id=data['client_id'],  # Keep this line for client_id
+                loan_id=data['loan_id'],
+                follow_up_deadline=data['follow_up_deadline'],
+                collection_priority=data['collection_priority'],
+                follow_up_frequency=data['follow_up_frequency'],
+                next_follow_up_date=datetime.strptime(data['next_follow_up_date'], '%Y-%m-%dT%H:%M'),
+                promised_payment_date=datetime.strptime(data['promised_payment_date'], '%Y-%m-%d'),
+                attempts_allowed=data['attempts'],  # Change this line to attempts_allowed
+                preferred_collection_method=data['preferred_collection_method'],
+                task_description=data['task_description'],
+                special_instructions=data.get('special_instructions', None),
+                assigned_branch=data['branch_id']
+            )
+            
+            db.session.add(new_schedule)
+            db.session.commit()
+
+            current_app.logger.info('Collection schedule created successfully')
+            return jsonify({
+                'status': 'success',
+                'message': 'Collection schedule created successfully',
+                'data': new_schedule.to_dict()  # Assuming to_dict() method exists in the model
+            }), 201
+
+        except KeyError as e:
+            current_app.logger.error(f"Missing required field: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Missing required field: {str(e)}'
+            }), 400
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating collection schedule: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'An error occurred while creating the collection schedule'
         }), 500

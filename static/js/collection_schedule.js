@@ -5,72 +5,113 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeModalBtn = document.getElementById('closeCollectionScheduleModal');
 
     // Initialize Select2 dropdowns
-    const staffSelect2Config = {
-        theme: 'bootstrap-5',
-        placeholder: 'Select a collection officer',
-        allowClear: true,
-        width: '100%',
-        ajax: {
-            url: '/api/users/search',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                console.log('Sending search:', params.term);
-                return {
-                    query: params.term, // Change 'search' to 'query'
-                    page: params.page || 1
-                };
-            },
-                    processResults: function(data) {
-                        console.log('Received data:', data);
-                        if (!data || !Array.isArray(data.staff)) {
-                            console.error('Expected data.staff to be an array:', data);
-                            return { results: [] }; // Return an empty array if the format is incorrect
-                        }
-                        return {
-                            results: data.staff.map(item => ({
-                                id: item.UserID, // Ensure this matches your API response
-                                text: item.FullName // Ensure this matches your API response
-                            }))
-                        };
-                    },
-            cache: true
+const staffSelect2Config = {
+    theme: 'bootstrap-5',
+    placeholder: 'Select a collection officer',
+    allowClear: true,
+    width: '100%',
+    ajax: {
+        url: '/api/users/search',
+        dataType: 'json',
+        delay: 250,
+        data: function(params) {
+            console.log('Sending search:', params.term);
+            return {
+                query: params.term, // Change 'search' to 'query'
+                page: params.page || 1
+            };
         },
-        minimumInputLength: 0,
-        templateResult: function(staff) {
-            if (staff.loading) {
-                return 'Loading...';
+        processResults: function(data) {
+            console.log('Received data:', data);
+            if (!data || !Array.isArray(data.staff)) {
+                console.error('Expected data.staff to be an array:', data);
+                return { results: [] }; // Return an empty array if the format is incorrect
             }
-            return staff.text;
+            return {
+                results: data.staff.map(item => ({
+                    id: item.UserID, // Ensure this matches your API response
+                    text: item.FullName, // Ensure this matches your API response
+                    branchId: item.BranchID // Include BranchID in the result
+                }))
+            };
         },
-        templateSelection: function(staff) {
-            return staff.text;
+        cache: true
+    },
+    minimumInputLength: 0,
+    templateResult: function(staff) {
+        if (staff.loading) {
+            return 'Loading...';
         }
-    };
+        return staff.text;
+    },
+    templateSelection: function(staff) {
+        // Set the hidden input value for BranchID when a staff member is selected
+        $('#branchInput').val(staff.branchId); // Set the BranchID in the hidden input
+        return staff.text;
+    }
+};
+
+// New configuration for supervisorSelect with a different placeholder
+const supervisorSelect2Config = {
+    theme: 'bootstrap-5',
+    placeholder: 'Select a supervisor',
+    allowClear: true,
+    width: '100%',
+    ajax: {
+        url: '/api/users/search',
+        dataType: 'json',
+        delay: 250,
+        data: function(params) {
+            console.log('Sending search:', params.term);
+            return {
+                query: params.term, // Change 'search' to 'query'
+                page: params.page || 1
+            };
+        },
+        processResults: function(data) {
+            console.log('Received data:', data);
+            if (!data || !Array.isArray(data.staff)) {
+                console.error('Expected data.staff to be an array:', data);
+                return { results: [] }; // Return an empty array if the format is incorrect
+            }
+            return {
+                results: data.staff.map(item => ({
+                    id: item.UserID, // Ensure this matches your API response
+                    text: item.FullName // Ensure this matches your API response
+                }))
+            };
+        },
+        cache: true
+    },
+    minimumInputLength: 0,
+    templateResult: function(staff) {
+        if (staff.loading) {
+            return 'Loading...';
+        }
+        return staff.text;
+    },
+    templateSelection: function(staff) {
+        // No need to update BranchID for supervisor selection
+        return staff.text;
+    }
+};
+
+// Initialize Select2 for both staff select fields
+$(document).ready(function() {
+    $('#staffSelect').select2(staffSelect2Config);
+    $('#supervisorSelect').select2(supervisorSelect2Config); // Use the new configuration for supervisorSelect
+});
+  
 
     $(document).ready(function() {
-        // Initialize Select2 for both staff select fields
-        $('#staffSelect').select2(staffSelect2Config);
-
+   
         // Initialize client select
         initializeClientSelect('#collectionClientSelect', true);
 
-        $('#loanSelect').select2({
+         $('#loanSelect').select2({
             theme: 'bootstrap-5',
-            placeholder: 'Select a loan',
-            ajax: {
-                url: '/api/collection-schedules/loans',
-                dataType: 'json',
-                processResults: function(data) {
-                    return {
-                        results: data.map(loan => ({
-                            id: loan.id,
-                            text: `${loan.account_no} - ${loan.borrower_name} (${loan.status})`
-                        }))
-                    };
-                }
-            }
-        });
+            placeholder: 'Select a Loan Account',
+        }); 
     });
 
     // Modal event listeners
@@ -305,38 +346,39 @@ function initializeClientSelect(selector, isModal) {
     }
 
     // Create new collection schedule
-    $('#newCollectionScheduleForm').submit(function(event) {
-        event.preventDefault();
-        const formData = {
-            staff_id: $('#staffSelect').val(),
-            loan_id: $('#loanSelect').val(),
-            assigned_branch: $('#branchInput').val(),
-            follow_up_deadline: $('#followUpDeadline').val(),
-            collection_priority: $('#prioritySelect').val(),
-            follow_up_frequency: $('#frequencySelect').val(),
-            next_follow_up_date: $('#nextFollowUpDate').val(),
-            preferred_collection_method: $('#collectionMethodSelect').val(),
-            promised_payment_date: $('#promisedPaymentDate').val() || null,
-            attempts_allowed: $('#attemptsAllowed').val(),
-            task_description: $('#taskDescription').val(),
-            special_instructions: $('#specialInstructions').val()
-        };
+$('#newCollectionScheduleForm').submit(function(event) {
+    event.preventDefault();
+    const formData = {
+        staff_id: $('#staffSelect').val(),
+        loan_id: $('#loanSelect').val(),
+        client_id: $('#collectionClientSelect').val(),
+        follow_up_deadline: $('#deadline').val(),
+        collection_priority: $('#priority').val(),
+        follow_up_frequency: $('#frequency').val(),
+        next_follow_up_date: $('#nextFollowUp').val(),
+        promised_payment_date: $('#promisedPaymentDate').val(), // New field
+        attempts: $('#attempts').val(), // New field
+        preferred_collection_method: $('#method').val(), // Ensure this is included
+        task_description: $('#description').val(),
+        special_instructions: $('#instructions').val(),
+        branch_id: $('#branchInput').val() // Include assigned branch
+    };
 
-        $.ajax({
-            url: '/api/collection-schedules',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function(response) {
-                modal.classList.add('hidden');
-                showNotification('Success', 'Collection schedule created successfully');
-                loadCollectionSchedules();
-            },
-            error: function(xhr) {
-                showNotification('Error', xhr.responseJSON?.error || 'Failed to create schedule');
-            }
-        });
+    $.ajax({
+        url: '/api/new-collection-schedules',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            modal.classList.add('hidden');
+            showNotification('Success', 'Collection schedule created successfully');
+            loadCollectionSchedules();
+        },
+        error: function(xhr) {
+            showNotification('Error', xhr.responseJSON?.error || 'Failed to create schedule');
+        }
     });
+});
 
     // Update progress
     $(document).on('click', '.update-progress-btn', function() {

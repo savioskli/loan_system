@@ -74,143 +74,171 @@
                 <!-- Schedules will be loaded here dynamically -->
             </div>
 
-            <!-- New Collection Schedule Modal -->
-            <div id="newCollectionScheduleModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden">
-                <div class="fixed inset-0 z-10 overflow-y-auto">
-                    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                        <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
-                            <!-- Modal Header -->
-                            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <h3 class="text-lg font-medium text-gray-900">New Collection Schedule</h3>
-                                        <p class="text-sm text-gray-600 mt-1">Create a new collection schedule</p>
+          <!-- New Collection Schedule Modal -->
+          <div id="newCollectionScheduleModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden">
+              <div class="fixed inset-0 z-10 overflow-y-auto">
+                  <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                      <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                          <!-- Modal Header -->
+                          <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                              <div class="flex justify-between items-center">
+                                  <div>
+                                      <h3 class="text-lg font-medium text-gray-900">New Collection Schedule</h3>
+                                      <p class="text-sm text-gray-600 mt-1">Create a new collection schedule</p>
+                                  </div>
+                                  <button id="closeCollectionScheduleModal" class="text-gray-500 hover:text-gray-700">
+                                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                      </svg>
+                                  </button>
+                              </div>
+                          </div>
+          
+                          <!-- Modal Body -->
+                          <div class="px-6 py-4">
+                              <form id="newCollectionScheduleForm" class="space-y-6">
+                                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                  <input type="hidden" name="assigned_branch" id="branchInput" value="YourBranchName"> <!-- Example branch input -->
+                                  
+                                  <!-- Staff, Client, Loan, and Supervisor Selection -->
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Client</label>
+                                          <div class="mt-1">
+                                              <select id="collectionClientSelect" name="client_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
+                                          </div>
+                                      </div>
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Loan</label>
+                                          <div class="mt-1">
+                                              <select id="loanSelect" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label class="block text-sm font-medium text-gray-700">Collection Officer</label>
+                                    <div class="mt-1">
+                                        <select id="staffSelect" name="staff_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
                                     </div>
-                                    <button id="closeCollectionScheduleModal" class="text-gray-500 hover:text-gray-700">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                    </button>
                                 </div>
-                            </div>
-
-                            <!-- Modal Body -->
-                            <div class="px-6 py-4">
-                                <form id="newCollectionScheduleForm" class="space-y-6">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <!-- Staff and Client Selection -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Client</label>
-                                            <div class="mt-1">
-                                                <select id="collectionClientSelect" name="client_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Collection Officer</label>
-                                            <div class="mt-1">
-                                                <select id="staffSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
-                                            </div>
-                                        </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Supervisor</label>
+                                    <div class="mt-1">
+                                        <select id="supervisorSelect" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
                                     </div>
-
-                                    <!-- Loan Selection -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Loan</label>
-                                        <div class="mt-1">
-                                            <select id="loanSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></select>
-                                        </div>
-                                    </div>
-                                    <!-- Collection Details -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Priority</label>
-                                            <div class="mt-1">
-                                                <select id="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                                    <option value="High">High</option>
-                                                    <option value="Medium" selected>Medium</option>
-                                                    <option value="Low">Low</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Follow-up Frequency</label>
-                                            <div class="mt-1">
-                                                <select id="frequency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                                    <option value="Daily">Daily</option>
-                                                    <option value="Weekly">Weekly</option>
-                                                    <option value="Bi-Weekly">Bi-Weekly</option>
-                                                    <option value="Monthly">Monthly</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Dates -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Next Follow-up Date</label>
-                                            <div class="mt-1">
-                                                <input type="datetime-local" id="nextFollowUp" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Follow-up Deadline</label>
-                                            <div class="mt-1">
-                                                <input type="datetime-local" id="deadline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Collection Method -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Preferred Collection Method</label>
-                                        <div class="mt-1">
-                                            <select id="method" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                                <option value="Phone Call">Phone Call</option>
-                                                <option value="Physical Visit">Physical Visit</option>
-                                                <option value="Legal Action">Legal Action</option>
-                                                <option value="Email">Email</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <!-- Task Description -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Task Description</label>
-                                        <div class="mt-1">
-                                            <textarea id="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></textarea>
-                                        </div>
-                                    </div>
-
-                                    <!-- Special Instructions -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Special Instructions</label>
-                                        <div class="mt-1">
-                                            <textarea id="instructions" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <!-- Modal Footer -->
-                                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                                        <div class="flex justify-end space-x-3">
-                                            <button type="button" 
-                                                    id="closeCollectionScheduleModal"
-                                                    class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                                                Cancel
-                                            </button>
-                                            <button type="submit" 
-                                                    class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                                                Create Schedule
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                                </div>
+                              </div>
+                                  
+                                  <!-- Collection Details -->
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Priority</label>
+                                          <div class="mt-1">
+                                              <select id="priority" name="collection_priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                                  <option value="High">High</option>
+                                                  <option value="Medium" selected>Medium</option>
+                                                  <option value="Low">Low</option>
+                                              </select>
+                                          </div>
+                                      </div>
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Follow-up Frequency</label>
+                                          <div class="mt-1">
+                                              <select id="frequency" name="follow_up_frequency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                                  <option value="Daily">Daily</option>
+                                                  <option value="Weekly">Weekly</option>
+                                                  <option value="Bi-Weekly">Bi-Weekly</option>
+                                                  <option value="Monthly">Monthly</option>
+                                              </select>
+                                          </div>
+                                      </div>
+                                  </div>    
+                                  <!-- Dates -->
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Next Follow-up Date</label>
+                                          <div class="mt-1">
+                                              <input type="datetime-local" id="nextFollowUp" name="next_follow_up_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                          </div>
+                                      </div>
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Follow-up Deadline</label>
+                                          <div class="mt-1">
+                                              <input type="datetime-local" id="deadline" name="follow_up_deadline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <!-- Add this section where you want the new fields to appear in the modal -->
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Promised Payment Date</label>
+                                          <div class="mt-1">
+                                              <input type="date" id="promisedPaymentDate" name="promised_payment_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                          </div>
+                                      </div>
+                                      <div>
+                                          <label class="block text-sm font-medium text-gray-700">Attempts</label>
+                                          <div class="mt-1">
+                                              <input type="number" id="attempts" name="attempts" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required min="0">
+                                          </div>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Collection Method -->
+                                  <div>
+                                      <label class="block text-sm font-medium text-gray-700">Preferred Collection Method</label>
+                                      <div class="mt-1">
+                                          <select id="method" name="preferred_collection_method" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="" disabled selected>Select a collection method</option>
+                                            <option value="Phone Call">Phone Call</option>
+                                            <option value="Physical Visit">Physical Visit</option>
+                                            <option value="Email">Email</option>
+                                            <option value="SMS">SMS</option>
+                                            <option value="WhatsApp">WhatsApp</option>
+                                            <option value="Postal Mail">Postal Mail</option>
+                                            <option value="In-Person Meeting">In-Person Meeting</option>
+                                            <option value="Legal Action">Legal Action</option>
+                                          </select>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Task Description -->
+                                  <div>
+                                      <label class="block text-sm font-medium text-gray-700">Task Description</label>
+                                      <div class="mt-1">
+                                          <textarea id="description" name="task_description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required></textarea>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Special Instructions -->
+                                  <div>
+                                      <label class="block text-sm font-medium text-gray-700">Special Instructions</label>
+                                      <div class="mt-1">
+                                          <textarea id="instructions" name="special_instructions" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"></textarea>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Modal Footer -->
+                                  <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                                      <div class="flex justify-end space-x-3">
+                                          <button type="button" 
+                                                  id="closeCollectionScheduleModal"
+                                                  class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                              Cancel
+                                          </button>
+                                          <button type="submit" 
+                                                  class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                              Create Schedule
+                                          </button>
+                                      </div>
+                                  </div>
+                              </form>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
         </div>
     </div>
 {% endblock %}

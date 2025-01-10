@@ -1571,7 +1571,7 @@ def sync_all_guarantors():
         
         # Sync guarantors for each client
         for client in clients:
-            if GuarantorService.sync_guarantors(client.client_no):
+            if GuarantorService.sync_guarantors(client.customer_id):
                 success_count += 1
         
         if success_count > 0:
@@ -2260,4 +2260,3 @@ def api_get_metrics():
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
-

@@ -2260,3 +2260,80 @@ def api_get_metrics():
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
+
+@user_bp.route('/loan-rescheduling')
+@login_required
+def loan_rescheduling():
+    """Render the loan rescheduling page"""
+    try:
+        return render_template('user/loan_rescheduling.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering loan rescheduling page: {str(e)}")
+        flash('An error occurred while loading the loan rescheduling page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/refinancing')
+@login_required
+def refinancing():
+    """Render the refinancing page"""
+    try:
+        return render_template('user/refinancing.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering refinancing page: {str(e)}")
+        flash('An error occurred while loading the refinancing page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/settlement-plans')
+@login_required
+def settlement_plans():
+    """Render the settlement plans page"""
+    try:
+        return render_template('user/settlement_plans.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering settlement plans page: {str(e)}")
+        flash('An error occurred while loading the settlement plans page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/demand-letters')
+@login_required
+def demand_letters():
+    """Render the demand letters page"""
+    try:
+        return render_template('user/demand_letters.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering demand letters page: {str(e)}")
+        flash('An error occurred while loading the demand letters page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/crb-reports')
+@login_required
+def crb_reports():
+    """Render the CRB reports page"""
+    try:
+        return render_template('user/crb_reports.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering CRB reports page: {str(e)}")
+        flash('An error occurred while loading the CRB reports page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/legal-cases')
+@login_required
+def legal_cases():
+    """Render the legal cases page"""
+    try:
+        return render_template('user/legal_cases.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering legal cases page: {str(e)}")
+        flash('An error occurred while loading the legal cases page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/auction-process')
+@login_required
+def auction_process():
+    """Render the auction process page"""
+    try:
+        return render_template('user/auction_process.html')
+    except Exception as e:
+        current_app.logger.error(f"Error rendering auction process page: {str(e)}")
+        flash('An error occurred while loading the auction process page', 'error')
+        return redirect(url_for('user.dashboard'))

@@ -43,12 +43,16 @@ def search_customers():
         search_term = f"%{query}%"
         sql = """
             SELECT 
-                MemberID,
-                FullName
+                Members.MemberID,
+                Members.FullName,
+                GROUP_CONCAT(LoanApplications.LoanAppID) AS LoanAppIDs,
+                GROUP_CONCAT(LoanApplications.LoanNo) AS LoanNos
             FROM Members 
+            LEFT JOIN LoanApplications ON Members.MemberID = LoanApplications.MemberID
             WHERE 
-                FullName LIKE %s
-            AND Status = 'Active'
+                Members.FullName LIKE %s
+            AND Members.Status = 'Active'
+            GROUP BY Members.MemberID
             LIMIT %s OFFSET %s
         """
         cursor.execute(sql, (search_term, per_page, offset))
@@ -72,7 +76,11 @@ def search_customers():
         return jsonify({
             'items': [{
                 'id': str(member['MemberID']),
-                'text': member['FullName']  # Return only FullName
+                'text': member['FullName'],
+                'loans': [
+                    {'LoanAppID': loanAppID, 'LoanNo': loanNo}
+                    for loanAppID, loanNo in zip(member['LoanAppIDs'].split(','), member['LoanNos'].split(','))
+                ]  # Create an array of loans
             } for member in members],
             'has_more': total_count > (page * per_page)  # Check if there are more results
         })
@@ -84,6 +92,7 @@ def search_customers():
             'has_more': False,
             'error': 'An error occurred while searching'
         }), 500
+        
 @api_bp.route('/users/search', methods=['GET'])
 @login_required
 def search_users():

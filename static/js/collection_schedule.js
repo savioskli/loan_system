@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeClientSelect(selector, isModal) {
     console.log('Initializing select2 for:', selector);
     const select = $(selector);
+    const loanSelect = $('#loanSelect'); // Reference to the loanSelect element
 
     const config = {
         theme: 'bootstrap-5',
@@ -100,61 +101,64 @@ function initializeClientSelect(selector, isModal) {
         allowClear: true,
         width: '100%',
         ajax: {
-            url: '/api/customers/search', // Updated URL to match the new endpoint
+            url: '/api/customers/search',
             dataType: 'json',
             delay: 250,
             data: function(params) {
-                console.log('Search params:', params);
                 return {
-                    q: params.term || '', // Changed to match the expected query parameter
+                    q: params.term || '',
                     page: params.page || 1,
-                    per_page: 10 // Set a default limit for pagination
+                    per_page: 10
                 };
             },
-          processResults: function(data) {
-              console.log('Received data:', data);
-              if (!data || !Array.isArray(data.items)) {
-                  console.error('Expected data.items to be an array:', data);
-                  return { results: [] }; // Return an empty array if the format is incorrect
-              }
-              return {
-                  results: data.items.map(item => ({
-                      id: item.id, // Use the id from the API response
-                      text: item.text // Use the text from the API response
-                  })),
-                  pagination: {
-                      more: data.has_more // Handle pagination
-                  }
-              };
-          },
+            processResults: function(data) {
+                if (!data || !Array.isArray(data.items)) {
+                    return { results: [] };
+                }
+                return {
+                    results: data.items.map(item => ({
+                        id: item.id,
+                        text: item.text,
+                        loans: item.loans // Include loans array
+                    })),
+                    pagination: {
+                        more: data.has_more
+                    }
+                };
+            },
             cache: true
         },
         minimumInputLength: 2,
         templateResult: function(client) {
-            return client.loading ? 'Loading...' : client.text; // Simplified result template
+            return client.loading ? 'Loading...' : client.text;
         },
         templateSelection: function(client) {
-            return client.text; // Return the selected text
+            return client.text; // Display only the client's name in the main select
         }
     };
 
-    // Add modal-specific configurations
     if (isModal) {
         config.dropdownParent = $('#newCollectionScheduleModal');
     }
 
-    // Initialize Select2
+    // Initialize Select2 for the client select
     select.select2(config)
         .on('select2:select', function(e) {
-            console.log('Selected:', e.params.data);
             const data = e.params.data;
+            console.log('Selected:', data);
             if (isModal) {
-                // Handle modal-specific selection if needed
                 console.log('Client selected in modal:', data);
             }
+            // Populate the loanSelect with all LoanNos for the selected client
+            loanSelect.empty(); // Clear previous options
+            data.loans.forEach(loan => {
+                loanSelect.append(new Option(loan.LoanNo, loan.LoanAppID, false, false)); // Add each LoanNo
+            });
+            loanSelect.trigger('change'); // Trigger change event to update the UI
         })
         .on('select2:clear', function() {
             console.log('Selection cleared');
+            loanSelect.empty(); // Clear loanSelect when client selection is cleared
         })
         .on('select2:error', function(e) {
             console.error('Select2 error:', e);

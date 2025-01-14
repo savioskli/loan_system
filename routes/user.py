@@ -1,4 +1,5 @@
 import requests
+import mysql.connector
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -26,7 +27,6 @@ from flask import current_app
 from routes.collection_schedule import collection_schedule_bp
 from services.collection_schedule_service import CollectionScheduleService
 import io
-import mysql.connector
 from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
 
 user_bp = Blueprint('user', __name__)
@@ -1484,10 +1484,10 @@ def get_guarantors():
                     bm.FirstName as BorrowerFirstName,
                     bm.MiddleName as BorrowerMiddleName,
                     bm.LastName as BorrowerLastName
-                FROM guarantors g
-                JOIN members m ON g.GuarantorMemberID = m.MemberID
+                FROM Guarantors g
+                JOIN Members m ON g.GuarantorMemberID = m.MemberID
                 JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
-                JOIN members bm ON l.MemberID = bm.MemberID
+                JOIN Members bm ON l.MemberID = bm.MemberID
                 WHERE 1=1
             """
             
@@ -1525,8 +1525,8 @@ def get_guarantors():
             # Get total count for pagination
             count_query = """
                 SELECT COUNT(*) as total 
-                FROM guarantors g
-                JOIN members m ON g.GuarantorMemberID = m.MemberID
+                FROM Guarantors g
+                JOIN Members m ON g.GuarantorMemberID = m.MemberID
                 JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
                 WHERE 1=1
             """
@@ -1898,8 +1898,8 @@ def get_loan_communications():
         conn = mysql.connector.connect(
             host=core_system.base_url,
             port=core_system.port or 3306,
-            user=auth_creds.get('username'),
-            password=auth_creds.get('password'),
+            user=auth_creds.get('username', 'root'),
+            password=auth_creds.get('password', ''),
             database=core_system.database_name
         )
         
@@ -2291,14 +2291,17 @@ def field_visits():
         flash('An error occurred while loading the field visits page', 'error')
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/user/guarantor/<int:guarantor_id>')
+@user_bp.route('/guarantor/<int:guarantor_id>')
 @login_required
 def view_guarantor(guarantor_id):
     """Display guarantor details"""
     try:
+        current_app.logger.info(f"Attempting to view guarantor with ID: {guarantor_id}")
+        
         # Get active core banking system
         core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
         if not core_system:
+            current_app.logger.error("No active core banking system configured")
             flash('No active core banking system configured', 'error')
             return redirect(url_for('user.guarantors'))
 
@@ -2311,6 +2314,7 @@ def view_guarantor(guarantor_id):
             'database': core_system.database_name,
             'auth_plugin': 'mysql_native_password'
         }
+        current_app.logger.info(f"Connecting to database: {db_config['database']} at {db_config['host']}:{db_config['port']}")
 
         # Connect to core banking database
         conn = mysql.connector.connect(**db_config)
@@ -2329,7 +2333,7 @@ def view_guarantor(guarantor_id):
                 m.Email as GuarantorEmail,
                 l.LoanNo,
                 l.LoanAmount,
-                l.LoanPurpose,
+                l.Purpose as LoanPurpose,
                 l.RepaymentPeriod,
                 bm.FirstName as BorrowerFirstName,
                 bm.MiddleName as BorrowerMiddleName,
@@ -2338,16 +2342,18 @@ def view_guarantor(guarantor_id):
                 bm.NationalID as BorrowerIDNumber,
                 bm.PhoneNumber as BorrowerPhone,
                 bm.Email as BorrowerEmail
-            FROM guarantors g
-            JOIN members m ON g.GuarantorMemberID = m.MemberID
+            FROM Guarantors g
+            JOIN Members m ON g.GuarantorMemberID = m.MemberID
             JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
-            JOIN members bm ON l.MemberID = bm.MemberID
+            JOIN Members bm ON l.MemberID = bm.MemberID
             WHERE g.GuarantorID = %s
         """
+        current_app.logger.info(f"Executing query to fetch guarantor details")
         cursor.execute(query, (guarantor_id,))
         guarantor = cursor.fetchone()
 
         if not guarantor:
+            current_app.logger.error(f"No guarantor found with ID: {guarantor_id}")
             flash('Guarantor not found', 'error')
             return redirect(url_for('user.guarantors'))
 
@@ -2380,7 +2386,8 @@ def view_guarantor(guarantor_id):
                 'email': guarantor['BorrowerEmail']
             }
         }
-
+        
+        current_app.logger.info(f"Successfully retrieved guarantor data, rendering template")
         return render_template('user/guarantor_details.html', guarantor=guarantor_data)
 
     except mysql.connector.Error as e:
@@ -2391,3 +2398,222 @@ def view_guarantor(guarantor_id):
         current_app.logger.error(f"Error in view_guarantor: {str(e)}")
         flash('An unexpected error occurred', 'error')
         return redirect(url_for('user.guarantors'))
+
+@user_bp.route('/api/guarantor/<int:guarantor_id>/communications', methods=['GET'])
+@login_required
+def get_guarantor_communications(guarantor_id):
+    """Get communications for a guarantor"""
+    try:
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Get database configuration
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Get communications
+        query = """
+            SELECT c.*, u.Username as CreatedByUser
+            FROM GuarantorCommunications c
+            JOIN Users u ON c.CreatedBy = u.UserID
+            WHERE c.GuarantorID = %s
+            ORDER BY c.CreatedAt DESC
+        """
+        cursor.execute(query, (guarantor_id,))
+        communications = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({'communications': communications})
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_guarantor_communications: {str(e)}")
+        return jsonify({'error': 'Failed to fetch communications'}), 500
+
+@user_bp.route('/api/guarantor/<int:guarantor_id>/communications', methods=['POST'])
+@login_required
+def create_guarantor_communication(guarantor_id):
+    """Create a new communication for a guarantor"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not all(k in data for k in ['type', 'message', 'status']):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Get database configuration
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Build query based on communication type
+        base_fields = ['GuarantorID', 'Type', 'Message', 'Status', 'CreatedBy']
+        base_values = [guarantor_id, data['type'], data['message'], data['status'], current_user.id]
+        
+        additional_fields = []
+        additional_values = []
+        
+        if data['type'] in ['sms', 'email']:
+            additional_fields.append('Recipient')
+            additional_values.append(data.get('recipient'))
+        elif data['type'] == 'call':
+            additional_fields.extend(['CallDuration', 'CallOutcome'])
+            additional_values.extend([data.get('call_duration'), data.get('call_outcome')])
+        elif data['type'] == 'visit':
+            additional_fields.extend(['Location', 'VisitPurpose', 'VisitOutcome'])
+            additional_values.extend([
+                data.get('location'),
+                data.get('visit_purpose'),
+                data.get('visit_outcome')
+            ])
+        
+        # Combine fields and values
+        all_fields = base_fields + additional_fields
+        all_values = base_values + additional_values
+        
+        # Create the INSERT query
+        placeholders = ', '.join(['%s'] * len(all_fields))
+        query = f"""
+            INSERT INTO GuarantorCommunications 
+            ({', '.join(all_fields)})
+            VALUES ({placeholders})
+        """
+        
+        cursor.execute(query, all_values)
+        conn.commit()
+        
+        new_id = cursor.lastrowid
+        
+        # Fetch the newly created communication
+        select_query = """
+            SELECT c.*, u.Username as CreatedByUser
+            FROM GuarantorCommunications c
+            JOIN Users u ON c.CreatedBy = u.UserID
+            WHERE c.CommunicationID = %s
+        """
+        cursor.execute(select_query, (new_id,))
+        new_communication = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+
+        return jsonify({'communication': new_communication})
+
+    except Exception as e:
+        current_app.logger.error(f"Error in create_guarantor_communication: {str(e)}")
+        return jsonify({'error': 'Failed to create communication'}), 500
+
+@user_bp.route('/api/guarantor/communications/<int:communication_id>', methods=['GET'])
+@login_required
+def get_communication(communication_id):
+    """Get a specific communication"""
+    try:
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Get database configuration
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Get communication
+        query = """
+            SELECT c.*, u.Username as CreatedByUser
+            FROM GuarantorCommunications c
+            JOIN Users u ON c.CreatedBy = u.UserID
+            WHERE c.CommunicationID = %s
+        """
+        cursor.execute(query, (communication_id,))
+        communication = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if not communication:
+            return jsonify({'error': 'Communication not found'}), 404
+
+        return jsonify(communication)
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_communication: {str(e)}")
+        return jsonify({'error': 'Failed to fetch communication'}), 500
+
+@user_bp.route('/api/guarantor/communications/<int:communication_id>/read', methods=['POST'])
+@login_required
+def mark_communication_read(communication_id):
+    """Mark a communication as read"""
+    try:
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Get database configuration
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Update communication status
+        query = """
+            UPDATE GuarantorCommunications
+            SET Status = 'delivered'
+            WHERE CommunicationID = %s
+        """
+        cursor.execute(query, (communication_id,))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        current_app.logger.error(f"Error in mark_communication_read: {str(e)}")
+        return jsonify({'error': 'Failed to mark communication as read'}), 500

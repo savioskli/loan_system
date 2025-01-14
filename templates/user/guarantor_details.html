@@ -3,7 +3,9 @@
 {% block title %}Guarantor Details{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+    {% include 'user/post_disbursement_sidebar.html' %}
+
+    <div class="p-4 sm:ml-64">
     <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
         <!-- Header -->
         <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
@@ -12,7 +14,10 @@
                     <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Guarantor Details</h3>
                     <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">Details about guarantor and associated loan.</p>
                 </div>
-                <div>
+                <div class="flex space-x-4">
+                    <button onclick="openNotificationModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        <i class="fas fa-bell mr-2"></i>Send Notification
+                    </button>
                     <a href="{{ url_for('user.guarantors') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
                         Back to List
                     </a>
@@ -119,5 +124,374 @@
             </div>
         </div>
     </div>
+
+    <!-- Notifications Section -->
+    <div class="mt-8 bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Notifications History</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">Recent notifications sent to this guarantor.</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notificationsTableBody" class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                        {% for notification in notifications %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                {{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                {{ notification.title }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if notification.type == 'Info' %}bg-blue-100 text-blue-800
+                                    {% elif notification.type == 'Warning' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ notification.type }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if notification.status == 'Unread' %}bg-green-100 text-green-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ notification.status }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="viewNotification({{ notification.id }})" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Create Notification Modal -->
+<div id="notificationModal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form id="notificationForm" onsubmit="submitNotification(event)" class="p-6">
+                <!-- Communication Details -->
+                <div class="w-1/2 px-2 mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <select class="w-full border border-gray-300 rounded-lg p-1.5" id="type" name="type" required onchange="toggleDynamicFields()">
+                        <option value="sms">SMS</option>
+                        <option value="email">Email</option>
+                        <option value="call">Call</option>
+                        <option value="letter">Letter</option>
+                        <option value="visit">Visit</option>
+                    </select>
+                </div>
+                <div class="w-full px-2 mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message/Notes</label>
+                    <textarea class="w-full border border-gray-300 rounded-lg p-1.5" id="message" name="message" required rows="3"></textarea>
+                </div>
+                
+                <!-- Dynamic Fields Container -->
+                <div id="dynamicFields" class="w-full">
+                    <!-- Status field -->
+                    <div class="w-1/2 px-2 mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                        <select class="w-full border border-gray-300 rounded-lg p-1.5" id="status" name="status" required>
+                            <option value="pending">Pending</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    
+                    <!-- SMS/Email specific fields -->
+                    <div id="smsEmailFields" class="w-full px-2 mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipient</label>
+                        <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="recipient" name="recipient">
+                    </div>
+                    
+                    <!-- Call specific fields -->
+                    <div id="callFields" class="w-full px-2 mb-4 hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Duration (minutes)</label>
+                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="number" id="call_duration" name="call_duration">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call Outcome</label>
+                            <select class="w-full border border-gray-300 rounded-lg p-1.5" id="call_outcome" name="call_outcome">
+                                <option value="successful">Successful</option>
+                                <option value="no_answer">No Answer</option>
+                                <option value="voicemail">Left Voicemail</option>
+                                <option value="wrong_number">Wrong Number</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Visit specific fields -->
+                    <div id="visitFields" class="w-full px-2 mb-4 hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="location" name="location">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Purpose</label>
+                            <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="visit_purpose" name="visit_purpose">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visit Outcome</label>
+                            <select class="w-full border border-gray-300 rounded-lg p-1.5" id="visit_outcome" name="visit_outcome">
+                                <option value="successful">Successful</option>
+                                <option value="not_available">Not Available</option>
+                                <option value="rescheduled">Rescheduled</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="closeNotificationModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-primary-light">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark focus:ring-4 focus:ring-primary-light">
+                        Send Communication
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Notification Modal -->
+<div id="viewNotificationModal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="viewNotificationTitle"></h3>
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="viewNotificationMessage"></p>
+                            <p class="mt-2 text-xs text-gray-400 dark:text-gray-500" id="viewNotificationDate"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="closeViewNotificationModal()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-white dark:border-gray-500 dark:hover:bg-gray-500">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDynamicFields() {
+    const type = document.getElementById('type').value;
+    const smsEmailFields = document.getElementById('smsEmailFields');
+    const callFields = document.getElementById('callFields');
+    const visitFields = document.getElementById('visitFields');
+    
+    // Hide all fields first
+    smsEmailFields.classList.add('hidden');
+    callFields.classList.add('hidden');
+    visitFields.classList.add('hidden');
+    
+    // Show relevant fields based on type
+    switch(type) {
+        case 'sms':
+        case 'email':
+            smsEmailFields.classList.remove('hidden');
+            break;
+        case 'call':
+            callFields.classList.remove('hidden');
+            break;
+        case 'visit':
+            visitFields.classList.remove('hidden');
+            break;
+    }
+}
+
+function openNotificationModal() {
+    document.getElementById('notificationModal').classList.remove('hidden');
+}
+
+function closeNotificationModal() {
+    document.getElementById('notificationModal').classList.add('hidden');
+    document.getElementById('notificationForm').reset();
+}
+
+function closeViewNotificationModal() {
+    document.getElementById('viewNotificationModal').classList.add('hidden');
+}
+
+function submitNotification(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const type = formData.get('type');
+    
+    // Build the data object based on the communication type
+    const data = {
+        type: type,
+        message: formData.get('message'),
+        status: formData.get('status')
+    };
+    
+    // Add type-specific fields
+    switch(type) {
+        case 'sms':
+        case 'email':
+            data.recipient = formData.get('recipient');
+            break;
+        case 'call':
+            data.call_duration = formData.get('call_duration');
+            data.call_outcome = formData.get('call_outcome');
+            break;
+        case 'visit':
+            data.location = formData.get('location');
+            data.visit_purpose = formData.get('visit_purpose');
+            data.visit_outcome = formData.get('visit_outcome');
+            break;
+    }
+    
+    fetch(`/user/api/guarantor/{{ guarantor.id }}/communications`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(data),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Refresh communications list
+        loadNotifications();
+        // Close modal and reset form
+        closeNotificationModal();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to save communication');
+    });
+}
+
+function viewNotification(notificationId) {
+    fetch(`/user/api/guarantor/notifications/${notificationId}`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('viewNotificationTitle').textContent = data.title;
+        document.getElementById('viewNotificationMessage').textContent = data.message;
+        document.getElementById('viewNotificationDate').textContent = new Date(data.created_at).toLocaleString();
+        document.getElementById('viewNotificationModal').classList.remove('hidden');
+        
+        // Mark as read if unread
+        if (data.status === 'Unread') {
+            markNotificationAsRead(notificationId);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to load notification details');
+    });
+}
+
+function markNotificationAsRead(notificationId) {
+    fetch(`/user/api/guarantor/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        // Refresh notifications list
+        loadNotifications();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function loadNotifications() {
+    fetch(`/user/api/guarantor/{{ guarantor.id }}/notifications`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('notificationsTableBody');
+        tbody.innerHTML = '';
+        
+        data.notifications.forEach(notification => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    ${new Date(notification.created_at).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    ${notification.title}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${notification.type === 'Info' ? 'bg-blue-100 text-blue-800' : 
+                          notification.type === 'Warning' ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-red-100 text-red-800'}">
+                        ${notification.type}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${notification.status === 'Unread' ? 'bg-green-100 text-green-800' : 
+                          'bg-gray-100 text-gray-800'}">
+                        ${notification.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button onclick="viewNotification(${notification.id})" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// Load notifications when page loads
+document.addEventListener('DOMContentLoaded', loadNotifications);
+</script>
 {% endblock %}

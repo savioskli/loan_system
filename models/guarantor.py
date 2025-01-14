@@ -7,7 +7,7 @@ class Guarantor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     guarantor_no = db.Column(db.String(20), unique=True, nullable=False)
-    customer_no = db.Column(db.String(20), db.ForeignKey('clients.client_no'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     id_no = db.Column(db.String(20), unique=True, nullable=False)
     phone_no = db.Column(db.String(30))
@@ -26,7 +26,7 @@ class Guarantor(db.Model):
         return {
             'id': self.id,
             'guarantor_no': self.guarantor_no,
-            'customer_no': self.customer_no,
+            'client_id': self.client_id,
             'name': self.name,
             'id_no': self.id_no,
             'phone_no': self.phone_no,

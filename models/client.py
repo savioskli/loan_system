@@ -6,7 +6,6 @@ class Client(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     client_type_id = db.Column(db.Integer, db.ForeignKey('client_types.id'), nullable=False)
-    client_no = db.Column(db.String(50), unique=True)  # Keep this for backward compatibility
     form_data = db.Column(db.JSON, nullable=False)
     files = db.Column(db.JSON)
     status = db.Column(db.String(20), default='Pending')
@@ -32,4 +31,4 @@ class Client(db.Model):
         return self.form_data.get('business_name', 'Unknown Client')
     
     def __repr__(self):
-        return f'<Client {self.client_no}: {self.full_name}>'
+        return f'<Client {self.id}: {self.full_name}>'

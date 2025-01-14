@@ -1339,65 +1339,72 @@ def post_disbursement():
 @user_bp.route('/analytics', methods=['GET'])
 @login_required
 def analytics():
+    from datetime import datetime
+    
+    # Get all correspondence data
     correspondence_data = Correspondence.query.all()
-    records_per_page = 10
-    total_records = len(correspondence_data)
-    total_pages = (total_records + records_per_page - 1) // records_per_page
+    
+    # Create sorted version for recent items display
+    valid_correspondence = [c for c in correspondence_data if c.delivery_time is not None]
+    sorted_correspondence = sorted(valid_correspondence, key=lambda x: x.delivery_time, reverse=True)
     
     # Count by type
-    type_counts = {}
-    for correspondence in correspondence_data:
-        type_counts[correspondence.type] = type_counts.get(correspondence.type, 0) + 1
-
+    type_counts = {
+        'sms': len([c for c in correspondence_data if c.type == 'sms']),
+        'email': len([c for c in correspondence_data if c.type == 'email']),
+        'call': len([c for c in correspondence_data if c.type == 'call']),
+        'letter': len([c for c in correspondence_data if c.type == 'letter']),
+        'visit': len([c for c in correspondence_data if c.type == 'visit'])
+    }
+    
     # Count by status
-    status_counts = {}
-    for correspondence in correspondence_data:
-        status_counts[correspondence.status] = status_counts.get(correspondence.status, 0) + 1
-
-    # Top clients
-    client_counts = {}
-    for correspondence in correspondence_data:
-        client_counts[correspondence.client_name] = client_counts.get(correspondence.client_name, 0) + 1
-
-    # Calculate statistics
-    total_calls = len([c for c in correspondence_data if c.type == 'Call'])
-    successful_calls = len([c for c in correspondence_data if c.call_outcome in ['Answered']])
-    unsuccessful_calls = len([c for c in correspondence_data if c.call_outcome in ['No Answer', 'Voicemail']])
-    call_durations = [c.call_duration for c in correspondence_data if c.type == 'Call']
+    status_counts = {
+        'pending': len([c for c in correspondence_data if c.status == 'pending']),
+        'completed': len([c for c in correspondence_data if c.status == 'completed'])
+    }
+    
+    # Calculate call statistics
+    total_calls = type_counts['call']
+    successful_calls = len([c for c in correspondence_data if c.type == 'call' and c.call_outcome == 'Answered'])
+    unsuccessful_calls = len([c for c in correspondence_data if c.type == 'call' and c.call_outcome in ['No Answer', 'Voicemail']])
+    
+    # Calculate average call duration
+    call_durations = [c.call_duration for c in correspondence_data if c.type == 'call' and c.call_duration is not None]
     average_duration = sum(call_durations) / len(call_durations) if call_durations else 0
-
-    # Calculate statistics for correspondences
+    
+    # Overall statistics
     total_correspondences = len(correspondence_data)
-    pending_correspondences = len([c for c in correspondence_data if c.status == 'Pending'])
-    completed_correspondences = len([c for c in correspondence_data if c.status == 'Completed'])
+    pending_correspondences = status_counts['pending']
+    completed_correspondences = status_counts['completed']
     failed_deliveries = len([c for c in correspondence_data if c.delivery_status == 'Failed'])
-
-    # Calculate statistics for SMS, Email, Call, Letter, and Visit correspondences
-    sms_count = len([c for c in correspondence_data if c.type == 'SMS'])
-    email_count = len([c for c in correspondence_data if c.type == 'Email'])
-    call_count = len([c for c in correspondence_data if c.type == 'Call'])
-    letter_count = len([c for c in correspondence_data if c.type == 'Letter'])
-    visit_count = len([c for c in correspondence_data if c.type == 'Visit'])
-
-    return render_template('user/analytics.html', 
-                           data=correspondence_data, 
-                           type_counts=type_counts, 
-                           status_counts=status_counts, 
-                           client_counts=client_counts,
-                           total_pages=total_pages,
-                           total_calls=total_calls,
-                           successful_calls=successful_calls,
-                           unsuccessful_calls=unsuccessful_calls,
-                           average_duration=average_duration,
-                           total_correspondences=total_correspondences,
-                           pending_correspondences=pending_correspondences,
-                           completed_correspondences=completed_correspondences,
-                           failed_deliveries=failed_deliveries,
-                           sms_count=sms_count,
-                           email_count=email_count,
-                           call_count=call_count,
-                           letter_count=letter_count,
-                           visit_count=visit_count)
+    
+    # Pagination
+    records_per_page = 10
+    total_records = len(correspondence_data)
+    total_pages = max((total_records + records_per_page - 1) // records_per_page, 1)  # At least 1 page
+    current_page = request.args.get('page', 1, type=int)
+    current_page = max(1, min(current_page, total_pages))  # Ensure page is in valid range
+    
+    return render_template('user/analytics.html',
+                         data=sorted_correspondence,
+                         type_counts=type_counts,
+                         status_counts=status_counts,
+                         total_correspondences=total_correspondences,
+                         pending_correspondences=pending_correspondences,
+                         completed_correspondences=completed_correspondences,
+                         failed_deliveries=failed_deliveries,
+                         total_calls=total_calls,
+                         successful_calls=successful_calls,
+                         unsuccessful_calls=unsuccessful_calls,
+                         average_duration=average_duration,
+                         sms_count=type_counts['sms'],
+                         email_count=type_counts['email'],
+                         call_count=type_counts['call'],
+                         letter_count=type_counts['letter'],
+                         visit_count=type_counts['visit'],
+                         total_pages=total_pages,
+                         current_page=current_page,
+                         datetime=datetime)
 
 @user_bp.route('/collection-schedule')
 @login_required
@@ -1524,41 +1531,173 @@ def export_customer_guarantors(customer_id):
         )
     return jsonify({'error': 'Failed to generate Excel report'}), 400
 
-@user_bp.route('/api/guarantors/search', methods=['GET'])
+
+
+@user_bp.route('/api/guarantors', methods=['GET'])
 @login_required
-def search_guarantors():
-    """Search guarantors with filters"""
+def get_guarantors():
+    conn = None
+    cursor = None
     try:
-        search_term = request.args.get('q', '')
-        status = request.args.get('status')
-        income_range = request.args.get('income')
+        # Ensure user is authenticated
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Unauthorized'}), 401
 
-        # Get all guarantors from mock core banking
-        response = requests.get('http://localhost:5003/api/guarantors/search', params={'q': search_term})
-        if response.status_code != 200:
-            return jsonify({'error': 'Failed to fetch guarantors from core banking system'}), 500
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search = request.args.get('search', '')
+        status = request.args.get('status', '')
+
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Get database configuration from core banking system
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        try:
+            # Establish database connection
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor(dictionary=True)
+
+            # Build the query
+            query = """
+                SELECT 
+                    g.GuarantorID,
+                    g.LoanAppID,
+                    g.GuarantorMemberID,
+                    g.GuaranteedAmount,
+                    g.DateAdded,
+                    g.Status,
+                    m.NationalID,
+                    m.FirstName,
+                    m.MiddleName,
+                    m.LastName,
+                    m.MemberNo,
+                    m.MemberID,
+                    l.LoanNo,
+                    l.MemberID as BorrowerID,
+                    bm.MemberNo as BorrowerMemberNo,
+                    bm.FirstName as BorrowerFirstName,
+                    bm.MiddleName as BorrowerMiddleName,
+                    bm.LastName as BorrowerLastName
+                FROM guarantors g
+                JOIN members m ON g.GuarantorMemberID = m.MemberID
+                JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
+                JOIN members bm ON l.MemberID = bm.MemberID
+                WHERE 1=1
+            """
             
-        guarantors = response.json()
+            params = []
+            
+            # Apply search filter if provided
+            if search:
+                query += """ 
+                    AND (
+                        m.NationalID LIKE %s 
+                        OR CONCAT(m.FirstName, ' ', IFNULL(m.MiddleName, ''), ' ', m.LastName) LIKE %s
+                        OR m.NationalID LIKE %s
+                    )
+                """
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
 
-        # Apply additional filters
-        if status:
-            guarantors = [g for g in guarantors if g['status'] == status]
+            # Apply status filter if provided
+            if status:
+                query += " AND g.Status = %s"
+                params.append(status)
 
-        if income_range:
-            ranges = {
-                '0-50000': (0, 50000),
-                '50001-100000': (50001, 100000),
-                '100001-200000': (100001, 200000),
-                '200001+': (200001, float('inf'))
+            # Add ordering
+            query += " ORDER BY g.DateAdded DESC"
+
+            # Add pagination
+            query += " LIMIT %s OFFSET %s"
+            offset = (page - 1) * per_page
+            params.extend([per_page, offset])
+
+            # Execute the main query
+            cursor.execute(query, params)
+            guarantors = cursor.fetchall()
+
+            # Get total count for pagination
+            count_query = """
+                SELECT COUNT(*) as total 
+                FROM guarantors g
+                JOIN members m ON g.GuarantorMemberID = m.MemberID
+                JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
+                WHERE 1=1
+            """
+            count_params = []
+            
+            if search:
+                count_query += """ 
+                    AND (
+                        m.NationalID LIKE %s 
+                        OR CONCAT(m.FirstName, ' ', IFNULL(m.MiddleName, ''), ' ', m.LastName) LIKE %s
+                        OR m.NationalID LIKE %s
+                    )
+                """
+                count_params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+
+            if status:
+                count_query += " AND g.Status = %s"
+                count_params.append(status)
+
+            cursor.execute(count_query, count_params)
+            total = cursor.fetchone()['total']
+
+            # Prepare response
+            guarantors_list = []
+            for g in guarantors:
+                guarantor_data = {
+                    'guarantor_id': g['GuarantorID'],
+                    'loan_app_id': g['LoanAppID'],
+                    'loan_no': g['LoanNo'],
+                    'guarantor_member_id': g['GuarantorMemberID'],
+                    'member_no': g['MemberID'],
+                    'guarantor_name': f"{g['FirstName']} {g['MiddleName'] or ''} {g['LastName']}".strip(),
+                    'id_number': g['NationalID'],
+                    'guaranteed_amount': float(g['GuaranteedAmount']),
+                    'date_added': g['DateAdded'].isoformat() if g['DateAdded'] else None,
+                    'status': g['Status'],
+                    'borrower_member_no': g['BorrowerMemberNo'],
+                    'borrower_name': f"{g['BorrowerFirstName']} {g['BorrowerMiddleName'] or ''} {g['BorrowerLastName']}".strip()
+                }
+                guarantors_list.append(guarantor_data)
+
+            response = {
+                'guarantors': guarantors_list,
+                'total': total,
+                'pages': (total + per_page - 1) // per_page,
+                'current_page': page,
+                'per_page': per_page,
+                'has_next': page * per_page < total,
+                'has_prev': page > 1
             }
-            if income_range in ranges:
-                min_val, max_val = ranges[income_range]
-                guarantors = [g for g in guarantors if min_val <= g['monthly_income'] <= max_val] if max_val != float('inf') else [g for g in guarantors if g['monthly_income'] >= min_val]
 
-        return jsonify(guarantors)
+            return jsonify(response), 200
+
+        except mysql.connector.Error as e:
+            current_app.logger.error(f"Database error in get_guarantors: {str(e)}")
+            return jsonify({'error': 'Database error occurred'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
     except Exception as e:
-        current_app.logger.error(f"Error searching guarantors: {str(e)}")
-        return jsonify({'error': 'Failed to search guarantors'}), 500
+        current_app.logger.error(f"Error in get_guarantors: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 @user_bp.route('/api/guarantors/sync', methods=['POST'])
 @login_required
@@ -1853,97 +1992,6 @@ def get_loan_communications():
 
         current_app.logger.info(f"Fetching communications with filters: member_id={member_id}, loan_id={loan_id}, start_date={start_date}, end_date={end_date}, type={comm_type}")
 
-        # Build base query
-        query = db.session.query(
-            Correspondence.id,
-            Correspondence.account_no.label('member_no'),
-            Correspondence.client_name.label('member_name'),
-            Correspondence.type,
-            Correspondence.message,
-            Correspondence.status,
-            Correspondence.created_at,
-            Correspondence.delivery_status.label('response'),
-            db.func.coalesce(Staff.username, Correspondence.sent_by).label('sent_by')
-        ).outerjoin(Staff, Correspondence.staff_id == Staff.id)
-
-        # Apply filters
-        if member_id:
-            query = query.filter(Correspondence.account_no == member_id)
-        
-        if start_date:
-            query = query.filter(db.func.date(Correspondence.created_at) >= start_date)
-        
-        if end_date:
-            query = query.filter(db.func.date(Correspondence.created_at) <= end_date)
-        
-        if comm_type:
-            query = query.filter(Correspondence.type == comm_type)
-        
-        # Get total count
-        total = query.count()
-        current_app.logger.info(f"Total count: {total}")
-        
-        # Apply ordering and pagination
-        communications = query.order_by(Correspondence.created_at.desc())\
-            .offset((page - 1) * per_page)\
-            .limit(per_page)\
-            .all()
-        
-        current_app.logger.info(f"Retrieved {len(communications)} records")
-        
-        # Format results
-        formatted_comms = []
-        for comm in communications:
-            formatted_comms.append({
-                'id': comm.id,
-                'member_name': comm.member_name,
-                'member_no': comm.member_no,
-                'type': comm.type.lower() if comm.type else '',
-                'message': comm.message,
-                'status': comm.status.lower() if comm.status else '',
-                'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'response': comm.response,
-                'sent_by': comm.sent_by
-            })
-        
-        response_data = {
-            'communications': formatted_comms,
-            'total': total,
-            'page': page,
-            'per_page': per_page,
-            'total_pages': (total + per_page - 1) // per_page
-        }
-        current_app.logger.info(f"Returning response: {response_data}")
-        
-        return jsonify(response_data)
-            
-    except Exception as e:
-        current_app.logger.error(f"Error fetching communications: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'communications': [],
-            'total': 0,
-            'page': 1,
-            'per_page': 10,
-            'total_pages': 0
-        }), 500
-
-@user_bp.route('/loans/communications/core', methods=['GET'])
-@login_required
-def get_core_loan_communications():
-    """Get communication history from core banking with pagination and filters"""
-    try:
-        # Get filter parameters
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 10))
-        member_id = request.args.get('member_id')
-        loan_id = request.args.get('loan_id')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        communication_type = request.args.get('communication_type')
-
-        current_app.logger.info(f"Fetching core banking communications with filters: member_id={member_id}, loan_id={loan_id}, start_date={start_date}, end_date={end_date}, type={communication_type}")
-
         # Get core banking system details
         core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
         if not core_system:
@@ -2020,8 +2068,8 @@ def get_core_loan_communications():
         if end_date:
             conditions.append(f"DATE(lcl.SentDate) <= '{end_date}'")
         
-        if communication_type:
-            conditions.append(f"lcl.CommunicationType = '{communication_type}'")
+        if comm_type:
+            conditions.append(f"lcl.CommunicationType = '{comm_type}'")
         
         # Add WHERE clause if conditions exist
         if conditions:

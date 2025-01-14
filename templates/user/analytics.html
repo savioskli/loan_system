@@ -94,6 +94,9 @@
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">SMS</h3>
+                        <span class="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded-full">
+                            <i class="fas fa-comment-sms"></i>
+                        </span>
                     </div>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ sms_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of SMS correspondences</p>
@@ -102,6 +105,9 @@
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</h3>
+                        <span class="text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900 px-2 py-1 rounded-full">
+                            <i class="fas fa-envelope"></i>
+                        </span>
                     </div>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ email_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Email correspondences</p>
@@ -110,6 +116,9 @@
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Call</h3>
+                        <span class="text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900 px-2 py-1 rounded-full">
+                            <i class="fas fa-phone"></i>
+                        </span>
                     </div>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ call_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Call correspondences</p>
@@ -118,6 +127,9 @@
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Letter</h3>
+                        <span class="text-xs font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded-full">
+                            <i class="fas fa-envelope-open-text"></i>
+                        </span>
                     </div>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ letter_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Letter correspondences</p>
@@ -126,6 +138,9 @@
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Visit</h3>
+                        <span class="text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900 px-2 py-1 rounded-full">
+                            <i class="fas fa-user-group"></i>
+                        </span>
                     </div>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ visit_count }}</p>
                     <p class="text-xs text-gray-500 mt-1"><i class="fas fa-circle-info mr-1"></i>Sum of Visit correspondences</p>
@@ -175,7 +190,7 @@
         <!-- Recent Correspondences -->
         <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6 mt-8">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Correspondences</h3>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Correspondences Logs</h3>
             </div>
             <div class="overflow-x-auto">
                 <div class="flex mb-4">
@@ -193,8 +208,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
-                        {% set sorted_data = data|sort(attribute='delivery_time', reverse=True) %}
-                        {% set recent_records = sorted_data[:10] %}
+                        {% set recent_records = data[:10] %}
                         {% for record in recent_records %}
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ record.client_name }}</td>
@@ -207,29 +221,36 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <div class="flex justify-end mt-4">
-                    <nav aria-label="Pagination">
+                {% if total_pages > 1 %}
+                <div class="flex justify-center mt-4">
+                    <nav aria-label="Page navigation">
                         <ul class="inline-flex -space-x-px">
                             <li>
-                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700" aria-label="Previous">
+                                <a href="{{ url_for('user.analytics', page=(current_page - 1)) if current_page > 1 else '#' }}" 
+                                   class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 {{ 'opacity-50 cursor-not-allowed' if current_page == 1 }}"
+                                   {{ 'aria-disabled="true"' if current_page == 1 }}>
                                     Previous
                                 </a>
                             </li>
                             {% for page in range(1, total_pages + 1) %}
                             <li>
-                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 {{ 'font-bold' if page == current_page }}">
+                                <a href="{{ url_for('user.analytics', page=page) }}"
+                                   class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 {{ 'bg-blue-50 text-blue-600 border-blue-300 dark:bg-blue-900 dark:text-blue-300' if page == current_page }}">
                                     {{ page }}
                                 </a>
                             </li>
                             {% endfor %}
                             <li>
-                                <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700" aria-label="Next">
+                                <a href="{{ url_for('user.analytics', page=(current_page + 1)) if current_page < total_pages else '#' }}"
+                                   class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 {{ 'opacity-50 cursor-not-allowed' if current_page == total_pages }}"
+                                   {{ 'aria-disabled="true"' if current_page == total_pages }}>
                                     Next
                                 </a>
                             </li>
                         </ul>
                     </nav>
                 </div>
+                {% endif %}
             </div>
         </div>
 

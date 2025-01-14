@@ -18,31 +18,26 @@
 
             <!-- Search and Filter Section -->
             <div class="mb-6 bg-white p-6 rounded-lg shadow dark:bg-gray-800">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label for="searchGuarantor" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search Guarantor</label>
-                        <input type="text" id="searchGuarantor" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Search by name or ID...">
-                    </div>
-                    <div>
-                        <label for="searchCustomer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search Customer</label>
-                        <input type="text" id="searchCustomer" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Search by customer name...">
+                        <label for="searchGuarantor" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                        <input type="text" id="searchGuarantor" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Search by member no, name or ID...">
                     </div>
                     <div>
                         <label for="filterStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                         <select id="filterStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             <option value="">All Statuses</option>
                             <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
+                            <option value="Released">Released</option>
                         </select>
                     </div>
                     <div>
-                        <label for="filterIncome" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Income</label>
-                        <select id="filterIncome" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            <option value="">All Incomes</option>
-                            <option value="0-50000">0 - 50,000</option>
-                            <option value="50001-100000">50,001 - 100,000</option>
-                            <option value="100001-200000">100,001 - 200,000</option>
-                            <option value="200001+">200,001+</option>
+                        <label for="itemsPerPage" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Items per page</label>
+                        <select id="itemsPerPage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
                         </select>
                     </div>
                 </div>
@@ -53,11 +48,15 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">ID Number</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Customer</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Monthly Income</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Guarantor Member No</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Guarantor Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Guarantor ID Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Loan No</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Borrower Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Borrower Member No</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Guaranteed Amount</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Date Added</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Actions</th>
                         </tr>
                     </thead>
@@ -70,21 +69,21 @@
             <!-- Pagination Section -->
             <div class="mt-4 flex items-center justify-between">
                 <div class="flex-1 flex justify-between sm:hidden">
-                    <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <button id="prevPageBtnMobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                         Previous
                     </button>
-                    <button class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <button id="nextPageBtnMobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                         Next
                     </button>
                 </div>
                 <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                         <p class="text-sm text-gray-700 dark:text-gray-300">
-                            Showing <span id="startIndex">1</span> to <span id="endIndex">10</span> of <span id="totalItems">0</span> results
+                            Showing <span id="startRecord" class="font-medium">1</span> to <span id="endRecord" class="font-medium">10</span> of <span id="totalRecords" class="font-medium">0</span> results
                         </p>
                     </div>
                     <div>
-                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" id="pagination">
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" id="paginationContainer">
                             <!-- Pagination buttons will be dynamically populated -->
                         </nav>
                     </div>
@@ -92,8 +91,201 @@
             </div>
         </div>
     </div>
-{% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/guarantors.js') }}"></script>
+    <!-- JavaScript for handling data -->
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let itemsPerPage = 10;
+
+        // Function to format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE', {
+                style: 'currency',
+                currency: 'KES'
+            }).format(amount);
+        }
+
+        // Function to format date
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-KE');
+        }
+
+        // Function to load guarantors data
+        function loadGuarantors() {
+            const search = document.getElementById('searchGuarantor').value;
+            const status = document.getElementById('filterStatus').value;
+            
+            fetch(`/user/api/guarantors?page=${currentPage}&per_page=${itemsPerPage}&search=${search}&status=${status}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const tbody = document.getElementById('guarantorsTableBody');
+                    tbody.innerHTML = '';
+
+                    if (!data.guarantors || !Array.isArray(data.guarantors)) {
+                        console.error('Invalid data format received:', data);
+                        throw new Error('Invalid data format received from server');
+                    }
+
+                    data.guarantors.forEach(guarantor => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.member_no}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.guarantor_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.id_number}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.loan_no}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.borrower_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${guarantor.borrower_member_no}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${formatCurrency(guarantor.guaranteed_amount)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    guarantor.status === 'Active' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900'
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-200 dark:text-gray-900'
+                                }">
+                                    ${guarantor.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${formatDate(guarantor.date_added)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="/user/guarantor/${guarantor.guarantor_id}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</a>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    // Update pagination
+                    totalPages = data.pages;
+                    updatePagination();
+                    
+                    // Update record count display
+                    const start = (currentPage - 1) * itemsPerPage + 1;
+                    const end = Math.min(start + itemsPerPage - 1, data.total);
+                    document.getElementById('startRecord').textContent = start;
+                    document.getElementById('endRecord').textContent = end;
+                    document.getElementById('totalRecords').textContent = data.total;
+                })
+                .catch(error => {
+                    console.error('Error loading guarantors:', error);
+                    // Show error message to user
+                });
+        }
+
+        // Function to update pagination controls
+        function updatePagination() {
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            // Previous button
+            const prevButton = document.createElement('button');
+            prevButton.className = `relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
+            prevButton.innerHTML = '<span class="sr-only">Previous</span><i class="fas fa-chevron-left"></i>';
+            prevButton.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadGuarantors();
+                }
+            };
+            container.appendChild(prevButton);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (
+                    i === 1 || // First page
+                    i === totalPages || // Last page
+                    (i >= currentPage - 1 && i <= currentPage + 1) // Pages around current page
+                ) {
+                    const pageButton = document.createElement('button');
+                    pageButton.className = `relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${
+                        i === currentPage
+                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`;
+                    pageButton.textContent = i;
+                    pageButton.onclick = () => {
+                        currentPage = i;
+                        loadGuarantors();
+                    };
+                    container.appendChild(pageButton);
+                } else if (
+                    i === currentPage - 2 ||
+                    i === currentPage + 2
+                ) {
+                    // Add ellipsis
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700';
+                    ellipsis.textContent = '...';
+                    container.appendChild(ellipsis);
+                }
+            }
+
+            // Next button
+            const nextButton = document.createElement('button');
+            nextButton.className = `relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
+            nextButton.innerHTML = '<span class="sr-only">Next</span><i class="fas fa-chevron-right"></i>';
+            nextButton.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadGuarantors();
+                }
+            };
+            container.appendChild(nextButton);
+        }
+
+        // Event listeners
+        document.getElementById('searchGuarantor').addEventListener('input', debounce(() => {
+            currentPage = 1;
+            loadGuarantors();
+        }, 300));
+
+        document.getElementById('filterStatus').addEventListener('change', () => {
+            currentPage = 1;
+            loadGuarantors();
+        });
+
+        document.getElementById('itemsPerPage').addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value);
+            currentPage = 1;
+            loadGuarantors();
+        });
+
+        document.getElementById('syncGuarantorsBtn').addEventListener('click', () => {
+            fetch('/user/sync-all-guarantors', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadGuarantors();
+                    }
+                })
+                .catch(error => console.error('Error syncing guarantors:', error));
+        });
+
+        // Debounce function for search input
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Initial load
+        loadGuarantors();
+    </script>
 {% endblock %}

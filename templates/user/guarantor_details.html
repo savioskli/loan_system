@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Guarantor Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+        <!-- Header -->
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Guarantor Details</h3>
+                    <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">Details about guarantor and associated loan.</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('user.guarantors') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                        Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="px-4 py-5 sm:p-6">
+            <!-- Loan Details -->
+            <div class="mb-8">
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Loan Information</h4>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.loan_no }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan Amount</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ "{:,.2f}".format(guarantor.loan_amount) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan Purpose</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.loan_purpose }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Repayment Period</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.repayment_period }} months</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Guaranteed Amount</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ "{:,.2f}".format(guarantor.guaranteed_amount) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                        <dd class="mt-1">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if guarantor.status == 'Active' %}bg-green-100 text-green-800
+                                {% elif guarantor.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ guarantor.status }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Date Added</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.date_added }}</dd>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guarantor Details -->
+            <div class="mb-8">
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Guarantor Information</h4>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Member Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.guarantor.member_no }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.guarantor.name }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">ID Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.guarantor.id_number }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Phone Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.guarantor.phone }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.guarantor.email }}</dd>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Borrower Details -->
+            <div>
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Borrower Information</h4>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Member Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.borrower.member_no }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.borrower.name }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">ID Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.borrower.id_number }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Phone Number</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.borrower.phone }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ guarantor.borrower.email }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

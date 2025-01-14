@@ -1414,31 +1414,9 @@ def collection_schedule():
 
 @user_bp.route('/guarantors')
 @login_required
-def guarantors_list():
-    """Display list of all guarantors"""
+def guarantors():
+    """Display guarantors list page"""
     return render_template('user/guarantors_list.html')
-
-@user_bp.route('/guarantors/<customer_no>')
-@login_required
-def customer_guarantors(customer_no):
-    """Display guarantors for a specific customer"""
-    # Get customer info from mock core banking
-    try:
-        customer_response = requests.get(f'http://localhost:5003/api/clients/{customer_no}')
-        customer = customer_response.json() if customer_response.status_code == 200 else None
-        if not customer:
-            flash('Customer not found', 'error')
-            return redirect(url_for('user.guarantors_list'))
-    except Exception as e:
-        current_app.logger.error(f"Error fetching customer: {str(e)}")
-        flash('Error fetching customer information', 'error')
-        return redirect(url_for('user.guarantors_list'))
-
-    guarantors = GuarantorService.get_customer_guarantors(customer_no)
-    return render_template('user/customer_guarantors.html', 
-                         guarantors=guarantors, 
-                         customer=customer,
-                         customer_no=customer_no)
 
 @user_bp.route('/api/guarantors/sync/<customer_no>', methods=['POST'])
 @login_required
@@ -1448,90 +1426,6 @@ def sync_guarantors(customer_no):
     if success:
         return jsonify({'message': 'Guarantors synced successfully'}), 200
     return jsonify({'error': 'Failed to sync guarantors'}), 500
-
-@user_bp.route('/guarantors/<guarantor_no>/details')
-@login_required
-def guarantor_details(guarantor_no):
-    """Display detailed information about a specific guarantor"""
-    try:
-        # Get guarantor details from mock core banking
-        response = requests.get('http://localhost:5003/api/guarantors/search')
-        if response.status_code == 200:
-            guarantors = response.json()
-            guarantor = next((g for g in guarantors if g['id_no'] == guarantor_no), None)
-            if guarantor:
-                return render_template('user/guarantor_detail.html', 
-                                    guarantor=guarantor)
-        
-        flash('Guarantor not found', 'error')
-        return redirect(url_for('user.guarantors_list'))
-    except Exception as e:
-        current_app.logger.error(f"Error fetching guarantor details: {str(e)}")
-        flash('Error fetching guarantor details', 'error')
-        return redirect(url_for('user.guarantors_list'))
-
-@user_bp.route('/api/guarantors/<guarantor_no>/status', methods=['POST'])
-@login_required
-def update_guarantor_status(guarantor_no):
-    """Update guarantor status"""
-    data = request.get_json()
-    success = GuarantorService.update_status(guarantor_no, data['status'], data['reason'])
-    
-    if success:
-        return jsonify({'message': 'Status updated successfully'})
-    return jsonify({'error': 'Failed to update status'}), 400
-
-@user_bp.route('/api/guarantors/<guarantor_no>/export', methods=['GET'])
-@login_required
-def export_guarantor_details(guarantor_no):
-    """Export guarantor details as PDF"""
-    pdf_data = GuarantorService.generate_pdf_report(guarantor_no)
-    if pdf_data:
-        return send_file(
-            io.BytesIO(pdf_data),
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f'guarantor_{guarantor_no}_details.pdf'
-        )
-    return jsonify({'error': 'Failed to generate PDF'}), 400
-
-@user_bp.route('/api/guarantors', methods=['POST'])
-@login_required
-def create_guarantor():
-    """Create a new guarantor"""
-    data = request.get_json()
-    guarantor = GuarantorService.create_guarantor(data)
-    
-    if guarantor:
-        return jsonify({'message': 'Guarantor created successfully', 'guarantor': guarantor.to_dict()})
-    return jsonify({'error': 'Failed to create guarantor'}), 400
-
-@user_bp.route('/api/guarantors/<guarantor_no>', methods=['PUT'])
-@login_required
-def update_guarantor(guarantor_no):
-    """Update guarantor information"""
-    data = request.get_json()
-    success = GuarantorService.update_guarantor(guarantor_no, data)
-    
-    if success:
-        return jsonify({'message': 'Guarantor updated successfully'})
-    return jsonify({'error': 'Failed to update guarantor'}), 400
-
-@user_bp.route('/api/customers/<customer_id>/guarantors/export', methods=['GET'])
-@login_required
-def export_customer_guarantors(customer_id):
-    """Export customer's guarantors list as Excel"""
-    excel_data = GuarantorService.generate_excel_report(customer_id)
-    if excel_data:
-        return send_file(
-            io.BytesIO(excel_data),
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=f'customer_{customer_id}_guarantors.xlsx'
-        )
-    return jsonify({'error': 'Failed to generate Excel report'}), 400
-
-
 
 @user_bp.route('/api/guarantors', methods=['GET'])
 @login_required
@@ -1663,7 +1557,7 @@ def get_guarantors():
                     'loan_app_id': g['LoanAppID'],
                     'loan_no': g['LoanNo'],
                     'guarantor_member_id': g['GuarantorMemberID'],
-                    'member_no': g['MemberID'],
+                    'member_no': g['MemberNo'],  # Fixed: Changed from MemberID to MemberNo
                     'guarantor_name': f"{g['FirstName']} {g['MiddleName'] or ''} {g['LastName']}".strip(),
                     'id_number': g['NationalID'],
                     'guaranteed_amount': float(g['GuaranteedAmount']),
@@ -2396,3 +2290,104 @@ def field_visits():
         current_app.logger.error(f"Error rendering field visits page: {str(e)}")
         flash('An error occurred while loading the field visits page', 'error')
         return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/user/guarantor/<int:guarantor_id>')
+@login_required
+def view_guarantor(guarantor_id):
+    """Display guarantor details"""
+    try:
+        # Get active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            flash('No active core banking system configured', 'error')
+            return redirect(url_for('user.guarantors'))
+
+        # Get database configuration
+        db_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': core_system.auth_credentials_dict.get('username', 'root'),
+            'password': core_system.auth_credentials_dict.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        # Connect to core banking database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Get guarantor details
+        query = """
+            SELECT 
+                g.*,
+                m.FirstName as GuarantorFirstName,
+                m.MiddleName as GuarantorMiddleName,
+                m.LastName as GuarantorLastName,
+                m.NationalID as GuarantorIDNumber,
+                m.MemberNo as GuarantorMemberNo,
+                m.PhoneNumber as GuarantorPhone,
+                m.Email as GuarantorEmail,
+                l.LoanNo,
+                l.LoanAmount,
+                l.LoanPurpose,
+                l.RepaymentPeriod,
+                bm.FirstName as BorrowerFirstName,
+                bm.MiddleName as BorrowerMiddleName,
+                bm.LastName as BorrowerLastName,
+                bm.MemberNo as BorrowerMemberNo,
+                bm.NationalID as BorrowerIDNumber,
+                bm.PhoneNumber as BorrowerPhone,
+                bm.Email as BorrowerEmail
+            FROM guarantors g
+            JOIN members m ON g.GuarantorMemberID = m.MemberID
+            JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
+            JOIN members bm ON l.MemberID = bm.MemberID
+            WHERE g.GuarantorID = %s
+        """
+        cursor.execute(query, (guarantor_id,))
+        guarantor = cursor.fetchone()
+
+        if not guarantor:
+            flash('Guarantor not found', 'error')
+            return redirect(url_for('user.guarantors'))
+
+        cursor.close()
+        conn.close()
+
+        # Format guarantor data
+        guarantor_data = {
+            'id': guarantor['GuarantorID'],
+            'loan_app_id': guarantor['LoanAppID'],
+            'loan_no': guarantor['LoanNo'],
+            'loan_amount': float(guarantor['LoanAmount']),
+            'loan_purpose': guarantor['LoanPurpose'],
+            'repayment_period': guarantor['RepaymentPeriod'],
+            'guaranteed_amount': float(guarantor['GuaranteedAmount']),
+            'date_added': guarantor['DateAdded'].isoformat() if guarantor['DateAdded'] else None,
+            'status': guarantor['Status'],
+            'guarantor': {
+                'member_no': guarantor['GuarantorMemberNo'],
+                'name': f"{guarantor['GuarantorFirstName']} {guarantor['GuarantorMiddleName'] or ''} {guarantor['GuarantorLastName']}".strip(),
+                'id_number': guarantor['GuarantorIDNumber'],
+                'phone': guarantor['GuarantorPhone'],
+                'email': guarantor['GuarantorEmail']
+            },
+            'borrower': {
+                'member_no': guarantor['BorrowerMemberNo'],
+                'name': f"{guarantor['BorrowerFirstName']} {guarantor['BorrowerMiddleName'] or ''} {guarantor['BorrowerLastName']}".strip(),
+                'id_number': guarantor['BorrowerIDNumber'],
+                'phone': guarantor['BorrowerPhone'],
+                'email': guarantor['BorrowerEmail']
+            }
+        }
+
+        return render_template('user/guarantor_details.html', guarantor=guarantor_data)
+
+    except mysql.connector.Error as e:
+        current_app.logger.error(f"Database error in view_guarantor: {str(e)}")
+        flash('Database error occurred', 'error')
+        return redirect(url_for('user.guarantors'))
+    except Exception as e:
+        current_app.logger.error(f"Error in view_guarantor: {str(e)}")
+        flash('An unexpected error occurred', 'error')
+        return redirect(url_for('user.guarantors'))

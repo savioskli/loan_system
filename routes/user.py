@@ -2812,10 +2812,8 @@ def recovery_analytics_download():
 def create_guarantor_claim():
     try:
         # Get form data
-        customer_id = request.form.get('customerId')
         customer_name = request.form.get('customerName')
         loan_id = request.form.get('loanId')
-        guarantor_id = request.form.get('guarantorId')
         guarantor_name = request.form.get('guarantorName')
         claim_amount = request.form.get('claimAmount')
         description = request.form.get('description')
@@ -2824,7 +2822,7 @@ def create_guarantor_claim():
         documents = request.files.getlist('documents')
         
         # TODO: Validate data
-        if not all([customer_id, customer_name, loan_id, guarantor_id, guarantor_name, claim_amount, description]):
+        if not all([customer_name, loan_id, guarantor_name, claim_amount, description]):
             return jsonify({'error': 'All fields are required'}), 400
             
         # TODO: Save documents to appropriate storage

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Guarantor Claim Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mt-4">Guarantor Claim Details</h1>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Claim #{{ claim.id }}</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3 class="h5 mb-3">Guarantor Information</h3>
+                            <dl class="row">
+                                <dt class="col-sm-4">Name:</dt>
+                                <dd class="col-sm-8">{{ claim.guarantor_name }}</dd>
+                                
+                                <dt class="col-sm-4">Contact:</dt>
+                                <dd class="col-sm-8">{{ claim.guarantor_contact }}</dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h3 class="h5 mb-3">Borrower Information</h3>
+                            <dl class="row">
+                                <dt class="col-sm-4">Name:</dt>
+                                <dd class="col-sm-8">{{ claim.borrower_name }}</dd>
+                                
+                                <dt class="col-sm-4">Contact:</dt>
+                                <dd class="col-sm-8">{{ claim.borrower_contact }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3 class="h5 mb-3">Claim Details</h3>
+                            <dl class="row">
+                                <dt class="col-sm-4">Amount Paid:</dt>
+                                <dd class="col-sm-8 text-primary fw-bold">{{ '{:,.2f}'.format(claim.amount_paid) }}</dd>
+                                
+                                <dt class="col-sm-4">Claim Date:</dt>
+                                <dd class="col-sm-8">{{ claim.claim_date }}</dd>
+                                
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    {% if claim.status == 'Pending' %}
+                                        <span class="badge bg-warning text-dark">{{ claim.status }}</span>
+                                    {% elif claim.status == 'Resolved' %}
+                                        <span class="badge bg-success">{{ claim.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info text-dark">{{ claim.status }}</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h3 class="h5 mb-3">Additional Information</h3>
+                            <dl class="row">
+                                <dt class="col-sm-4">Description:</dt>
+                                <dd class="col-sm-8">{{ claim.claim_description or 'No description provided' }}</dd>
+                                
+                                <dt class="col-sm-4">Guarantor ID:</dt>
+                                <dd class="col-sm-8">{{ claim.guarantor_id or 'N/A' }}</dd>
+                                
+                                <dt class="col-sm-4">Loan ID:</dt>
+                                <dd class="col-sm-8">{{ claim.loan_id or 'N/A' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('user.list_guarantor_claims') }}" class="btn btn-secondary">
+                            Back to Claims List
+                        </a>
+                        
+                        {% if claim.status == 'Pending' %}
+                        <div>
+                            <button class="btn btn-primary me-2">
+                                Process Claim
+                            </button>
+                            <button class="btn btn-danger">
+                                Reject Claim
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Optional: Add any client-side interactions for the claim detail page
+    });
+</script>
+{% endblock %}

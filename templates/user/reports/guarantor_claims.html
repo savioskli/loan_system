@@ -256,16 +256,12 @@ $(document).ready(function() {
                     };
                 },
                 processResults: function(data) {
+                    console.log('Customer search results:', data);
                     if (!data || !Array.isArray(data.items)) {
                         return { results: [] };
                     }
                     return {
-                        results: data.items.map(item => ({
-                            id: item.id,
-                            text: item.text,
-                            loans: item.loans,
-                            guarantors: item.guarantors
-                        })),
+                        results: data.items,
                         pagination: {
                             more: data.has_more
                         }
@@ -275,9 +271,10 @@ $(document).ready(function() {
             },
             minimumInputLength: 2
         }).on('select2:select', function(e) {
+            console.log('Selected customer data:', e.params.data);
             currentCustomerData = e.params.data;
             const loanSelect = $('#loanSelect');
-            loanSelect.empty();
+            loanSelect.empty().append(new Option('Select a loan', '', true, true));
             
             if (currentCustomerData.loans && Array.isArray(currentCustomerData.loans)) {
                 currentCustomerData.loans.forEach(loan => {
@@ -287,7 +284,6 @@ $(document).ready(function() {
                         false,
                         false
                     );
-                    // Store loan data in the option element
                     $(option).data('loan', loan);
                     loanSelect.append(option);
                 });
@@ -308,19 +304,24 @@ $(document).ready(function() {
             width: '100%',
             dropdownParent: $('#newClaimModal')
         }).on('select2:select', function(e) {
-            const loanId = e.target.value;
+            console.log('Selected loan:', e.target.value);
+            const selectedLoanId = e.target.value;
             const loan = $(e.target.selectedOptions[0]).data('loan');
             currentLoanData = loan;
             
             // Find active guarantors for this loan
             const guarantorSelect = $('#guarantorSelect');
-            guarantorSelect.empty();
+            guarantorSelect.empty().append(new Option('Select a guarantor', '', true, true));
             
             if (currentCustomerData && currentCustomerData.guarantors) {
-                const loanGuarantors = currentCustomerData.guarantors.filter(g => 
-                    g.LoanAppID === loanId && g.Status === 'Active'
+                console.log('All guarantors:', currentCustomerData.guarantors);
+                const loanGuarantors = currentCustomerData.guarantors.filter(
+                    g => g.LoanAppID === selectedLoanId && g.Status === 'Active'
                 );
+                console.log('Filtered guarantors for loan:', loanGuarantors);
+                
                 loanGuarantors.forEach(guarantor => {
+                    console.log('Adding guarantor:', guarantor);
                     const option = new Option(
                         `${guarantor.GuarantorName} (Guaranteed: ${formatCurrency(guarantor.GuaranteedAmount)})`,
                         guarantor.GuarantorID,
@@ -346,8 +347,9 @@ $(document).ready(function() {
             dropdownParent: $('#newClaimModal')
         }).on('select2:select', function(e) {
             const guarantor = $(e.target.selectedOptions[0]).data('guarantor');
+            console.log('Selected guarantor:', guarantor);
             if (guarantor) {
-                $('#guarantorMemberId').val(guarantor.MemberID);
+                $('#guarantorMemberId').val(guarantor.GuarantorMemberID);
                 $('#guaranteedAmountInfo').text(
                     `Guaranteed Amount: ${formatCurrency(guarantor.GuaranteedAmount)}`
                 );
@@ -362,13 +364,14 @@ $(document).ready(function() {
     }
 
     function resetGuarantorFields() {
-        $('#guarantorSelect').empty().trigger('change');
+        $('#guarantorSelect').empty().append(new Option('Select a guarantor', '', true, true)).trigger('change');
         $('#guarantorMemberId').val('');
         $('#guaranteedAmountInfo').text('');
-        $('#claimAmount').removeAttr('max').val('');
+        $('#claimAmount').val('').attr('max', '');
     }
 
     function formatCurrency(amount) {
+        if (amount === null || amount === undefined) return 'KES 0.00';
         return new Intl.NumberFormat('en-KE', {
             style: 'currency',
             currency: 'KES',

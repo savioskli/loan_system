@@ -50,16 +50,22 @@ def search_customers():
                 GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
                     l.LoanAppID, 
                     l.LoanNo,
-                    l.LoanAmount,
+                    COALESCE(l.LoanAmount, 0),
                     COALESCE(lle.OutstandingBalance, 0)
                 )) AS LoanInfo,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
-                    g.GuarantorID,
-                    gm.MemberID,
-                    gm.FullName,
-                    g.GuaranteedAmount,
-                    g.Status
-                )) AS GuarantorInfo
+                GROUP_CONCAT(DISTINCT 
+                    CASE 
+                        WHEN g.GuarantorID IS NOT NULL 
+                        THEN CONCAT_WS(':', 
+                            COALESCE(g.GuarantorID, ''),
+                            COALESCE(g.GuarantorMemberID, ''),
+                            COALESCE(gm.FullName, ''),
+                            COALESCE(g.GuaranteedAmount, 0),
+                            COALESCE(g.Status, ''),
+                            COALESCE(l.LoanAppID, '')
+                        )
+                    END
+                ) AS GuarantorInfo
             FROM Members m
             LEFT JOIN LoanApplications l ON m.MemberID = l.MemberID
             LEFT JOIN (
@@ -106,43 +112,56 @@ def search_customers():
             if member['LoanInfo']:
                 loan_info_list = member['LoanInfo'].split(',')
                 for loan_info in loan_info_list:
-                    loan_id, loan_no, loan_amount, outstanding = loan_info.split(':')
-                    if loan_id and loan_no:  # Only add if we have valid loan info
-                        loans.append({
-                            'LoanAppID': loan_id,
-                            'LoanNo': loan_no,
-                            'LoanAmount': float(loan_amount) if loan_amount else 0,
-                            'OutstandingBalance': float(outstanding) if outstanding else 0
-                        })
+                    try:
+                        loan_id, loan_no, loan_amount, outstanding = loan_info.split(':')
+                        if loan_id and loan_no:  # Only add if we have valid loan info
+                            loans.append({
+                                'LoanAppID': loan_id,
+                                'LoanNo': loan_no,
+                                'LoanAmount': float(loan_amount) if loan_amount else 0,
+                                'OutstandingBalance': float(outstanding) if outstanding else 0
+                            })
+                    except ValueError as e:
+                        current_app.logger.error(f"Error parsing loan info: {loan_info}, Error: {str(e)}")
+                        continue
             
             # Process guarantor information
-            if member['GuarantorInfo']:
-                guarantor_info_list = member['GuarantorInfo'].split(',')
+            if member['GuarantorInfo'] and member['GuarantorInfo'] != 'NULL':
+                current_app.logger.info(f"Raw GuarantorInfo: {member['GuarantorInfo']}")
+                guarantor_info_list = [g for g in member['GuarantorInfo'].split(',') if g]  # Filter out empty strings
                 for guarantor_info in guarantor_info_list:
                     try:
-                        guarantor_id, member_id, guarantor_name, guaranteed_amount, status = guarantor_info.split(':')
-                        if guarantor_id and member_id and status == 'Active':  # Only add active guarantors
-                            guarantors.append({
-                                'GuarantorID': guarantor_id,
-                                'MemberID': member_id,
-                                'GuarantorName': guarantor_name,
-                                'GuaranteedAmount': float(guaranteed_amount) if guaranteed_amount else 0,
-                                'Status': status
-                            })
-                    except ValueError:
-                        continue  # Skip malformed guarantor info
+                        fields = guarantor_info.split(':')
+                        if len(fields) == 6:  # Only process if we have all fields
+                            guarantor_id, member_id, guarantor_name, guaranteed_amount, status, loan_app_id = fields
+                            if guarantor_id and member_id and status == 'Active':
+                                guarantors.append({
+                                    'GuarantorID': guarantor_id,
+                                    'GuarantorMemberID': member_id,
+                                    'GuarantorName': guarantor_name.strip() if guarantor_name else '',
+                                    'GuaranteedAmount': float(guaranteed_amount) if guaranteed_amount else 0,
+                                    'Status': status,
+                                    'LoanAppID': loan_app_id
+                                })
+                    except ValueError as e:
+                        current_app.logger.error(f"Error parsing guarantor info: {guarantor_info}, Error: {str(e)}")
+                        continue
 
-            items.append({
+            result = {
                 'id': str(member['MemberID']),
                 'text': member['FullName'],
                 'loans': loans,
                 'guarantors': guarantors
-            })
+            }
+            current_app.logger.info(f"Processed member result: {result}")
+            items.append(result)
 
-        return jsonify({
+        response = {
             'items': items,
             'has_more': total_count > (page * per_page)
-        })
+        }
+        current_app.logger.info(f"API Response: {response}")
+        return jsonify(response)
 
     except Exception as e:
         current_app.logger.error(f'Error in customer search: {str(e)}')

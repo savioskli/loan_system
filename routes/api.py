@@ -8,6 +8,9 @@ from models.loan import Loan
 from models.collection_schedule import CollectionSchedule
 from datetime import datetime
 from extensions import db, csrf
+import os
+from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 csrf.exempt(api_bp)  # Remove CSRF protection from API routes since we handle it manually
@@ -348,3 +351,126 @@ def create_collection_schedule():
             'status': 'error',
             'message': 'An error occurred while creating the collection schedule'
         }), 500
+
+@api_bp.route('/guarantor-claims/create', methods=['POST'])
+@login_required
+def create_guarantor_claim():
+    """Create a new guarantor claim with document attachments."""
+    try:
+        # Extract form data
+        data = request.form
+        
+        # Validate required fields
+        required_fields = {
+            'loanId': 'Loan ID',
+            'loanNo': 'Loan Number',
+            'borrowerId': 'Borrower ID',
+            'borrowerName': 'Borrower Name',
+            'guarantorId': 'Guarantor ID',
+            'guarantorName': 'Guarantor Name',
+            'claimAmount': 'Claim Amount'
+        }
+        
+        for field, label in required_fields.items():
+            if not data.get(field):
+                return jsonify({
+                    'status': 'error',
+                    'message': f'{label} is required'
+                }), 400
+
+        # Handle document uploads
+        document_paths = []
+        if 'documents' in request.files:
+            files = request.files.getlist('documents')
+            for file in files:
+                if file and file.filename:
+                    if allowed_file(file.filename):
+                        filename = secure_filename(file.filename)
+                        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'claims')
+                        os.makedirs(upload_dir, exist_ok=True)
+                        file_path = os.path.join('uploads/claims', filename)
+                        file.save(os.path.join(upload_dir, filename))
+                        document_paths.append(file_path)
+                    else:
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'Invalid file type: {file.filename}'
+                        }), 400
+
+        # Connect to database
+        conn = mysql.connector.connect(
+            host=db_config['host'],
+            user=db_config['user'],
+            password=db_config['password'],
+            database='loan_system',
+            auth_plugin=db_config['auth_plugin']
+        )
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            # Start transaction
+            conn.start_transaction()
+
+            # Insert claim record
+            sql = """
+            INSERT INTO guarantor_claims (
+                loan_id, loan_no, borrower_id, borrower_name,
+                guarantor_id, guarantor_name, claim_amount,
+                claim_date, status, notes, document_path,
+                created_by, created_at
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s,
+                NOW(), 'Pending', %s, %s, %s, NOW()
+            )
+            """
+            
+            cursor.execute(sql, (
+                data['loanId'],
+                data['loanNo'],
+                data['borrowerId'],
+                data['borrowerName'],
+                data['guarantorId'],
+                data['guarantorName'],
+                data['claimAmount'],
+                data.get('notes', ''),
+                ','.join(document_paths) if document_paths else None,
+                current_user.id
+            ))
+
+            # Get the inserted claim ID
+            claim_id = cursor.lastrowid
+
+            # Commit transaction
+            conn.commit()
+
+            current_app.logger.info(f"Successfully created guarantor claim with ID: {claim_id}")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Guarantor claim submitted successfully',
+                'claimId': claim_id
+            }), 201
+
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f"Database error in guarantor claim creation: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Database error occurred'
+            }), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    except Exception as e:
+        current_app.logger.error(f"Error creating guarantor claim: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'An error occurred while processing your request'
+        }), 500
+
+def allowed_file(filename):
+    """Check if the uploaded file has an allowed extension."""
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

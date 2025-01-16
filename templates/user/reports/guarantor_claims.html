@@ -383,8 +383,73 @@ $(document).ready(function() {
     // Handle form submission
     $('#newClaimForm').submit(function(e) {
         e.preventDefault();
-        const formData = new FormData(this);
         
+        // Get selected values
+        const loanSelect = $('#loanSelect');
+        const customerSelect = $('#customerSelect');
+        const guarantorSelect = $('#guarantorSelect');
+        
+        // Validate selections
+        if (!loanSelect.val() || !customerSelect.val() || !guarantorSelect.val()) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please select loan, customer, and guarantor'
+            });
+            return;
+        }
+        
+        // Get selected data
+        const loan = $(loanSelect.select2('data')[0].element).data('loan');
+        const customer = customerSelect.select2('data')[0];
+        const guarantor = $(guarantorSelect.select2('data')[0].element).data('guarantor');
+        
+        if (!loan || !customer || !guarantor) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Data Error',
+                text: 'Failed to retrieve selected data. Please try again.'
+            });
+            return;
+        }
+
+        // Validate claim amount
+        const claimAmount = $('#claimAmount').val();
+        if (!claimAmount || isNaN(claimAmount) || parseFloat(claimAmount) <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please enter a valid claim amount'
+            });
+            return;
+        }
+        
+        // Create FormData object
+        const formData = new FormData();
+        formData.append('loanId', loan.LoanAppID);
+        formData.append('loanNo', loan.LoanNo);
+        formData.append('borrowerId', customer.id);
+        formData.append('borrowerName', customer.text);
+        formData.append('guarantorId', guarantor.GuarantorID);
+        formData.append('guarantorName', guarantor.GuarantorName);
+        formData.append('claimAmount', claimAmount);
+        formData.append('notes', $('#notes').val() || '');
+
+        // Handle file uploads
+        const fileInput = $('input[name="documents"]')[0];
+        if (fileInput.files.length > 0) {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('documents', fileInput.files[i]);
+            }
+        }
+        
+        // Show loading state
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...');
+        submitBtn.prop('disabled', true);
+        
+        // Submit form
         $.ajax({
             url: '/api/guarantor-claims/create',
             type: 'POST',
@@ -392,13 +457,34 @@ $(document).ready(function() {
             processData: false,
             contentType: false,
             success: function(response) {
-                hideModal();
-                loadReportData(1);
-                alert('Claim created successfully!');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: response.message
+                }).then(() => {
+                    // Reset form and close modal
+                    $('#newClaimForm')[0].reset();
+                    // Reset Select2 dropdowns
+                    loanSelect.val(null).trigger('change');
+                    customerSelect.val(null).trigger('change');
+                    guarantorSelect.val(null).trigger('change');
+                    hideModal();
+                    // Reload data
+                    loadReportData(1);
+                });
             },
             error: function(xhr) {
                 const error = xhr.responseJSON;
-                alert(error?.message || 'Failed to create claim');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error?.message || 'Failed to create claim'
+                });
+            },
+            complete: function() {
+                // Reset button state
+                submitBtn.html(originalText);
+                submitBtn.prop('disabled', false);
             }
         });
     });

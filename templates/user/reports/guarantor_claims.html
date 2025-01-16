@@ -125,25 +125,61 @@
             </div>
         </div>
 
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Total Claims</h3>
-                <p class="text-3xl font-bold text-primary" id="totalClaims">0</p>
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <!-- Total Claims -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Claims</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
             </div>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Total Amount</h3>
-                <p class="text-3xl font-bold text-primary" id="totalAmount">KES 0</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Settled Claims</h3>
-                <p class="text-3xl font-bold text-primary" id="settledClaims">0</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Success Rate</h3>
-                <p class="text-3xl font-bold text-primary" id="successRate">0%</p>
+            <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <i class="fas fa-file-invoice text-blue-600 dark:text-blue-400 text-xl"></i>
             </div>
         </div>
+    </div>
+
+    <!-- Pending Claims -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Pending</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            </div>
+            <div class="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Claims -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Approved</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            </div>
+            <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejected Claims -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Rejected</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            </div>
+            <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <i class="fas fa-times-circle text-red-600 dark:text-red-400 text-xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
 
         <!-- Report Table -->
         <div class="overflow-x-auto">

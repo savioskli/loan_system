@@ -580,3 +580,50 @@ def get_guarantor_claims():
             cursor.close()
         if 'conn' in locals() and conn.is_connected():
             conn.close()
+
+@api_bp.route('/guarantor-claims/stats', methods=['GET'])
+@login_required
+def get_guarantor_claims_stats():
+    """Get statistics for guarantor claims."""
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get claims statistics
+        stats_query = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+                SUM(CASE WHEN status = 'pending' THEN claim_amount ELSE 0 END) as pending_amount,
+                SUM(CASE WHEN status = 'approved' THEN claim_amount ELSE 0 END) as approved_amount
+            FROM guarantor_claims
+        """
+        cursor.execute(stats_query)
+        stats = cursor.fetchone()
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'total': stats['total'] or 0,
+                'pending': stats['pending'] or 0,
+                'approved': stats['approved'] or 0,
+                'rejected': stats['rejected'] or 0,
+                'pending_amount': float(stats['pending_amount'] or 0),
+                'approved_amount': float(stats['approved_amount'] or 0)
+            }
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error fetching guarantor claims stats: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch statistics'
+        }), 500
+    
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals() and conn.is_connected():
+            conn.close()

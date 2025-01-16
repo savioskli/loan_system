@@ -126,13 +126,13 @@
         </div>
 
 <!-- Summary Cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
     <!-- Total Claims -->
     <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
         <div class="flex items-center justify-between">
             <div class="flex-1">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Claims</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                <p id="total-claims" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
             </div>
             <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
                 <i class="fas fa-file-invoice text-blue-600 dark:text-blue-400 text-xl"></i>
@@ -145,7 +145,7 @@
         <div class="flex items-center justify-between">
             <div class="flex-1">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Pending</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                <p id="pending-claims" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
             </div>
             <div class="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
                 <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
@@ -158,7 +158,7 @@
         <div class="flex items-center justify-between">
             <div class="flex-1">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Approved</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                <p id="approved-claims" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
             </div>
             <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
                 <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-xl"></i>
@@ -171,14 +171,47 @@
         <div class="flex items-center justify-between">
             <div class="flex-1">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Rejected</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                <p id="rejected-claims" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
             </div>
             <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
                 <i class="fas fa-times-circle text-red-600 dark:text-red-400 text-xl"></i>
             </div>
         </div>
     </div>
+
+    <!-- Pending Amount -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Pending Amount</p>
+                <p id="pending-amount" class="text-2xl font-bold text-gray-900 dark:text-white">KES 0</p>
+            </div>
+            <div class="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                <i class="fas fa-money-bill-wave text-yellow-600 dark:text-yellow-400 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Amount -->
+    <div class="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Approved Amount</p>
+                <p id="approved-amount" class="text-2xl font-bold text-gray-900 dark:text-white">KES 0</p>
+            </div>
+            <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <i class="fas fa-money-bill-wave text-green-600 dark:text-green-400 text-xl"></i>
+            </div>
+        </div>
+    </div>
 </div>
+
+
+
+            
+        </div>
+        
+
 
 
         <!-- Report Table -->
@@ -598,10 +631,49 @@ $(document).ready(function() {
                     totalPages: data.total_pages,
                     total: data.total
                 });
+                
+                // Fetch statistics separately
+                await loadStatistics();
             }
         } catch (error) {
             console.error('Failed to load report data:', error);
         }
+    }
+
+    async function loadStatistics() {
+        try {
+            const response = await fetch('/api/guarantor-claims/stats', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.status === 'success') {
+                    updateStatistics(result.data);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load statistics:', error);
+        }
+    }
+
+    function updateStatistics(data) {
+        // Format numbers with commas
+        const formatNumber = num => new Intl.NumberFormat().format(num);
+        const formatCurrency = num => `KES ${new Intl.NumberFormat().format(num)}`;
+        
+        // Update counts
+        document.getElementById('total-claims').textContent = formatNumber(data.total);
+        document.getElementById('pending-claims').textContent = formatNumber(data.pending);
+        document.getElementById('approved-claims').textContent = formatNumber(data.approved);
+        document.getElementById('rejected-claims').textContent = formatNumber(data.rejected);
+        
+        // Update amounts
+        document.getElementById('pending-amount').textContent = formatCurrency(data.pending_amount);
+        document.getElementById('approved-amount').textContent = formatCurrency(data.approved_amount);
     }
 
     function updateTable(items) {

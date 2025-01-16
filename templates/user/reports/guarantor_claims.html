@@ -52,14 +52,15 @@
                         <!-- Guarantor Details -->
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guarantor Name</label>
-                                <input type="text" name="guarantorName" required
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guarantor</label>
+                                <select id="guarantorSelect" name="guarantorId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required></select>
+                                <input type="hidden" name="guarantorMemberId" id="guarantorMemberId">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Claim Amount</label>
-                                <input type="number" name="claimAmount" required min="0" step="0.01"
+                                <input type="number" name="claimAmount" id="claimAmount" required min="0" step="0.01"
                                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                                <p class="mt-1 text-sm text-gray-500" id="guaranteedAmountInfo"></p>
                             </div>
                         </div>
                     </div>
@@ -132,7 +133,7 @@
             </div>
             <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Total Amount</h3>
-                <p class="text-3xl font-bold text-primary" id="totalAmount">$0</p>
+                <p class="text-3xl font-bold text-primary" id="totalAmount">KES 0</p>
             </div>
             <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Settled Claims</h3>
@@ -187,6 +188,9 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    let currentCustomerData = null;
+    let currentLoanData = null;
+
     // Modal handling
     const modal = document.getElementById('newClaimModal');
     const openModalBtn = document.getElementById('newClaimBtn');
@@ -198,7 +202,7 @@ $(document).ready(function() {
     openModalBtn.addEventListener('click', () => {
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
-        initializeCustomerSelect(); // Initialize select2 when modal opens
+        initializeSelects(); // Initialize all select2 instances when modal opens
     });
 
     // Hide Modal
@@ -208,6 +212,11 @@ $(document).ready(function() {
         newClaimForm.reset();
         $('#customerSelect').val(null).trigger('change');
         $('#loanSelect').val(null).trigger('change');
+        $('#guarantorSelect').val(null).trigger('change');
+        $('#guarantorMemberId').val('');
+        $('#guaranteedAmountInfo').text('');
+        currentCustomerData = null;
+        currentLoanData = null;
     }
 
     closeModalBtn.addEventListener('click', hideModal);
@@ -220,14 +229,13 @@ $(document).ready(function() {
         }
     });
 
-    function initializeCustomerSelect() {
+    function initializeSelects() {
         // Destroy existing select2 instances if they exist
-        if ($('#customerSelect').hasClass("select2-hidden-accessible")) {
-            $('#customerSelect').select2('destroy');
-        }
-        if ($('#loanSelect').hasClass("select2-hidden-accessible")) {
-            $('#loanSelect').select2('destroy');
-        }
+        ['customerSelect', 'loanSelect', 'guarantorSelect'].forEach(selectId => {
+            if ($('#' + selectId).hasClass("select2-hidden-accessible")) {
+                $('#' + selectId).select2('destroy');
+            }
+        });
 
         // Initialize customer select
         $('#customerSelect').select2({
@@ -255,7 +263,8 @@ $(document).ready(function() {
                         results: data.items.map(item => ({
                             id: item.id,
                             text: item.text,
-                            loans: item.loans
+                            loans: item.loans,
+                            guarantors: item.guarantors
                         })),
                         pagination: {
                             more: data.has_more
@@ -266,18 +275,29 @@ $(document).ready(function() {
             },
             minimumInputLength: 2
         }).on('select2:select', function(e) {
-            const data = e.params.data;
-            // Populate loan select with loans for selected customer
+            currentCustomerData = e.params.data;
             const loanSelect = $('#loanSelect');
             loanSelect.empty();
-            if (data.loans && Array.isArray(data.loans)) {
-                data.loans.forEach(loan => {
-                    loanSelect.append(new Option(loan.LoanNo, loan.LoanAppID, false, false));
+            
+            if (currentCustomerData.loans && Array.isArray(currentCustomerData.loans)) {
+                currentCustomerData.loans.forEach(loan => {
+                    const option = new Option(
+                        `${loan.LoanNo} (Outstanding: ${formatCurrency(loan.OutstandingBalance)})`,
+                        loan.LoanAppID,
+                        false,
+                        false
+                    );
+                    // Store loan data in the option element
+                    $(option).data('loan', loan);
+                    loanSelect.append(option);
                 });
             }
             loanSelect.trigger('change');
+            resetGuarantorFields();
         }).on('select2:clear', function() {
+            currentCustomerData = null;
             $('#loanSelect').empty().trigger('change');
+            resetGuarantorFields();
         });
 
         // Initialize loan select
@@ -287,7 +307,74 @@ $(document).ready(function() {
             allowClear: true,
             width: '100%',
             dropdownParent: $('#newClaimModal')
+        }).on('select2:select', function(e) {
+            const loanId = e.target.value;
+            const loan = $(e.target.selectedOptions[0]).data('loan');
+            currentLoanData = loan;
+            
+            // Find active guarantors for this loan
+            const guarantorSelect = $('#guarantorSelect');
+            guarantorSelect.empty();
+            
+            if (currentCustomerData && currentCustomerData.guarantors) {
+                const loanGuarantors = currentCustomerData.guarantors.filter(g => 
+                    g.LoanAppID === loanId && g.Status === 'Active'
+                );
+                loanGuarantors.forEach(guarantor => {
+                    const option = new Option(
+                        `${guarantor.GuarantorName} (Guaranteed: ${formatCurrency(guarantor.GuaranteedAmount)})`,
+                        guarantor.GuarantorID,
+                        false,
+                        false
+                    );
+                    $(option).data('guarantor', guarantor);
+                    guarantorSelect.append(option);
+                });
+            }
+            guarantorSelect.trigger('change');
+        }).on('select2:clear', function() {
+            currentLoanData = null;
+            resetGuarantorFields();
         });
+
+        // Initialize guarantor select
+        $('#guarantorSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select a Guarantor',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#newClaimModal')
+        }).on('select2:select', function(e) {
+            const guarantor = $(e.target.selectedOptions[0]).data('guarantor');
+            if (guarantor) {
+                $('#guarantorMemberId').val(guarantor.MemberID);
+                $('#guaranteedAmountInfo').text(
+                    `Guaranteed Amount: ${formatCurrency(guarantor.GuaranteedAmount)}`
+                );
+                $('#claimAmount').attr({
+                    'max': guarantor.GuaranteedAmount,
+                    'step': '0.01'
+                });
+            }
+        }).on('select2:clear', function() {
+            resetGuarantorFields();
+        });
+    }
+
+    function resetGuarantorFields() {
+        $('#guarantorSelect').empty().trigger('change');
+        $('#guarantorMemberId').val('');
+        $('#guaranteedAmountInfo').text('');
+        $('#claimAmount').removeAttr('max').val('');
+    }
+
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-KE', {
+            style: 'currency',
+            currency: 'KES',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
     }
 
     // Handle form submission
@@ -430,13 +517,6 @@ $(document).ready(function() {
         
         document.getElementById('prevPage').disabled = pagination.page === 1;
         document.getElementById('nextPage').disabled = pagination.page === pagination.totalPages;
-    }
-
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(amount);
     }
 
     function formatDate(dateString) {

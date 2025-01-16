@@ -33,7 +33,7 @@ def search_customers():
             host=db_config['host'],
             user=db_config['user'],
             password=db_config['password'],
-            database='sacco_db',  # Use core banking database
+            database='sacco_db',
             auth_plugin=db_config['auth_plugin']
         )
         cursor = conn.cursor(dictionary=True)
@@ -41,20 +41,42 @@ def search_customers():
         # Calculate offset for pagination
         offset = (page - 1) * per_page
 
-        # Search query with LIKE for FullName
+        # Search query with LIKE for FullName and include loan and guarantor information
         search_term = f"%{query}%"
         sql = """
             SELECT 
-                Members.MemberID,
-                Members.FullName,
-                GROUP_CONCAT(LoanApplications.LoanAppID) AS LoanAppIDs,
-                GROUP_CONCAT(LoanApplications.LoanNo) AS LoanNos
-            FROM Members 
-            LEFT JOIN LoanApplications ON Members.MemberID = LoanApplications.MemberID
+                m.MemberID,
+                m.FullName,
+                GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
+                    l.LoanAppID, 
+                    l.LoanNo,
+                    l.LoanAmount,
+                    COALESCE(lle.OutstandingBalance, 0)
+                )) AS LoanInfo,
+                GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
+                    g.GuarantorID,
+                    gm.MemberID,
+                    gm.FullName,
+                    g.GuaranteedAmount,
+                    g.Status
+                )) AS GuarantorInfo
+            FROM Members m
+            LEFT JOIN LoanApplications l ON m.MemberID = l.MemberID
+            LEFT JOIN (
+                SELECT LoanID, OutstandingBalance
+                FROM LoanLedgerEntries
+                WHERE LedgerID IN (
+                    SELECT MAX(LedgerID)
+                    FROM LoanLedgerEntries
+                    GROUP BY LoanID
+                )
+            ) lle ON l.LoanAppID = lle.LoanID
+            LEFT JOIN Guarantors g ON l.LoanAppID = g.LoanAppID
+            LEFT JOIN Members gm ON g.GuarantorMemberID = gm.MemberID
             WHERE 
-                Members.FullName LIKE %s
-            AND Members.Status = 'Active'
-            GROUP BY Members.MemberID
+                m.FullName LIKE %s
+                AND m.Status = 'Active'
+            GROUP BY m.MemberID
             LIMIT %s OFFSET %s
         """
         cursor.execute(sql, (search_term, per_page, offset))
@@ -62,11 +84,11 @@ def search_customers():
 
         # Get total count for pagination
         count_sql = """
-            SELECT COUNT(*) as count
-            FROM Members 
+            SELECT COUNT(DISTINCT m.MemberID) as count
+            FROM Members m
             WHERE 
-                FullName LIKE %s
-            AND Status = 'Active'
+                m.FullName LIKE %s
+                AND m.Status = 'Active'
         """
         cursor.execute(count_sql, (search_term,))
         total_count = cursor.fetchone()['count']
@@ -75,22 +97,55 @@ def search_customers():
         conn.close()
 
         # Transform the results to match Select2 format
-        current_app.logger.info('Returning search results')
-        return jsonify({
-            'items': [{
+        items = []
+        for member in members:
+            loans = []
+            guarantors = []
+            
+            # Process loan information
+            if member['LoanInfo']:
+                loan_info_list = member['LoanInfo'].split(',')
+                for loan_info in loan_info_list:
+                    loan_id, loan_no, loan_amount, outstanding = loan_info.split(':')
+                    if loan_id and loan_no:  # Only add if we have valid loan info
+                        loans.append({
+                            'LoanAppID': loan_id,
+                            'LoanNo': loan_no,
+                            'LoanAmount': float(loan_amount) if loan_amount else 0,
+                            'OutstandingBalance': float(outstanding) if outstanding else 0
+                        })
+            
+            # Process guarantor information
+            if member['GuarantorInfo']:
+                guarantor_info_list = member['GuarantorInfo'].split(',')
+                for guarantor_info in guarantor_info_list:
+                    try:
+                        guarantor_id, member_id, guarantor_name, guaranteed_amount, status = guarantor_info.split(':')
+                        if guarantor_id and member_id and status == 'Active':  # Only add active guarantors
+                            guarantors.append({
+                                'GuarantorID': guarantor_id,
+                                'MemberID': member_id,
+                                'GuarantorName': guarantor_name,
+                                'GuaranteedAmount': float(guaranteed_amount) if guaranteed_amount else 0,
+                                'Status': status
+                            })
+                    except ValueError:
+                        continue  # Skip malformed guarantor info
+
+            items.append({
                 'id': str(member['MemberID']),
                 'text': member['FullName'],
-                'loans': [
-                    {'LoanAppID': loanAppID, 'LoanNo': loanNo}
-                    for loanAppID, loanNo in zip(member['LoanAppIDs'].split(','), member['LoanNos'].split(','))
-                ]  # Create an array of loans
-            } for member in members],
-            'has_more': total_count > (page * per_page)  # Check if there are more results
+                'loans': loans,
+                'guarantors': guarantors
+            })
+
+        return jsonify({
+            'items': items,
+            'has_more': total_count > (page * per_page)
         })
 
     except Exception as e:
         current_app.logger.error(f'Error in customer search: {str(e)}')
-        current_app.logger.info('Returning error response')
         return jsonify({
             'items': [],
             'has_more': False,

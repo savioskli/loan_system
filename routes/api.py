@@ -474,3 +474,109 @@ def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@api_bp.route('/guarantor-claims', methods=['GET'])
+@login_required
+def get_guarantor_claims():
+    """Get paginated list of guarantor claims with optional filters."""
+    try:
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        status = request.args.get('status')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        search = request.args.get('search')
+
+        # Calculate offset
+        offset = (page - 1) * per_page
+
+        # Connect to database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Build base query
+        query = """
+            SELECT 
+                gc.*,
+                s.username as created_by_name,
+                COALESCE(s2.username, '') as updated_by_name
+            FROM guarantor_claims gc
+            LEFT JOIN staff s ON gc.created_by = s.id
+            LEFT JOIN staff s2 ON gc.updated_by = s2.id
+            WHERE 1=1
+        """
+        count_query = "SELECT COUNT(*) as total FROM guarantor_claims WHERE 1=1"
+        params = []
+
+        # Add filters
+        if status:
+            query += " AND gc.status = %s"
+            count_query += " AND status = %s"
+            params.append(status)
+
+        if start_date:
+            query += " AND gc.claim_date >= %s"
+            count_query += " AND claim_date >= %s"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND gc.claim_date <= %s"
+            count_query += " AND claim_date <= %s"
+            params.append(end_date)
+
+        if search:
+            search_term = f"%{search}%"
+            query += """ AND (
+                gc.loan_no LIKE %s OR 
+                gc.borrower_name LIKE %s OR 
+                gc.guarantor_name LIKE %s
+            )"""
+            count_query += """ AND (
+                loan_no LIKE %s OR 
+                borrower_name LIKE %s OR 
+                guarantor_name LIKE %s
+            )"""
+            params.extend([search_term, search_term, search_term])
+
+        # Add sorting and pagination
+        query += " ORDER BY gc.created_at DESC LIMIT %s OFFSET %s"
+        params.extend([per_page, offset])
+
+        # Execute queries
+        cursor.execute(count_query, params[:-2])
+        total_count = cursor.fetchone()['total']
+
+        cursor.execute(query, params)
+        claims = cursor.fetchall()
+
+        # Process results
+        for claim in claims:
+            # Convert decimal to float for JSON serialization
+            claim['claim_amount'] = float(claim['claim_amount'])
+            # Format dates
+            claim['claim_date'] = claim['claim_date'].strftime('%Y-%m-%d')
+            claim['created_at'] = claim['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if claim['updated_at']:
+                claim['updated_at'] = claim['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify({
+            'items': claims,
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching guarantor claims: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch guarantor claims'
+        }), 500
+
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals() and conn.is_connected():
+            conn.close()

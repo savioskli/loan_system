@@ -804,7 +804,6 @@ def correspondence():
 @user_bp.route('/api/communications', methods=['GET'])
 @login_required
 def get_communications():
-    """Get communication history with optional filters"""
     from models.correspondence import Correspondence
     
     member_id = request.args.get('member_id', type=int)
@@ -2617,3 +2616,226 @@ def mark_communication_read(communication_id):
     except Exception as e:
         current_app.logger.error(f"Error in mark_communication_read: {str(e)}")
         return jsonify({'error': 'Failed to mark communication as read'}), 500
+
+@user_bp.route('/reports/guarantor-claims')
+@login_required
+def guarantor_claims_report():
+    return render_template('user/reports/guarantor_claims.html')
+
+@user_bp.route('/api/reports/guarantor-claims/data', methods=['POST'])
+@login_required
+def get_guarantor_claims_data():
+    filters = request.get_json()
+    # TODO: Implement data fetching logic
+    # This is sample data for demonstration
+    data = {
+        'dashboard': {
+            'totalClaims': 150,
+            'totalAmount': 750000,
+            'settledClaims': 85,
+            'successRate': 56.67
+        },
+        'items': [
+            {
+                'claimId': 'GC001',
+                'customerName': 'John Doe',
+                'guarantorName': 'Jane Smith',
+                'claimAmount': 5000,
+                'filingDate': '2025-01-15',
+                'status': 'pending',
+                'settlementAmount': 0
+            }
+            # Add more sample items as needed
+        ],
+        'pagination': {
+            'page': 1,
+            'start': 1,
+            'end': 10,
+            'total': 150,
+            'totalPages': 15
+        }
+    }
+    return jsonify(data)
+
+@user_bp.route('/api/reports/guarantor-claims/download', methods=['POST'])
+@login_required
+def download_guarantor_claims():
+    filters = request.get_json()
+    # TODO: Implement Excel generation logic
+    # For now, return a sample Excel file
+    return send_file(
+        'path/to/generated/excel',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='guarantor_claims_report.xlsx'
+    )
+
+@user_bp.route('/reports/collection')
+@login_required
+def collection_report():
+    return render_template('user/reports/collection_report.html')
+
+@user_bp.route('/reports/communication-logs')
+@login_required
+def communication_logs():
+    return render_template('user/reports/communication_logs.html')
+
+@user_bp.route('/reports/legal-status')
+@login_required
+def legal_status():
+    return render_template('user/reports/legal_status.html')
+
+@user_bp.route('/reports/recovery-analytics')
+@login_required
+def recovery_analytics():
+    return render_template('user/reports/recovery_analytics.html')
+
+# API endpoints for report data
+@user_bp.route('/api/reports/collection/data', methods=['POST'])
+@login_required
+def collection_report_data():
+    filters = request.json
+    # TODO: Implement data fetching logic
+    return jsonify({
+        'items': [],
+        'pagination': {
+            'total': 0,
+            'page': 1,
+            'per_page': 10
+        }
+    })
+
+@user_bp.route('/api/reports/collection/download', methods=['POST'])
+@login_required
+def collection_report_download():
+    filters = request.json
+    # TODO: Implement Excel generation logic
+    return send_file(
+        'path_to_generated_file',
+        as_attachment=True,
+        download_name='collection_report.xlsx'
+    )
+
+@user_bp.route('/api/reports/communication/data', methods=['POST'])
+@login_required
+def communication_logs_data():
+    filters = request.json
+    # TODO: Implement data fetching logic
+    return jsonify({
+        'items': [],
+        'pagination': {
+            'total': 0,
+            'page': 1,
+            'per_page': 10
+        }
+    })
+
+@user_bp.route('/api/reports/communication/download', methods=['POST'])
+@login_required
+def communication_logs_download():
+    filters = request.json
+    # TODO: Implement Excel generation logic
+    return send_file(
+        'path_to_generated_file',
+        as_attachment=True,
+        download_name='communication_logs.xlsx'
+    )
+
+@user_bp.route('/api/reports/legal/data', methods=['POST'])
+@login_required
+def legal_status_data():
+    filters = request.json
+    # TODO: Implement data fetching logic
+    return jsonify({
+        'items': [],
+        'pagination': {
+            'total': 0,
+            'page': 1,
+            'per_page': 10
+        }
+    })
+
+@user_bp.route('/api/reports/legal/download', methods=['POST'])
+@login_required
+def legal_status_download():
+    filters = request.json
+    # TODO: Implement Excel generation logic
+    return send_file(
+        'path_to_generated_file',
+        as_attachment=True,
+        download_name='legal_status_report.xlsx'
+    )
+
+@user_bp.route('/api/reports/recovery/data', methods=['POST'])
+@login_required
+def recovery_analytics_data():
+    filters = request.json
+    # TODO: Implement data fetching logic
+    return jsonify({
+        'items': [],
+        'pagination': {
+            'total': 0,
+            'page': 1,
+            'per_page': 10
+        },
+        'dashboard': {
+            'totalRecovery': 0,
+            'recoveryRate': 0,
+            'activeCases': 0,
+            'avgRecoveryTime': 0
+        },
+        'charts': {
+            'trendData': {
+                'labels': [],
+                'datasets': []
+            },
+            'distributionData': {
+                'labels': [],
+                'datasets': []
+            }
+        }
+    })
+
+@user_bp.route('/api/reports/recovery/download', methods=['POST'])
+@login_required
+def recovery_analytics_download():
+    filters = request.json
+    # TODO: Implement Excel generation logic
+    return send_file(
+        'path_to_generated_file',
+        as_attachment=True,
+        download_name='recovery_analytics.xlsx'
+    )
+
+@user_bp.route('/api/guarantor-claims/create', methods=['POST'])
+@login_required
+def create_guarantor_claim():
+    try:
+        # Get form data
+        customer_id = request.form.get('customerId')
+        customer_name = request.form.get('customerName')
+        loan_id = request.form.get('loanId')
+        guarantor_id = request.form.get('guarantorId')
+        guarantor_name = request.form.get('guarantorName')
+        claim_amount = request.form.get('claimAmount')
+        description = request.form.get('description')
+        
+        # Handle file uploads
+        documents = request.files.getlist('documents')
+        
+        # TODO: Validate data
+        if not all([customer_id, customer_name, loan_id, guarantor_id, guarantor_name, claim_amount, description]):
+            return jsonify({'error': 'All fields are required'}), 400
+            
+        # TODO: Save documents to appropriate storage
+        
+        # TODO: Create claim in database
+        # For now, return success response
+        return jsonify({
+            'message': 'Claim created successfully',
+            'claimId': 'GC' + str(int(time.time()))  # Temporary ID generation
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating guarantor claim: {str(e)}")
+        return jsonify({'error': 'Failed to create claim'}), 500

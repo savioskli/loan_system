@@ -102,7 +102,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.guarantor_claims_report') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-file-invoice w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
                             <span class="ml-2">Guarantor Claims</span>
                         </a>
@@ -201,25 +201,25 @@
                 </button>
                 <ul id="reports-menu" class="hidden py-2 space-y-1">
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.collection_report') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-chart-bar w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
                             <span class="ml-2">Collection Reports</span>
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.communication_logs') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-comments w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
                             <span class="ml-2">Communication Logs</span>
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.legal_status') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-balance-scale w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
                             <span class="ml-2">Legal Status</span>
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.recovery_analytics') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-chart-line w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
                             <span class="ml-2">Recovery Analytics</span>
                         </a>

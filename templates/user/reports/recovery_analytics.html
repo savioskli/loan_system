@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block content %}
+{% include 'user/post_disbursement_sidebar.html' %}
+
+<div class="p-4 sm:ml-64">
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Recovery Analytics</h2>
+            <div class="flex space-x-3">
+                <button id="downloadReport" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    <i class="fas fa-download mr-2"></i>Download Report
+                </button>
+                <button id="filterToggle" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors duration-200">
+                    <i class="fas fa-filter mr-2"></i>Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div id="filterSection" class="hidden mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
+                    <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="startDate">
+                    <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="endDate">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Recovery Stage</label>
+                    <select class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="recoveryStage">
+                        <option value="all">All Stages</option>
+                        <option value="early">Early Stage (1-30 days)</option>
+                        <option value="mid">Mid Stage (31-90 days)</option>
+                        <option value="late">Late Stage (90+ days)</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Recovery Method</label>
+                    <select class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="recoveryMethod">
+                        <option value="all">All Methods</option>
+                        <option value="self">Self Payment</option>
+                        <option value="guarantor">Guarantor</option>
+                        <option value="legal">Legal Action</option>
+                        <option value="settlement">Settlement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="applyFilters" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Analytics Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Total Recovery</h3>
+                <p class="text-3xl font-bold text-primary" id="totalRecovery">$0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Recovery Rate</h3>
+                <p class="text-3xl font-bold text-primary" id="recoveryRate">0%</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Active Cases</h3>
+                <p class="text-3xl font-bold text-primary" id="activeCases">0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Avg Recovery Time</h3>
+                <p class="text-3xl font-bold text-primary" id="avgRecoveryTime">0 days</p>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <canvas id="recoveryTrendChart" class="w-full h-64"></canvas>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <canvas id="methodDistributionChart" class="w-full h-64"></canvas>
+            </div>
+        </div>
+
+        <!-- Report Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outstanding Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Recovered Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Recovery Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stage</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Days Outstanding</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
+                    <!-- Data will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                Showing <span id="startRange" class="font-medium">1</span> to <span id="endRange" class="font-medium">10</span> of <span id="totalEntries" class="font-medium">100</span> entries
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Previous
+                </button>
+                <button id="nextPage" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle filter section
+    const filterToggle = document.getElementById('filterToggle');
+    const filterSection = document.getElementById('filterSection');
+    
+    filterToggle.addEventListener('click', () => {
+        filterSection.classList.toggle('hidden');
+    });
+
+    // Download functionality
+    document.getElementById('downloadReport').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/reports/recovery/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(getFilterData())
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'recovery_analytics.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            }
+        } catch (error) {
+            console.error('Download failed:', error);
+        }
+    });
+
+    // Filter functionality
+    document.getElementById('applyFilters').addEventListener('click', () => {
+        loadReportData(1);
+    });
+
+    function getFilterData() {
+        return {
+            startDate: document.getElementById('startDate').value,
+            endDate: document.getElementById('endDate').value,
+            stage: document.getElementById('recoveryStage').value,
+            method: document.getElementById('recoveryMethod').value
+        };
+    }
+
+    async function loadReportData(page) {
+        try {
+            const response = await fetch('/api/reports/recovery/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...getFilterData(),
+                    page: page
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                updateDashboard(data.dashboard);
+                updateCharts(data.charts);
+                updateTable(data.items);
+                updatePagination(data.pagination);
+            }
+        } catch (error) {
+            console.error('Failed to load report data:', error);
+        }
+    }
+
+    function updateDashboard(data) {
+        document.getElementById('totalRecovery').textContent = formatCurrency(data.totalRecovery);
+        document.getElementById('recoveryRate').textContent = data.recoveryRate + '%';
+        document.getElementById('activeCases').textContent = data.activeCases;
+        document.getElementById('avgRecoveryTime').textContent = data.avgRecoveryTime + ' days';
+    }
+
+    function updateCharts(data) {
+        // Recovery Trend Chart
+        new Chart(document.getElementById('recoveryTrendChart'), {
+            type: 'line',
+            data: data.trendData,
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Recovery Trend'
+                    }
+                }
+            }
+        });
+
+        // Method Distribution Chart
+        new Chart(document.getElementById('methodDistributionChart'), {
+            type: 'pie',
+            data: data.distributionData,
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Recovery Method Distribution'
+                    }
+                }
+            }
+        });
+    }
+
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount);
+    }
+
+    // Initial load
+    loadReportData(1);
+});
+</script>
+{% endblock %}

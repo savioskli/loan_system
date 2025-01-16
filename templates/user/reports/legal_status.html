@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block content %}
+{% include 'user/post_disbursement_sidebar.html' %}
+
+<div class="p-4 sm:ml-64">
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Legal Status Report</h2>
+            <div class="flex space-x-3">
+                <button id="downloadReport" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    <i class="fas fa-download mr-2"></i>Download Report
+                </button>
+                <button id="filterToggle" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors duration-200">
+                    <i class="fas fa-filter mr-2"></i>Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div id="filterSection" class="hidden mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
+                    <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="startDate">
+                    <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="endDate">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Case Status</label>
+                    <select class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="caseStatus">
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="appealed">Appealed</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Case Type</label>
+                    <select class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-200" id="caseType">
+                        <option value="all">All</option>
+                        <option value="default">Default</option>
+                        <option value="bankruptcy">Bankruptcy</option>
+                        <option value="dispute">Dispute</option>
+                        <option value="recovery">Recovery</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="applyFilters" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Report Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Case ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Case Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Filing Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Update</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Next Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
+                    <!-- Data will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                Showing <span id="startRange" class="font-medium">1</span> to <span id="endRange" class="font-medium">10</span> of <span id="totalEntries" class="font-medium">100</span> entries
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Previous
+                </button>
+                <button id="nextPage" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle filter section
+    const filterToggle = document.getElementById('filterToggle');
+    const filterSection = document.getElementById('filterSection');
+    
+    filterToggle.addEventListener('click', () => {
+        filterSection.classList.toggle('hidden');
+    });
+
+    // Download functionality
+    document.getElementById('downloadReport').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/reports/legal/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(getFilterData())
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'legal_status_report.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            }
+        } catch (error) {
+            console.error('Download failed:', error);
+        }
+    });
+
+    // Filter functionality
+    document.getElementById('applyFilters').addEventListener('click', () => {
+        loadReportData(1);
+    });
+
+    function getFilterData() {
+        return {
+            startDate: document.getElementById('startDate').value,
+            endDate: document.getElementById('endDate').value,
+            status: document.getElementById('caseStatus').value,
+            type: document.getElementById('caseType').value
+        };
+    }
+
+    async function loadReportData(page) {
+        try {
+            const response = await fetch('/api/reports/legal/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...getFilterData(),
+                    page: page
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                updateTable(data.items);
+                updatePagination(data.pagination);
+            }
+        } catch (error) {
+            console.error('Failed to load report data:', error);
+        }
+    }
+
+    // Initial load
+    loadReportData(1);
+});
+</script>
+{% endblock %}

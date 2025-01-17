@@ -18,6 +18,7 @@ from database.db_manager import DatabaseManager
 import json
 from models.letter_template import LetterType, LetterTemplate
 from forms.letter_template_forms import LetterTypeForm, LetterTemplateForm
+from sqlalchemy.orm import joinedload
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -597,7 +598,7 @@ def add_system():
     except Exception as e:
         return {'success': False, 'message': str(e)}, 500
 
-@admin_bp.route('/core-banking/system/<int:system_id>', methods=['GET'])
+@admin_bp.route('/core-banking/system/<int:system_id>')
 @login_required
 @admin_required
 def get_system(system_id):
@@ -803,3 +804,75 @@ def edit_type(type_id):
     return render_template('admin/edit_letter_type.html', 
                            form=form, 
                            letter_type=letter_type)
+
+@admin_bp.route('/letter-templates', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def list_templates():
+    """
+    List and create letter templates
+    """
+    form = LetterTemplateForm()
+    
+    # Get optional letter_type_id from query parameter
+    letter_type_id = request.args.get('letter_type_id', type=int)
+    
+    # Populate letter type choices dynamically
+    letter_types = LetterType.query.filter_by(is_active=True).all()
+    form.letter_type_id.choices = [(type.id, type.name) for type in letter_types]
+    
+    # If letter_type_id is provided, pre-select it in the form
+    if letter_type_id and any(type.id == letter_type_id for type in letter_types):
+        form.letter_type_id.data = letter_type_id
+    
+    if form.validate_on_submit():
+        try:
+            # Create new letter template
+            new_template = LetterTemplate(
+                letter_type_id=form.letter_type_id.data,
+                name=form.name.data,
+                template_content=form.template_content.data,
+                is_active=form.is_active.data
+            )
+            db.session.add(new_template)
+            db.session.commit()
+            flash('Letter template created successfully!', 'success')
+            return redirect(url_for('admin.list_templates'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating letter template: {str(e)}', 'danger')
+    
+    # Fetch existing letter templates with their associated letter types
+    letter_templates = LetterTemplate.query.options(joinedload(LetterTemplate.letter_type)).all()
+    
+    return render_template('admin/letter_templates.html', 
+                           form=form, 
+                           letter_templates=letter_templates)
+
+@admin_bp.route('/letter-templates/edit/<int:template_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_template(template_id):
+    """
+    Edit an existing letter template
+    """
+    letter_template = LetterTemplate.query.get_or_404(template_id)
+    form = LetterTemplateForm(obj=letter_template)
+    
+    # Populate letter type choices dynamically
+    form.letter_type_id.choices = [(type.id, type.name) for type in LetterType.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        try:
+            # Update letter template
+            form.populate_obj(letter_template)
+            db.session.commit()
+            flash('Letter template updated successfully!', 'success')
+            return redirect(url_for('admin.list_templates'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating letter template: {str(e)}', 'danger')
+    
+    return render_template('admin/edit_letter_template.html', 
+                           form=form, 
+                           letter_template=letter_template)

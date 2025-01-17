@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumbs -->
+    <nav class="flex items-center text-gray-500 text-sm mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-2">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('admin.dashboard') }}" class="inline-flex items-center text-gray-700 hover:text-blue-600 transition duration-300">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                    </svg>
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{{ url_for('admin.list_templates') }}" class="ml-1 text-gray-700 hover:text-blue-600 transition duration-300">
+                        Letter Templates
+                    </a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="ml-1 text-gray-500">Edit Letter Template</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <h1 class="text-2xl font-semibold text-gray-800 mb-4">Edit Letter Template</h1>
+
+    <div class="max-w-xl mx-auto bg-white shadow-md rounded-lg p-5">
+        <form method="POST" class="space-y-3">
+            {{ form.csrf_token }}
+            
+            <div>
+                {{ form.letter_type_id.label(class="block text-xs font-medium text-gray-600 mb-1") }}
+                {{ form.letter_type_id(class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                {% if form.letter_type_id.errors %}
+                    <div class="text-red-500 text-xs mt-1">
+                        {% for error in form.letter_type_id.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div>
+                {{ form.name.label(class="block text-xs font-medium text-gray-600 mb-1") }}
+                {{ form.name(class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                {% if form.name.errors %}
+                    <div class="text-red-500 text-xs mt-1">
+                        {% for error in form.name.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div>
+                {{ form.template_content.label(class="block text-xs font-medium text-gray-600 mb-1") }}
+                {{ form.template_content(class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500", rows=5, 
+                placeholder="Use placeholders like {member_name}, {member_number}, {account_no}, {amount_outstanding}") }}
+                {% if form.template_content.errors %}
+                    <div class="text-red-500 text-xs mt-1">
+                        {% for error in form.template_content.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center">
+                {{ form.is_active(class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded") }}
+                {{ form.is_active.label(class="ml-2 block text-xs text-gray-700") }}
+            </div>
+
+            <div class="flex space-x-3">
+                <button type="submit" class="flex-1 bg-blue-600 text-white text-sm py-2 rounded-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-101 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                    Update Letter Template
+                </button>
+                <a href="{{ url_for('admin.list_templates') }}" class="flex-1 bg-gray-200 text-gray-700 text-sm py-2 rounded-md hover:bg-gray-300 transition duration-300 ease-in-out transform hover:scale-101 text-center focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

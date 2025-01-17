@@ -116,8 +116,26 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Flowbite modal
+    const modalToggleButtons = document.querySelectorAll('[data-modal-toggle="create-demand-letter-modal"]');
+    const modalHideButtons = document.querySelectorAll('[data-modal-hide="create-demand-letter-modal"]');
+    const modal = document.getElementById('create-demand-letter-modal');
+
+    modalToggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            modal.classList.toggle('hidden');
+        });
+    });
+
+    modalHideButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            modal.classList.add('hidden');
+        });
+    });
+
     // Initialize Select2 for member selection
     $('#member_id').select2({
         placeholder: 'Search for a member',

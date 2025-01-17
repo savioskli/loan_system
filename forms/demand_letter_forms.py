@@ -16,9 +16,11 @@ class DemandLetterForm(FlaskForm):
     """
     Form for creating demand letters
     """
-    member_id = StringField(
+    member_id = SelectField(
         'Member', 
-        validators=[DataRequired()]
+        validators=[DataRequired()], 
+        coerce=int,
+        choices=[]  # Will be populated dynamically in the route
     )
     
     letter_type_id = SelectField(

@@ -124,6 +124,73 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalHideButtons = document.querySelectorAll('[data-modal-hide="create-demand-letter-modal"]');
     const modal = document.getElementById('create-demand-letter-modal');
 
+    // Initialize member select
+    $(document).ready(function() {
+        initializeMemberSelect('#member_id');
+    });
+
+    function initializeMemberSelect(selector) {
+        console.log('Initializing select2 for:', selector);
+        const select = $(selector);
+
+        const config = {
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a member...',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: '/api/clients/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    console.log('Search params:', params);
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    console.log('Received data:', data);
+                    params.page = params.page || 1;
+                    return {
+                        results: data.map(item => ({
+                            id: item.id,
+                            text: `${item.full_name} (${item.id})`,
+                            member_no: item.member_number,
+                            phone: item.phone,
+                            email: item.email
+                        })),
+                        pagination: {
+                            more: data.length === 10  // Assuming 10 is the page size
+                        }
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2,
+            templateResult: formatMember,
+            templateSelection: formatMemberSelection
+        };
+
+        select.select2(config);
+    }
+
+    function formatMember(member) {
+        if (!member.id) return member.text;
+        return $(`
+            <div class="member-result">
+                <strong>${member.text}</strong><br>
+                ${member.member_no ? `Member No: ${member.member_no}<br>` : ''}
+                ${member.phone ? `Phone: ${member.phone}<br>` : ''}
+                ${member.email ? `Email: ${member.email}` : ''}
+            </div>
+        `);
+    }
+
+    function formatMemberSelection(member) {
+        return member.text;
+    }
+
     modalToggleButtons.forEach(button => {
         button.addEventListener('click', function() {
             modal.classList.toggle('hidden');
@@ -134,28 +201,6 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             modal.classList.add('hidden');
         });
-    });
-
-    // Initialize Select2 for member selection
-    $('#member_id').select2({
-        placeholder: 'Search for a member',
-        ajax: {
-            url: '/api/clients/search',
-            dataType: 'json',
-            delay: 250,
-            processResults: function (data) {
-                return {
-                    results: data.map(function(client) {
-                        return {
-                            id: client.id,
-                            text: `${client.full_name} (${client.id})`
-                        };
-                    })
-                };
-            },
-            cache: true
-        },
-        minimumInputLength: 2
     });
 
     // Dynamically populate letter templates based on letter type

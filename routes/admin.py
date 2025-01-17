@@ -876,3 +876,21 @@ def edit_template(template_id):
     return render_template('admin/edit_letter_template.html', 
                            form=form, 
                            letter_template=letter_template)
+
+@admin_bp.route('/letter-templates/by-type/<int:letter_type_id>')
+@login_required
+def get_templates_by_type(letter_type_id):
+    """
+    Get letter templates for a specific letter type
+    """
+    templates = LetterTemplate.query.filter_by(
+        letter_type_id=letter_type_id, 
+        is_active=True
+    ).all()
+    
+    return jsonify([
+        {
+            'id': template.id, 
+            'name': template.name
+        } for template in templates
+    ])

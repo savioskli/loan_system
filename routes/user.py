@@ -2235,16 +2235,43 @@ def settlement_plans():
         flash('An error occurred while loading the settlement plans page', 'error')
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/demand-letters')
+@user_bp.route('/demand-letters', methods=['GET', 'POST'])
 @login_required
 def demand_letters():
     """Render the demand letters page"""
-    try:
-        return render_template('user/demand_letters.html')
-    except Exception as e:
-        current_app.logger.error(f"Error rendering demand letters page: {str(e)}")
-        flash('An error occurred while loading the demand letters page', 'error')
-        return redirect(url_for('user.dashboard'))
+    from forms.demand_letter_forms import DemandLetterForm
+    from models.letter_template import DemandLetter
+    
+    form = DemandLetterForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Create new demand letter
+            new_demand_letter = DemandLetter(
+                member_id=form.member_id.data,
+                letter_type_id=form.letter_type_id.data,
+                letter_template_id=form.letter_template_id.data,
+                amount_outstanding=form.amount_outstanding.data,
+                letter_content=form.letter_content.data or ''
+            )
+            
+            db.session.add(new_demand_letter)
+            db.session.commit()
+            
+            flash('Demand letter created successfully!', 'success')
+            return redirect(url_for('user.demand_letters'))
+        
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating demand letter: {str(e)}")
+            flash('An error occurred while creating the demand letter', 'error')
+    
+    # Fetch existing demand letters
+    demand_letters = DemandLetter.query.order_by(DemandLetter.created_at.desc()).all()
+    
+    return render_template('user/demand_letters.html', 
+                           form=form, 
+                           demand_letters=demand_letters)
 
 @user_bp.route('/crb-reports')
 @login_required

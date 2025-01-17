@@ -1,44 +1,45 @@
 from flask_wtf import FlaskForm
 from wtforms import (
-    SelectField, 
+    StringField, 
     TextAreaField, 
-    DecimalField, 
-    StringField
+    SelectField, 
+    DecimalField,
+    SubmitField
 )
 from wtforms.validators import (
     DataRequired, 
-    Length, 
-    Optional, 
-    NumberRange
+    NumberRange, 
+    Length
 )
 
 class DemandLetterForm(FlaskForm):
     """
     Form for creating demand letters
     """
-    member_id = SelectField(
+    member_id = StringField(
         'Member', 
-        validators=[DataRequired(message='Please select a member')],
-        coerce=int
+        validators=[DataRequired()]
     )
     
     letter_type_id = SelectField(
         'Letter Type', 
-        validators=[DataRequired(message='Please select a letter type')],
-        coerce=int
+        validators=[DataRequired()], 
+        coerce=int,
+        choices=[]  # Will be populated dynamically in the route
     )
     
     letter_template_id = SelectField(
         'Letter Template', 
-        validators=[DataRequired(message='Please select a letter template')],
-        coerce=int
+        validators=[DataRequired()], 
+        coerce=int,
+        choices=[]  # Will be populated dynamically based on letter type
     )
     
     amount_outstanding = DecimalField(
         'Amount Outstanding', 
         validators=[
-            DataRequired(message='Amount outstanding is required'),
-            NumberRange(min=0, message='Amount must be a positive number')
+            DataRequired(), 
+            NumberRange(min=0, message='Amount must be non-negative')
         ],
         places=2
     )
@@ -46,20 +47,15 @@ class DemandLetterForm(FlaskForm):
     letter_content = TextAreaField(
         'Letter Content', 
         validators=[
-            Optional(),
-            Length(max=2000, message='Letter content cannot exceed 2000 characters')
+            DataRequired(), 
+            Length(min=10, max=5000, message='Letter content must be between 10 and 5000 characters')
         ]
     )
     
+    submit = SubmitField('Create Demand Letter')
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Dynamically populate member choices
-        from models.member import Member
-        self.member_id.choices = [
-            (member.id, member.full_name) 
-            for member in Member.query.filter_by(is_active=True).all()
-        ]
         
         # Dynamically populate letter type choices
         from models.letter_template import LetterType

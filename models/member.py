@@ -11,8 +11,7 @@ class Member(db.Model):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
-    demand_letters = relationship('DemandLetter', back_populates='member')
+    # Removed demand_letters relationship
     
     def __repr__(self):
         return f'<Member {self.full_name}>'

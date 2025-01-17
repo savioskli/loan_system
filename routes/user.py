@@ -28,6 +28,9 @@ from routes.collection_schedule import collection_schedule_bp
 from services.collection_schedule_service import CollectionScheduleService
 import io
 from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
+from forms.demand_letter_forms import DemandLetterForm
+from forms.letter_template_forms import LetterTypeForm
+from models.letter_template import LetterType, DemandLetter
 
 user_bp = Blueprint('user', __name__)
 
@@ -2238,40 +2241,80 @@ def settlement_plans():
 @user_bp.route('/demand-letters', methods=['GET', 'POST'])
 @login_required
 def demand_letters():
-    """Render the demand letters page"""
-    from forms.demand_letter_forms import DemandLetterForm
-    from models.letter_template import DemandLetter
-    
+    """Manage demand letters"""
     form = DemandLetterForm()
+    
+    # Populate letter types
+    letter_types = LetterType.query.filter_by(is_active=True).all()
+    form.letter_type_id.choices = [(lt.id, lt.name) for lt in letter_types]
+    
+    # Reset letter template choices to prevent validation error
+    form.letter_template_id.choices = []
     
     if form.validate_on_submit():
         try:
-            # Create new demand letter
+            # Extract member details from the form
+            member_id = form.member_id.data
+            
+            # You might want to add a method to fetch full member details from the API
+            # For now, we'll use the ID as the name
             new_demand_letter = DemandLetter(
-                member_id=form.member_id.data,
+                member_id=member_id,
+                member_name=request.form.get('member_name', member_id),
+                member_number=request.form.get('member_number', ''),
                 letter_type_id=form.letter_type_id.data,
                 letter_template_id=form.letter_template_id.data,
                 amount_outstanding=form.amount_outstanding.data,
-                letter_content=form.letter_content.data or ''
+                letter_content=form.letter_content.data,
+                created_by=current_user.id
             )
             
             db.session.add(new_demand_letter)
             db.session.commit()
             
-            flash('Demand letter created successfully!', 'success')
+            flash('Demand letter created successfully', 'success')
             return redirect(url_for('user.demand_letters'))
         
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error creating demand letter: {str(e)}")
-            flash('An error occurred while creating the demand letter', 'error')
+            flash('Failed to create demand letter', 'error')
     
-    # Fetch existing demand letters
-    demand_letters = DemandLetter.query.order_by(DemandLetter.created_at.desc()).all()
+    # Get existing demand letters
+    demand_letters = DemandLetter.query.filter_by(
+        created_by=current_user.id
+    ).order_by(DemandLetter.created_at.desc()).all()
     
     return render_template('user/demand_letters.html', 
                            form=form, 
                            demand_letters=demand_letters)
+
+@user_bp.route('/api/letter-templates', methods=['GET'])
+@login_required
+def get_letter_templates():
+    """Get letter templates for a specific letter type"""
+    letter_type_id = request.args.get('letter_type_id')
+    
+    if not letter_type_id:
+        return jsonify({'templates': []}), 400
+    
+    try:
+        templates = LetterTemplate.query.filter_by(
+            letter_type_id=int(letter_type_id), 
+            is_active=True
+        ).all()
+        
+        return jsonify({
+            'templates': [
+                {
+                    'id': template.id, 
+                    'name': template.name
+                } for template in templates
+            ]
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching letter templates: {str(e)}")
+        return jsonify({'templates': []}), 500
 
 @user_bp.route('/crb-reports')
 @login_required
@@ -2374,6 +2417,7 @@ def view_guarantor(guarantor_id):
             JOIN Members bm ON l.MemberID = bm.MemberID
             WHERE g.GuarantorID = %s
         """
+        
         current_app.logger.info(f"Executing query to fetch guarantor details")
         cursor.execute(query, (guarantor_id,))
         guarantor = cursor.fetchone()

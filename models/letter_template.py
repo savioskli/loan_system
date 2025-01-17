@@ -53,7 +53,12 @@ class DemandLetter(db.Model):
     __tablename__ = 'demand_letters'
 
     id = Column(Integer, primary_key=True)
-    member_id = Column(Integer, ForeignKey('members.id'), nullable=False)
+    
+    # Member details from API
+    member_id = Column(String(50), nullable=False)
+    member_name = Column(String(255), nullable=False)
+    member_number = Column(String(50), nullable=True)
+
     letter_type_id = Column(Integer, ForeignKey('letter_types.id'), nullable=False)
     letter_template_id = Column(Integer, ForeignKey('letter_templates.id'), nullable=False)
 
@@ -63,8 +68,24 @@ class DemandLetter(db.Model):
     status = Column(String(50), default='Draft')  # Draft, Sent, Delivered, etc.
     created_at = Column(DateTime, default=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)
+    created_by = Column(Integer, ForeignKey('staff.id'), nullable=False)
 
     # Relationships
-    member = relationship('Member', back_populates='demand_letters')
+    creator = relationship('Staff', foreign_keys=[created_by])
     letter_type = relationship('LetterType', back_populates='demand_letters')
     letter_template = relationship('LetterTemplate', back_populates='demand_letters')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'member_id': self.member_id,
+            'member_name': self.member_name,
+            'member_number': self.member_number,
+            'letter_type_id': self.letter_type_id,
+            'letter_template_id': self.letter_template_id,
+            'amount_outstanding': float(self.amount_outstanding),
+            'letter_content': self.letter_content,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None
+        }

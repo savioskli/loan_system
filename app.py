@@ -176,6 +176,23 @@ def create_app():
             return ""
         return value.strftime('%Y-%m-%d %H:%M:%S')
 
+    @app.template_filter('currency')
+    def currency_filter(value):
+        """
+        Format a numeric value as currency.
+        
+        :param value: Numeric value to format
+        :return: Formatted currency string
+        """
+        try:
+            # Convert to float to handle both int and float
+            value = float(value)
+            # Format with 2 decimal places and comma as thousands separator
+            return f"{value:,.2f}"
+        except (ValueError, TypeError):
+            # Return original value if conversion fails
+            return value
+
     # Exempt CSRF for API routes
     csrf.exempt(modules_bp)
     csrf.exempt(dependencies_bp)

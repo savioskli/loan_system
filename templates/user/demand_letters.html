@@ -175,7 +175,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         $templateSelect.append(
                             $('<option>', {
                                 value: template.id,
-                                text: template.name
+                                text: template.name,
+                                'data-content': template.template_content
                             })
                         );
                     });
@@ -201,6 +202,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 $templateSelect.trigger('change');
             }
         });
+    });
+
+    // Load template content when a template is selected
+    $('#letter_template_id').on('change', function() {
+        var $selectedOption = $(this).find('option:selected');
+        var templateContent = $selectedOption.data('content') || '';
+        $('#letter_content').val(templateContent);
     });
 });
 </script>

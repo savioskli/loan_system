@@ -165,17 +165,40 @@ document.addEventListener('DOMContentLoaded', function() {
             url: '/api/letter_templates',
             method: 'GET',
             data: { letter_type_id: letterTypeId },
-            success: function(templates) {
+            success: function(response) {
                 var $templateSelect = $('#letter_template_id');
                 $templateSelect.empty();
-                templates.forEach(function(template) {
+                
+                // Check if response has templates
+                if (response && response.length > 0) {
+                    response.forEach(function(template) {
+                        $templateSelect.append(
+                            $('<option>', {
+                                value: template.id,
+                                text: template.name
+                            })
+                        );
+                    });
+                } else {
                     $templateSelect.append(
                         $('<option>', {
-                            value: template.id,
-                            text: template.name
+                            value: '',
+                            text: 'No templates available'
                         })
                     );
-                });
+                }
+                $templateSelect.trigger('change');
+            },
+            error: function() {
+                var $templateSelect = $('#letter_template_id');
+                $templateSelect.empty();
+                $templateSelect.append(
+                    $('<option>', {
+                        value: '',
+                        text: 'Error loading templates'
+                    })
+                );
+                $templateSelect.trigger('change');
             }
         });
     });

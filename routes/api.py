@@ -11,6 +11,8 @@ from extensions import db, csrf
 import os
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
+from models.letter_template import LetterTemplate  # Import LetterTemplate model
+from sqlalchemy import text, select  # Import text function for raw SQL queries
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 csrf.exempt(api_bp)  # Remove CSRF protection from API routes since we handle it manually
@@ -470,10 +472,55 @@ def create_guarantor_claim():
             'message': 'An error occurred while processing your request'
         }), 500
 
-def allowed_file(filename):
-    """Check if the uploaded file has an allowed extension."""
-    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@api_bp.route('/letter_templates', methods=['GET'])
+@login_required
+def get_letter_templates():
+    """Get letter templates for a specific letter type."""
+    letter_type_id = request.args.get('letter_type_id')
+    
+    if not letter_type_id:
+        current_app.logger.error('No letter_type_id provided')
+        return jsonify({'error': 'Letter type ID is required'}), 400
+    
+    try:
+        # Log the incoming letter_type_id
+        current_app.logger.info(f'Fetching letter templates for letter_type_id: {letter_type_id}')
+        
+        # Use explicit column selection to avoid automatic column inclusion
+        stmt = select(
+            LetterTemplate.id, 
+            LetterTemplate.letter_type_id, 
+            LetterTemplate.name, 
+            LetterTemplate.template_content, 
+            LetterTemplate.is_active
+        ).where(
+            LetterTemplate.letter_type_id == int(letter_type_id),
+            LetterTemplate.is_active == True
+        )
+        
+        # Execute the query
+        result = db.session.execute(stmt)
+        
+        # Convert results to list of dictionaries
+        template_list = [
+            {
+                'id': row.id, 
+                'letter_type_id': row.letter_type_id,
+                'name': row.name, 
+                'template_content': row.template_content,
+                'is_active': row.is_active
+            } 
+            for row in result
+        ]
+        
+        # Log the number of templates found
+        current_app.logger.info(f'Found {len(template_list)} templates for letter_type_id: {letter_type_id}')
+        
+        return jsonify(template_list)
+    
+    except Exception as e:
+        current_app.logger.error(f'Error fetching letter templates for letter_type_id {letter_type_id}: {str(e)}')
+        return jsonify({'error': 'Failed to fetch letter templates'}), 500
 
 @api_bp.route('/guarantor-claims', methods=['GET'])
 @login_required
@@ -627,3 +674,8 @@ def get_guarantor_claims_stats():
             cursor.close()
         if 'conn' in locals() and conn.is_connected():
             conn.close()
+
+def allowed_file(filename):
+    """Check if the uploaded file has an allowed extension."""
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

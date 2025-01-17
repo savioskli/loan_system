@@ -33,8 +33,7 @@ class LetterTemplate(db.Model):
     name = Column(String(100), nullable=False)
     template_content = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+    
     # Relationship to letter type
     letter_type = relationship('LetterType', back_populates='templates')
     demand_letters = relationship('DemandLetter', back_populates='letter_template')

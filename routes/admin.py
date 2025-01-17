@@ -16,9 +16,8 @@ from services.api_manager import APIManager
 from services.core_banking_service import CoreBankingService
 from database.db_manager import DatabaseManager
 import json
-
-def get_db_connection():
-    return mysql.connector.connect(**db_config)
+from models.letter_template import LetterType, LetterTemplate
+from forms.letter_template_forms import LetterTypeForm, LetterTemplateForm
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -747,3 +746,60 @@ def get_log(log_id):
         }
     except Exception as e:
         return {'error': str(e)}, 500
+
+@admin_bp.route('/letter-types', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def list_types():
+    """
+    List and create letter types
+    """
+    form = LetterTypeForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Create new letter type
+            new_letter_type = LetterType(
+                name=form.name.data,
+                description=form.description.data,
+                is_active=form.is_active.data
+            )
+            db.session.add(new_letter_type)
+            db.session.commit()
+            flash('Letter type created successfully!', 'success')
+            return redirect(url_for('admin.list_types'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating letter type: {str(e)}', 'danger')
+    
+    # Fetch existing letter types
+    letter_types = LetterType.query.all()
+    
+    return render_template('admin/letter_types.html', 
+                           form=form, 
+                           letter_types=letter_types)
+
+@admin_bp.route('/letter-types/edit/<int:type_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_type(type_id):
+    """
+    Edit an existing letter type
+    """
+    letter_type = LetterType.query.get_or_404(type_id)
+    form = LetterTypeForm(obj=letter_type)
+    
+    if form.validate_on_submit():
+        try:
+            # Update letter type
+            form.populate_obj(letter_type)
+            db.session.commit()
+            flash('Letter type updated successfully!', 'success')
+            return redirect(url_for('admin.list_types'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating letter type: {str(e)}', 'danger')
+    
+    return render_template('admin/edit_letter_type.html', 
+                           form=form, 
+                           letter_type=letter_type)

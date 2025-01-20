@@ -70,21 +70,56 @@ document.addEventListener('DOMContentLoaded', function() {
         return member.text;
     }
 
-    // Load template content when a template is selected
-    $('#letter_template_id').on('change', function() {
-        const selectedTemplateId = $(this).val();
-        if (!selectedTemplateId) return;
-
+    // Dynamically populate letter templates based on letter type
+    $('#letter_type_id').on('change', function() {
+        var letterTypeId = $(this).val();
         $.ajax({
-            url: `/routes/get_letter_template/${selectedTemplateId}`,
+            url: '/api/letter_templates',
             method: 'GET',
+            data: { letter_type_id: letterTypeId },
             success: function(response) {
-                $('#letter_content').val(response.template_content);
+                var $templateSelect = $('#letter_template_id');
+                $templateSelect.empty();
+                
+                // Check if response has templates
+                if (response && response.length > 0) {
+                    response.forEach(function(template) {
+                        $templateSelect.append(
+                            $('<option>', {
+                                value: template.id,
+                                text: template.name,
+                                'data-content': template.template_content
+                            })
+                        );
+                    });
+                } else {
+                    $templateSelect.append(
+                        $('<option>', {
+                            value: '',
+                            text: 'No templates available'
+                        })
+                    );
+                }
+                $templateSelect.trigger('change');
             },
             error: function() {
-                console.error('Failed to load letter template');
-                alert('Failed to load letter template');
+                var $templateSelect = $('#letter_template_id');
+                $templateSelect.empty();
+                $templateSelect.append(
+                    $('<option>', {
+                        value: '',
+                        text: 'Error loading templates'
+                    })
+                );
+                $templateSelect.trigger('change');
             }
         });
+    });
+
+    // Load template content when a template is selected
+    $('#letter_template_id').on('change', function() {
+        var $selectedOption = $(this).find('option:selected');
+        var templateContent = $selectedOption.data('content') || '';
+        $('#letter_content').val(templateContent);
     });
 });

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Demand Letters{% endblock %}
 
+{% block extra_head %}{% endblock %}
+
 {% block content %}
 {% include 'user/post_disbursement_sidebar.html' %}
 
@@ -81,7 +83,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label for="member_id" class="block mb-2 text-sm font-medium text-gray-900">Member</label>
-                            {{ form.member_id(class="select2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
+                            {{ form.member_id(class="select2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
                         </div>
                         <div>
                             <label for="letter_type_id" class="block mb-2 text-sm font-medium text-gray-900">Letter Type</label>

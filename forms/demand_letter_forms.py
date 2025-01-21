@@ -23,6 +23,13 @@ class DemandLetterForm(FlaskForm):
         choices=[]  # Will be populated dynamically in the route
     )
     
+    loan_id = SelectField(
+        'Loan Account', 
+        validators=[DataRequired()], 
+        coerce=int,
+        choices=[]  # Will be populated dynamically based on member selection
+    )
+    
     letter_type_id = SelectField(
         'Letter Type', 
         validators=[DataRequired()], 

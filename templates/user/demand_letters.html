@@ -86,15 +86,21 @@
                             {{ form.member_id(class="select2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
                         </div>
                         <div>
-                            <label for="letter_type_id" class="block mb-2 text-sm font-medium text-gray-900">Letter Type</label>
-                            {{ form.letter_type_id(class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
+                            <label for="loan_id" class="block mb-2 text-sm font-medium text-gray-900">Loan Account</label>
+                            {{ form.loan_id(class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
+                            <label for="letter_type_id" class="block mb-2 text-sm font-medium text-gray-900">Letter Type</label>
+                            {{ form.letter_type_id(class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
+                        </div>
+                        <div>
                             <label for="letter_template_id" class="block mb-2 text-sm font-medium text-gray-900">Letter Template</label>
                             {{ form.letter_template_id(class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}
                         </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label for="amount_outstanding" class="block mb-2 text-sm font-medium text-gray-900">Amount Outstanding</label>
                             {{ form.amount_outstanding(class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5") }}

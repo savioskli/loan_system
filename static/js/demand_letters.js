@@ -169,13 +169,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Update amount outstanding with defensive checks
                 if (loan && loan.OutstandingBalance !== undefined) {
-                    $('#amount_outstanding').val(formatCurrency(loan.OutstandingBalance));
+                    const outstandingAmount = loan.OutstandingBalance;
+                    
+                    // Set amount outstanding field with raw numeric value
+                    $('#amount_outstanding').val(outstandingAmount.toFixed(2));
+                    
+                    // Optional: Set a max value for the demand letter amount
+                    $('#demand_amount').attr({
+                        'max': outstandingAmount,
+                        'min': '0',
+                        'step': '0.01'
+                    });
+                    
+                    // Log for debugging
+                    console.log('Selected Loan Details:', {
+                        loanId: selectedLoanId,
+                        outstandingBalance: outstandingAmount
+                    });
                 } else {
                     $('#amount_outstanding').val('0.00');
                     console.warn('No outstanding balance found for loan:', loan);
                 }
             }).on('select2:clear', function() {
+                // Reset fields when loan is cleared
                 $('#amount_outstanding').val('0.00');
+                $('#demand_amount').removeAttr('max min step');
             });
         }
 

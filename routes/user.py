@@ -25,6 +25,7 @@ from sqlalchemy import and_, or_, text, MetaData, Table
 import time
 from flask import current_app
 from routes.collection_schedule import collection_schedule_bp
+from routes.crb import crb_bp
 from services.collection_schedule_service import CollectionScheduleService
 import io
 from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
@@ -36,6 +37,7 @@ user_bp = Blueprint('user', __name__)
 
 # Register collection schedule blueprint without additional prefix
 user_bp.register_blueprint(collection_schedule_bp)
+user_bp.register_blueprint(crb_bp)
 
 @user_bp.route('/dashboard')
 @login_required
@@ -2259,14 +2261,16 @@ def demand_letters():
             # You might want to add a method to fetch full member details from the API
             # For now, we'll use the ID as the name
             new_demand_letter = DemandLetter(
-                member_id=member_id,
-                member_name=request.form.get('member_name', member_id),
-                member_number=request.form.get('member_number', ''),
+                member_id=str(form.member_id.data),  # ID from external API
+                member_name=form.member_name.data,  # Name from hidden field
+                member_number=form.member_number.data,  # Member number from hidden field
                 letter_type_id=form.letter_type_id.data,
                 letter_template_id=form.letter_template_id.data,
                 amount_outstanding=form.amount_outstanding.data,
                 letter_content=form.letter_content.data,
-                created_by=current_user.id
+                status='Draft',
+                created_by=current_user.id,  # Assuming current_user is the logged-in staff
+                sent_at=None  # Not sent yet
             )
             
             db.session.add(new_demand_letter)
@@ -2288,6 +2292,8 @@ def demand_letters():
     return render_template('user/demand_letters.html', 
                            form=form, 
                            demand_letters=demand_letters)
+
+
 
 @user_bp.route('/api/letter-templates', methods=['GET'])
 @login_required
@@ -2380,8 +2386,7 @@ def view_guarantor(guarantor_id):
             'port': core_system.port or 3306,
             'user': core_system.auth_credentials_dict.get('username', 'root'),
             'password': core_system.auth_credentials_dict.get('password', ''),
-            'database': core_system.database_name,
-            'auth_plugin': 'mysql_native_password'
+            'database': core_system.database_name
         }
         current_app.logger.info(f"Connecting to database: {db_config['database']} at {db_config['host']}:{db_config['port']}")
 
@@ -2435,26 +2440,15 @@ def view_guarantor(guarantor_id):
             'id': guarantor['GuarantorID'],
             'loan_app_id': guarantor['LoanAppID'],
             'loan_no': guarantor['LoanNo'],
-            'loan_amount': float(guarantor['LoanAmount']),
-            'loan_purpose': guarantor['LoanPurpose'],
-            'repayment_period': guarantor['RepaymentPeriod'],
+            'guarantor_member_id': guarantor['GuarantorMemberID'],
+            'member_no': guarantor['GuarantorMemberNo'],  # Fixed: Changed from MemberID to MemberNo
+            'guarantor_name': f"{guarantor['GuarantorFirstName']} {guarantor['GuarantorMiddleName'] or ''} {guarantor['GuarantorLastName']}".strip(),
+            'id_number': guarantor['GuarantorIDNumber'],
             'guaranteed_amount': float(guarantor['GuaranteedAmount']),
             'date_added': guarantor['DateAdded'].isoformat() if guarantor['DateAdded'] else None,
             'status': guarantor['Status'],
-            'guarantor': {
-                'member_no': guarantor['GuarantorMemberNo'],
-                'name': f"{guarantor['GuarantorFirstName']} {guarantor['GuarantorMiddleName'] or ''} {guarantor['GuarantorLastName']}".strip(),
-                'id_number': guarantor['GuarantorIDNumber'],
-                'phone': guarantor['GuarantorPhone'],
-                'email': guarantor['GuarantorEmail']
-            },
-            'borrower': {
-                'member_no': guarantor['BorrowerMemberNo'],
-                'name': f"{guarantor['BorrowerFirstName']} {guarantor['BorrowerMiddleName'] or ''} {guarantor['BorrowerLastName']}".strip(),
-                'id_number': guarantor['BorrowerIDNumber'],
-                'phone': guarantor['BorrowerPhone'],
-                'email': guarantor['BorrowerEmail']
-            }
+            'borrower_member_no': guarantor['BorrowerMemberNo'],
+            'borrower_name': f"{guarantor['BorrowerFirstName']} {guarantor['BorrowerMiddleName'] or ''} {guarantor['BorrowerLastName']}".strip()
         }
         
         current_app.logger.info(f"Successfully retrieved guarantor data, rendering template")
@@ -2908,3 +2902,114 @@ def create_guarantor_claim():
     except Exception as e:
         current_app.logger.error(f"Error creating guarantor claim: {str(e)}")
         return jsonify({'error': 'Failed to create claim'}), 500
+@user_bp.route('/create_demand_letter', methods=['POST'])
+@login_required
+@csrf.exempt  # Remove this in production and handle CSRF properly
+def create_demand_letter():
+    """
+    Create a new demand letter based on form submission
+    """
+    try:
+        # Create form instance and populate with request data
+        form = DemandLetterForm(request.form)
+        
+        # Import models dynamically
+        from models.letter_template import LetterTemplate, LetterType, DemandLetter
+        
+        # Custom validation for select fields
+        errors = {}
+        
+        # Validate member selection
+        if not request.form.get('member_id'):
+            errors['member_id'] = ['Please select a member']
+        
+        # Validate loan selection
+        if not request.form.get('loan_id'):
+            errors['loan_id'] = ['Please select a loan account']
+        
+        # Validate letter type selection
+        if not request.form.get('letter_type_id'):
+            errors['letter_type_id'] = ['Please select a letter type']
+        
+        # Validate letter template selection
+        if not request.form.get('letter_template_id'):
+            errors['letter_template_id'] = ['Please select a letter template']
+        
+        # Validate amount outstanding
+        try:
+            amount = float(request.form.get('amount_outstanding', 0))
+            if amount <= 0:
+                errors['amount_outstanding'] = ['Amount must be a positive number']
+        except (ValueError, TypeError):
+            errors['amount_outstanding'] = ['Invalid amount entered']
+        
+        # If there are any errors from custom validation
+        if errors:
+            current_app.logger.error(f"Form validation failed: {errors}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Form validation failed',
+                'errors': errors
+            }), 400
+        
+        # Validate form data
+        if not form.validate():
+            # Return form validation errors
+            form_errors = {}
+            for field, field_errors in form.errors.items():
+                form_errors[field] = field_errors
+            
+            current_app.logger.error(f"Form validation failed: {form_errors}")
+            
+            return jsonify({
+                'status': 'error',
+                'message': 'Form validation failed',
+                'errors': form_errors
+            }), 400
+        
+        # Extract member details from form or request
+        member_id = str(request.form.get('member_id'))
+        member_name = request.form.get('member_name') or ''
+        member_number = request.form.get('member_number') or member_name
+        
+        # Create demand letter
+        demand_letter = DemandLetter(
+            member_id=member_id,
+            member_name=member_name,
+            member_number=member_number,
+            loan_id=str(request.form.get('loan_id')),
+            letter_type_id=form.letter_type_id.data,
+            letter_template_id=form.letter_template_id.data,
+            amount_outstanding=form.amount_outstanding.data,
+            letter_content=form.letter_content.data,
+            status='Draft',
+            created_by=current_user.id,  # Assuming current_user is the logged-in staff
+            sent_at=None  # Not sent yet
+        )
+        
+        # Add and commit to database
+        db.session.add(demand_letter)
+        db.session.commit()
+        
+        # Optional: Log the action
+        current_app.logger.info(f"Demand Letter created for member {member_name} by {current_user.username}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Demand letter created successfully',
+            'demand_letter_id': demand_letter.id
+        }), 201
+    
+    except Exception as e:
+        # Rollback the session in case of error
+        db.session.rollback()
+        
+        # Log the full error
+        current_app.logger.error(f"Error creating demand letter: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        
+        return jsonify({
+            'status': 'error',
+            'message': 'An unexpected error occurred while creating the demand letter',
+            'error': str(e)
+        }), 500

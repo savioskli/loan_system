@@ -1,6 +1,130 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize member select
     $(document).ready(function() {
+        // CSRF Token Handling
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrfToken);
+                }
+            }
+        });
+
+        // Form Validation Function
+        function validateDemandLetterForm() {
+            const form = $('#demand-letter-form');
+            const memberId = $('#member_id').val();
+            const loanId = $('#loan_id').val();
+            const letterTypeId = $('#letter_type_id').val();
+            const letterTemplateId = $('#letter_template_id').val();
+            const amountOutstanding = parseFloat($('#amount_outstanding').val());
+
+            // Reset previous error states
+            form.find('.error-message').remove();
+            form.find('.border-red-500').removeClass('border-red-500');
+
+            let isValid = true;
+
+            // Validation checks
+            if (!memberId) {
+                $('#member_id').addClass('border-red-500');
+                form.append('<div class="error-message text-red-500 text-sm mt-1">Please select a member</div>');
+                isValid = false;
+            }
+
+            if (!loanId) {
+                $('#loan_id').addClass('border-red-500');
+                form.append('<div class="error-message text-red-500 text-sm mt-1">Please select a loan</div>');
+                isValid = false;
+            }
+
+            if (!letterTypeId) {
+                $('#letter_type_id').addClass('border-red-500');
+                form.append('<div class="error-message text-red-500 text-sm mt-1">Please select a letter type</div>');
+                isValid = false;
+            }
+
+            if (!letterTemplateId) {
+                $('#letter_template_id').addClass('border-red-500');
+                form.append('<div class="error-message text-red-500 text-sm mt-1">Please select a letter template</div>');
+                isValid = false;
+            }
+
+            if (isNaN(amountOutstanding) || amountOutstanding <= 0) {
+                $('#amount_outstanding').addClass('border-red-500');
+                form.append('<div class="error-message text-red-500 text-sm mt-1">Please enter a valid amount</div>');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Attach form validation to submit button
+        $('#demand-letter-submit').on('click', function(e) {
+            e.preventDefault();
+            
+            if (validateDemandLetterForm()) {
+                const form = $('#demand-letter-form');
+                
+                $.ajax({
+                    url: '/user/create_demand_letter',  
+                    method: 'POST',
+                    data: form.serialize(),
+                    success: function(response) {
+                        // Close modal and refresh table or show success message
+                        $('#create-demand-letter-modal').modal('hide');
+                        
+                        // Optionally reload demand letters table
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Demand Letter Created',
+                                text: response.message || 'Demand letter has been successfully created.'
+                            }).then(() => {
+                                // Reload page or update table dynamically
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'An error occurred while creating the demand letter.'
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        // Handle AJAX errors
+                        let errorMessage = 'Failed to submit demand letter. Please try again.';
+                        
+                        // Check if there are specific validation errors
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            errorMessage = Object.values(errors).flat().join('\n');
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Submission Error',
+                            text: errorMessage
+                        });
+                        
+                        // Optional: Display field-specific errors
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            Object.keys(errors).forEach(field => {
+                                $(`#${field}`).addClass('border-red-500');
+                                // Optionally add error messages next to fields
+                                $(`#${field}`).after(`<div class="text-red-500 text-sm">${errors[field].join(', ')}</div>`);
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
         // Global variables to store current selections
         let currentMemberData = null;
 
@@ -120,6 +244,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Populate loan dropdown
                 const loanSelect = $('#loan_id');
                 loanSelect.empty().append(new Option('Select a loan', '', true, true));
+                
+                // Get the name attribute for the hidden member name field
+                const memberNameFieldName = $(this).data('name');
+                
+                // Determine member name and number
+                const memberName = currentMemberData.text || currentMemberData.name || '';
+                const memberNumber = currentMemberData.member_number || memberName;
+                
+                // Set hidden fields with member details
+                $(`input[name="${memberNameFieldName}"]`).val(memberName);
+                $('input[name="member_number"]').val(memberNumber);
                 
                 // Defensive check for loans
                 if (currentMemberData && 

@@ -92,30 +92,26 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Case Status</label>
-                    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option>All Status</option>
-                        <option>Active</option>
-                        <option>On Hold</option>
-                        <option>Resolved</option>
-                        <option>Appealed</option>
+                    <select id="statusFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Closed">Closed</option>
+                        <option value="Appealed">Appealed</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Case Type</label>
-                    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option>All Types</option>
-                        <option>Civil</option>
-                        <option>Criminal</option>
-                        <option>Commercial</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Filing Date</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
+                    <input type="date" id="dateFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
-                    <input type="text" placeholder="Search by case number or customer" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                    <input type="text" id="searchFilter" placeholder="Search by ID, name, or details..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                </div>
+                <div class="flex items-end">
+                    <button type="button" onclick="resetFilters()" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
+                        Reset Filters
+                    </button>
                 </div>
             </div>
         </div>
@@ -271,6 +267,85 @@
 
         function closeNewCaseModal() {
             document.getElementById('newCaseModal').classList.add('hidden');
+        }
+
+        // Filter functionality
+        const statusFilter = document.getElementById('statusFilter');
+        const dateFilter = document.getElementById('dateFilter');
+        const searchFilter = document.getElementById('searchFilter');
+        const tbody = document.querySelector('tbody');
+        const rows = Array.from(tbody.getElementsByTagName('tr'));
+
+        // Add event listeners
+        statusFilter.addEventListener('change', filterCases);
+        dateFilter.addEventListener('change', filterCases);
+        searchFilter.addEventListener('input', filterCases);
+
+        function filterCases() {
+            const status = statusFilter.value.toLowerCase();
+            const date = dateFilter.value;
+            const search = searchFilter.value.toLowerCase();
+
+            rows.forEach(row => {
+                let showRow = true;
+
+                // Status filter
+                if (status && row.cells.length > 2) {
+                    const caseStatus = row.cells[2].textContent.toLowerCase();
+                    if (!caseStatus.includes(status)) {
+                        showRow = false;
+                    }
+                }
+
+                // Date filter
+                if (date && row.cells.length > 6) {
+                    const hearingDate = row.cells[6].textContent;
+                    if (hearingDate !== 'N/A') {
+                        const rowDate = new Date(hearingDate);
+                        const filterDate = new Date(date);
+                        if (rowDate.toDateString() !== filterDate.toDateString()) {
+                            showRow = false;
+                        }
+                    } else {
+                        showRow = false;
+                    }
+                }
+
+                // Search filter
+                if (search && row.cells.length > 0) {
+                    const rowText = Array.from(row.cells)
+                        .map(cell => cell.textContent.toLowerCase())
+                        .join(' ');
+                    if (!rowText.includes(search)) {
+                        showRow = false;
+                    }
+                }
+
+                // Show/hide row
+                row.style.display = showRow ? '' : 'none';
+            });
+
+            // Show "No results found" message if all rows are hidden
+            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            const noResultsRow = tbody.querySelector('.no-results');
+            
+            if (visibleRows.length === 0) {
+                if (!noResultsRow) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'no-results';
+                    tr.innerHTML = '<td colspan="8" class="text-center py-4 text-gray-500 dark:text-gray-400">No matching cases found</td>';
+                    tbody.appendChild(tr);
+                }
+            } else if (noResultsRow) {
+                noResultsRow.remove();
+            }
+        }
+
+        function resetFilters() {
+            statusFilter.value = '';
+            dateFilter.value = '';
+            searchFilter.value = '';
+            filterCases();
         }
 
         document.getElementById('newCaseForm').addEventListener('submit', function(e) {

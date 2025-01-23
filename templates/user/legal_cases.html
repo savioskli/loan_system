@@ -289,70 +289,112 @@
         <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Case Details</h3>
-                        <button onclick="closeViewDetailsModal()" class="text-gray-400 hover:text-gray-500">
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl">
+                <div class="px-6 pt-6 pb-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Case Details</h3>
+                            <p id="viewCaseId" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                        </div>
+                        <button onclick="closeViewDetailsModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
                             <span class="sr-only">Close</span>
                             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case ID</label>
-                                <p id="viewCaseId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID</label>
-                                <p id="viewLoanId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-                                <p id="viewStatus" class="mt-1"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed</label>
-                                <p id="viewAmount" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Filing Date</label>
-                                <p id="viewFilingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Next Hearing Date</label>
-                                <p id="viewHearingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff</label>
-                                <p id="viewPlaintiff" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Defendant</label>
-                                <p id="viewDefendant" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Name</label>
-                                <p id="viewLawyerName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Contact</label>
-                                <p id="viewLawyerContact" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+
+                    <!-- Main Content -->
+                    <div class="space-y-8">
+                        <!-- Case Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID</label>
+                                    <p id="viewLoanId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                                    <p id="viewStatus" class="mt-1"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed</label>
+                                    <p id="viewAmount" class="mt-1 text-sm text-gray-900 dark:text-gray-100 font-semibold"></p>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Description</label>
-                            <p id="viewDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap"></p>
+
+                        <!-- Dates -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Important Dates</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Filing Date</label>
+                                    <p id="viewFilingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Next Hearing Date</label>
+                                    <p id="viewHearingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case History</label>
-                            <div id="viewCaseHistory" class="mt-2 space-y-2">
+
+                        <!-- Parties Involved -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Parties Involved</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff</label>
+                                    <p id="viewPlaintiff" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Defendant</label>
+                                    <p id="viewDefendant" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legal Representation -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Legal Representation</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Name</label>
+                                    <p id="viewLawyerName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Contact</label>
+                                    <p id="viewLawyerContact" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Case Details -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Details</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Description</label>
+                                <p id="viewDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap"></p>
+                            </div>
+                        </div>
+
+                        <!-- Case History -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case History</h4>
+                            <div id="viewCaseHistory" class="space-y-3">
                                 <!-- Case history items will be inserted here -->
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-100 dark:bg-gray-700 px-6 py-4">
+                    <div class="flex justify-end space-x-3">
+                        <button onclick="closeViewDetailsModal()" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500">
+                            Close
+                        </button>
                     </div>
                 </div>
             </div>
@@ -574,86 +616,106 @@
             });
         });
 
-        function formatCurrency(amount) {
-            if (!amount || amount === 'N/A') return 'N/A';
-            return new Intl.NumberFormat('en-KE', {
-                style: 'currency',
-                currency: 'KES'
-            }).format(amount);
-        }
-
-        function formatDate(date) {
-            if (!date || date === 'N/A') return 'N/A';
-            return new Date(date).toLocaleDateString('en-KE', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
-
-        function getStatusHTML(status) {
-            const statusClasses = {
-                'Active': 'bg-green-100 text-green-800',
-                'Pending': 'bg-yellow-100 text-yellow-800',
-                'Closed': 'bg-red-100 text-red-800',
-                'Appealed': 'bg-gray-100 text-gray-800'
-            };
-            
-            const className = statusClasses[status] || 'bg-gray-100 text-gray-800';
-            return `<span class="inline-flex rounded-full px-2 text-xs font-semibold ${className}">${status}</span>`;
-        }
-
         function viewCaseDetails(caseId) {
-            // Fetch case details from the server
             fetch(`/user/legal-cases/${caseId}`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error('HTTP error! status: ' + response.status);
                     }
                     return response.json();
                 })
                 .then(data => {
-                    // Update modal with case details
-                    document.getElementById('viewCaseId').textContent = data.id;
-                    document.getElementById('viewLoanId').textContent = data.loan_id;
-                    document.getElementById('viewStatus').innerHTML = getStatusHTML(data.status);
+                    // Update case information
+                    document.getElementById('viewCaseId').textContent = `Case #${data.case_number || data.id}`;
+                    document.getElementById('viewLoanId').textContent = data.loan_id || 'N/A';
+                    
+                    // Format status with badge
+                    const statusElement = document.getElementById('viewStatus');
+                    const statusClass = getStatusClass(data.status);
+                    statusElement.innerHTML = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${data.status}</span>`;
+                    
+                    // Format amount with currency
                     document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
-                    document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date);
-                    document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date);
-                    document.getElementById('viewPlaintiff').textContent = data.plaintiff;
-                    document.getElementById('viewDefendant').textContent = data.defendant;
-                    document.getElementById('viewLawyerName').textContent = data.lawyer_name;
-                    document.getElementById('viewLawyerContact').textContent = data.lawyer_contact;
-                    document.getElementById('viewDescription').textContent = data.description;
-
-                    // Update case history if available
+                    
+                    // Format dates
+                    document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date) || 'N/A';
+                    document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date) || 'Not Scheduled';
+                    
+                    // Update parties involved
+                    document.getElementById('viewPlaintiff').textContent = data.plaintiff || 'N/A';
+                    document.getElementById('viewDefendant').textContent = data.defendant || 'N/A';
+                    
+                    // Update legal representation
+                    document.getElementById('viewLawyerName').textContent = data.lawyer_name || 'Not Assigned';
+                    document.getElementById('viewLawyerContact').textContent = data.lawyer_contact || 'N/A';
+                    
+                    // Update description
+                    document.getElementById('viewDescription').textContent = data.description || 'No description available';
+                    
+                    // Update case history
                     const historyContainer = document.getElementById('viewCaseHistory');
                     historyContainer.innerHTML = '';
                     
                     if (data.history && data.history.length > 0) {
                         data.history.forEach(item => {
                             const historyItem = document.createElement('div');
-                            historyItem.className = 'p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
+                            historyItem.className = 'flex items-start space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
+                            
                             historyItem.innerHTML = `
-                                <div class="flex justify-between items-start">
-                                    <p class="text-sm text-gray-900 dark:text-gray-100">${item.action}</p>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">${formatDate(item.date)}</span>
+                                <div class="flex-shrink-0">
+                                    <div class="w-2 h-2 mt-2 rounded-full bg-primary"></div>
                                 </div>
-                                ${item.notes ? `<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${item.notes}</p>` : ''}
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${item.action}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.date)}</p>
+                                    ${item.notes ? `<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">${item.notes}</p>` : ''}
+                                </div>
                             `;
+                            
                             historyContainer.appendChild(historyItem);
                         });
                     } else {
                         historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
                     }
-
-                    // Show the modal
+                    
+                    // Show modal
                     document.getElementById('viewDetailsModal').classList.remove('hidden');
                 })
                 .catch(error => {
                     console.error('Error fetching case details:', error);
-                    alert('Failed to load case details. Please try again.');
+                    showErrorToast('Error fetching case details');
                 });
+        }
+
+        function getStatusClass(status) {
+            const statusClasses = {
+                'Active': 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
+                'Pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100',
+                'Resolved': 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
+                'Dismissed': 'bg-gray-100 text-gray-800'
+            };
+            return statusClasses[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return null;
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        function formatCurrency(amount) {
+            if (!amount) return 'N/A';
+            return new Intl.NumberFormat('en-KE', {
+                style: 'currency',
+                currency: 'KES',
+                minimumFractionDigits: 2
+            }).format(amount);
         }
 
         function closeViewDetailsModal() {

@@ -32,6 +32,7 @@ from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
 from forms.demand_letter_forms import DemandLetterForm
 from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
+from models.legal_case import LegalCase
 
 user_bp = Blueprint('user', __name__)
 
@@ -2336,9 +2337,11 @@ def crb_reports():
 @user_bp.route('/legal-cases')
 @login_required
 def legal_cases():
-    """Render the legal cases page"""
+    """Render the legal cases page with all legal cases"""
     try:
-        return render_template('user/legal_cases.html')
+        # Fetch all legal cases, ordered by most recent first
+        legal_cases = LegalCase.query.order_by(LegalCase.created_at.desc()).all()
+        return render_template('user/legal_cases.html', legal_cases=legal_cases)
     except Exception as e:
         current_app.logger.error(f"Error rendering legal cases page: {str(e)}")
         flash('An error occurred while loading the legal cases page', 'error')
@@ -2902,6 +2905,7 @@ def create_guarantor_claim():
     except Exception as e:
         current_app.logger.error(f"Error creating guarantor claim: {str(e)}")
         return jsonify({'error': 'Failed to create claim'}), 500
+
 @user_bp.route('/create_demand_letter', methods=['POST'])
 @login_required
 @csrf.exempt  # Remove this in production and handle CSRF properly
@@ -3013,3 +3017,59 @@ def create_demand_letter():
             'message': 'An unexpected error occurred while creating the demand letter',
             'error': str(e)
         }), 500
+
+@user_bp.route('/create_legal_case', methods=['POST'])
+@login_required
+def create_legal_case():
+    """Create a new legal case"""
+    try:
+        # Get form data
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['loan_id', 'case_number', 'court_name', 'case_type', 
+                           'filing_date', 'status', 'plaintiff', 'defendant', 
+                           'amount_claimed']
+        
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+        
+        # Convert dates to datetime objects
+        filing_date = datetime.strptime(data['filing_date'], '%Y-%m-%d')
+        next_hearing_date = datetime.strptime(data['next_hearing_date'], '%Y-%m-%d') if data.get('next_hearing_date') else None
+        
+        # Create new legal case
+        new_case = LegalCase(
+            loan_id=data['loan_id'],
+            case_number=data['case_number'],
+            court_name=data['court_name'],
+            case_type=data['case_type'],
+            filing_date=filing_date,
+            status=data['status'],
+            plaintiff=data['plaintiff'],
+            defendant=data['defendant'],
+            amount_claimed=float(data['amount_claimed']),
+            lawyer_name=data.get('lawyer_name', ''),
+            lawyer_contact=data.get('lawyer_contact', ''),
+            description=data.get('description', ''),
+            next_hearing_date=next_hearing_date
+        )
+        
+        # Add and commit to database
+        db.session.add(new_case)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Legal case created successfully', 
+            'case_id': new_case.id
+        }), 201
+    
+    except ValueError as ve:
+        current_app.logger.error(f"Value error creating legal case: {str(ve)}")
+        return jsonify({'error': 'Invalid date format'}), 400
+    
+    except Exception as e:
+        current_app.logger.error(f"Error creating legal case: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'An error occurred while creating the legal case'}), 500

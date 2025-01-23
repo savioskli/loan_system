@@ -128,11 +128,12 @@
                         <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Case Number</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Customer Name</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Case Type</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Filing Date</th>
+                                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 sm:pl-6">Case ID</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Loan ID</th>
                                     <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Status</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Plaintiff</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Defendant</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Amount Claimed</th>
                                     <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Next Hearing</th>
                                     <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
                                         <span class="sr-only">Actions</span>
@@ -140,20 +141,34 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
-                                <tr>
-                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-100">CASE-2025-001</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">Robert Johnson</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">Civil</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">2025-01-01</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                        <span class="inline-flex rounded-full bg-blue-100 px-2 text-xs font-semibold leading-5 text-blue-800">Active</span>
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">2025-02-15</td>
-                                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <button class="text-primary hover:text-primary-dark">View Details</button>
-                                        <button class="ml-4 text-primary hover:text-primary-dark">Update</button>
-                                    </td>
-                                </tr>
+                                {% if legal_cases %}
+                                    {% for case in legal_cases %}
+                                    <tr>
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6">{{ case.id }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.loan_id }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                            <span class="inline-flex rounded-full px-2 text-xs font-semibold 
+                                                {% if case.status == 'Active' %}bg-green-100 text-green-800
+                                                {% elif case.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                                {% elif case.status == 'Closed' %}bg-red-100 text-red-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ case.status }}
+                                            </span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.plaintiff }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.defendant }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.amount_claimed|default('N/A', true) }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.next_hearing_date|default('N/A', true) }}</td>
+                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                            <a href="#" class="text-primary hover:text-primary-dark">View Details</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-gray-500 dark:text-gray-400">No legal cases found</td>
+                                    </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -260,9 +275,92 @@
 
         document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            // TODO: Add form submission logic to send data to backend
-            alert('Form submitted! Implement backend submission.');
-            closeNewCaseModal();
+            
+            // Collect form data
+            const formData = {
+                loan_id: document.getElementById('loan_id').value,
+                case_number: document.getElementById('case_number').value,
+                court_name: document.getElementById('court_name').value,
+                case_type: document.getElementById('case_type').value,
+                filing_date: document.getElementById('filing_date').value,
+                status: document.getElementById('status').value,
+                plaintiff: document.getElementById('plaintiff').value,
+                defendant: document.getElementById('defendant').value,
+                amount_claimed: document.getElementById('amount_claimed').value,
+                lawyer_name: document.getElementById('lawyer_name').value,
+                lawyer_contact: document.getElementById('lawyer_contact').value,
+                description: document.getElementById('description').value,
+                next_hearing_date: document.getElementById('next_hearing_date').value
+            };
+
+            console.log('Sending form data:', formData);
+
+            // Send data to backend
+            fetch('/user/create_legal_case', {
+                method: 'POST',
+                credentials: 'same-origin', // Include cookies for CSRF
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                console.log('Full Response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers),
+                    type: response.type,
+                    url: response.url
+                });
+                
+                // Always try to parse as JSON, even for error responses
+                return response.json().then(data => ({
+                    data: data,
+                    response: response
+                })).catch(err => {
+                    // If JSON parsing fails, return the raw response
+                    return response.text().then(text => ({
+                        error: 'Failed to parse JSON',
+                        text: text,
+                        response: response
+                    }));
+                });
+            })
+            .then(result => {
+                console.log('Parsed Result:', result);
+                
+                // Check if there's an error in parsing or in the response
+                if (result.error) {
+                    throw new Error(result.error + ': ' + result.text);
+                }
+                
+                // Check response status and data
+                if (result.response.ok && result.data.case_id) {
+                    // Success: show success message and close modal
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Legal Case Created',
+                        text: 'The legal case has been successfully created.',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        closeNewCaseModal();
+                        location.reload();
+                    });
+                } else {
+                    // Error: show error message
+                    throw new Error(result.data.error || 'Failed to create legal case');
+                }
+            })
+            .catch(error => {
+                console.error('Full Submission Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Submission Error',
+                    text: `Could not submit form: ${error.message}`,
+                    confirmButtonText: 'OK'
+                });
+            });
         });
     </script>
 {% endblock %}

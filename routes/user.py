@@ -2400,103 +2400,6 @@ def field_visits():
         flash('An error occurred while loading the field visits page', 'error')
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/guarantor/<int:guarantor_id>')
-@login_required
-def view_guarantor(guarantor_id):
-    """Display guarantor details"""
-    try:
-        current_app.logger.info(f"Attempting to view guarantor with ID: {guarantor_id}")
-        
-        # Get active core banking system
-        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
-        if not core_system:
-            current_app.logger.error("No active core banking system configured")
-            flash('No active core banking system configured', 'error')
-            return redirect(url_for('user.guarantors'))
-
-        # Get database configuration
-        db_config = {
-            'host': core_system.base_url,
-            'port': core_system.port or 3306,
-            'user': core_system.auth_credentials_dict.get('username', 'root'),
-            'password': core_system.auth_credentials_dict.get('password', ''),
-            'database': core_system.database_name
-        }
-        current_app.logger.info(f"Connecting to database: {db_config['database']} at {db_config['host']}:{db_config['port']}")
-
-        # Connect to core banking database
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
-
-        # Get guarantor details
-        query = """
-            SELECT 
-                g.*,
-                m.FirstName as GuarantorFirstName,
-                m.MiddleName as GuarantorMiddleName,
-                m.LastName as GuarantorLastName,
-                m.NationalID as GuarantorIDNumber,
-                m.MemberNo as GuarantorMemberNo,
-                m.PhoneNumber as GuarantorPhone,
-                m.Email as GuarantorEmail,
-                l.LoanNo,
-                l.LoanAmount,
-                l.Purpose as LoanPurpose,
-                l.RepaymentPeriod,
-                bm.FirstName as BorrowerFirstName,
-                bm.MiddleName as BorrowerMiddleName,
-                bm.LastName as BorrowerLastName,
-                bm.MemberNo as BorrowerMemberNo,
-                bm.NationalID as BorrowerIDNumber,
-                bm.PhoneNumber as BorrowerPhone,
-                bm.Email as BorrowerEmail
-            FROM Guarantors g
-            JOIN Members m ON g.GuarantorMemberID = m.MemberID
-            JOIN LoanApplications l ON g.LoanAppID = l.LoanAppID
-            JOIN Members bm ON l.MemberID = bm.MemberID
-            WHERE g.GuarantorID = %s
-        """
-        
-        current_app.logger.info(f"Executing query to fetch guarantor details")
-        cursor.execute(query, (guarantor_id,))
-        guarantor = cursor.fetchone()
-
-        if not guarantor:
-            current_app.logger.error(f"No guarantor found with ID: {guarantor_id}")
-            flash('Guarantor not found', 'error')
-            return redirect(url_for('user.guarantors'))
-
-        cursor.close()
-        conn.close()
-
-        # Format guarantor data
-        guarantor_data = {
-            'id': guarantor['GuarantorID'],
-            'loan_app_id': guarantor['LoanAppID'],
-            'loan_no': guarantor['LoanNo'],
-            'guarantor_member_id': guarantor['GuarantorMemberID'],
-            'member_no': guarantor['GuarantorMemberNo'],  # Fixed: Changed from MemberID to MemberNo
-            'guarantor_name': f"{guarantor['GuarantorFirstName']} {guarantor['GuarantorMiddleName'] or ''} {guarantor['GuarantorLastName']}".strip(),
-            'id_number': guarantor['GuarantorIDNumber'],
-            'guaranteed_amount': float(guarantor['GuaranteedAmount']),
-            'date_added': guarantor['DateAdded'].isoformat() if guarantor['DateAdded'] else None,
-            'status': guarantor['Status'],
-            'borrower_member_no': guarantor['BorrowerMemberNo'],
-            'borrower_name': f"{guarantor['BorrowerFirstName']} {guarantor['BorrowerMiddleName'] or ''} {guarantor['BorrowerLastName']}".strip()
-        }
-        
-        current_app.logger.info(f"Successfully retrieved guarantor data, rendering template")
-        return render_template('user/guarantor_details.html', guarantor=guarantor_data)
-
-    except mysql.connector.Error as e:
-        current_app.logger.error(f"Database error in view_guarantor: {str(e)}")
-        flash('Database error occurred', 'error')
-        return redirect(url_for('user.guarantors'))
-    except Exception as e:
-        current_app.logger.error(f"Error in view_guarantor: {str(e)}")
-        flash('An unexpected error occurred', 'error')
-        return redirect(url_for('user.guarantors'))
-
 @user_bp.route('/api/guarantor/<int:guarantor_id>/communications', methods=['GET'])
 @login_required
 def get_guarantor_communications(guarantor_id):
@@ -2529,6 +2432,7 @@ def get_guarantor_communications(guarantor_id):
             WHERE c.GuarantorID = %s
             ORDER BY c.CreatedAt DESC
         """
+        
         cursor.execute(query, (guarantor_id,))
         communications = cursor.fetchall()
 
@@ -3104,3 +3008,55 @@ def create_legal_case():
         current_app.logger.error(f"Error creating legal case: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'An error occurred while creating the legal case'}), 500
+@user_bp.route('/legal-cases/<int:case_id>')
+@login_required
+def get_legal_case(case_id):
+    try:
+        # Get database configuration - using loan_system database directly
+        db_config = {
+            'host': 'localhost',
+            'port': 3306,
+            'user': 'root',
+            'password': '',
+            'database': 'loan_system'  # Use loan_system database instead of sacco_db
+        }
+
+        # Connect to database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Get legal case details - use the correct case for table name
+        query = """
+            SELECT * FROM legal_cases WHERE id = %s
+        """
+        
+        cursor.execute(query, (case_id,))
+        case = cursor.fetchone()
+
+        if not case:
+            return jsonify({'error': 'Case not found'}), 404
+
+        # Convert decimal to float for JSON serialization
+        if case.get('amount_claimed'):
+            case['amount_claimed'] = float(case['amount_claimed'])
+
+        # Format dates for JSON
+        if case.get('filing_date'):
+            case['filing_date'] = case['filing_date'].isoformat()
+        if case.get('next_hearing_date'):
+            case['next_hearing_date'] = case['next_hearing_date'].isoformat()
+
+        # Add empty history array since we don't have the history table yet
+        case['history'] = []
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(case)
+
+    except mysql.connector.Error as e:
+        current_app.logger.error(f"Database error in get_legal_case: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
+    except Exception as e:
+        current_app.logger.error(f"Error in get_legal_case: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500

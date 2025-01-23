@@ -25,6 +25,7 @@ class LegalCase(db.Model):
 
     # Relationships
     attachments = relationship("LegalCaseAttachment", back_populates="legal_case")
+    history = relationship("CaseHistory", back_populates="legal_case")
 
 class LegalCaseAttachment(db.Model):
     __tablename__ = 'legal_case_attachments'
@@ -38,3 +39,16 @@ class LegalCaseAttachment(db.Model):
     
     # Relationships
     legal_case = relationship("LegalCase", back_populates="attachments")
+
+class CaseHistory(db.Model):
+    __tablename__ = 'case_history'
+
+    id = Column(Integer, primary_key=True)
+    case_id = Column(Integer, ForeignKey('legal_cases.id'), nullable=False)
+    action = Column(String(255), nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    legal_case = relationship("LegalCase", back_populates="history")

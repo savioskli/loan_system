@@ -181,7 +181,7 @@
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.amount_claimed|default('N/A', true) }}</td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.next_hearing_date|default('N/A', true) }}</td>
                                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <a href="#" class="text-primary hover:text-primary-dark">View Details</a>
+                                            <button onclick="viewCaseDetails('{{ case.id }}')" class="text-primary hover:text-primary-dark">View Details</button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -280,6 +280,81 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="viewDetailsModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Case Details</h3>
+                        <button onclick="closeViewDetailsModal()" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Close</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case ID</label>
+                                <p id="viewCaseId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID</label>
+                                <p id="viewLoanId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                                <p id="viewStatus" class="mt-1"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed</label>
+                                <p id="viewAmount" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Filing Date</label>
+                                <p id="viewFilingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Next Hearing Date</label>
+                                <p id="viewHearingDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff</label>
+                                <p id="viewPlaintiff" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Defendant</label>
+                                <p id="viewDefendant" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Name</label>
+                                <p id="viewLawyerName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Lawyer Contact</label>
+                                <p id="viewLawyerContact" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Description</label>
+                            <p id="viewDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case History</label>
+                            <div id="viewCaseHistory" class="mt-2 space-y-2">
+                                <!-- Case history items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -498,5 +573,91 @@
                 });
             });
         });
+
+        function formatCurrency(amount) {
+            if (!amount || amount === 'N/A') return 'N/A';
+            return new Intl.NumberFormat('en-KE', {
+                style: 'currency',
+                currency: 'KES'
+            }).format(amount);
+        }
+
+        function formatDate(date) {
+            if (!date || date === 'N/A') return 'N/A';
+            return new Date(date).toLocaleDateString('en-KE', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        function getStatusHTML(status) {
+            const statusClasses = {
+                'Active': 'bg-green-100 text-green-800',
+                'Pending': 'bg-yellow-100 text-yellow-800',
+                'Closed': 'bg-red-100 text-red-800',
+                'Appealed': 'bg-gray-100 text-gray-800'
+            };
+            
+            const className = statusClasses[status] || 'bg-gray-100 text-gray-800';
+            return `<span class="inline-flex rounded-full px-2 text-xs font-semibold ${className}">${status}</span>`;
+        }
+
+        function viewCaseDetails(caseId) {
+            // Fetch case details from the server
+            fetch(`/user/legal-cases/${caseId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update modal with case details
+                    document.getElementById('viewCaseId').textContent = data.id;
+                    document.getElementById('viewLoanId').textContent = data.loan_id;
+                    document.getElementById('viewStatus').innerHTML = getStatusHTML(data.status);
+                    document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
+                    document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date);
+                    document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date);
+                    document.getElementById('viewPlaintiff').textContent = data.plaintiff;
+                    document.getElementById('viewDefendant').textContent = data.defendant;
+                    document.getElementById('viewLawyerName').textContent = data.lawyer_name;
+                    document.getElementById('viewLawyerContact').textContent = data.lawyer_contact;
+                    document.getElementById('viewDescription').textContent = data.description;
+
+                    // Update case history if available
+                    const historyContainer = document.getElementById('viewCaseHistory');
+                    historyContainer.innerHTML = '';
+                    
+                    if (data.history && data.history.length > 0) {
+                        data.history.forEach(item => {
+                            const historyItem = document.createElement('div');
+                            historyItem.className = 'p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
+                            historyItem.innerHTML = `
+                                <div class="flex justify-between items-start">
+                                    <p class="text-sm text-gray-900 dark:text-gray-100">${item.action}</p>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">${formatDate(item.date)}</span>
+                                </div>
+                                ${item.notes ? `<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${item.notes}</p>` : ''}
+                            `;
+                            historyContainer.appendChild(historyItem);
+                        });
+                    } else {
+                        historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
+                    }
+
+                    // Show the modal
+                    document.getElementById('viewDetailsModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error fetching case details:', error);
+                    alert('Failed to load case details. Please try again.');
+                });
+        }
+
+        function closeViewDetailsModal() {
+            document.getElementById('viewDetailsModal').classList.add('hidden');
+        }
     </script>
 {% endblock %}

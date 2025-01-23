@@ -3060,3 +3060,66 @@ def get_legal_case(case_id):
     except Exception as e:
         current_app.logger.error(f"Error in get_legal_case: {str(e)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@user_bp.route('/add_case_history', methods=['POST'])
+@login_required
+def add_case_history():
+    try:
+        case_id = request.form.get('case_id')
+        action = request.form.get('action')
+        action_date = request.form.get('action_date')
+        notes = request.form.get('notes')
+        
+        if not all([case_id, action, action_date]):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Insert case history
+        cursor.execute('''
+            INSERT INTO case_history (case_id, action, action_date, notes, created_by)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (case_id, action, action_date, notes, current_user.id))
+        
+        case_history_id = cursor.lastrowid
+
+        # Handle file attachments
+        if 'attachments' in request.files:
+            files = request.files.getlist('attachments')
+            upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'case_attachments')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            for file in files:
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(upload_dir, f"{case_history_id}_{filename}")
+                    file.save(file_path)
+                    
+                    # Save file info to database
+                    cursor.execute('''
+                        INSERT INTO case_attachments 
+                        (case_history_id, file_name, file_path, file_type, file_size)
+                        VALUES (%s, %s, %s, %s, %s)
+                    ''', (
+                        case_history_id,
+                        filename,
+                        file_path,
+                        file.content_type,
+                        os.path.getsize(file_path)
+                    ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({'message': 'Case history added successfully'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error adding case history: {str(e)}")
+        return jsonify({'error': 'Failed to add case history'}), 500
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

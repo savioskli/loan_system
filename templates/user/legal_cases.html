@@ -181,7 +181,14 @@
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.amount_claimed|default('N/A', true) }}</td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ case.next_hearing_date|default('N/A', true) }}</td>
                                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <button onclick="viewCaseDetails('{{ case.id }}')" class="text-primary hover:text-primary-dark">View Details</button>
+                                            <div class="flex space-x-2">
+                                                <button onclick="viewCaseDetails('{{ case.id }}')" class="text-primary hover:text-primary-dark">
+                                                    View Details
+                                                </button>
+                                                <button onclick="openAddHistoryModal('{{ case.id }}')" class="text-green-600 hover:text-green-700">
+                                                    Add History
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -277,6 +284,90 @@
                         </button>
                         <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
                             Create Case
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add History Modal -->
+    <div id="addHistoryModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+                <form id="addHistoryForm" onsubmit="submitCaseHistory(event)" class="px-6 pt-5 pb-4">
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Add Case History</h3>
+                            <button type="button" onclick="closeAddHistoryModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                                <span class="sr-only">Close</span>
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <input type="hidden" id="historyFormCaseId" name="case_id">
+                        
+                        <!-- Action Type -->
+                        <div class="mb-4">
+                            <label for="actionType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action Type</label>
+                            <select id="actionType" name="action" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                <option value="">Select Action Type</option>
+                                <option value="Hearing">Hearing</option>
+                                <option value="Filing">Filing</option>
+                                <option value="Decision">Decision</option>
+                                <option value="Settlement">Settlement</option>
+                                <option value="Appeal">Appeal</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Action Date -->
+                        <div class="mb-4">
+                            <label for="actionDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action Date</label>
+                            <input type="datetime-local" id="actionDate" name="date" required 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                            <textarea id="notes" name="notes" rows="3" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                placeholder="Enter detailed notes about the action..."></textarea>
+                        </div>
+
+                        <!-- Attachments -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="attachments" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                            <span>Upload files</span>
+                                            <input id="attachments" name="attachments" type="file" class="sr-only" multiple>
+                                        </label>
+                                        <p class="pl-1 text-gray-500">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                                </div>
+                            </div>
+                            <div id="fileList" class="mt-2 space-y-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-100 dark:bg-gray-700 px-6 py-3 sm:flex sm:flex-row-reverse">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm">
+                            Save History
+                        </button>
+                        <button type="button" onclick="closeAddHistoryModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500">
+                            Cancel
                         </button>
                     </div>
                 </form>
@@ -720,6 +811,127 @@
 
         function closeViewDetailsModal() {
             document.getElementById('viewDetailsModal').classList.add('hidden');
+        }
+
+        function openAddHistoryModal(caseId) {
+            document.getElementById('historyFormCaseId').value = caseId;
+            document.getElementById('addHistoryModal').classList.remove('hidden');
+            
+            // Reset form
+            document.getElementById('addHistoryForm').reset();
+            document.getElementById('fileList').innerHTML = '';
+            
+            // Set default date to current date and time
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('actionDate').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        function closeAddHistoryModal() {
+            document.getElementById('addHistoryModal').classList.add('hidden');
+        }
+
+        function submitCaseHistory(event) {
+            event.preventDefault();
+            
+            const form = document.getElementById('addHistoryForm');
+            const formData = new FormData(form);
+            
+            // Get file input and append files to formData
+            const fileInput = document.getElementById('attachments');
+            const files = fileInput.files;
+            for (let i = 0; i < files.length; i++) {
+                formData.append('attachments', files[i]);
+            }
+
+            fetch('/add_case_history', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showToast('error', data.error);
+                } else {
+                    showToast('success', 'Case history added successfully');
+                    closeAddHistoryModal();
+                    // Optionally refresh the case details
+                    if (currentCaseId) {
+                        loadCaseDetails(currentCaseId);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('error', 'Failed to add case history');
+            });
+        }
+
+        // Add event listener to the form
+        document.getElementById('addHistoryForm').addEventListener('submit', submitCaseHistory);
+
+        // Handle file selection
+        document.getElementById('attachments').addEventListener('change', function(e) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            Array.from(e.target.files).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'flex items-center justify-between text-sm text-gray-600 dark:text-gray-300';
+                fileItem.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                        </svg>
+                        <span>${file.name}</span>
+                    </div>
+                    <span class="text-xs">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        });
+
+        // Handle drag and drop
+        const dropZone = document.querySelector('form');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('border-primary');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-primary');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('attachments').files = files;
+            
+            // Trigger the change event manually
+            const event = new Event('change');
+            document.getElementById('attachments').dispatchEvent(event);
         }
     </script>
 {% endblock %}

@@ -2337,11 +2337,42 @@ def crb_reports():
 @user_bp.route('/legal-cases')
 @login_required
 def legal_cases():
-    """Render the legal cases page with all legal cases"""
+    """Render the legal cases page with all legal cases and statistics"""
     try:
         # Fetch all legal cases, ordered by most recent first
         legal_cases = LegalCase.query.order_by(LegalCase.created_at.desc()).all()
-        return render_template('user/legal_cases.html', legal_cases=legal_cases)
+        
+        # Calculate statistics
+        active_cases = LegalCase.query.filter_by(status='Active').count()
+        resolved_cases = LegalCase.query.filter_by(status='Closed').count()
+        
+        # Calculate upcoming hearings (cases with hearing dates in the future)
+        from datetime import datetime
+        upcoming_hearings = LegalCase.query.filter(
+            LegalCase.next_hearing_date >= datetime.now(),
+            LegalCase.status != 'Closed'
+        ).count()
+        
+        # Calculate total amount in litigation
+        from sqlalchemy import func
+        total_amount = db.session.query(func.sum(LegalCase.amount_claimed))\
+            .filter(LegalCase.status != 'Closed')\
+            .scalar() or 0
+        
+        # Format amount for display
+        if total_amount >= 1_000_000:
+            amount_display = f"KES {total_amount/1_000_000:.1f}M"
+        elif total_amount >= 1_000:
+            amount_display = f"KES {total_amount/1_000:.1f}K"
+        else:
+            amount_display = f"KES {total_amount:,.0f}"
+
+        return render_template('user/legal_cases.html',
+                           legal_cases=legal_cases,
+                           active_cases=active_cases,
+                           resolved_cases=resolved_cases,
+                           upcoming_hearings=upcoming_hearings,
+                           amount_in_litigation=amount_display)
     except Exception as e:
         current_app.logger.error(f"Error rendering legal cases page: {str(e)}")
         flash('An error occurred while loading the legal cases page', 'error')

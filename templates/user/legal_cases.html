@@ -89,7 +89,7 @@
 
         <!-- Filters -->
         <div class="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Case Status</label>
                     <select id="statusFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
@@ -101,10 +101,6 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
-                    <input type="date" id="dateFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
-                </div>
-                <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
                     <input type="text" id="searchFilter" placeholder="Search by ID, name, or details..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
                 </div>
@@ -112,6 +108,35 @@
                     <button type="button" onclick="resetFilters()" class="inline-flex items-center px-6 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
                         Reset Filters
                     </button>
+                </div>
+            </div>
+            <!-- Date Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Filing Date Range</label>
+                    <div class="grid grid-cols-2 gap-2 mt-1">
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400">From</label>
+                            <input type="date" id="filingDateFrom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400">To</label>
+                            <input type="date" id="filingDateTo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Hearing Date Range</label>
+                    <div class="grid grid-cols-2 gap-2 mt-1">
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400">From</label>
+                            <input type="date" id="hearingDateFrom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400">To</label>
+                            <input type="date" id="hearingDateTo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2.5">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -271,42 +296,59 @@
 
         // Filter functionality
         const statusFilter = document.getElementById('statusFilter');
-        const dateFilter = document.getElementById('dateFilter');
         const searchFilter = document.getElementById('searchFilter');
+        const filingDateFrom = document.getElementById('filingDateFrom');
+        const filingDateTo = document.getElementById('filingDateTo');
+        const hearingDateFrom = document.getElementById('hearingDateFrom');
+        const hearingDateTo = document.getElementById('hearingDateTo');
         const tbody = document.querySelector('tbody');
         const rows = Array.from(tbody.getElementsByTagName('tr'));
 
         // Add event listeners
         statusFilter.addEventListener('change', filterCases);
-        dateFilter.addEventListener('change', filterCases);
         searchFilter.addEventListener('input', filterCases);
+        filingDateFrom.addEventListener('change', filterCases);
+        filingDateTo.addEventListener('change', filterCases);
+        hearingDateFrom.addEventListener('change', filterCases);
+        hearingDateTo.addEventListener('change', filterCases);
+
+        function isDateInRange(dateStr, fromDate, toDate) {
+            if (dateStr === 'N/A') return false;
+            
+            const date = new Date(dateStr);
+            let isValid = true;
+
+            if (fromDate) {
+                const from = new Date(fromDate);
+                isValid = isValid && date >= from;
+            }
+
+            if (toDate) {
+                const to = new Date(toDate);
+                to.setHours(23, 59, 59, 999); // Include the entire "to" day
+                isValid = isValid && date <= to;
+            }
+
+            return isValid;
+        }
 
         function filterCases() {
             const status = statusFilter.value.toLowerCase();
-            const date = dateFilter.value;
             const search = searchFilter.value.toLowerCase();
+            const filingFrom = filingDateFrom.value;
+            const filingTo = filingDateTo.value;
+            const hearingFrom = hearingDateFrom.value;
+            const hearingTo = hearingDateTo.value;
 
             rows.forEach(row => {
+                if (row.classList.contains('no-results')) return;
+                
                 let showRow = true;
 
                 // Status filter
                 if (status && row.cells.length > 2) {
-                    const caseStatus = row.cells[2].textContent.toLowerCase();
+                    const caseStatus = row.cells[2].textContent.trim().toLowerCase();
                     if (!caseStatus.includes(status)) {
-                        showRow = false;
-                    }
-                }
-
-                // Date filter
-                if (date && row.cells.length > 6) {
-                    const hearingDate = row.cells[6].textContent;
-                    if (hearingDate !== 'N/A') {
-                        const rowDate = new Date(hearingDate);
-                        const filterDate = new Date(date);
-                        if (rowDate.toDateString() !== filterDate.toDateString()) {
-                            showRow = false;
-                        }
-                    } else {
                         showRow = false;
                     }
                 }
@@ -314,9 +356,25 @@
                 // Search filter
                 if (search && row.cells.length > 0) {
                     const rowText = Array.from(row.cells)
-                        .map(cell => cell.textContent.toLowerCase())
+                        .map(cell => cell.textContent.trim().toLowerCase())
                         .join(' ');
                     if (!rowText.includes(search)) {
+                        showRow = false;
+                    }
+                }
+
+                // Filing date filter
+                if ((filingFrom || filingTo) && row.cells.length > 5) {
+                    const filingDate = row.cells[5].textContent.trim();
+                    if (!isDateInRange(filingDate, filingFrom, filingTo)) {
+                        showRow = false;
+                    }
+                }
+
+                // Hearing date filter
+                if ((hearingFrom || hearingTo) && row.cells.length > 6) {
+                    const hearingDate = row.cells[6].textContent.trim();
+                    if (!isDateInRange(hearingDate, hearingFrom, hearingTo)) {
                         showRow = false;
                     }
                 }
@@ -326,7 +384,7 @@
             });
 
             // Show "No results found" message if all rows are hidden
-            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            const visibleRows = rows.filter(row => !row.classList.contains('no-results') && row.style.display !== 'none');
             const noResultsRow = tbody.querySelector('.no-results');
             
             if (visibleRows.length === 0) {
@@ -343,8 +401,11 @@
 
         function resetFilters() {
             statusFilter.value = '';
-            dateFilter.value = '';
             searchFilter.value = '';
+            filingDateFrom.value = '';
+            filingDateTo.value = '';
+            hearingDateFrom.value = '';
+            hearingDateTo.value = '';
             filterCases();
         }
 

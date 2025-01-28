@@ -56,7 +56,8 @@ def search_customers():
                     l.LoanAppID, 
                     l.LoanNo,
                     COALESCE(l.LoanAmount, 0),
-                    COALESCE(lle.OutstandingBalance, 0)
+                    COALESCE(lle.OutstandingBalance, 0),
+                    COALESCE(l.RepaymentPeriod, 0)
                 )) AS LoanInfo,
                 GROUP_CONCAT(DISTINCT 
                     CASE 
@@ -114,17 +115,19 @@ def search_customers():
             guarantors = []
             
             # Process loan information
+# Process loan information
             if member['LoanInfo']:
                 loan_info_list = member['LoanInfo'].split(',')
                 for loan_info in loan_info_list:
                     try:
-                        loan_id, loan_no, loan_amount, outstanding = loan_info.split(':')
+                        loan_id, loan_no, loan_amount, outstanding, repayment_period = loan_info.split(':')
                         if loan_id and loan_no:  # Only add if we have valid loan info
                             loans.append({
                                 'LoanAppID': loan_id,
                                 'LoanNo': loan_no,
                                 'LoanAmount': float(loan_amount) if loan_amount else 0,
-                                'OutstandingBalance': float(outstanding) if outstanding else 0
+                                'OutstandingBalance': float(outstanding) if outstanding else 0,
+                                'RepaymentPeriod': int(repayment_period) if repayment_period else 0
                             })
                     except ValueError as e:
                         current_app.logger.error(f"Error parsing loan info: {loan_info}, Error: {str(e)}")

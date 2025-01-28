@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
     {% include 'user/post_disbursement_sidebar.html' %}
-    
+
     <div class="p-4 sm:ml-64">
         <!-- Header and Metrics -->
         <div class="sm:flex sm:items-center">
@@ -20,19 +20,19 @@
         <div class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-4">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg p-4">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Total Requests</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">245</dd>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ loan_reschedules|length }}</dd>
             </div>
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg p-4">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Pending</dt>
-                <dd class="mt-1 text-3xl font-semibold text-yellow-600 dark:text-yellow-400">45</dd>
+                <dd class="mt-1 text-3xl font-semibold text-yellow-600 dark:text-yellow-400">{{ loan_reschedules|selectattr("status", "equalto", "Pending")|list|length }}</dd>
             </div>
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg p-4">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Approved</dt>
-                <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">180</dd>
+                <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">{{ loan_reschedules|selectattr("status", "equalto", "Approved")|list|length }}</dd>
             </div>
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg p-4">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Rejected</dt>
-                <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">20</dd>
+                <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">{{ loan_reschedules|selectattr("status", "equalto", "Rejected")|list|length }}</dd>
             </div>
         </div>
 
@@ -83,14 +83,15 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
+                                {% for request in loan_reschedules %}
                                 <tr>
-                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-100">RSC-001</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">LN-2025-001</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">John Doe</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">12 months</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">18 months</td>
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-100">{{ request.id }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ request.loan_id }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ request.member_id }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ request.original_term }} months</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ request.proposed_term }} months</td>
                                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                        <span class="inline-flex rounded-full bg-yellow-100 px-2 text-xs font-semibold leading-5 text-yellow-800">Pending</span>
+                                        <span class="inline-flex rounded-full bg-{{ 'yellow' if request.status == 'Pending' else 'green' if request.status == 'Approved' else 'red' }}-100 px-2 text-xs font-semibold leading-5 text-{{ 'yellow' if request.status == 'Pending' else 'green' if request.status == 'Approved' else 'red' }}-800">{{ request.status }}</span>
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                         <div class="flex items-center space-x-4">
@@ -110,6 +111,7 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -123,18 +125,19 @@
     <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
         <div class="mt-3 text-left">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-6">New Rescheduling Request</h3>
-            <form class="space-y-6">
+            <form id="add-reschedule-form" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Client Information -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Client <span class="text-red-500">*</span>
                         </label>
-                        <select required class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                            <option value="">Select Client</option>
-                            <option value="1">John Doe (CL-001)</option>
-                            <option value="2">Jane Smith (CL-002)</option>
-                        </select>
+                        <select id="member_id" name="member_id"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white"
+                        required>
+                    <option value="">Select Client</option>
+                </select>
                     </div>
 
                     <!-- Loan Information -->
@@ -142,10 +145,8 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Loan Number <span class="text-red-500">*</span>
                         </label>
-                        <select required class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                        <select id="loan_id" name="loan_id" class="select2 py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
                             <option value="">Select Loan</option>
-                            <option value="LN-2024-001">LN-2024-001</option>
-                            <option value="LN-2024-002">LN-2024-002</option>
                         </select>
                     </div>
                 </div>
@@ -156,16 +157,21 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Original Term (months) <span class="text-red-500">*</span>
                         </label>
-                        <input type="number" required 
-                               class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
-                               min="1" max="120">
+                        <input type="number"
+                               id="original_term"
+                               name="original_term"
+                               required
+                               readonly
+                               class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 bg-gray-100 dark:bg-gray-600"
+                               min="1"
+                               max="120">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Proposed Term (months) <span class="text-red-500">*</span>
                         </label>
-                        <input type="number" required 
+                        <input type="number" name="proposed_term" required
                                class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
                                min="1" max="120">
                     </div>
@@ -177,18 +183,17 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Request Date <span class="text-red-500">*</span>
                         </label>
-                        <input type="date" required 
-                               class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
-                               value="<?php echo date('Y-m-d'); ?>">
+                        <input type="date" name="request_date" required
+                            class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
+                            value="<?php echo date('Y-m-d'); ?>">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Proposed Start Date <span class="text-red-500">*</span>
                         </label>
-                        <input type="date" required 
-                               class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700">
-                    </div>
+                        <input type="date" name="proposed_start_date" required
+                               class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"></div>
                 </div>
 
                 <!-- Reason -->
@@ -196,10 +201,9 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Rescheduling Reason
                     </label>
-                    <textarea rows="4" 
+                    <textarea name="reason" rows="4"
                         class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
-                        placeholder="Describe the reason for rescheduling..."></textarea>
-                </div><!-- Attachment Upload -->
+                        placeholder="Describe the reason for rescheduling..."></textarea></div><!-- Attachment Upload -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Supporting Documents
@@ -212,8 +216,7 @@
                             <div class="flex text-sm text-gray-600">
                                 <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
                                     <span>Upload a file</span>
-                                    <input id="file-upload" name="file-upload" type="file" class="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                                </label>
+                                    <input id="file-upload" name="supporting_documents" type="file" class="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></label>
                                 <p class="pl-1">or drag and drop</p>
                             </div>
                             <p class="text-xs text-gray-500">PDF, DOC, DOCX, PNG, JPG up to 10MB</p>
@@ -223,11 +226,11 @@
 
                 <!-- Form Actions -->
                 <div class="flex justify-end space-x-4 mt-8">
-                    <button type="button" onclick="toggleModal('add-modal')" 
+                    <button type="button" onclick="toggleModal('add-modal')"
                             class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
                         Cancel
                     </button>
-                    <button type="submit" 
+                    <button type="submit"
                             class="px-6 py-3 text-sm text-white bg-primary rounded-md hover:bg-primary-dark">
                         Submit Request
                     </button>
@@ -243,10 +246,10 @@
                 <div class="mt-3 text-left">
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Request Details</h3>
                     <div class="mt-4 space-y-2">
-                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Request ID:</strong> RSC-001</p>
-                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Customer:</strong> John Doe</p>
-                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Current Schedule:</strong> 12 months</p>
-                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Proposed Schedule:</strong> 18 months</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Request ID:</strong> {{ request.id }}</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Customer:</strong> {{ request.member_id }}</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Current Schedule:</strong> {{ request.original_term }} months</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Proposed Schedule:</strong> {{ request.proposed_term }} months</p>
                     </div>
                     <div class="mt-4">
                         <button onclick="toggleModal('view-modal')" class="px-4 py-2 text-sm text-white bg-primary rounded-md w-full">Close</button>
@@ -263,7 +266,7 @@
                     <form class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Proposed Schedule</label>
-                            <input type="text" value="18 months" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700">
+                            <input type="text" value="{{ request.proposed_term }} months" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700">
                         </div>
                         <div class="flex justify-end space-x-4">
                             <button type="button" onclick="toggleModal('edit-modal')" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md">Cancel</button>
@@ -281,4 +284,47 @@
             modal.classList.toggle('hidden');
         }
     </script>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Form submission handler
+    const form = document.querySelector('#add-reschedule-form');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/user/create_loan_reschedule', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrf_token')
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || 'Failed to create request');
+
+            alert('Request created successfully! ID: ' + data.request_id);
+            toggleModal('add-modal');
+            form.reset();
+            // Add logic to refresh table if needed
+        } catch (error) {
+            alert(error.message);
+            console.error('Error:', error);
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+});
+    </script>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="{{ url_for('static', filename='js/loan_rescheduling.js') }}"></script>
 {% endblock %}

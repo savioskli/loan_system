@@ -34,6 +34,7 @@ from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
 from models.legal_case import LegalCase
 from models.auction import Auction
+from models.loan_reschedule import LoanReschedule
 
 user_bp = Blueprint('user', __name__)
 
@@ -2214,7 +2215,9 @@ def api_get_metrics():
 def loan_rescheduling():
     """Render the loan rescheduling page"""
     try:
-        return render_template('user/loan_rescheduling.html')
+        # Fetch loan rescheduling requests from the database
+        loan_reschedules = LoanReschedule.query.all()
+        return render_template('user/loan_rescheduling.html', loan_reschedules=loan_reschedules)
     except Exception as e:
         current_app.logger.error(f"Error rendering loan rescheduling page: {str(e)}")
         flash('An error occurred while loading the loan rescheduling page', 'error')
@@ -3272,3 +3275,94 @@ def update_auction(auction_id):
         current_app.logger.error(f"Error updating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while updating the auction'}), 500
 
+        from datetime import datetime
+from flask import jsonify, request, current_app
+from flask_login import login_required
+
+@user_bp.route('/create_loan_reschedule', methods=['POST'])
+@login_required
+def create_loan_reschedule():
+    try:
+        # CSRF validation
+        if not validate_csrf(request.form.get('csrf_token')):
+            return jsonify({'error': 'Invalid CSRF token'}), 403
+
+        # Validate required fields
+        required_fields = [
+            'member_id', 
+            'loan_id',
+            'original_term',
+            'proposed_term',
+            'request_date',
+            'proposed_start_date'
+        ]
+        
+        for field in required_fields:
+            if not request.form.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+
+        # Convert dates
+        try:
+            request_date = datetime.strptime(request.form['request_date'], '%Y-%m-%d')
+            proposed_start_date = datetime.strptime(request.form['proposed_start_date'], '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Handle file upload
+        file_path = None
+        if 'supporting_documents' in request.files:
+            file = request.files['supporting_documents']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                upload_dir = os.path.join(
+                    current_app.config['UPLOAD_FOLDER'], 
+                    'reschedule_docs',
+                    str(current_user.id)
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, filename)
+                file.save(file_path)
+
+        # Create new request
+        new_request = LoanReschedule(
+            member_id=request.form['member_id'],
+            loan_id=request.form['loan_id'],
+            original_term=int(request.form['original_term']),
+            proposed_term=int(request.form['proposed_term']),
+            request_date=request_date,
+            proposed_start_date=proposed_start_date,
+            reason=request.form.get('reason', ''),
+            supporting_documents=file_path,
+            status='Pending',
+            created_by=current_user.id,
+            created_at=datetime.now()
+        )
+
+        db.session.add(new_request)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Request created successfully',
+            'request_id': new_request.id
+        }), 201
+
+    except ValueError as ve:
+        current_app.logger.error(f"Value error: {str(ve)}")
+        return jsonify({'error': 'Invalid data format'}), 400
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Server error processing request'}), 500
+
+def validate_csrf(token):
+    """Validate CSRF token using Flask-WTF"""
+    try:
+        csrf.protect()
+        return True
+    except ValidationError:
+        return False
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

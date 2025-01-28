@@ -9,7 +9,7 @@
                 <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Manage and track property auctions for defaulted loans.</p>
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
+                <button type="button" onclick="openNewAuctionModal()" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
                     Add New Auction
                 </button>
             </div>
@@ -27,7 +27,7 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Pending Auctions</dt>
                                 <dd class="flex items-baseline">
-                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">15</div>
+                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ pending_auctions }}</div>
                                 </dd>
                             </dl>
                         </div>
@@ -44,7 +44,7 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Completed Auctions</dt>
                                 <dd class="flex items-baseline">
-                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">32</div>
+                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ completed_auctions }}</div>
                                 </dd>
                             </dl>
                         </div>
@@ -61,7 +61,7 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Properties Listed</dt>
                                 <dd class="flex items-baseline">
-                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">47</div>
+                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ properties_listed }}</div>
                                 </dd>
                             </dl>
                         </div>
@@ -78,7 +78,7 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Recovery</dt>
                                 <dd class="flex items-baseline">
-                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">$3.2M</div>
+                                    <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">KES {{ "{:,.2f}".format(total_recovery) }}</div>
                                 </dd>
                             </dl>
                         </div>
@@ -141,20 +141,34 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
+                                {% for auction in auctions %}
                                 <tr>
-                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-100">AUC-2025-001</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">3BR House, Karen</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">Residential</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">$450,000</td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">2025-02-20</td>
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-100">AUC-{{ "%04d"|format(auction.id) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ auction.property_description }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ auction.property_type }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">KES {{ "{:,.2f}".format(auction.reserve_price) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">{{ auction.auction_date.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                        <span class="inline-flex rounded-full bg-yellow-100 px-2 text-xs font-semibold leading-5 text-yellow-800">Scheduled</span>
+                                        <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 
+                                            {% if auction.status == 'Scheduled' %}bg-yellow-100 text-yellow-800
+                                            {% elif auction.status == 'Completed' %}bg-green-100 text-green-800
+                                            {% elif auction.status == 'Cancelled' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ auction.status }}
+                                        </span>
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <button class="text-primary hover:text-primary-dark">View Details</button>
-                                        <button class="ml-4 text-primary hover:text-primary-dark">Edit</button>
+                                        <button onclick="viewAuctionDetails({{ auction.id }})" class="text-primary hover:text-primary-dark mr-2">View Details</button>
+                                        <button onclick="openEditAuctionModal({{ auction.id }})" class="text-blue-600 hover:text-blue-900">Edit</button>
                                     </td>
                                 </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        No auctions found
+                                    </td>
+                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -162,4 +176,646 @@
             </div>
         </div>
     </div>
+
+    <!-- New Auction Modal -->
+    <div id="newAuctionModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <form id="newAuctionForm" class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create New Auction</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="loan_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Loan ID</label>
+                            <input type="text" id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="client_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Name</label>
+                            <input type="text" id="client_name" name="client_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="property_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Type</label>
+                            <select id="property_type" name="property_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                                <option value="">Select Property Type</option>
+                                <option value="Residential">Residential</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Land">Land</option>
+                                <option value="Movable Property">Movable Property</option>
+                                <option value="Chattels">Chattels</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="property_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Description</label>
+                            <input type="text" id="property_description" name="property_description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="valuation_amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Valuation Amount</label>
+                            <input type="number" id="valuation_amount" name="valuation_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="reserve_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reserve Price</label>
+                            <input type="number" id="reserve_price" name="reserve_price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="auction_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Date</label>
+                            <input type="datetime-local" id="auction_date" name="auction_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="auction_venue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Venue</label>
+                            <input type="text" id="auction_venue" name="auction_venue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        </div>
+                        <div>
+                            <label for="auctioneer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Name</label>
+                            <input type="text" id="auctioneer_name" name="auctioneer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label for="auctioneer_contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Contact</label>
+                            <input type="tel" id="auctioneer_contact" name="auctioneer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label for="advertisement_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Date</label>
+                            <input type="date" id="advertisement_date" name="advertisement_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label for="advertisement_medium" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Medium</label>
+                            <input type="text" id="advertisement_medium" name="advertisement_medium" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                            <option value="">Select Status</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mt-4">
+                        <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                        <textarea id="notes" name="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600"></textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
+                        <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
+                            <div class="space-y-1 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="flex text-sm text-gray-600 dark:text-gray-400">
+                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                        <span>Upload a file</span>
+                                        <input id="file-upload" name="file-upload" type="file" class="sr-only" multiple>
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF up to 10MB</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" onclick="closeNewAuctionModal()" class="rounded-md border border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Cancel</button>
+                        <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Create Auction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="viewDetailsModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl">
+                <div class="px-6 pt-6 pb-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Auction Details</h3>
+                            <p id="viewAuctionId" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                        </div>
+                        <button type="button" onclick="closeViewDetailsModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <span class="sr-only">Close</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-8">
+                        <!-- Auction Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Auction Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID</label>
+                                    <p id="viewLoanId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Property Description</label>
+                                    <p id="viewPropertyDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Valuation Amount</label>
+                                    <p id="viewValuationAmount" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Reserve Price</label>
+                                    <p id="viewReservePrice" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Auction Date</label>
+                                    <p id="viewAuctionDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Auction Venue</label>
+                                    <p id="viewAuctionVenue" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                                    <p id="viewStatus" class="mt-1"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Auctioneer Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Auctioneer Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Auctioneer Name</label>
+                                    <p id="viewAuctioneerName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Auctioneer Contact</label>
+                                    <p id="viewAuctioneerContact" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advertisement Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Advertisement Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Advertisement Date</label>
+                                    <p id="viewAdvertisementDate" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Advertisement Medium</label>
+                                    <p id="viewAdvertisementMedium" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Notes</h4>
+                            <p id="viewNotes" class="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap"></p>
+                        </div>
+
+                        <!-- Attachments -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Attachments</h4>
+                            <div id="viewAttachments" class="grid grid-cols-1 gap-2">
+                                <!-- Attachments will be dynamically added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-100 dark:bg-gray-700 px-6 py-4">
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeViewDetailsModal()" class="rounded-md border border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Auction Modal -->
+<div id="editAuctionModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+        <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
+            <form id="editAuctionForm" class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Edit Auction</h3>
+                <input type="hidden" id="edit_auction_id" name="auction_id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Loan ID -->
+                    <div>
+                        <label for="edit_loan_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Loan ID</label>
+                        <input type="text" id="edit_loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Client Name -->
+                    <div>
+                        <label for="edit_client_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Name</label>
+                        <input type="text" id="edit_client_name" name="client_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Property Type -->
+                    <div>
+                        <label for="edit_property_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Type</label>
+                        <select id="edit_property_type" name="property_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                            <option value="">Select Property Type</option>
+                            <option value="Residential">Residential</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="Industrial">Industrial</option>
+                            <option value="Land">Land</option>
+                            <option value="Movable Property">Movable Property</option>
+                            <option value="Chattels">Chattels</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Property Description -->
+                    <div>
+                        <label for="edit_property_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Description</label>
+                        <input type="text" id="edit_property_description" name="property_description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Valuation Amount -->
+                    <div>
+                        <label for="edit_valuation_amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Valuation Amount</label>
+                        <input type="number" id="edit_valuation_amount" name="valuation_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Reserve Price -->
+                    <div>
+                        <label for="edit_reserve_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reserve Price</label>
+                        <input type="number" id="edit_reserve_price" name="reserve_price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Auction Date -->
+                    <div>
+                        <label for="edit_auction_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Date</label>
+                        <input type="datetime-local" id="edit_auction_date" name="auction_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Auction Venue -->
+                    <div>
+                        <label for="edit_auction_venue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Venue</label>
+                        <input type="text" id="edit_auction_venue" name="auction_venue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                    </div>
+                    
+                    <!-- Auctioneer Name -->
+                    <div>
+                        <label for="edit_auctioneer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Name</label>
+                        <input type="text" id="edit_auctioneer_name" name="auctioneer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                    
+                    <!-- Auctioneer Contact -->
+                    <div>
+                        <label for="edit_auctioneer_contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Contact</label>
+                        <input type="tel" id="edit_auctioneer_contact" name="auctioneer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                    
+                    <!-- Advertisement Date -->
+                    <div>
+                        <label for="edit_advertisement_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Date</label>
+                        <input type="date" id="edit_advertisement_date" name="advertisement_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                    
+                    <!-- Advertisement Medium -->
+                    <div>
+                        <label for="edit_advertisement_medium" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Medium</label>
+                        <input type="text" id="edit_advertisement_medium" name="advertisement_medium" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="mt-4">
+                    <label for="edit_status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                    <select id="edit_status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                        <option value="">Select Status</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <!-- Notes -->
+                <div class="mt-4">
+                    <label for="edit_notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                    <textarea id="edit_notes" name="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600"></textarea>
+                </div>
+
+                <!-- Attachments -->
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="flex text-sm text-gray-600 dark:text-gray-400">
+                                <label class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                    <span>Upload a file</span>
+                                    <input type="file" class="sr-only" multiple>
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF up to 10MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditAuctionModal()" class="rounded-md border border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Cancel</button>
+                    <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Update Auction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditAuctionModal(auctionId) {
+    fetch(`/user/auction/${auctionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showToast('error', data.error);
+                return;
+            }
+            // Populate form fields
+            document.getElementById('edit_auction_id').value = data.id;
+            document.getElementById('edit_loan_id').value = data.loan_id;
+            document.getElementById('edit_client_name').value = data.client_name;
+            document.getElementById('edit_property_type').value = data.property_type;
+            document.getElementById('edit_property_description').value = data.property_description;
+            document.getElementById('edit_valuation_amount').value = data.valuation_amount;
+            document.getElementById('edit_reserve_price').value = data.reserve_price;
+            // Format dates
+            const auctionDate = new Date(data.auction_date);
+            document.getElementById('edit_auction_date').value = auctionDate.toISOString().slice(0,16);
+            document.getElementById('edit_auction_venue').value = data.auction_venue;
+            document.getElementById('edit_auctioneer_name').value = data.auctioneer_name || '';
+            document.getElementById('edit_auctioneer_contact').value = data.auctioneer_contact || '';
+            if (data.advertisement_date) {
+                const adDate = new Date(data.advertisement_date);
+                document.getElementById('edit_advertisement_date').value = adDate.toISOString().split('T')[0];
+            }
+            document.getElementById('edit_advertisement_medium').value = data.advertisement_medium || '';
+            document.getElementById('edit_status').value = data.status;
+            document.getElementById('edit_notes').value = data.notes || '';
+            // Show modal
+            document.getElementById('editAuctionModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            showToast('error', 'Error loading auction data');
+        });
+}
+
+function closeEditAuctionModal() {
+    document.getElementById('editAuctionModal').classList.add('hidden');
+}
+
+// Handle form submission
+document.getElementById('editAuctionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const auctionId = document.getElementById('edit_auction_id').value;
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    // Convert number fields
+    data.valuation_amount = parseFloat(data.valuation_amount);
+    data.reserve_price = parseFloat(data.reserve_price);
+    
+    fetch(`/user/update_auction/${auctionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        showToast('success', 'Auction updated successfully');
+        closeEditAuctionModal();
+        window.location.reload();
+    })
+    .catch(error => {
+        showToast('error', error.message || 'Failed to update auction');
+    });
+});
+</script>
+
+    <!-- Modal JavaScript -->
+    <script>
+
+        function viewAuctionDetails(auctionId) {
+            fetch(`/user/auction/${auctionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast('error', data.error);
+                        return;
+                    }
+
+                    // Set auction details
+                    document.getElementById('viewAuctionId').textContent = `AUC-${String(data.id).padStart(4, '0')}`;
+                    document.getElementById('viewLoanId').textContent = data.loan_id;
+                    document.getElementById('viewPropertyDescription').textContent = data.property_description;
+                    document.getElementById('viewValuationAmount').textContent = formatCurrency(data.valuation_amount);
+                    document.getElementById('viewReservePrice').textContent = formatCurrency(data.reserve_price);
+                    document.getElementById('viewAuctionDate').textContent = formatDate(data.auction_date);
+                    document.getElementById('viewAuctionVenue').textContent = data.auction_venue;
+                    document.getElementById('viewAuctioneerName').textContent = data.auctioneer_name || 'N/A';
+                    document.getElementById('viewAuctioneerContact').textContent = data.auctioneer_contact || 'N/A';
+                    document.getElementById('viewAdvertisementDate').textContent = data.advertisement_date ? formatDate(data.advertisement_date) : 'N/A';
+                    document.getElementById('viewAdvertisementMedium').textContent = data.advertisement_medium || 'N/A';
+                    document.getElementById('viewNotes').textContent = data.notes || 'No notes available';
+
+                    // Set status with appropriate styling
+                    const statusElement = document.getElementById('viewStatus');
+                    statusElement.innerHTML = `<span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusClass(data.status)}">${data.status}</span>`;
+
+                    // Display attachments
+                    const attachmentsContainer = document.getElementById('viewAttachments');
+                    attachmentsContainer.innerHTML = '';
+                    if (data.attachments && data.attachments.length > 0) {
+                        data.attachments.forEach(attachment => {
+                            const attachmentElement = document.createElement('div');
+                            attachmentElement.className = 'flex items-center space-x-2';
+                            attachmentElement.innerHTML = `
+                                <a href="${attachment.file_path}" target="_blank" class="text-primary hover:text-primary-dark">
+                                    <i class="fas fa-file-alt mr-2"></i>${attachment.file_name}
+                                </a>
+                            `;
+                            attachmentsContainer.appendChild(attachmentElement);
+                        });
+                    } else {
+                        attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No attachments available</p>';
+                    }
+
+                    // Show modal
+                    document.getElementById('viewDetailsModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('error', 'An error occurred while fetching auction details');
+                });
+        }
+
+        function closeViewDetailsModal() {
+            document.getElementById('viewDetailsModal').classList.add('hidden');
+        }
+
+        function getStatusClass(status) {
+            switch (status) {
+                case 'Scheduled':
+                    return 'bg-yellow-100 text-yellow-800';
+                case 'Completed':
+                    return 'bg-green-100 text-green-800';
+                case 'Cancelled':
+                    return 'bg-red-100 text-red-800';
+                default:
+                    return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE', {
+                style: 'currency',
+                currency: 'KES'
+            }).format(amount);
+        }
+        </script>
+
+    <!-- Modal JavaScript -->
+    <script>
+        // Toast notification function
+        function showToast(type, message) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg text-white ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} transition-opacity duration-300`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        function openNewAuctionModal() {
+            document.getElementById('newAuctionModal').classList.remove('hidden');
+        }
+
+        function closeNewAuctionModal() {
+            document.getElementById('newAuctionModal').classList.add('hidden');
+        }
+
+        // Handle form submission
+        document.getElementById('newAuctionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const formData = new FormData(this);
+            const data = {
+                loan_id: formData.get('loan_id'),
+                client_name: formData.get('client_name'),
+                property_type: formData.get('property_type'),
+                property_description: formData.get('property_description'),
+                valuation_amount: parseFloat(formData.get('valuation_amount')),
+                reserve_price: parseFloat(formData.get('reserve_price')),
+                auction_date: formData.get('auction_date'),
+                auction_venue: formData.get('auction_venue'),
+                auctioneer_name: formData.get('auctioneer_name'),
+                auctioneer_contact: formData.get('auctioneer_contact'),
+                advertisement_date: formData.get('advertisement_date'),
+                advertisement_medium: formData.get('advertisement_medium'),
+                notes: formData.get('notes')
+            };
+
+            // Send data to server
+            fetch('/user/create_auction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showToast('error', data.error);
+                } else {
+                    showToast('success', 'Auction created successfully');
+                    closeNewAuctionModal();
+                    // Reload page to show new auction
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('error', 'An error occurred while creating the auction');
+            });
+        });
+
+        // File upload handling
+        const dropZone = document.getElementById('dropZone');
+        const fileUpload = document.getElementById('file-upload');
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('border-primary');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-primary');
+        }
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            // Handle file upload logic here
+            console.log('Files:', files);
+        }
+    </script>
 {% endblock %}

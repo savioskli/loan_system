@@ -33,6 +33,7 @@ from forms.demand_letter_forms import DemandLetterForm
 from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
 from models.legal_case import LegalCase
+from models.auction import Auction
 
 user_bp = Blueprint('user', __name__)
 
@@ -2383,11 +2384,79 @@ def legal_cases():
 def auction_process():
     """Render the auction process page"""
     try:
-        return render_template('user/auction_process.html')
+        # Fetch all auctions, ordered by most recent first
+        auctions = Auction.query.order_by(Auction.created_at.desc()).all()
+        
+        # Calculate statistics
+        pending_auctions = Auction.query.filter_by(status='Scheduled').count()
+        completed_auctions = Auction.query.filter_by(status='Completed').count()
+        properties_listed = Auction.query.count()
+        
+        # Calculate total recovery amount from completed auctions
+        from sqlalchemy import func
+        total_recovery = db.session.query(func.sum(Auction.reserve_price))\
+            .filter(Auction.status == 'Completed')\
+            .scalar() or 0
+        
+        return render_template('user/auction_process.html',
+                             auctions=auctions,
+                             pending_auctions=pending_auctions,
+                             completed_auctions=completed_auctions,
+                             properties_listed=properties_listed,
+                             total_recovery=total_recovery)
     except Exception as e:
         current_app.logger.error(f"Error rendering auction process page: {str(e)}")
         flash('An error occurred while loading the auction process page', 'error')
         return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/create_auction', methods=['POST'])
+@login_required
+def create_auction():
+    """Create a new auction"""
+    try:
+        # Get form data
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['loan_id', 'property_description', 'valuation_amount', 
+                          'reserve_price', 'auction_date', 'auction_venue']
+        
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+        
+        # Convert dates to datetime objects
+        from datetime import datetime
+        auction_date = datetime.strptime(data['auction_date'], '%Y-%m-%dT%H:%M')
+        advertisement_date = datetime.strptime(data['advertisement_date'], '%Y-%m-%d') if data.get('advertisement_date') else None
+        
+        # Create new auction
+        new_auction = Auction(
+            loan_id=data['loan_id'],
+            client_name=data['client_name'],
+            property_type=data['property_type'],
+            property_description=data['property_description'],
+            valuation_amount=data['valuation_amount'],
+            reserve_price=data['reserve_price'],
+            auction_date=auction_date,
+            auction_venue=data['auction_venue'],
+            status=data.get('status'),
+            auctioneer_name=data.get('auctioneer_name'),
+            auctioneer_contact=data.get('auctioneer_contact'),
+            advertisement_date=advertisement_date,
+            advertisement_medium=data.get('advertisement_medium'),
+            notes=data.get('notes')
+        )
+        
+        db.session.add(new_auction)
+        db.session.commit()
+        
+        return jsonify({'message': 'Auction created successfully', 'id': new_auction.id})
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating auction: {str(e)}")
+        return jsonify({'error': 'An error occurred while creating the auction'}), 500
 
 @user_bp.route('/field-visits')
 @login_required
@@ -3065,6 +3134,11 @@ def get_legal_case(case_id):
 @login_required
 def add_case_history():
     try:
+        # Validate CSRF token
+        csrf_token = request.headers.get('X-CSRFToken')
+        if not csrf_token or not csrf.validate_csrf(csrf_token):
+            return jsonify({'error': 'Invalid CSRF token'}), 400
+
         case_id = request.form.get('case_id')
         action = request.form.get('action')
         action_date = request.form.get('action_date')
@@ -3087,7 +3161,7 @@ def add_case_history():
         # Handle file attachments
         if 'attachments' in request.files:
             files = request.files.getlist('attachments')
-            upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'case_attachments')
+            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'case_attachments')
             os.makedirs(upload_dir, exist_ok=True)
 
             for file in files:
@@ -3116,10 +3190,85 @@ def add_case_history():
         return jsonify({'message': 'Case history added successfully'}), 200
 
     except Exception as e:
-        app.logger.error(f"Error adding case history: {str(e)}")
+        current_app.logger.error(f"Error adding case history: {str(e)}")
         return jsonify({'error': 'Failed to add case history'}), 500
 
-def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@user_bp.route('/auction/<int:auction_id>')
+@login_required
+def get_auction_details(auction_id):
+    try:
+        auction = Auction.query.get_or_404(auction_id)
+        
+        # Get attachments
+        attachments = [{
+            'file_name': attachment.file_name,
+            'file_path': attachment.file_path
+        } for attachment in auction.attachments]
+        
+        return jsonify({
+            'id': auction.id,
+            'loan_id': auction.loan_id,
+            'client_name': auction.client_name,
+            'property_description': auction.property_description,
+            'property_type': auction.property_type,
+            'valuation_amount': float(auction.valuation_amount),
+            'reserve_price': float(auction.reserve_price),
+            'auction_date': auction.auction_date.isoformat(),
+            'auction_venue': auction.auction_venue,
+            'auctioneer_name': auction.auctioneer_name,
+            'auctioneer_contact': auction.auctioneer_contact,
+            'advertisement_date': auction.advertisement_date.isoformat() if auction.advertisement_date else None,
+            'advertisement_medium': auction.advertisement_medium,
+            'status': auction.status,
+            'notes': auction.notes,
+            'attachments': attachments
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/update_auction/<int:auction_id>', methods=['PUT'])
+@login_required
+def update_auction(auction_id):
+    """Update an existing auction"""
+    try:
+        auction = Auction.query.get_or_404(auction_id)
+        data = request.get_json()
+
+        # Validate required fields (same as create)
+        required_fields = ['loan_id', 'property_description', 'valuation_amount',
+                          'reserve_price', 'auction_date', 'auction_venue']
+        
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+
+        # Convert dates to datetime objects (same format as create)
+        from datetime import datetime
+        auction_date = datetime.strptime(data['auction_date'], '%Y-%m-%dT%H:%M')
+        advertisement_date = datetime.strptime(data['advertisement_date'], '%Y-%m-%d') if data.get('advertisement_date') else None
+
+        # Update auction fields (mirror create endpoint structure)
+        auction.loan_id = data['loan_id']
+        auction.client_name = data.get('client_name', auction.client_name)
+        auction.property_type = data.get('property_type', auction.property_type)
+        auction.property_description = data['property_description']
+        auction.valuation_amount = data['valuation_amount']
+        auction.reserve_price = data['reserve_price']
+        auction.auction_date = auction_date
+        auction.auction_venue = data['auction_venue']
+        auction.status = data.get('status', auction.status)
+        auction.auctioneer_name = data.get('auctioneer_name', auction.auctioneer_name)
+        auction.auctioneer_contact = data.get('auctioneer_contact', auction.auctioneer_contact)
+        auction.advertisement_date = advertisement_date
+        auction.advertisement_medium = data.get('advertisement_medium', auction.advertisement_medium)
+        auction.notes = data.get('notes', auction.notes)
+
+        db.session.commit()
+        
+        return jsonify({'message': 'Auction updated successfully', 'id': auction.id})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating auction: {str(e)}")
+        return jsonify({'error': 'An error occurred while updating the auction'}), 500
+

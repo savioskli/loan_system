@@ -235,8 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const selectedLoanId = e.target.value;
                 const loan = $(e.target.selectedOptions[0]).data('loan');
 
-                if (loan && loan.RepaymentPeriod) {
-                    $('#original_term').val(loan.RepaymentPeriod);
+                if (loan && loan.OutstandingBalance) {
+                    $('#current_balance').val(loan.OutstandingBalance);
                 }
             });
         }
@@ -254,8 +254,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const selectedLoanId = e.target.value;
                 const loan = $(e.target.selectedOptions[0]).data('loan');
 
-                if (loan && loan.RepaymentPeriod) {
-                    $('#edit_original_term').val(loan.RepaymentPeriod);
+                if (loan && loan.OutstandingBalance) {
+                    $('#edit_current_balance').val(loan.OutstandingBalance);
                 }
             });
         }

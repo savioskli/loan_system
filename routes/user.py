@@ -2215,8 +2215,32 @@ def api_get_metrics():
 def loan_rescheduling():
     """Render the loan rescheduling page"""
     try:
+        # Get filter parameters from the request
+        status = request.args.get('status')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        search = request.args.get('search')
+
+        # Build the query with filters
+        query = LoanReschedule.query
+
+        if status and status != 'All':
+            query = query.filter_by(status=status)
+
+        if start_date:
+            query = query.filter(LoanReschedule.request_date >= start_date)
+
+        if end_date:
+            query = query.filter(LoanReschedule.request_date <= end_date)
+
+        if search:
+            query = query.filter(or_(
+                LoanReschedule.member_id.ilike(f"%{search}%"),
+                LoanReschedule.loan_id.ilike(f"%{search}%")
+            ))
+
         # Fetch loan rescheduling requests from the database
-        loan_reschedules = LoanReschedule.query.all()
+        loan_reschedules = query.all()
         return render_template('user/loan_rescheduling.html', loan_reschedules=loan_reschedules)
     except Exception as e:
         current_app.logger.error(f"Error rendering loan rescheduling page: {str(e)}")
@@ -3289,14 +3313,14 @@ def create_loan_reschedule():
 
         # Validate required fields
         required_fields = [
-            'member_id', 
+            'member_name',
             'loan_id',
             'original_term',
             'proposed_term',
             'request_date',
             'proposed_start_date'
         ]
-        
+
         for field in required_fields:
             if not request.form.get(field):
                 return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
@@ -3315,7 +3339,7 @@ def create_loan_reschedule():
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 upload_dir = os.path.join(
-                    current_app.config['UPLOAD_FOLDER'], 
+                    current_app.config['UPLOAD_FOLDER'],
                     'reschedule_docs',
                     str(current_user.id)
                 )
@@ -3325,6 +3349,7 @@ def create_loan_reschedule():
 
         # Create new request
         new_request = LoanReschedule(
+            member_name=request.form['member_name'],
             member_id=request.form['member_id'],
             loan_id=request.form['loan_id'],
             original_term=int(request.form['original_term']),
@@ -3345,6 +3370,113 @@ def create_loan_reschedule():
             'message': 'Request created successfully',
             'request_id': new_request.id
         }), 201
+
+    except ValueError as ve:
+        current_app.logger.error(f"Value error: {str(ve)}")
+        return jsonify({'error': 'Invalid data format'}), 400
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Server error processing request'}), 500
+
+def validate_csrf(token):
+    """Validate CSRF token using Flask-WTF"""
+    try:
+        csrf.protect()
+        return True
+    except ValidationError:
+        return False
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@user_bp.route('/loan-rescheduling/<int:request_id>/edit', methods=['GET'])
+@login_required
+def edit_loan_reschedule(request_id):
+    try:
+        request = LoanReschedule.query.get_or_404(request_id)
+        return jsonify({
+            'id': request.id,
+            'member_id': request.member_id,
+            'loan_id': request.loan_id,
+            'original_term': request.original_term,
+            'proposed_term': request.proposed_term,
+            'request_date': request.request_date.strftime('%Y-%m-%d'),
+            'proposed_start_date': request.proposed_start_date.strftime('%Y-%m-%d'),
+            'reason': request.reason
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching loan rescheduling request: {str(e)}")
+        return jsonify({'error': 'Error fetching request data'}), 500
+
+@user_bp.route('/edit_loan_reschedule', methods=['POST'])
+@login_required
+def update_loan_reschedule():
+    try:
+        # CSRF validation
+        if not validate_csrf(request.form.get('csrf_token')):
+            return jsonify({'error': 'Invalid CSRF token'}), 403
+
+        # Validate required fields
+        required_fields = [
+            'request_id',
+            'member_id',
+            'loan_id',
+            'original_term',
+            'proposed_term',
+            'request_date',
+            'proposed_start_date'
+        ]
+        for field in required_fields:
+            if not request.form.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+
+        # Convert dates
+        try:
+            request_date = datetime.strptime(request.form['request_date'], '%Y-%m-%d')
+            proposed_start_date = datetime.strptime(request.form['proposed_start_date'], '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Handle file upload
+        file_path = None
+        if 'supporting_documents' in request.files:
+            file = request.files['supporting_documents']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                upload_dir = os.path.join(
+                    current_app.config['UPLOAD_FOLDER'],
+                    'reschedule_docs',
+                    str(current_user.id)
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, filename)
+                file.save(file_path)
+
+        # Update the request
+        request_id = request.form['request_id']
+        loan_reschedule_request = LoanReschedule.query.get_or_404(request_id)
+
+        loan_reschedule_request.member_id = request.form['member_id']
+        loan_reschedule_request.loan_id = request.form['loan_id']
+        loan_reschedule_request.original_term = int(request.form['original_term'])
+        loan_reschedule_request.proposed_term = int(request.form['proposed_term'])
+        loan_reschedule_request.request_date = request_date
+        loan_reschedule_request.proposed_start_date = proposed_start_date
+        loan_reschedule_request.reason = request.form.get('reason', '')
+        loan_reschedule_request.supporting_documents = file_path
+        loan_reschedule_request.status = 'Pending'
+        loan_reschedule_request.created_by = current_user.id
+        loan_reschedule_request.created_at = datetime.now()
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Request updated successfully',
+            'request_id': loan_reschedule_request.id
+        }), 200
 
     except ValueError as ve:
         current_app.logger.error(f"Value error: {str(ve)}")

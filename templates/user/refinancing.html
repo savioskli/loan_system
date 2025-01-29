@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
     {% include 'user/post_disbursement_sidebar.html' %}
-    
+
     <div class="p-4 sm:ml-64">
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
@@ -9,7 +9,7 @@
                 <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Process and manage loan refinancing applications.</p>
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
+                <button type="button" onclick="toggleModal('add-modal')" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
                     New Application
                 </button>
             </div>
@@ -72,6 +72,40 @@
             </div>
         </div>
 
+        <!-- Enhanced Filters -->
+        <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <form method="GET" action="{{ url_for('user.refinancing') }}">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <select name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 p-3">
+                            <option value="All">All</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
+                        <input type="date" name="start_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date</label>
+                        <input type="date" name="end_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                        <input type="text" name="search" placeholder="Search..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 p-3">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- Table -->
         <div class="mt-8 flex flex-col">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -102,8 +136,8 @@
                                         <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">Approved</span>
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <button class="text-primary hover:text-primary-dark">View</button>
-                                        <button class="ml-4 text-primary hover:text-primary-dark">Process</button>
+                                        <button onclick="toggleModal('view-modal', 'REF-001')" class="text-primary hover:text-primary-dark">View</button>
+                                        <button onclick="toggleModal('edit-modal', 'REF-001')" class="ml-4 text-primary hover:text-primary-dark">Edit</button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -112,5 +146,413 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modals -->
+        <!-- Add Application Modal -->
+        <div id="add-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <div class="mt-3 text-left">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-6">New Refinancing Application</h3>
+                    <form id="add-refinance-form" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Client Information -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Client <span class="text-red-500">*</span>
+                                </label>
+                                <select id="member_id" name="member_id"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white"
+                                required>
+                            <option value="">Select Client</option>
+                        </select>
+                            </div>
+
+                            <!-- Loan Information -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Loan Number <span class="text-red-500">*</span>
+                                </label>
+                                <select id="loan_id" name="loan_id" class="select2 py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="">Select Loan</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Balance and Requested Amount -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Current Balance <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number"
+                                    id="current_balance"
+                                    name="current_balance"
+                                    required
+                                    readonly
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 bg-gray-100 dark:bg-gray-600"
+                                    min="0">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Requested Amount <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number" name="requested_amount" required
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
+                                    min="0">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Term -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    New Term (months) <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number" name="new_term" required
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
+                                    min="1" max="120">
+                            </div>
+                        </div>
+
+                        <!-- Attachment Upload -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Supporting Documents
+                            </label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                            <span>Upload a file</span>
+                                            <input id="file-upload" name="supporting_documents" type="file" class="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PDF, DOC, DOCX, PNG, JPG up to 10MB</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex justify-end space-x-4 mt-8">
+                            <button type="button" onclick="toggleModal('add-modal')"
+                                    class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="px-6 py-3 text-sm text-white bg-primary rounded-md hover:bg-primary-dark">
+                                Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Modal -->
+        <div id="view-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <div class="mt-3 text-left">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-6">Application Details</h3>
+                    <div class="space-y-6">
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Application ID:</strong> <span id="view-application-id"></span></p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Customer:</strong> <span id="view-member-name"></span></p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Current Balance:</strong> <span id="view-current-balance"></span></p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Requested Amount:</strong> <span id="view-requested-amount"></span></p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>New Term:</strong> <span id="view-new-term"></span> months</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><strong>Status:</strong> <span id="view-status"></span></p>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="toggleModal('view-modal')" class="px-4 py-2 text-sm text-white bg-primary rounded-md w-full">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <!-- Edit Application Modal -->
+        <div id="edit-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <div class="mt-3 text-left">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-6">Edit Refinancing Application</h3>
+                    <form id="edit-refinance-form" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" id="edit_application_id" name="application_id" value="">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Client Information -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Client <span class="text-red-500">*</span>
+                                </label>
+                                <select id="edit_member_id" name="member_id"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white"
+                                required>
+                            <option value="">Select Client</option>
+                        </select>
+                            </div>
+
+                            <!-- Loan Information -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Loan Number <span class="text-red-500">*</span>
+                                </label>
+                                <select id="edit_loan_id" name="loan_id" class="select2 py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="">Select Loan</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Balance and Requested Amount -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Current Balance <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number"
+                                    id="edit_current_balance"
+                                    name="current_balance"
+                                    required
+                                    readonly
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 bg-gray-100 dark:bg-gray-600"
+                                    min="0">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Requested Amount <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number" id="edit_requested_amount" name="requested_amount" required
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
+                                    min="0">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Term -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    New Term (months) <span class="text-red-500">*</span>
+                                </label>
+                                <input type="number" id="edit_new_term" name="new_term" required
+                                    class="py-3 px-4 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700"
+                                    min="1" max="120">
+                            </div>
+                        </div>
+
+                        <!-- Attachment Upload -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Supporting Documents
+                            </label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="edit_file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                            <span>Upload a file</span>
+                                            <input id="edit_file-upload" name="supporting_documents" type="file" class="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PDF, DOC, DOCX, PNG, JPG up to 10MB</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex justify-end space-x-4 mt-8">
+                            <button type="button" onclick="toggleModal('edit-modal')"
+                                    class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="px-6 py-3 text-sm text-white bg-primary rounded-md hover:bg-primary-dark">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        function toggleModal(modalId, applicationId = null) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+
+            if (applicationId && modalId === 'edit-modal') {
+                // Fetch the application data and populate the edit form
+                fetch(`/user/refinancing/${applicationId}/edit`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('edit_application_id').value = data.id;
+                        document.getElementById('edit_member_id').value = data.member_id;
+                        document.getElementById('edit_loan_id').value = data.loan_id;
+                        document.getElementById('edit_current_balance').value = data.current_balance;
+                        document.getElementById('edit_requested_amount').value = data.requested_amount;
+                        document.getElementById('edit_new_term').value = data.new_term;
+                    })
+                    .catch(error => console.error('Error fetching application data:', error));
+            }
+
+            if (applicationId && modalId === 'view-modal') {
+                // Fetch the application data and populate the view form
+                fetch(`/user/refinancing/${applicationId}/view`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('view-application-id').textContent = data.id;
+                        document.getElementById('view-member-name').textContent = data.member_name;
+                        document.getElementById('view-current-balance').textContent = `$${data.current_balance}`;
+                        document.getElementById('view-requested-amount').textContent = `$${data.requested_amount}`;
+                        document.getElementById('view-new-term').textContent = `${data.new_term} months`;
+                        document.getElementById('view-status').textContent = data.status;
+                    })
+                    .catch(error => console.error('Error fetching application data:', error));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Form submission handler for edit
+            const editForm = document.querySelector('#edit-refinance-form');
+            editForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(editForm);
+                const submitBtn = editForm.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/user/edit_refinance_application', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': formData.get('csrf_token')
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) throw new Error(data.error || 'Failed to update application');
+
+                    // Show toast notification
+                    toast({
+                        type: 'success',
+                        title: 'Application updated successfully!',
+                        message: `ID: ${data.application_id}`
+                    });
+
+                    // Refresh the page after a short delay
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000); // Refresh after 2 seconds
+
+                } catch (error) {
+                    alert(error.message);
+                    console.error('Error:', error);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+
+            // Form submission handler for add
+            const addForm = document.querySelector('#add-refinance-form');
+            addForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(addForm);
+                const submitBtn = addForm.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/user/create_refinance_application', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': formData.get('csrf_token')
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) throw new Error(data.error || 'Failed to create application');
+
+                    // Show toast notification
+                    toast({
+                        type: 'success',
+                        title: 'Application created successfully!',
+                        message: `ID: ${data.application_id}`
+                    });
+
+                    // Refresh the page after a short delay
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000); // Refresh after 2 seconds
+
+                } catch (error) {
+                    alert(error.message);
+                    console.error('Error:', error);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+
+        // Toast notification function
+        function toast({ title = "", message = "", type = "info", duration = 3000 }) {
+            const main = document.getElementById("toast");
+            if (main) {
+                const toast = document.createElement("div");
+
+                // Auto remove toast
+                const autoRemoveId = setTimeout(function () {
+                    main.removeChild(toast);
+                }, duration + 1000);
+
+                // Remove toast when clicked
+                toast.onclick = function (e) {
+                    if (e.target.closest(".toast__close")) {
+                        main.removeChild(toast);
+                        clearTimeout(autoRemoveId);
+                    }
+                };
+
+                const icons = {
+                    success: "fas fa-check-circle",
+                    info: "fas fa-info-circle",
+                    warning: "fas fa-exclamation-circle",
+                    error: "fas fa-exclamation-circle"
+                };
+                const icon = icons[type];
+                const delay = (duration / 1000).toFixed(2);
+
+                toast.classList.add("toast", `toast--${type}`);
+                toast.style.animation = `slideInLeft ease .3s, fadeOutLinear ${delay}s ${delay}s forwards`;
+
+                toast.innerHTML = `
+                    <div class="toast__icon">
+                        <i class="${icon}"></i>
+                    </div>
+                    <div class="toast__body">
+                        <h3 class="toast__title">${title}</h3>
+                        <p class="toast__msg">${message}</p>
+                    </div>
+                    <div class="toast__close">
+                        <i class="fas fa-times"></i>
+                    </div>
+                `;
+                main.appendChild(toast);
+            }
+        }
+    </script>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="{{ url_for('static', filename='js/refinancing.js') }}"></script>
 {% endblock %}

@@ -7,6 +7,7 @@ class LoanReschedule(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     member_id = db.Column(db.Integer, db.ForeignKey('members.id'), nullable=False)
+    member_name = db.Column(db.String(255), nullable=False)
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     original_term = db.Column(db.Integer, nullable=False)
     proposed_term = db.Column(db.Integer, nullable=False)

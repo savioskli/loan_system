@@ -35,6 +35,7 @@ from models.letter_template import LetterType, DemandLetter
 from models.legal_case import LegalCase
 from models.auction import Auction
 from models.loan_reschedule import LoanReschedule
+from models.loan_refinance import RefinanceApplication
 
 user_bp = Blueprint('user', __name__)
 
@@ -2252,7 +2253,11 @@ def loan_rescheduling():
 def refinancing():
     """Render the refinancing page"""
     try:
-        return render_template('user/refinancing.html')
+        # Query the database for all refinancing applications
+        refinancing_applications = RefinanceApplication.query.all()
+
+        # Render the template with the refinancing applications data
+        return render_template('user/refinancing.html', refinancing_applications=refinancing_applications)
     except Exception as e:
         current_app.logger.error(f"Error rendering refinancing page: {str(e)}")
         flash('An error occurred while loading the refinancing page', 'error')
@@ -3498,3 +3503,77 @@ def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@user_bp.route('/create_refinance_application', methods=['POST'])
+@login_required
+def create_refinance_application():
+    try:
+        # CSRF validation
+        if not validate_csrf(request.form.get('csrf_token')):
+            return jsonify({'error': 'Invalid CSRF token'}), 403
+
+        # Validate required fields
+        required_fields = [
+            'member_id',
+            'member_name',
+            'loan_id',
+            'current_balance',
+            'requested_amount',
+            'new_term',
+            'application_date'
+        ]
+        for field in required_fields:
+            if not request.form.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
+
+        # Convert dates
+        try:
+            application_date = datetime.strptime(request.form['application_date'], '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Handle file upload
+        file_path = None
+        if 'supporting_documents' in request.files:
+            file = request.files['supporting_documents']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                upload_dir = os.path.join(
+                    current_app.config['UPLOAD_FOLDER'],
+                    'refinance_docs',
+                    str(current_user.id)
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, filename)
+                file.save(file_path)
+
+        # Create new refinancing application
+        new_application = RefinanceApplication(
+            member_id=request.form['member_id'],
+            member_name=request.form['member_name'],
+            loan_id=request.form['loan_id'],
+            current_balance=float(request.form['current_balance']),
+            requested_amount=float(request.form['requested_amount']),
+            new_term=int(request.form['new_term']),
+            application_date=application_date,
+            application_notes=request.form.get('application_notes', ''),
+            supporting_documents=file_path,
+            status='Pending',
+            created_by=current_user.id,
+            created_at=datetime.now()
+        )
+        db.session.add(new_application)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Application created successfully',
+            'application_id': new_application.id
+        }), 201
+
+    except ValueError as ve:
+        current_app.logger.error(f"Value error: {str(ve)}")
+        return jsonify({'error': 'Invalid data format'}), 400
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Server error processing request'}), 500

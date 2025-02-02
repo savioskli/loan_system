@@ -1,0 +1,230 @@
+<style>
+    /* iOS-style chat UI */
+    .chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+    .chat-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: #007AFF;
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    .chat-button:hover {
+        background-color: #005ecb;
+        transform: scale(1.1);
+    }
+    .chat-container {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 320px;
+        height: 480px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .chat-header {
+        background-color: #007AFF;
+        color: white;
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        font-size: 14px;
+    }
+    .chat-messages {
+        flex-grow: 1;
+        padding: 10px;
+        overflow-y: auto;
+        background: #F5F5F7;
+        display: flex;
+        flex-direction: column;
+    }
+    .message {
+        max-width: 75%;
+        padding: 8px 12px;
+        border-radius: 18px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        word-wrap: break-word;
+    }
+    .user-message {
+        background-color: #007AFF;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 6px;
+    }
+    .bot-message {
+        background-color: #E5E5EA;
+        color: black;
+        align-self: flex-start;
+        border-bottom-left-radius: 6px;
+    }
+    .chat-input {
+        padding: 10px;
+        display: flex;
+        gap: 6px;
+        background: white;
+        border-top: 1px solid #E5E5EA;
+    }
+    .chat-input input {
+        flex-grow: 1;
+        padding: 8px;
+        border: 1px solid #E5E5EA;
+        border-radius: 18px;
+        font-size: 13px;
+        outline: none;
+    }
+    .chat-input button {
+        padding: 8px 12px;
+        background-color: #007AFF;
+        color: white;
+        border: none;
+        border-radius: 18px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .chat-input button:hover {
+        background-color: #005ecb;
+    }
+    .close-button {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 16px;
+    }
+</style>
+<!-- templates/chatbot.html -->
+<div class="chat-widget">
+    <button class="chat-button" id="chatButton"><i class="fas fa-comment-dots"></i></button>
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-header">
+            <span>Chat Support</span>
+            <button class="close-button" id="closeChat">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot-message">Hello! How can I help you today?</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button id="sendMessage">Send</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatButton = document.getElementById('chatButton');
+    const chatContainer = document.getElementById('chatContainer');
+    const closeChat = document.getElementById('closeChat');
+    const messageInput = document.getElementById('messageInput');
+    const sendMessage = document.getElementById('sendMessage');
+    const chatMessages = document.getElementById('chatMessages');
+
+    // Toggle chat window visibility
+    chatButton.addEventListener('click', () => {
+        chatContainer.style.display = chatContainer.style.display === 'none' || chatContainer.style.display === '' ? 'flex' : 'none';
+    });
+
+    // Close chat window
+    closeChat.addEventListener('click', () => {
+        chatContainer.style.display = 'none';
+    });
+
+    // Function to send user message
+    function sendUserMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            fetch('/user/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('API Response:', data);
+                
+                if (data.error) {
+                    // Handle server-side errors with interpretation
+                    const errorMsg = data.interpretedQuery 
+                        ? `I understood your question about "${data.interpretedQuery}" but encountered an error: ${data.error}`
+                        : `Error processing "${message}": ${data.error}`;
+                    addMessage(errorMsg, 'bot');
+                } else if (Array.isArray(data.content)) {
+                    // Handle array responses
+                    data.content.forEach(row => {
+                        const formattedMessage = Object.entries(row)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join('\n');
+                        addMessage(formattedMessage, 'bot');
+                    });
+                } else if (data.type === 'message') {
+                    // Handle single message responses
+                    addMessage(data.content, 'bot');
+                } else if (data.type === 'data') {
+                    // Handle structured data responses
+                    data.content.forEach(row => {
+                        const formattedMessage = Object.entries(row)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join('\n');
+                        addMessage(formattedMessage, 'bot');
+                    });
+                } else {
+                    // Handle unexpected response formats
+                    addMessage('Received an unexpected response format.', 'bot');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Handle network errors with original message
+                addMessage(`Failed to process: "${message}". Please check your connection and try again.`, 'bot');
+            });
+        }
+    }
+
+    // Function to add messages to the chat window
+    function addMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+        messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Event listeners for sending messages
+    sendMessage.addEventListener('click', sendUserMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendUserMessage();
+    });
+});
+</script>

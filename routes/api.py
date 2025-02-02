@@ -17,6 +17,8 @@ from sqlalchemy import text, select  # Import text function for raw SQL queries
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 csrf.exempt(api_bp)  # Remove CSRF protection from API routes since we handle it manually
 
+
+
 @api_bp.route('/customers/search')
 @login_required
 def search_customers():

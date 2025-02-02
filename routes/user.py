@@ -1,4 +1,8 @@
 import requests
+import re
+import sqlparse
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 import mysql.connector
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
 from flask_login import login_required, current_user
@@ -17,6 +21,7 @@ from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
 from datetime import datetime, timedelta
+from decimal import Decimal
 import traceback
 import os
 import json
@@ -1633,35 +1638,43 @@ def create_notification():
 def get_metrics():
     """Get updated metrics for the dashboard."""
     try:
+        # Get database configuration for the core banking database
+        db_config = {
+            'host': 'localhost',
+            'port': 3306,
+            'user': 'root',
+            'password': '',
+            'database': 'sacco_db'  # Use core_banking database
+        }
+
         # Connect to the database
-        conn = get_db_connection()
+        conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
-        
+
         # Get loan data using the same query as post_disbursement
         query = """
-            SELECT 
-                l.LoanID,
-                l.OutstandingBalance,
-                l.ArrearsAmount,
-                l.ArrearsDays,
-                la.LoanNo,
-                la.LoanAmount,
-                ld.LoanStatus
-            FROM LoanLedgerEntries l
-            JOIN (
-                SELECT LoanID, MAX(LedgerID) as latest_id
-                FROM LoanLedgerEntries
-                GROUP BY LoanID
-            ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
-            JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
-            JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
-            WHERE ld.LoanStatus = 'Active'
-            ORDER BY l.LoanID
+        SELECT
+        l.LoanID,
+        l.OutstandingBalance,
+        l.ArrearsAmount,
+        l.ArrearsDays,
+        la.LoanNo,
+        la.LoanAmount,
+        ld.LoanStatus
+        FROM LoanLedgerEntries l
+        JOIN (
+        SELECT LoanID, MAX(LedgerID) as latest_id
+        FROM LoanLedgerEntries
+        GROUP BY LoanID
+        ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
+        JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
+        JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
+        WHERE ld.LoanStatus = 'Active'
+        ORDER BY l.LoanID
         """
-        
         cursor.execute(query)
         loan_data = cursor.fetchall()
-        
+
         # Initialize loan classification counters
         overdue_loans = {
             'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
@@ -1674,7 +1687,6 @@ def get_metrics():
         # Process loan data
         total_outstanding = float(0)
         total_in_arrears = float(0)
-        
         for loan in loan_data:
             try:
                 # Extract values from loan ledger entries with proper error handling
@@ -1683,11 +1695,11 @@ def get_metrics():
                 outstanding_balance = float(loan.get('OutstandingBalance', 0))
                 arrears_amount = float(loan.get('ArrearsAmount', 0))
                 arrears_days = int(loan.get('ArrearsDays', 0))
-                
+
                 # Update totals
                 total_outstanding += outstanding_balance
                 total_in_arrears += arrears_amount
-                
+
                 # Classify loan based on arrears days
                 if arrears_days <= 30:
                     category = 'NORMAL'
@@ -1699,11 +1711,10 @@ def get_metrics():
                     category = 'DOUBTFUL'
                 else:
                     category = 'LOSS'
-                
+
                 # Update classification counters
                 overdue_loans[category]['count'] += 1
                 overdue_loans[category]['amount'] += outstanding_balance
-                
             except Exception as e:
                 current_app.logger.error(f"Error processing loan {loan.get('LoanID', 'Unknown')}: {str(e)}")
                 continue
@@ -1713,40 +1724,40 @@ def get_metrics():
         if total_amount > 0:
             for category in overdue_loans:
                 overdue_loans[category]['percentage'] = (overdue_loans[category]['amount'] / total_amount * 100)
-        
+
         # Calculate NPL amount and ratio
-        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] + 
-                         overdue_loans['DOUBTFUL']['amount'] + 
-                         overdue_loans['LOSS']['amount'])
+        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] +
+                           overdue_loans['DOUBTFUL']['amount'] +
+                           overdue_loans['LOSS']['amount'])
         npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
+
         # Calculate recovery rate
         recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
+
         # Calculate provisions
-        total_provisions = float(sum(overdue_loans[category]['amount'] * rate 
-            for category, rate in {
-                'NORMAL': 0.01,      # 1%
-                'WATCH': 0.05,       # 5%
-                'SUBSTANDARD': 0.25, # 25%
-                'DOUBTFUL': 0.50,    # 50%
-                'LOSS': 1.00         # 100%
-            }.items()))
-        
+        total_provisions = float(sum(overdue_loans[category]['amount'] * rate
+                                     for category, rate in {
+                                         'NORMAL': 0.01,  # 1%
+                                         'WATCH': 0.05,  # 5%
+                                         'SUBSTANDARD': 0.25,  # 25%
+                                         'DOUBTFUL': 0.50,  # 50%
+                                         'LOSS': 1.00  # 100%
+                                     }.items()))
+
         # Calculate NPL coverage ratio
         npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else float(0)
-        
+
         # Calculate cost of risk
         cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
+
         # Calculate PAR30
-        par30_amount = float(sum(overdue_loans[grade]['amount'] 
-                         for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
+        par30_amount = float(sum(overdue_loans[grade]['amount']
+                                  for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
         par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
+
         cursor.close()
         conn.close()
-        
+
         return jsonify({
             'metrics': {
                 'total_loans': len(loan_data),
@@ -1761,14 +1772,15 @@ def get_metrics():
                 'overdue_loans': overdue_loans
             }
         })
-        
+    except mysql.connector.Error as e:
+        current_app.logger.error(f"Database error in get_metrics: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
         current_app.logger.error(f"Error fetching metrics: {str(e)}")
         return jsonify({
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
-
 @user_bp.route('/get_detailed_loans', methods=['GET'])
 @login_required
 def get_detailed_loans():
@@ -3577,3 +3589,363 @@ def create_refinance_application():
         current_app.logger.error(f"Unexpected error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'Server error processing request'}), 500
+
+
+
+# Define your Mistral API key and endpoint
+MISTRAL_API_KEY = 'W2DXJoMj9Sbjj9jFEBFVvr5x6CaMH8sM'
+MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions'
+MODEL_NAME = 'mistral-small-latest'
+
+# Database configuration
+db_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'sacco_db'
+}
+
+def get_table_schema():
+    """Fetch column names and data types dynamically from all tables in the database."""
+    table_schema = {}
+
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        # Fetch all tables in the current database
+        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s", (db_config['database'],))
+        tables = [row[0] for row in cursor.fetchall()]
+
+        for table in tables:
+            cursor.execute(f"SHOW COLUMNS FROM `{table}`")  # Backticks to handle special characters
+            columns = {row[0]: row[1] for row in cursor.fetchall()}
+            table_schema[table] = columns
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching table schema: {str(e)}")
+        return {}
+
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
+
+    return table_schema
+
+def get_table_relationships():
+    """Fetch foreign key relationships from the database."""
+    relationships = []
+
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT 
+                TABLE_NAME, 
+                COLUMN_NAME, 
+                REFERENCED_TABLE_NAME, 
+                REFERENCED_COLUMN_NAME 
+            FROM 
+                INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+            WHERE 
+                TABLE_SCHEMA = %s 
+                AND REFERENCED_TABLE_NAME IS NOT NULL;
+        """
+        cursor.execute(query, (db_config['database'],))
+        rows = cursor.fetchall()
+
+        for row in rows:
+            relationships.append({
+                'source_table': row[0],
+                'source_column': row[1],
+                'target_table': row[2],
+                'target_column': row[3]
+            })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching table relationships: {str(e)}")
+        return []
+
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
+
+    return relationships
+
+def generate_system_prompt():
+    """Dynamically generate the system prompt with all tables, columns, and relationships."""
+    table_schema = get_table_schema()
+    relationships = get_table_relationships()
+    
+    # Format table information with clear column listing
+    table_info = []
+    for table, columns in table_schema.items():
+        col_list = "\n    ".join([f"- {col} ({dtype})" for col, dtype in columns.items()])
+        table_info.append(f"Table {table}:\n    {col_list}")
+    table_str = "\n\n".join(table_info)
+    
+    # Format relationships
+    relationship_info = []
+    for rel in relationships:
+        rel_desc = f"- {rel['source_table']}.{rel['source_column']} → {rel['target_table']}.{rel['target_column']}"
+        relationship_info.append(rel_desc)
+    relationship_str = "\n".join(relationship_info) if relationship_info else "No explicit relationships found."
+    
+    system_prompt = f"""You are a helpful assistant for a post disbursement management system. Follow these rules:
+
+1. Generate SAFE SQL SELECT queries for database requests.
+2. Use ONLY these tables and columns (EXACT names, case-sensitive):
+{table_str}
+
+3. Critical Column Rules:
+   - Never assume column existence - verify against the tables above
+   - Use columns ONLY in their specified tables
+   - Date columns: Use 'YYYY-MM-DD' format
+   - String values: Enclose in single quotes ('active')
+   - Numeric values: No quotes
+
+4. JOIN Instructions:
+{relationship_str}
+   - Use proper JOIN types based on relationship needs
+
+5. Validation Requirements:
+   - Query must start with SELECT
+   - Prohibited commands: INSERT, UPDATE, DELETE, DROP, etc.
+   - Use COUNT(DISTINCT column) for accurate counts
+
+6. Error Prevention:
+   - Double-check column/table names before generating SQL
+   - If unsure about a column, don't include it"""
+    
+    return system_prompt
+
+def call_mistral_api(user_input):
+    """Call Mistral API and return a response."""
+    headers = {
+        'Authorization': f'Bearer {MISTRAL_API_KEY}',
+        'Content-Type': 'application/json'
+    }
+
+    # Generate dynamic system prompt with table schema
+    SYSTEM_PROMPT = generate_system_prompt()
+
+    data = {
+        'model': MODEL_NAME,
+        'messages': [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_input}
+        ],
+        'max_tokens': 400,  # Increased to accommodate longer queries
+        'temperature': 0.3
+    }
+
+    response = requests.post(MISTRAL_API_URL, headers=headers, json=data)
+    if response.status_code == 200:
+        api_response = response.json()
+        if 'choices' in api_response and api_response['choices']:
+            return api_response['choices'][0]['message']['content'].strip()
+        else:
+            current_app.logger.error("Mistral API returned an empty response")
+            return None
+    else:
+        current_app.logger.error(f"Mistral API error: {response.status_code} - {response.text}")
+        return None
+
+def clean_sql_response(response):
+    """Remove Markdown code blocks from AI response."""
+    return re.sub(r"```sql|```", "", response).strip()
+
+def is_valid_sql(query):
+    """Validate SQL query against database schema including column checks."""
+    query = query.upper().strip()
+    query = query.split(";")[0]  # Remove trailing comments
+
+    # Check for forbidden SQL commands
+    forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "--"]
+    if any(keyword in query for keyword in forbidden):
+        return False
+
+    # Must start with SELECT
+    if not query.startswith("SELECT"):
+        return False
+
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        # Get all tables in the database
+        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s", 
+                      (db_config['database'],))
+        valid_tables = {row[0].upper() for row in cursor.fetchall()}
+
+        # Get column schema
+        table_columns = {}
+        cursor.execute("""
+            SELECT TABLE_NAME, COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = %s
+        """, (db_config['database'],))
+        for table, column in cursor.fetchall():
+            table_upper = table.upper()
+            if table_upper not in table_columns:
+                table_columns[table_upper] = set()
+            table_columns[table_upper].add(column.upper())
+
+        # Parse query for tables and columns
+        parsed = sqlparse.parse(query)
+        used_tables = set()
+        used_columns = set()
+
+        for statement in parsed:
+            for token in statement.tokens:
+                if isinstance(token, sqlparse.sql.From):
+                    for identifier in token.get_identifiers():
+                        used_tables.add(identifier.get_real_name().upper())
+                if isinstance(token, sqlparse.sql.Identifier):
+                    name = token.get_real_name().upper()
+                    if '.' in name:
+                        table_part, col_part = name.split('.', 1)
+                        used_tables.add(table_part)
+                        used_columns.add((table_part, col_part))
+                    else:
+                        used_columns.add((None, name))
+
+        # Validate tables
+        for table in used_tables:
+            if table not in valid_tables:
+                return False
+
+        # Validate columns
+        for table_part, col_part in used_columns:
+            if table_part:  # Qualified column
+                if table_part not in table_columns:
+                    return False
+                if col_part not in table_columns[table_part]:
+                    return False
+            else:  # Unqualified column
+                found = False
+                for table in used_tables:
+                    if col_part in table_columns.get(table, set()):
+                        found = True
+                        break
+                if not found:
+                    return False
+
+        return True
+
+    except Exception as e:
+        current_app.logger.error(f"SQL validation error: {str(e)}")
+        return False
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
+
+def execute_sql_query(query, params=None):
+    """Execute a valid SQL query and return formatted results."""
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Use parameterized queries for WHERE conditions
+        cursor.execute(query, params or ())
+        result = cursor.fetchall()
+
+        # Convert Decimal and datetime values
+        formatted = [
+            {key: (value.isoformat() if isinstance(value, datetime) else float(value) if isinstance(value, Decimal) else value)
+             for key, value in row.items()}
+            for row in result
+        ]
+
+        return formatted
+
+    except Exception as e:
+        current_app.logger.error(f"SQL Execution Error: {str(e)}")
+        return None
+
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
+
+# ... (previous imports and configuration remain the same)
+
+def generate_natural_response(user_input, query_result):
+    """Generate a natural language response from SQL query results using Mistral."""
+    headers = {
+        'Authorization': f'Bearer {MISTRAL_API_KEY}',
+        'Content-Type': 'application/json'
+    }
+
+    system_prompt = """You are a helpful assistant that explains database results in natural language. Follow these rules:
+1. Always respond in complete, friendly sentences
+2. Never mention SQL, column names, or technical details
+3. Use numbers directly from the data without formatting
+4. For counts, use phrases like "You currently have X..." or "There are X..."
+5. For financial amounts, add appropriate currency symbols
+6. For dates, use natural formatting (e.g., 'January 5th, 2024')
+7. Keep responses concise but informative"""
+
+    user_content = f"""Original question: {user_input}
+Database results: {json.dumps(query_result, default=str)}
+Please provide a helpful response:"""
+
+    data = {
+        'model': MODEL_NAME,
+        'messages': [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ],
+        'temperature': 0.2,
+        'max_tokens': 150
+    }
+
+    try:
+        response = requests.post(MISTRAL_API_URL, headers=headers, json=data)
+        if response.status_code == 200:
+            api_response = response.json()
+            if api_response.get('choices'):
+                return api_response['choices'][0]['message']['content'].strip()
+        return f"Here's your data: {query_result}"  # Fallback response
+    except Exception as e:
+        current_app.logger.error(f"Natural response error: {str(e)}")
+        return f"Here are your results: {query_result}"
+
+@user_bp.route('/chat', methods=['POST'])
+@login_required
+def chat():
+    """Handle chat request and execute SQL queries if needed."""
+    if not request.is_json:
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    user_input = request.json.get('message')
+    if not user_input:
+        return jsonify({'error': 'No message provided'}), 400
+
+    try:
+        # Get AI-generated SQL response
+        raw_response = call_mistral_api(user_input)
+        if not raw_response:
+            return jsonify({'error': 'Failed to get AI response'}), 500
+
+        cleaned_response = clean_sql_response(raw_response)
+
+        if "SELECT" in cleaned_response.upper() and cleaned_response.upper().startswith("SELECT"):
+            if is_valid_sql(cleaned_response):
+                params = []
+                db_response = execute_sql_query(cleaned_response, params)
+                if db_response is not None:
+                    # Generate natural language response
+                    natural_response = generate_natural_response(user_input, db_response)
+                    return jsonify({'type': 'message', 'content': natural_response})
+                else:
+                    return jsonify({'error': 'SQL query execution failed'}), 500
+            else:
+                return jsonify({'error': 'Invalid SQL query generated'}), 400
+
+        # Return original AI response if not SQL
+        return jsonify({'type': 'message', 'content': raw_response})
+
+    except Exception as e:
+        current_app.logger.error(f"Chat error: {str(e)}")
+        return jsonify({'error': 'Processing failed'}), 500

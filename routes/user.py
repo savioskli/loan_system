@@ -3756,6 +3756,46 @@ def clean_sql_response(response):
     """Remove Markdown code blocks from AI response."""
     return re.sub(r"```sql|```", "", response).strip()
 
+def extract_sql_query(response):
+    """Extract SQL query from Markdown code block in AI response."""
+    # Enhanced regex to handle different code block formats and whitespace
+    match = re.search(
+        r"```(?:sql)?\s*?\n(.*?)\s*```",  # 1. Explicit newline after ```
+        response, 
+        re.DOTALL | re.IGNORECASE          # 2. Add case insensitivity
+    )
+    
+    if match:
+        # Clean extracted SQL and remove leading/trailing whitespace
+        return match.group(1).strip().replace(';', '')  # 3. Remove trailing semicolons if needed
+    return response.strip()  # Fallback to original response if no match
+
+def extract_table_names(query):
+    """Extract all table names from a SQL SELECT query including JOINs."""
+    parsed = sqlparse.parse(query)
+    tables = set()
+    
+    for stmt in parsed:
+        from_seen = False
+        for token in stmt.tokens:
+            if from_seen:
+                if token.ttype is Keyword and token.value.upper() in ['WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT']:
+                    from_seen = False
+                    continue
+                if isinstance(token, sqlparse.sql.Identifier):
+                    tables.add(token.get_real_name().upper())
+                elif isinstance(token, sqlparse.sql.IdentifierList):
+                    for ident in token.get_identifiers():
+                        tables.add(ident.get_real_name().upper())
+                elif token.ttype is Keyword and token.value.upper() in ['JOIN', 'INNER JOIN', 'LEFT JOIN']:
+                    # Look ahead for the next identifier
+                    idx = stmt.token_index(token) + 1
+                    if idx < len(stmt.tokens) and isinstance(stmt.tokens[idx], sqlparse.sql.Identifier):
+                        tables.add(stmt.tokens[idx].get_real_name().upper())
+            if token.ttype is Keyword and token.value.upper() == 'FROM':
+                from_seen = True
+    return tables
+
 def is_valid_sql(query):
     """Validate SQL query against database schema including column checks."""
     query = query.upper().strip()
@@ -3792,24 +3832,48 @@ def is_valid_sql(query):
                 table_columns[table_upper] = set()
             table_columns[table_upper].add(column.upper())
 
-        # Parse query for tables and columns
+        # Parse query for tables and columns using updated sqlparse methods
         parsed = sqlparse.parse(query)
         used_tables = set()
         used_columns = set()
 
         for statement in parsed:
+            # Extract tables from FROM and JOIN clauses
+            from_seen = False
             for token in statement.tokens:
-                if isinstance(token, sqlparse.sql.From):
+                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == 'FROM':
+                    from_seen = True
+                    continue
+                
+                if from_seen:
+                    if isinstance(token, sqlparse.sql.IdentifierList):
+                        for identifier in token.get_identifiers():
+                            used_tables.add(identifier.get_real_name().upper())
+                    elif isinstance(token, sqlparse.sql.Identifier):
+                        used_tables.add(token.get_real_name().upper())
+                    elif token.ttype is sqlparse.tokens.Keyword:
+                        from_seen = False
+
+                # Handle JOIN clauses
+                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() in ('JOIN', 'INNER JOIN', 'LEFT JOIN'):
+                    next_token = statement.token_next(token)[1]
+                    if isinstance(next_token, sqlparse.sql.Identifier):
+                        used_tables.add(next_token.get_real_name().upper())
+
+            # Extract columns from SELECT clause
+            select_found = False
+            for token in statement.tokens:
+                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == 'SELECT':
+                    select_found = True
+                    continue
+                if select_found and isinstance(token, sqlparse.sql.IdentifierList):
                     for identifier in token.get_identifiers():
-                        used_tables.add(identifier.get_real_name().upper())
-                if isinstance(token, sqlparse.sql.Identifier):
-                    name = token.get_real_name().upper()
-                    if '.' in name:
-                        table_part, col_part = name.split('.', 1)
-                        used_tables.add(table_part)
-                        used_columns.add((table_part, col_part))
-                    else:
-                        used_columns.add((None, name))
+                        col_parts = identifier.value.split('.')
+                        if len(col_parts) > 1:
+                            used_tables.add(col_parts[0].strip('`').upper())
+                            used_columns.add((col_parts[0].strip('`').upper(), col_parts[1].strip('`').upper()))
+                        else:
+                            used_columns.add((None, col_parts[0].strip('`').upper()))
 
         # Validate tables
         for table in used_tables:
@@ -3840,35 +3904,46 @@ def is_valid_sql(query):
     finally:
         if 'cursor' in locals(): cursor.close()
         if 'conn' in locals(): conn.close()
-
-def execute_sql_query(query, params=None):
-    """Execute a valid SQL query and return formatted results."""
+def execute_sql_query(query, params=None, format_result=False):
+    """Execute a given SQL query and return structured results."""
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
+        cursor.execute(query, params if params else ())
 
-        # Use parameterized queries for WHERE conditions
-        cursor.execute(query, params or ())
+        # Fetch data and handle different types of responses
         result = cursor.fetchall()
 
-        # Convert Decimal and datetime values
-        formatted = [
-            {key: (value.isoformat() if isinstance(value, datetime) else float(value) if isinstance(value, Decimal) else value)
-             for key, value in row.items()}
-            for row in result
-        ]
-
-        return formatted
+        if format_result:
+            if result:
+                # For single value results
+                if len(result[0]) == 1:
+                    simple_result = result[0][list(result[0].keys())[0]]
+                # For row results
+                else:
+                    simple_result = {k: v for k, v in result[0].items()}
+            else:
+                simple_result = None
+            return simple_result
+        else:
+            if result:
+                # If it's a single row and column, return a direct value
+                if len(result) == 1 and len(result[0]) == 1:
+                    return list(result[0].values())[0]
+                return result  # Return full dataset as a list of dictionaries
+            else:
+                return None  # No data found
 
     except Exception as e:
         current_app.logger.error(f"SQL Execution Error: {str(e)}")
         return None
 
     finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conn' in locals(): conn.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
 
-# ... (previous imports and configuration remain the same)
 
 def generate_natural_response(user_input, query_result):
     """Generate a natural language response from SQL query results using Mistral."""
@@ -3914,7 +3989,7 @@ Please provide a helpful response:"""
 @user_bp.route('/chat', methods=['POST'])
 @login_required
 def chat():
-    """Handle chat request and execute SQL queries if needed."""
+    """Handle chat request, execute SQL, and return a natural language response."""
     if not request.is_json:
         return jsonify({'error': 'Invalid request format'}), 400
 
@@ -3928,22 +4003,26 @@ def chat():
         if not raw_response:
             return jsonify({'error': 'Failed to get AI response'}), 500
 
-        cleaned_response = clean_sql_response(raw_response)
+        # Extract SQL query from raw response before cleaning
+        sql_query = extract_sql_query(raw_response)
+        # Clean any remaining formatting from the extracted SQL
+        cleaned_sql = clean_sql_response(sql_query)
 
-        if "SELECT" in cleaned_response.upper() and cleaned_response.upper().startswith("SELECT"):
-            if is_valid_sql(cleaned_response):
-                params = []
-                db_response = execute_sql_query(cleaned_response, params)
+        # Check if the response is a SQL query
+        if cleaned_sql.upper().startswith("SELECT"):
+            if is_valid_sql(cleaned_sql):
+                db_response = execute_sql_query(cleaned_sql)
+
                 if db_response is not None:
-                    # Generate natural language response
+                    # Convert results into natural language
                     natural_response = generate_natural_response(user_input, db_response)
                     return jsonify({'type': 'message', 'content': natural_response})
                 else:
-                    return jsonify({'error': 'SQL query execution failed'}), 500
+                    return jsonify({'type': 'message', 'content': "No matching records found."})
             else:
                 return jsonify({'error': 'Invalid SQL query generated'}), 400
 
-        # Return original AI response if not SQL
+        # Return AI response if it's not SQL
         return jsonify({'type': 'message', 'content': raw_response})
 
     except Exception as e:

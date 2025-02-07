@@ -658,7 +658,7 @@
                 </button>
             </div>
             <div class="modal-body p-6">
-                <div id="systemDetailsContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div id="systemDetailsContent" class="grid grid-cols-1 lg:grid-cols-1 gap-6">
                     Loading...
                 </div>
             </div>
@@ -1229,14 +1229,19 @@ function viewSystem(systemId) {
 }
 
 function generateSystemDetailsHTML(system, endpoints, logs, stats) {
+    // Safe access to endpoint stats
+    const endpointStats = stats.endpoint_stats || {};
+
     // Generate endpoints HTML
     const endpointsHTML = endpoints.map(endpoint => {
-        const activeSpan = endpoint.is_active ? 
+        const activeSpan = endpoint.is_active ?
             '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
             '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>';
-        
-        const successRate = stats.endpoint_stats[endpoint.id] ? stats.endpoint_stats[endpoint.id].success_rate.toFixed(1) : '0.0';
-        
+
+        // Handle missing stats safely
+        const endpointStat = endpointStats[endpoint.id] || { success_rate: 0 };
+        const successRate = endpointStat.success_rate.toFixed(1);
+
         return `
         <tr>
             <td class="px-4 py-2">${endpoint.name}</td>
@@ -1264,15 +1269,15 @@ function generateSystemDetailsHTML(system, endpoints, logs, stats) {
             <td class="px-4 py-2">${log.error_message || '-'}</td>
         </tr>
     `).join('');
-    
-    const activeStatusSpan = system.is_active ? 
+
+    const activeStatusSpan = system.is_active ?
         '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
         '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>';
 
     const errorRate = stats.total_requests > 0 ? ((stats.error_requests / stats.total_requests) * 100).toFixed(1) : '0.0';
-    
+
     return `
-        <div class="space-y-6">
+        <div class="space-y-12">
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div class="space-y-3">
                     <div>
@@ -1293,6 +1298,14 @@ function generateSystemDetailsHTML(system, endpoints, logs, stats) {
                     </div>
                 </div>
             </div>
+            <!-- Add this chart container -->
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="text-lg font-medium mb-4">Request History</h4>
+                <div class="relative h-64">
+                    <canvas id="requestsChart"></canvas>
+                </div>
+            </div>
+
 
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <h4 class="text-lg font-medium mb-4">Statistics</h4>
@@ -1365,6 +1378,7 @@ function generateSystemDetailsHTML(system, endpoints, logs, stats) {
         </div>
     `;
 }
+
 
 function initializeChart(chartData) {
     const ctx = document.getElementById('requestsChart').getContext('2d');

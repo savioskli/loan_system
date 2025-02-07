@@ -1,6 +1,8 @@
 import requests
 import re
 import sqlparse
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
@@ -3592,133 +3594,126 @@ def create_refinance_application():
 
 
 
-# Define your Mistral API key and endpoint
+# Mistral API configuration
 MISTRAL_API_KEY = 'W2DXJoMj9Sbjj9jFEBFVvr5x6CaMH8sM'
 MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions'
 MODEL_NAME = 'mistral-small-latest'
 
+
 # Database configuration
-db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'database': 'sacco_db'
+databases = {
+    'primary': {
+        'dialect': 'mysql',
+        'driver': 'pymysql',
+        'host': 'localhost',
+        'user': 'root',
+        'password': '',
+        'database': 'sacco_db',
+    },
+    'secondary': {
+        'dialect': 'mysql',
+        'driver': 'pymysql',
+        'host': 'localhost',
+        'user': 'root',
+        'password': '',
+        'database': 'loan_system',
+    }
 }
 
+
+# Initialize SQLAlchemy engine
+def get_db_engine(database='primary'):
+    """Get SQLAlchemy engine for specified database."""
+    config = databases.get(database)
+    if not config:
+        raise ValueError(f"Database '{database}' not configured")
+    return create_engine(
+        f"{config['dialect']}+{config['driver']}://{config['user']}:{config['password']}@{config['host']}/{config['database']}"
+    )
+
+
 def get_table_schema():
-    """Fetch column names and data types dynamically from all tables in the database."""
+    """Fetch schema from all configured databases."""
     table_schema = {}
-
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-
-        # Fetch all tables in the current database
-        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s", (db_config['database'],))
-        tables = [row[0] for row in cursor.fetchall()]
-
-        for table in tables:
-            cursor.execute(f"SHOW COLUMNS FROM `{table}`")  # Backticks to handle special characters
-            columns = {row[0]: row[1] for row in cursor.fetchall()}
-            table_schema[table] = columns
-
-    except Exception as e:
-        current_app.logger.error(f"Error fetching table schema: {str(e)}")
-        return {}
-
-    finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conn' in locals(): conn.close()
-
+    for db_name in databases:
+        engine = get_db_engine(db_name)
+        try:
+            inspector = inspect(engine)
+            db_label = databases[db_name]['database']
+            for table in inspector.get_table_names():
+                columns = inspector.get_columns(table)
+                full_table_name = f"{db_label}.{table}"
+                table_schema[full_table_name] = {
+                    col['name']: str(col['type']) for col in columns
+                }
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Schema error ({db_name}): {str(e)}")
+        finally:
+            engine.dispose()
     return table_schema
 
 def get_table_relationships():
-    """Fetch foreign key relationships from the database."""
+    """Fetch relationships across all databases."""
     relationships = []
-
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-
-        query = """
-            SELECT 
-                TABLE_NAME, 
-                COLUMN_NAME, 
-                REFERENCED_TABLE_NAME, 
-                REFERENCED_COLUMN_NAME 
-            FROM 
-                INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-            WHERE 
-                TABLE_SCHEMA = %s 
-                AND REFERENCED_TABLE_NAME IS NOT NULL;
-        """
-        cursor.execute(query, (db_config['database'],))
-        rows = cursor.fetchall()
-
-        for row in rows:
-            relationships.append({
-                'source_table': row[0],
-                'source_column': row[1],
-                'target_table': row[2],
-                'target_column': row[3]
-            })
-
-    except Exception as e:
-        current_app.logger.error(f"Error fetching table relationships: {str(e)}")
-        return []
-
-    finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conn' in locals(): conn.close()
-
+    for db_name in databases:
+        engine = get_db_engine(db_name)
+        try:
+            inspector = inspect(engine)
+            db_label = databases[db_name]['database']
+            for table in inspector.get_table_names():
+                for fk in inspector.get_foreign_keys(table):
+                    relationships.append({
+                        'source_table': f"{db_label}.{table}",
+                        'source_column': fk['constrained_columns'][0],
+                        'target_table': f"{db_label}.{fk['referred_table']}",
+                        'target_column': fk['referred_columns'][0]
+                    })
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Relationships error ({db_name}): {str(e)}")
+        finally:
+            engine.dispose()
     return relationships
 
+
 def generate_system_prompt():
-    """Dynamically generate the system prompt with all tables, columns, and relationships."""
-    table_schema = get_table_schema()
+    """Generate prompt with multi-database schema."""
+    schema = get_table_schema()
     relationships = get_table_relationships()
-    
-    # Format table information with clear column listing
+
+    # Format tables with database prefixes
     table_info = []
-    for table, columns in table_schema.items():
-        col_list = "\n    ".join([f"- {col} ({dtype})" for col, dtype in columns.items()])
+    for table, cols in schema.items():
+        col_list = "\n    ".join([f"- {name} ({dtype})" for name, dtype in cols.items()])
         table_info.append(f"Table {table}:\n    {col_list}")
-    table_str = "\n\n".join(table_info)
-    
-    # Format relationships
-    relationship_info = []
-    for rel in relationships:
-        rel_desc = f"- {rel['source_table']}.{rel['source_column']} → {rel['target_table']}.{rel['target_column']}"
-        relationship_info.append(rel_desc)
-    relationship_str = "\n".join(relationship_info) if relationship_info else "No explicit relationships found."
-    
-    system_prompt = f"""You are a helpful assistant for a post disbursement management system. Follow these rules:
 
-1. Generate SAFE SQL SELECT queries for database requests.
-2. Use ONLY these tables and columns (EXACT names, case-sensitive):
-{table_str}
+    # Format relationships with database prefixes
+    rel_info = [
+        f"- {r['source_table']}.{r['source_column']} → {r['target_table']}.{r['target_column']}"
+        for r in relationships
+    ]
 
-3. Critical Column Rules:
-   - Never assume column existence - verify against the tables above
-   - Use columns ONLY in their specified tables
-   - Date columns: Use 'YYYY-MM-DD' format
-   - String values: Enclose in single quotes ('active')
-   - Numeric values: No quotes
+    # Pre-format sections to avoid backslashes in f-string expressions
+    formatted_table_section = "\n\n".join(table_info)
+    formatted_rel_section = '\n'.join(rel_info) if rel_info else '- No cross-database relationships'
 
-4. JOIN Instructions:
-{relationship_str}
-   - Use proper JOIN types based on relationship needs
+    # Properly formatted multi-line f-string
+    system_prompt = f"""
+You are a multi-database SQL assistant. Follow these rules:
 
-5. Validation Requirements:
-   - Query must start with SELECT
-   - Prohibited commands: INSERT, UPDATE, DELETE, DROP, etc.
-   - Use COUNT(DISTINCT column) for accurate counts
+1. Use EXACT table names with database prefixes:
+{formatted_table_section}
 
-6. Error Prevention:
-   - Double-check column/table names before generating SQL
-   - If unsure about a column, don't include it"""
-    
+2. JOIN Rules:
+{formatted_rel_section}
+
+3. Critical Requirements:
+   - ALWAYS prefix tables with their database name
+   - Use database1.table1 JOIN database2.table2 syntax
+   - Verify database prefixes match configured names
+   - Cross-database queries must use fully qualified names
+"""
     return system_prompt
+
 
 def call_mistral_api(user_input):
     """Call Mistral API and return a response."""
@@ -3752,197 +3747,54 @@ def call_mistral_api(user_input):
         current_app.logger.error(f"Mistral API error: {response.status_code} - {response.text}")
         return None
 
+
 def clean_sql_response(response):
-    """Remove Markdown code blocks from AI response."""
-    return re.sub(r"```sql|```", "", response).strip()
-
-def extract_sql_query(response):
-    """Extract SQL query from Markdown code block in AI response."""
-    # Enhanced regex to handle different code block formats and whitespace
-    match = re.search(
-        r"```(?:sql)?\s*?\n(.*?)\s*```",  # 1. Explicit newline after ```
-        response, 
-        re.DOTALL | re.IGNORECASE          # 2. Add case insensitivity
-    )
-    
+    """Extract the first SQL code block from the AI response."""
+    # Match SQL code blocks with optional whitespace/newlines
+    match = re.search(r"```sql\s+(.*?)\s+```", response, re.DOTALL)
     if match:
-        # Clean extracted SQL and remove leading/trailing whitespace
-        return match.group(1).strip().replace(';', '')  # 3. Remove trailing semicolons if needed
-    return response.strip()  # Fallback to original response if no match
+        return match.group(1).strip()  # Return only the SQL query
+    return ""  # Return empty if no SQL found
 
-def extract_table_names(query):
-    """Extract all table names from a SQL SELECT query including JOINs."""
-    parsed = sqlparse.parse(query)
-    tables = set()
-    
-    for stmt in parsed:
-        from_seen = False
-        for token in stmt.tokens:
-            if from_seen:
-                if token.ttype is Keyword and token.value.upper() in ['WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT']:
-                    from_seen = False
-                    continue
-                if isinstance(token, sqlparse.sql.Identifier):
-                    tables.add(token.get_real_name().upper())
-                elif isinstance(token, sqlparse.sql.IdentifierList):
-                    for ident in token.get_identifiers():
-                        tables.add(ident.get_real_name().upper())
-                elif token.ttype is Keyword and token.value.upper() in ['JOIN', 'INNER JOIN', 'LEFT JOIN']:
-                    # Look ahead for the next identifier
-                    idx = stmt.token_index(token) + 1
-                    if idx < len(stmt.tokens) and isinstance(stmt.tokens[idx], sqlparse.sql.Identifier):
-                        tables.add(stmt.tokens[idx].get_real_name().upper())
-            if token.ttype is Keyword and token.value.upper() == 'FROM':
-                from_seen = True
-    return tables
 
 def is_valid_sql(query):
-    """Validate SQL query against database schema including column checks."""
-    query = query.upper().strip()
-    query = query.split(";")[0]  # Remove trailing comments
-
-    # Check for forbidden SQL commands
-    forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "--"]
-    if any(keyword in query for keyword in forbidden):
+    """Validate SQL using database PREPARE statement."""
+    query = query.strip().rstrip(';')
+    q_upper = query.upper()
+    
+    # Basic security checks
+    forbidden = {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "--"}
+    if any(kw in q_upper for kw in forbidden) or not q_upper.startswith("SELECT"):
         return False
 
-    # Must start with SELECT
-    if not query.startswith("SELECT"):
-        return False
-
+    # Database validation
+    engine = get_db_engine()
     try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-
-        # Get all tables in the database
-        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s", 
-                      (db_config['database'],))
-        valid_tables = {row[0].upper() for row in cursor.fetchall()}
-
-        # Get column schema
-        table_columns = {}
-        cursor.execute("""
-            SELECT TABLE_NAME, COLUMN_NAME 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = %s
-        """, (db_config['database'],))
-        for table, column in cursor.fetchall():
-            table_upper = table.upper()
-            if table_upper not in table_columns:
-                table_columns[table_upper] = set()
-            table_columns[table_upper].add(column.upper())
-
-        # Parse query for tables and columns using updated sqlparse methods
-        parsed = sqlparse.parse(query)
-        used_tables = set()
-        used_columns = set()
-
-        for statement in parsed:
-            # Extract tables from FROM and JOIN clauses
-            from_seen = False
-            for token in statement.tokens:
-                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == 'FROM':
-                    from_seen = True
-                    continue
-                
-                if from_seen:
-                    if isinstance(token, sqlparse.sql.IdentifierList):
-                        for identifier in token.get_identifiers():
-                            used_tables.add(identifier.get_real_name().upper())
-                    elif isinstance(token, sqlparse.sql.Identifier):
-                        used_tables.add(token.get_real_name().upper())
-                    elif token.ttype is sqlparse.tokens.Keyword:
-                        from_seen = False
-
-                # Handle JOIN clauses
-                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() in ('JOIN', 'INNER JOIN', 'LEFT JOIN'):
-                    next_token = statement.token_next(token)[1]
-                    if isinstance(next_token, sqlparse.sql.Identifier):
-                        used_tables.add(next_token.get_real_name().upper())
-
-            # Extract columns from SELECT clause
-            select_found = False
-            for token in statement.tokens:
-                if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == 'SELECT':
-                    select_found = True
-                    continue
-                if select_found and isinstance(token, sqlparse.sql.IdentifierList):
-                    for identifier in token.get_identifiers():
-                        col_parts = identifier.value.split('.')
-                        if len(col_parts) > 1:
-                            used_tables.add(col_parts[0].strip('`').upper())
-                            used_columns.add((col_parts[0].strip('`').upper(), col_parts[1].strip('`').upper()))
-                        else:
-                            used_columns.add((None, col_parts[0].strip('`').upper()))
-
-        # Validate tables
-        for table in used_tables:
-            if table not in valid_tables:
-                return False
-
-        # Validate columns
-        for table_part, col_part in used_columns:
-            if table_part:  # Qualified column
-                if table_part not in table_columns:
-                    return False
-                if col_part not in table_columns[table_part]:
-                    return False
-            else:  # Unqualified column
-                found = False
-                for table in used_tables:
-                    if col_part in table_columns.get(table, set()):
-                        found = True
-                        break
-                if not found:
-                    return False
-
+        with engine.connect() as conn:
+            conn.execute(text("SET @sql = :query"), {"query": query})
+            conn.execute(text("PREPARE stmt FROM @sql"))
+            conn.execute(text("DEALLOCATE PREPARE stmt"))
         return True
-
-    except Exception as e:
-        current_app.logger.error(f"SQL validation error: {str(e)}")
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Query validation failed: {str(e)}")
         return False
-    finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conn' in locals(): conn.close()
+
+
 def execute_sql_query(query, params=None, format_result=False):
-    """Execute a given SQL query and return structured results."""
+    """Execute query using SQLAlchemy with enhanced safety."""
+    engine = get_db_engine()
     try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(query, params if params else ())
-
-        # Fetch data and handle different types of responses
-        result = cursor.fetchall()
-
-        if format_result:
-            if result:
-                # For single value results
-                if len(result[0]) == 1:
-                    simple_result = result[0][list(result[0].keys())[0]]
-                # For row results
-                else:
-                    simple_result = {k: v for k, v in result[0].items()}
-            else:
-                simple_result = None
-            return simple_result
-        else:
-            if result:
-                # If it's a single row and column, return a direct value
-                if len(result) == 1 and len(result[0]) == 1:
-                    return list(result[0].values())[0]
-                return result  # Return full dataset as a list of dictionaries
-            else:
-                return None  # No data found
-
-    except Exception as e:
-        current_app.logger.error(f"SQL Execution Error: {str(e)}")
+        with engine.connect() as conn:
+            result = conn.execute(text(query), params or {})
+            # CORRECTED: Use _asdict() for proper row conversion
+            formatted = [row._asdict() for row in result]
+            
+            if format_result:
+                return formatted[0] if formatted else None
+            return formatted
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Query execution failed: {str(e)}")
         return None
-
-    finally:
-        if 'cursor' in locals():
-            cursor.close()
-        if 'conn' in locals():
-            conn.close()
 
 
 def generate_natural_response(user_input, query_result):
@@ -3986,10 +3838,9 @@ Please provide a helpful response:"""
         current_app.logger.error(f"Natural response error: {str(e)}")
         return f"Here are your results: {query_result}"
 
+
 @user_bp.route('/chat', methods=['POST'])
-@login_required
 def chat():
-    """Handle chat request, execute SQL, and return a natural language response."""
     if not request.is_json:
         return jsonify({'error': 'Invalid request format'}), 400
 
@@ -3998,31 +3849,33 @@ def chat():
         return jsonify({'error': 'No message provided'}), 400
 
     try:
-        # Get AI-generated SQL response
+        # Step 1: Get raw AI response
         raw_response = call_mistral_api(user_input)
         if not raw_response:
             return jsonify({'error': 'Failed to get AI response'}), 500
 
-        # Extract SQL query from raw response before cleaning
-        sql_query = extract_sql_query(raw_response)
-        # Clean any remaining formatting from the extracted SQL
-        cleaned_sql = clean_sql_response(sql_query)
+        # Step 2: Extract SQL query from response
+        cleaned_sql = clean_sql_response(raw_response)
+        
+        # Log intermediate results for debugging
+        current_app.logger.debug(f"Raw AI Response: {raw_response}")
+        current_app.logger.debug(f"Extracted SQL: {cleaned_sql}")
 
-        # Check if the response is a SQL query
-        if cleaned_sql.upper().startswith("SELECT"):
+        # Step 3: Validate and execute SQL
+        if cleaned_sql and cleaned_sql.upper().startswith("SELECT"):
             if is_valid_sql(cleaned_sql):
                 db_response = execute_sql_query(cleaned_sql)
-
-                if db_response is not None:
-                    # Convert results into natural language
+                
+                if db_response:
+                    # Step 4: Generate natural language response
                     natural_response = generate_natural_response(user_input, db_response)
                     return jsonify({'type': 'message', 'content': natural_response})
                 else:
-                    return jsonify({'type': 'message', 'content': "No matching records found."})
+                    return jsonify({'type': 'message', 'content': "No records found."})
             else:
-                return jsonify({'error': 'Invalid SQL query generated'}), 400
-
-        # Return AI response if it's not SQL
+                return jsonify({'error': 'Invalid SQL query'}), 400
+        
+        # Step 5: Fallback to raw response if no SQL detected
         return jsonify({'type': 'message', 'content': raw_response})
 
     except Exception as e:

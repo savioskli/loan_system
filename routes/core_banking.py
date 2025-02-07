@@ -98,6 +98,89 @@ def add_system():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+def get_chart_data(system_id):
+    """Generate chart data for last 7 days"""
+    from datetime import datetime, timedelta
+    
+    dates = []
+    success_data = []
+    error_data = []
+    
+    for i in range(6, -1, -1):
+        date = datetime.now() - timedelta(days=i)
+        start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        total = CoreBankingLog.query.filter(
+            CoreBankingLog.system_id == system_id,
+            CoreBankingLog.created_at.between(start, end)
+        ).count()
+        
+        errors = CoreBankingLog.query.filter(
+            CoreBankingLog.system_id == system_id,
+            CoreBankingLog.error_message.isnot(None),
+            CoreBankingLog.created_at.between(start, end)
+        ).count()
+        
+        dates.append(date.strftime('%Y-%m-%d'))
+        success_data.append(total - errors)
+        error_data.append(errors)
+    
+    return {
+        'labels': dates,
+        'success_data': success_data,
+        'error_data': error_data
+    }
+@bp.route('/api/core-banking/system/<int:system_id>')
+@login_required
+def get_system_details(system_id):
+    """Get complete system details for view modal"""
+    try:
+        system = CoreBankingSystem.query.get_or_404(system_id)
+        
+        # Get endpoints
+        endpoints = CoreBankingEndpoint.query.filter_by(system_id=system_id).all()
+        
+        # Get recent logs (last 50)
+        logs = CoreBankingLog.query.filter_by(system_id=system_id)\
+                   .order_by(CoreBankingLog.created_at.desc())\
+                   .limit(50).all()
+        
+        # Calculate stats
+        total_requests = CoreBankingLog.query.filter_by(system_id=system_id).count()
+        error_requests = CoreBankingLog.query.filter(CoreBankingLog.error_message.isnot(None)).count()
+        active_endpoints = CoreBankingEndpoint.query.filter_by(system_id=system_id, is_active=True).count()
+        
+        # Calculate endpoint stats
+        endpoint_stats = {}
+        for endpoint in endpoints:
+            total = CoreBankingLog.query.filter_by(endpoint_id=endpoint.id).count()
+            errors = CoreBankingLog.query.filter_by(endpoint_id=endpoint.id)\
+                        .filter(CoreBankingLog.error_message.isnot(None)).count()
+            success_rate = ((total - errors) / total * 100) if total > 0 else 100
+            endpoint_stats[endpoint.id] = {
+                'success_rate': success_rate,
+                'total_requests': total
+            }
+
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'system': system.to_dict(),
+                'endpoints': [e.to_dict() for e in endpoints],
+                'logs': [l.to_dict() for l in logs],
+                'stats': {
+                    'total_requests': total_requests,
+                    'error_requests': error_requests,
+                    'active_endpoints': active_endpoints,
+                    'success_rate': ((total_requests - error_requests) / total_requests * 100) if total_requests > 0 else 100,
+                    'endpoint_stats': endpoint_stats
+                },
+                'chart_data': get_chart_data(system_id)  # Implement this function
+            }
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/admin/core-banking/<int:system_id>', methods=['GET'])
 @login_required

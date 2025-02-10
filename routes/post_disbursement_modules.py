@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from models.post_disbursement_modules import PostDisbursementModule
 from flask_login import login_required
 from utils.decorators import admin_required
+from models.core_banking import CoreBankingSystem 
 from extensions import db
 import logging
 
@@ -231,3 +232,53 @@ def delete_module(module_id):
         logger.error(f"Error deleting module: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/tables', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_tables(module_id):
+    """Manage tables for a specific module"""
+    logger.info(f"Managing tables for module with ID: {module_id}")
+    try:
+        module = PostDisbursementModule.query.get_or_404(module_id)
+
+        if request.method == 'GET':
+            # Fetch the list of tables from the core_banking table
+            tables = module.core_banking if module.core_banking else []
+            return jsonify({'tables': tables})
+
+        elif request.method == 'POST':
+            # Handle the form submission to save the selected tables
+            selected_tables = request.form.getlist('tables')
+            module.core_banking = selected_tables
+
+            db.session.commit()
+            return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error managing tables: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while managing tables.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/available-tables', methods=['GET'])
+@login_required
+@admin_required
+def fetch_available_tables(module_id):
+    """Fetch available tables from the core banking system"""
+    logger.info(f"Fetching available tables for module with ID: {module_id}")
+    try:
+        # Fetch the active core banking system
+        core_banking_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_banking_system:
+            return jsonify({'success': False, 'message': 'No active core banking system found.'}), 404
+
+        # Fetch the list of tables
+        tables = core_banking_system.list_tables()
+        return jsonify({'tables': tables})
+
+    except Exception as e:
+        logger.error(f"Error fetching available tables: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while fetching available tables.'}), 500
+
+
+
+        

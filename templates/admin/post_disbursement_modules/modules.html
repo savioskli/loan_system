@@ -372,22 +372,7 @@ forms.forEach(form => {
             return;
         }
 
-        if (!urlInput.value.trim()) {
-            event.preventDefault();
-            alert('URL is required.');
-            urlInput.focus();
-            return;
-        }
 
-        // Basic URL validation
-        try {
-            new URL(urlInput.value);
-        } catch (e) {
-            event.preventDefault();
-            alert('Please enter a valid URL (including http:// or https://)');
-            urlInput.focus();
-            return;
-        }
     });
 });
 </script>

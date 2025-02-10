@@ -43,12 +43,15 @@ def list_modules():
         # Build the hierarchical structure starting from the root (parent_id is None)
         hierarchical_modules = build_hierarchy(None)
 
+        # Fetch parent modules for the dropdown
+        parent_modules = PostDisbursementModule.query.filter_by(parent_id=None).order_by(PostDisbursementModule.order).all()
+
         logger.info(f"Successfully retrieved {len(all_modules)} modules")
-        return render_template('admin/post_disbursement_modules/modules.html', hierarchical_modules=hierarchical_modules)
+        return render_template('admin/post_disbursement_modules/modules.html', hierarchical_modules=hierarchical_modules, parent_modules=parent_modules)
     except Exception as e:
         logger.error(f"Error fetching modules: {str(e)}", exc_info=True)
         raise
-        
+
 @post_disbursement_modules_bp.route('/admin/modules/create', methods=['GET', 'POST'])
 @login_required
 @admin_required

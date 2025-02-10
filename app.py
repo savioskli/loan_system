@@ -1,18 +1,11 @@
 import sys
 import os
-
-# Add project root to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, project_root)
-
+import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import UserMixin, login_user, login_required, logout_user, current_user, LoginManager
 from werkzeug.security import generate_password_hash, check_password_hash
 from extensions import db, migrate, login_manager, init_extensions
 from datetime import datetime, timedelta
-import logging
-import os
-import traceback
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_wtf import FlaskForm
@@ -26,6 +19,10 @@ from flask_wtf.csrf import CSRFProtect
 from flask import g
 from services.scheduler import init_scheduler
 
+# Add project root to Python path
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
+
 # Import models
 from models.staff import Staff
 from models.system_settings import SystemSettings
@@ -36,8 +33,9 @@ from models.module import Module, FormField
 from models.sms_template import SMSTemplate, TemplateType
 from models.email_template import EmailTemplate, EmailTemplateType
 from models.sms_log import SMSLog
+from models.post_disbursement_modules import PostDisbursementModule
 
-# Import routes (excluding sms_templates for now)
+# Import routes
 from routes.branch_routes import branch_bp
 from routes.client_types import client_types_bp
 from routes.main import main_bp
@@ -49,7 +47,7 @@ from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
 from routes.section_routes import sections_bp
-from routes.post_disbursement import bp as post_disbursement_bp
+from routes.post_disbursement_modules import post_disbursement_modules_bp
 from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
@@ -127,7 +125,7 @@ def create_app():
     app.register_blueprint(client_types_bp)
     app.register_blueprint(collection_schedule_bp)
     app.register_blueprint(core_banking_bp)
-    app.register_blueprint(post_disbursement_bp)
+    app.register_blueprint(post_disbursement_modules_bp)
     app.register_blueprint(api_bp)  # Register the API blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
@@ -161,6 +159,7 @@ def create_app():
             from models.sms_template import SMSTemplate, TemplateType
             from models.email_template import EmailTemplate, EmailTemplateType
             from models.sms_log import SMSLog
+            from models.post_disbursement_modules import PostDisbursementModule
             db.create_all()
 
     # Register template filters
@@ -180,7 +179,7 @@ def create_app():
     def currency_filter(value):
         """
         Format a numeric value as currency.
-        
+
         :param value: Numeric value to format
         :return: Formatted currency string
         """
@@ -274,14 +273,14 @@ def create_app():
         app.logger.error(f"500 error: {str(error)}")
         app.logger.error(traceback.format_exc())
         db.session.rollback()
-        
+
         wants_json = (
             request.headers.get('Content-Type', '').startswith('application/json') or
             request.headers.get('Accept', '').startswith('application/json') or
             request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
             request.path.startswith('/api/')
         )
-        
+
         if wants_json:
             return jsonify({'error': 'Internal server error'}), 500
         return render_template('errors/500.html'), 500
@@ -289,14 +288,14 @@ def create_app():
     @app.errorhandler(405)
     def method_not_allowed(error):
         app.logger.error(f"405 error: {str(error)}")
-        
+
         wants_json = (
             request.headers.get('Content-Type', '').startswith('application/json') or
             request.headers.get('Accept', '').startswith('application/json') or
             request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
             request.path.startswith('/api/')
         )
-        
+
         if wants_json:
             return jsonify({'error': 'Method not allowed'}), 405
         return render_template('errors/405.html'), 405

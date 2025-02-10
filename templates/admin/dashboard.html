@@ -143,11 +143,22 @@
                     </div>
                 </div>
                 <p class="text-gray-600 dark:text-gray-300 mb-4">Manage post-disbursement settings and alerts</p>
+                                <!-- Module Management -->
+                                <div class="mb-4">
+                                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Post Disbursement Management</h4>
+                                    <div class="space-y-2">
+                                        <a href="{{ url_for('post_disbursement_modules.list_modules') }}" class="block text-sm text-primary hover:text-secondary">
+                                            <i class="fas fa-list mr-2"></i>Post Disbursement Modules
+                                        </a>
+                                    </div>
+                                </div>
+                                
         
                 <!-- Communication Templates -->
                 <div class="mb-4">
                     <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Communication Templates</h4>
                     <div class="space-y-2">
+
                         <a href="{{ url_for('sms_templates.list_templates') }}" class="block text-sm text-primary hover:text-secondary">
                             <i class="fas fa-sms mr-2"></i>SMS Templates
                         </a>

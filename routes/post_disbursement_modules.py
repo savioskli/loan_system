@@ -233,30 +233,35 @@ def delete_module(module_id):
         db.session.rollback()
         return jsonify({'success': False}), 500
 
-@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/tables', methods=['GET', 'POST'])
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/tables', methods=['POST'])
 @login_required
 @admin_required
 def manage_tables(module_id):
     """Manage tables for a specific module"""
     logger.info(f"Managing tables for module with ID: {module_id}")
     try:
+        # Ensure the request contains JSON data
+        if not request.is_json:
+            return jsonify({'success': False, 'message': 'Request must be JSON'}), 415
+
+        data = request.get_json()
+        selected_tables = data.get('tables', [])
+
+        # Remove duplicates from selected_tables
+        selected_tables = list(set(selected_tables))
+
+        # Fetch the module
         module = PostDisbursementModule.query.get_or_404(module_id)
 
-        if request.method == 'GET':
-            # Fetch the list of tables from the core_banking table
-            tables = module.core_banking if module.core_banking else []
-            return jsonify({'tables': tables})
+        # Update the selected_tables field
+        module.selected_tables = selected_tables
+        db.session.commit()
 
-        elif request.method == 'POST':
-            # Handle the form submission to save the selected tables
-            selected_tables = request.form.getlist('tables')
-            module.core_banking = selected_tables
-
-            db.session.commit()
-            return jsonify({'success': True})
+        return jsonify({'success': True})
 
     except Exception as e:
         logger.error(f"Error managing tables: {str(e)}", exc_info=True)
+        db.session.rollback()
         return jsonify({'success': False, 'message': 'An error occurred while managing tables.'}), 500
 
 @post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/available-tables', methods=['GET'])
@@ -278,6 +283,34 @@ def fetch_available_tables(module_id):
     except Exception as e:
         logger.error(f"Error fetching available tables: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': 'An error occurred while fetching available tables.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/tables/remove', methods=['POST'])
+@login_required
+@admin_required
+def remove_selected_table(module_id):
+    """Remove a selected table from a module"""
+    logger.info(f"Removing selected table from module with ID: {module_id}")
+    try:
+        module = PostDisbursementModule.query.get_or_404(module_id)
+        data = request.get_json()
+        table_name = data.get('table')
+
+        # Ensure selected_tables is a list
+        if isinstance(module.selected_tables, list):
+            if table_name in module.selected_tables:
+                module.selected_tables.remove(table_name)
+                db.session.commit()
+                return jsonify({'success': True})
+            else:
+                return jsonify({'success': False, 'message': 'Table not found in selected tables.'}), 404
+        else:
+            return jsonify({'success': False, 'message': 'Selected tables are not in the correct format.'}), 500
+
+    except Exception as e:
+        logger.error(f"Error removing selected table: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while removing the selected table.'}), 500
+
 
 
 

@@ -155,6 +155,27 @@ class CoreBankingSystem(db.Model):
             raise Exception(f"Failed to list tables: {str(err)}")
         finally:
             connection.close()
+            
+    def list_columns(self, table_name):
+        """List columns for a specified table"""
+        if not self.database_name:
+            raise Exception("No database selected")
+
+        connection = self.get_database_connection()
+        try:
+            cursor = connection.cursor()
+            # Use the database specified in the connection
+            cursor.execute(f"USE `{self.database_name}`")
+            # Use backticks to escape table name
+            cursor.execute(f"SHOW COLUMNS FROM `{table_name}`")
+            columns = [column[0].decode() if isinstance(column[0], bytes) else column[0]
+                    for column in cursor.fetchall()]
+            return columns
+        except mysql.connector.Error as err:
+            raise Exception(f"Failed to list columns for table {table_name}: {str(err)}")
+        finally:
+            connection.close()
+
 
     def get_table_schema(self, table_name):
         """Get the schema for a specific table"""
@@ -183,7 +204,6 @@ class CoreBankingSystem(db.Model):
             raise Exception(f"Failed to get schema for table {table_name}: {str(err)}")
         finally:
             connection.close()
-
     def select_database(self, database_name):
         """Select a database to use"""
         if database_name not in self.list_databases():

@@ -411,6 +411,54 @@ def fetch_expected_structure(module_id, structure_id):
         logger.error(f"Error fetching expected structure: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': 'An error occurred while fetching the expected structure.'}), 500
 
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/selected-tables', methods=['GET'])
+@login_required
+@admin_required
+def fetch_selected_tables(module_id):
+    """Fetch the selected tables for a specific module"""
+    logger.info(f"Fetching selected tables for module with ID: {module_id}")
+    try:
+        # Fetch the module
+        module = PostDisbursementModule.query.get_or_404(module_id)
+
+        # Return the selected tables
+        return jsonify({'success': True, 'tables': module.selected_tables})
+
+    except Exception as e:
+        logger.error(f"Error fetching selected tables: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while fetching selected tables.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/table-columns', methods=['GET'])
+@login_required
+@admin_required
+def fetch_table_columns(module_id):
+    """Fetch the columns for a selected table"""
+    logger.info(f"Fetching columns for a selected table in module with ID: {module_id}")
+    try:
+        # Get the table name from the request arguments
+        table_name = request.args.get('table')
+        if not table_name:
+            return jsonify({'success': False, 'message': 'Table name is required'}), 400
+
+        # Fetch the active core banking system
+        core_banking_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_banking_system:
+            return jsonify({'success': False, 'message': 'No active core banking system found.'}), 404
+
+        # Fetch the list of columns for the table
+        columns = core_banking_system.list_columns(table_name)
+        if columns is None:
+            return jsonify({'success': False, 'message': 'Failed to retrieve columns for the table.'}), 500
+
+        return jsonify({'success': True, 'columns': columns})
+
+    except Exception as e:
+        logger.error(f"Error fetching table columns: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while fetching table columns.'}), 500
+
+
+
+
 
 
     

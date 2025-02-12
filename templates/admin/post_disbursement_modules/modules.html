@@ -22,9 +22,8 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Module</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selected Tables</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Map Columns</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Define Structure</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">View / Edit Structure</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manage Structure</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -83,23 +82,35 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <button class="text-blue-600 hover:text-blue-900" onclick="openTableMappingModal({{ item.module.id }}, 'CoreBankingSystem')">
-                                        Map Columns
-                                    </button>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button onclick="openExpectedStructureModal({{ item.module.id }})" class="text-green-600 hover:text-green-900">
                                     Define Structure
                                 </button>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    {% for expected_structure in item.expected_structures %}
-                                    <button class="text-green-600 hover:text-green-900"
-                                            onclick="openViewEditExpectedStructureModal({{ item.module.id }}, {{ expected_structure.id }})">
-                                        View/Edit Structure
-                                    </button>
-                                    {% endfor %}
+                                    <table class="min-w-full">
+                                        <tbody>
+                                            {% for expected_structure in item.expected_structures %}
+                                                <tr>
+                                                    <!-- Manage Button Column -->
+                                                    <td class="pr-4">
+                                                        <button class="text-green-600 hover:text-green-900"
+                                                                onclick="openViewEditExpectedStructureModal({{ item.module.id }}, {{ expected_structure.id }})">
+                                                            Manage {{ expected_structure.table_name }}
+                                                        </button>
+                                                    </td>
+                                                    <!-- Map Button Column -->
+                                                    <td>
+                                                        <button class="text-blue-600 hover:text-blue-900"
+                                                                onclick="openMapModal({{ item.module.id }}, {{ expected_structure.id }})">
+                                                            Map
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </td>
+                                
                             </tr>
                             {{ render_modules(item.children, level + 1) }}
                         {% endfor %}
@@ -378,6 +389,66 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+        <div id="mapModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-4xl flex space-x-6 modal-container">
+                <div class="w-1/2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900">Select Table and Columns</h2>
+                        <button onclick="closeMapModal()" class="text-gray-500 hover:text-gray-700">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form id="mapTableForm" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" id="map_module_id" name="module_id">
+                        <div class="mb-4">
+                            <label for="map_table_name" class="block text-gray-700 text-sm font-bold mb-2">Select Table:</label>
+                            <select id="map_table_name" name="table_name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                <option value="">Select a Table</option>
+                                <!-- Options will be populated via JavaScript -->
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="map_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                            <textarea id="map_columns" name="columns" rows="5" readonly
+                                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="w-1/2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900">Expected Structure</h2>
+                    </div>
+                    <form id="mapExpectedStructureForm" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" id="map_view_edit_module_id" name="module_id">
+                        <input type="hidden" id="map_view_edit_structure_id" name="structure_id">
+                        <div class="mb-4">
+                            <label for="map_view_edit_table_name" class="block text-gray-700 text-sm font-bold mb-2">Table Name:</label>
+                            <input type="text" id="map_view_edit_table_name" name="table_name" required
+                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        </div>
+                        <div class="mb-4">
+                            <label for="map_view_edit_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                            <textarea id="map_view_edit_columns" name="columns" rows="5" required
+                                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                        </div>
+                        <div class="flex items-center justify-end space-x-4">
+                            <button type="button" onclick="closeMapModal()"
+                                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -942,6 +1013,101 @@ document.getElementById('viewEditExpectedStructureForm').addEventListener('submi
         alert('Failed to update expected structure. Please try again.');
     });
 });
+
+function openMapModal(moduleId, structureId) {
+    document.getElementById('map_module_id').value = moduleId;
+    document.getElementById('map_view_edit_module_id').value = moduleId;
+    document.getElementById('map_view_edit_structure_id').value = structureId;
+
+    // Fetch the expected structure data via AJAX
+    fetch(`/admin/modules/${moduleId}/expected-structure/${structureId}/fetch`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Populate the modal fields with the fetched data
+            document.getElementById('map_view_edit_table_name').value = data.table_name;
+            document.getElementById('map_view_edit_columns').value = data.columns.join(', ');
+        } else {
+            alert(data.message || 'Failed to fetch expected structure.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching expected structure:', error);
+        alert('Failed to fetch expected structure. Please try again.');
+    });
+
+    // Fetch the selected tables for the module using the new route
+    fetch(`/admin/modules/${moduleId}/selected-tables`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && Array.isArray(data.tables) && data.tables.length > 0) {
+            const select = document.getElementById('map_table_name');
+            select.innerHTML = '<option value="">Select a Table</option>';
+            data.tables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table;
+                option.textContent = table;
+                select.appendChild(option);
+            });
+        } else {
+            alert('No tables selected for this module or invalid response format.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching selected tables:', error);
+        alert('Failed to load selected tables. Please try again.');
+    });
+
+    document.getElementById('mapModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMapModal() {
+    document.getElementById('mapModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+document.getElementById('map_table_name').addEventListener('change', function() {
+    const moduleId = document.getElementById('map_module_id').value;
+    const tableName = this.value;
+
+    if (tableName) {
+        // Fetch the columns for the selected table
+        fetch(`/admin/modules/${moduleId}/table-columns?table=${encodeURIComponent(tableName)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.columns)) {
+                const columnsList = document.getElementById('map_columns');
+                columnsList.value = data.columns.join(', ');
+            } else {
+                alert(data.message || 'Failed to fetch columns for the selected table.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching table columns:', error);
+            alert('Failed to load columns for the selected table. Please try again.');
+        });
+    }
+});
+
 
 
 </script>

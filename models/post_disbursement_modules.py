@@ -18,4 +18,16 @@ class PostDisbursementModule(db.Model):
     def __repr__(self):
         return f'<PostDisbursementModule {self.name}>'
 
+class ExpectedStructure(db.Model):
+    __tablename__ = 'expected_structures'
 
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('post_disbursement_modules.id'), nullable=False)
+    table_name = db.Column(db.String(80), nullable=False)
+    columns = db.Column(db.JSON, nullable=False)  # JSON field to store list of columns
+
+    # Relationship to PostDisbursementModule
+    module = db.relationship('PostDisbursementModule', backref=db.backref('expected_structures', lazy=True))
+
+    def __repr__(self):
+        return f'<ExpectedStructure for Module {self.module_id}: {self.table_name}>'

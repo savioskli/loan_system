@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from models.post_disbursement_modules import PostDisbursementModule
+from models.post_disbursement_modules import ExpectedStructure
 from flask_login import login_required
 from utils.decorators import admin_required
 from models.core_banking import CoreBankingSystem 
@@ -16,8 +17,8 @@ post_disbursement_modules_bp = Blueprint('post_disbursement_modules', __name__)
 @login_required
 @admin_required
 def list_modules():
-    """Render the module management page"""
-    logger.info("Fetching modules list")
+    """Render the module management page with expected structures"""
+    logger.info("Fetching modules list with expected structures")
     try:
         # Fetch all modules and sort them by order
         all_modules = PostDisbursementModule.query.order_by(PostDisbursementModule.order).all()
@@ -35,8 +36,11 @@ def list_modules():
                 return []
             hierarchy = []
             for module in modules_by_parent[parent_id]:
+                # Fetch expected structures for the module
+                expected_structures = ExpectedStructure.query.filter_by(module_id=module.id).all()
                 hierarchy.append({
                     'module': module,
+                    'expected_structures': expected_structures,
                     'children': build_hierarchy(module.id)
                 })
             return hierarchy
@@ -47,11 +51,12 @@ def list_modules():
         # Fetch parent modules for the dropdown
         parent_modules = PostDisbursementModule.query.filter_by(parent_id=None).order_by(PostDisbursementModule.order).all()
 
-        logger.info(f"Successfully retrieved {len(all_modules)} modules")
+        logger.info(f"Successfully retrieved {len(all_modules)} modules with expected structures")
         return render_template('admin/post_disbursement_modules/modules.html', hierarchical_modules=hierarchical_modules, parent_modules=parent_modules)
     except Exception as e:
         logger.error(f"Error fetching modules: {str(e)}", exc_info=True)
         raise
+
 
 @post_disbursement_modules_bp.route('/admin/modules/create', methods=['GET', 'POST'])
 @login_required
@@ -310,6 +315,105 @@ def remove_selected_table(module_id):
         logger.error(f"Error removing selected table: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'message': 'An error occurred while removing the selected table.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/expected-structure', methods=['POST'])
+@login_required
+@admin_required
+def save_expected_structure(module_id):
+    """Save the expected structure for a specific module"""
+    logger.info(f"Saving expected structure for module with ID: {module_id}")
+    try:
+        # Ensure the request contains form data
+        if not request.form:
+            return jsonify({'success': False, 'message': 'Request must contain form data'}), 400
+
+        table_name = request.form.get('table_name')
+        columns = request.form.get('columns')
+
+        if not table_name or not columns:
+            return jsonify({'success': False, 'message': 'Table name and columns are required'}), 400
+
+        # Convert columns from a string to a list
+        columns_list = [col.strip() for col in columns.split(',')]
+
+        # Create a new ExpectedStructure entry
+        expected_structure = ExpectedStructure(
+            module_id=module_id,
+            table_name=table_name,
+            columns=columns_list
+        )
+
+        db.session.add(expected_structure)
+        db.session.commit()
+
+        flash('Expected structure saved successfully!', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error saving expected structure: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while saving the expected structure.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/expected-structure/<int:structure_id>', methods=['POST'])
+@login_required
+@admin_required
+def edit_expected_structure(module_id, structure_id):
+    """Edit the expected structure for a specific module"""
+    logger.info(f"Editing expected structure with ID: {structure_id} for module with ID: {module_id}")
+    try:
+        # Ensure the request contains form data
+        if not request.form:
+            return jsonify({'success': False, 'message': 'Request must contain form data'}), 400
+
+        table_name = request.form.get('table_name')
+        columns = request.form.get('columns')
+
+        if not table_name or not columns:
+            return jsonify({'success': False, 'message': 'Table name and columns are required'}), 400
+
+        # Convert columns from a string to a list
+        columns_list = [col.strip() for col in columns.split(',')]
+
+        # Fetch the expected structure
+        expected_structure = ExpectedStructure.query.get_or_404(structure_id)
+
+        # Update the expected structure
+        expected_structure.table_name = table_name
+        expected_structure.columns = columns_list
+
+        db.session.commit()
+        flash('Expected structure updated successfully!', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error editing expected structure: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while editing the expected structure.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/expected-structure/<int:structure_id>/fetch', methods=['GET'])
+@login_required
+@admin_required
+def fetch_expected_structure(module_id, structure_id):
+    """Fetch the expected structure for a specific module"""
+    logger.info(f"Fetching expected structure with ID: {structure_id} for module with ID: {module_id}")
+    try:
+        # Fetch the expected structure
+        expected_structure = ExpectedStructure.query.get_or_404(structure_id)
+
+        # Return the expected structure data as JSON
+        return jsonify({
+            'success': True,
+            'table_name': expected_structure.table_name,
+            'columns': expected_structure.columns
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching expected structure: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while fetching the expected structure.'}), 500
+
+
+
+    
 
 
 

@@ -22,6 +22,9 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Module</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selected Tables</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Map Columns</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Define Structure</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">View / Edit Structure</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -78,6 +81,24 @@
                                             <span class="text-sm text-gray-500">No tables selected</span>
                                         {% endif %}
                                     </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button class="text-blue-600 hover:text-blue-900" onclick="openTableMappingModal({{ item.module.id }}, 'CoreBankingSystem')">
+                                        Map Columns
+                                    </button>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="openExpectedStructureModal({{ item.module.id }})" class="text-green-600 hover:text-green-900">
+                                    Define Structure
+                                </button>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    {% for expected_structure in item.expected_structures %}
+                                    <button class="text-green-600 hover:text-green-900"
+                                            onclick="openViewEditExpectedStructureModal({{ item.module.id }}, {{ expected_structure.id }})">
+                                        View/Edit Structure
+                                    </button>
+                                    {% endfor %}
                                 </td>
                             </tr>
                             {{ render_modules(item.children, level + 1) }}
@@ -227,6 +248,141 @@
                 </form>
             </div>
         </div>
+
+        <!-- Table Mapping Modal -->
+        <div id="tableMappingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-lg modal-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">Map Table Columns</h2>
+                    <button onclick="closeTableMappingModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <form id="tableMappingForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="mapping_module_id" name="module_id">
+                    <input type="hidden" id="mapping_table_name" name="table_name">
+                    <div class="mb-4">
+                        <label for="expected_table" class="block text-gray-700 text-sm font-bold mb-2">Expected Table:</label>
+                        <select id="expected_table" name="expected_table"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <option value="">Select Expected Table</option>
+                            <option value="CoreBankingSystem">CoreBankingSystem</option>
+                            <option value="CoreBankingEndpoint">CoreBankingEndpoint</option>
+                            <option value="LoanLedgerEntries">LoanLedgerEntries</option>
+                            <option value="LoanApplications">LoanApplications</option>
+                            <option value="LoanDisbursements">LoanDisbursements</option>
+                            <option value="Members">Members</option>
+                            <option value="Users">Users</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="expected_columns" class="block text-gray-700 text-sm font-bold mb-2">Expected Columns:</label>
+                        <select id="expected_columns" name="expected_columns" multiple
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <!-- Options will be populated via JavaScript based on selected expected table -->
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="actual_columns" class="block text-gray-700 text-sm font-bold mb-2">Actual Columns:</label>
+                        <select id="actual_columns" name="actual_columns" multiple
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <!-- Options will be populated via JavaScript based on selected table -->
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-end space-x-4">
+                        <button type="button" onclick="closeTableMappingModal()"
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Save Mapping
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Expected Structure Modal -->
+        <div id="expectedStructureModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md modal-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">Define Expected Structure</h2>
+                    <button onclick="closeExpectedStructureModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <form id="expectedStructureForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="expected_module_id" name="module_id">
+                    <div class="mb-4">
+                        <label for="expected_table_name" class="block text-gray-700 text-sm font-bold mb-2">Table Name:</label>
+                        <input type="text" id="expected_table_name" name="table_name" required
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div class="mb-4">
+                        <label for="expected_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                        <textarea id="expected_columns" name="columns" rows="5" required
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                    </div>
+                    <div class="flex items-center justify-end space-x-4">
+                        <button type="button" onclick="closeExpectedStructureModal()"
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Save Structure
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- View/Edit Expected Structure Modal -->
+        <div id="viewEditExpectedStructureModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md modal-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">View/Edit Expected Structure</h2>
+                    <button onclick="closeViewEditExpectedStructureModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <form id="viewEditExpectedStructureForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="view_edit_module_id" name="module_id">
+                    <input type="hidden" id="view_edit_structure_id" name="structure_id">
+                    <div class="mb-4">
+                        <label for="view_edit_table_name" class="block text-gray-700 text-sm font-bold mb-2">Table Name:</label>
+                        <input type="text" id="view_edit_table_name" name="table_name" required
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div class="mb-4">
+                        <label for="view_edit_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                        <textarea id="view_edit_columns" name="columns" rows="5" required
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                    </div>
+                    <div class="flex items-center justify-end space-x-4">
+                        <button type="button" onclick="closeViewEditExpectedStructureModal()"
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
+
     </div>
 </div>
 
@@ -504,12 +660,15 @@ window.onclick = function(event) {
     const createModal = document.getElementById('createModuleModal');
     const editModal = document.getElementById('editModuleModal');
     const tablesModal = document.getElementById('tablesModal');
+    const tableMappingModal = document.getElementById('tableMappingModal');
     if (event.target === createModal) {
         closeCreateModal();
     } else if (event.target === editModal) {
         closeEditModal();
     } else if (event.target === tablesModal) {
         closeTablesModal();
+    } else if (event.target === tableMappingModal) {
+        closeTableMappingModal();
     }
 };
 
@@ -518,6 +677,7 @@ document.addEventListener('keydown', function(event) {
         closeCreateModal();
         closeEditModal();
         closeTablesModal();
+        closeTableMappingModal();
     }
 });
 
@@ -553,5 +713,236 @@ forms.forEach(form => {
         }
     });
 });
+
+function openTableMappingModal(moduleId, tableName) {
+    document.getElementById('mapping_module_id').value = moduleId;
+    document.getElementById('mapping_table_name').value = tableName;
+    document.getElementById('tableMappingModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Populate expected columns based on selected expected table
+    const expectedTableSelect = document.getElementById('expected_table');
+    const expectedColumnsSelect = document.getElementById('expected_columns');
+    expectedColumnsSelect.innerHTML = '';
+
+    expectedTableSelect.addEventListener('change', function() {
+        const selectedTable = expectedTableSelect.value;
+        let columns = [];
+
+        switch (selectedTable) {
+            case 'CoreBankingSystem':
+                columns = ['id', 'name', 'is_active', 'base_url', 'port', 'database_name', 'auth_credentials_dict'];
+                break;
+            case 'CoreBankingEndpoint':
+                columns = ['id', 'system_id', 'name', 'is_active', 'parameters'];
+                break;
+            case 'LoanLedgerEntries':
+                columns = ['LoanID', 'LedgerID', 'OutstandingBalance', 'ArrearsAmount', 'ArrearsDays'];
+                break;
+            case 'LoanApplications':
+                columns = ['LoanAppID', 'LoanNo', 'LoanAmount'];
+                break;
+            case 'LoanDisbursements':
+                columns = ['LoanAppID', 'LoanStatus'];
+                break;
+            case 'Members':
+                columns = ['MemberID', 'Name', 'ContactInfo', 'AccountDetails'];
+                break;
+            case 'Users':
+                columns = ['UserID', 'Username', 'PasswordHash', 'Role'];
+                break;
+            default:
+                columns = [];
+        }
+
+        expectedColumnsSelect.innerHTML = '';
+        columns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column;
+            option.textContent = column;
+            expectedColumnsSelect.appendChild(option);
+        });
+    });
+
+    // Populate actual columns based on the selected table
+    const actualColumnsSelect = document.getElementById('actual_columns');
+    actualColumnsSelect.innerHTML = '';
+
+    // Fetch actual columns from the server based on the selected table
+    fetch(`/admin/modules/${moduleId}/table-columns?table=${tableName}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.columns && Array.isArray(data.columns)) {
+            data.columns.forEach(column => {
+                const option = document.createElement('option');
+                option.value = column;
+                option.textContent = column;
+                actualColumnsSelect.appendChild(option);
+            });
+        } else {
+            alert('No columns available or invalid response format.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching columns:', error);
+        alert('Failed to load columns. Please try again.');
+    });
+}
+
+function closeTableMappingModal() {
+    document.getElementById('tableMappingModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+document.getElementById('tableMappingForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const moduleId = document.getElementById('mapping_module_id').value;
+    const tableName = document.getElementById('mapping_table_name').value;
+    const expectedColumns = Array.from(document.querySelectorAll('#expected_columns option:checked')).map(option => option.value);
+    const actualColumns = Array.from(document.querySelectorAll('#actual_columns option:checked')).map(option => option.value);
+
+    fetch(`/admin/modules/${moduleId}/map-columns`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            table_name: tableName,
+            expected_columns: expectedColumns,
+            actual_columns: actualColumns
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeTableMappingModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to save column mapping.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving column mapping:', error);
+        alert('Failed to save column mapping. Please try again.');
+    });
+});
+
+function openExpectedStructureModal(moduleId) {
+    document.getElementById('expected_module_id').value = moduleId;
+    document.getElementById('expectedStructureModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeExpectedStructureModal() {
+    document.getElementById('expectedStructureModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+document.getElementById('expectedStructureForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const moduleId = document.getElementById('expected_module_id').value;
+
+    fetch(`/admin/modules/${moduleId}/expected-structure`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeExpectedStructureModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to save expected structure.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving expected structure:', error);
+        alert('Failed to save expected structure. Please try again.');
+    });
+});
+
+function openViewEditExpectedStructureModal(moduleId, structureId) {
+    // Set the module ID and structure ID in the modal
+    document.getElementById('view_edit_module_id').value = moduleId;
+    document.getElementById('view_edit_structure_id').value = structureId;
+
+    // Show the modal
+    document.getElementById('viewEditExpectedStructureModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Fetch the expected structure data via AJAX
+    fetch(`/admin/modules/${moduleId}/expected-structure/${structureId}/fetch`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Populate the modal fields with the fetched data
+            document.getElementById('view_edit_table_name').value = data.table_name;
+            document.getElementById('view_edit_columns').value = data.columns.join(', ');
+        } else {
+            alert(data.message || 'Failed to fetch expected structure.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching expected structure:', error);
+        alert('Failed to fetch expected structure. Please try again.');
+    });
+}
+
+function closeViewEditExpectedStructureModal() {
+    document.getElementById('viewEditExpectedStructureModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+document.getElementById('viewEditExpectedStructureForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const moduleId = document.getElementById('view_edit_module_id').value;
+    const structureId = document.getElementById('view_edit_structure_id').value;
+
+    fetch(`/admin/modules/${moduleId}/expected-structure/${structureId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeViewEditExpectedStructureModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to update expected structure.');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating expected structure:', error);
+        alert('Failed to update expected structure. Please try again.');
+    });
+});
+
+
 </script>
 {% endblock %}

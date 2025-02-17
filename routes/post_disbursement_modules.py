@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from models.post_disbursement_modules import PostDisbursementModule
 from models.post_disbursement_modules import ExpectedStructure
+from models.post_disbursement_modules import ActualStructure
 from flask_login import login_required
 from utils.decorators import admin_required
 from models.core_banking import CoreBankingSystem 
@@ -455,6 +456,45 @@ def fetch_table_columns(module_id):
     except Exception as e:
         logger.error(f"Error fetching table columns: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': 'An error occurred while fetching table columns.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/actual-structure', methods=['POST'])
+@login_required
+@admin_required
+def save_actual_structure(module_id):
+    """Save the actual structure for a specific module"""
+    logger.info(f"Saving actual structure for module with ID: {module_id}")
+    try:
+        # Ensure the request contains JSON data
+        if not request.is_json:
+            return jsonify({'success': False, 'message': 'Request must be JSON'}), 415
+
+        data = request.get_json()
+        expected_structure_id = data.get('expected_structure_id')
+        table_name = data.get('table_name')
+        columns = data.get('columns')
+
+        if not expected_structure_id or not table_name or not columns:
+            return jsonify({'success': False, 'message': 'Expected structure ID, table name, and columns are required'}), 400
+
+        # Create a new ActualStructure entry
+        actual_structure = ActualStructure(
+            expected_structure_id=expected_structure_id,
+            module_id=module_id,
+            table_name=table_name,
+            columns=columns
+        )
+
+        db.session.add(actual_structure)
+        db.session.commit()
+
+        flash('Actual structure saved successfully!', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error saving actual structure: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while saving the actual structure.'}), 500
+
 
 
 

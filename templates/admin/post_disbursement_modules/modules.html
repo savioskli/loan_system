@@ -110,7 +110,7 @@
                                         </tbody>
                                     </table>
                                 </td>
-                                
+
                             </tr>
                             {{ render_modules(item.children, level + 1) }}
                         {% endfor %}
@@ -405,6 +405,63 @@
                     <form id="mapTableForm" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" id="map_module_id" name="module_id">
+                        <input type="hidden" id="map_expected_structure_id" name="expected_structure_id">
+                        <div class="mb-4">
+                            <label for="map_table_name" class="block text-gray-700 text-sm font-bold mb-2">Select Table:</label>
+                            <select id="map_table_name" name="table_name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                <option value="">Select a Table</option>
+                                <!-- Options will be populated via JavaScript -->
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="map_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                            <textarea id="map_columns" name="columns" rows="5" readonly
+                                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                        </div>
+                        <div class="flex items-center justify-end space-x-4">
+                            <button type="button" onclick="closeMapModal()"
+                                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                Save Mapping
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="w-1/2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900">Expected Structure</h2>
+                    </div>
+                    <div class="mb-4">
+                        <label for="map_view_edit_table_name" class="block text-gray-700 text-sm font-bold mb-2">Table Name:</label>
+                        <input type="text" id="map_view_edit_table_name" name="table_name" required
+                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" readonly>
+                    </div>
+                    <div class="mb-4">
+                        <label for="map_view_edit_columns" class="block text-gray-700 text-sm font-bold mb-2">List of Columns:</label>
+                        <textarea id="map_view_edit_columns" name="columns" rows="5" required
+                                  class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+            <div class="bg-white rounded-lg p-6 w-full max-w-4xl flex space-x-6 modal-container">
+                <div class="w-1/2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900">Select Table and Columns</h2>
+                        <button onclick="closeMapModal()" class="text-gray-500 hover:text-gray-700">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form id="mapTableForm" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" id="map_view_edit_module_id" name="module_id">
+                        <input type="hidden" id="map_view_edit_structure_id" name="structure_id">
                         <div class="mb-4">
                             <label for="map_table_name" class="block text-gray-700 text-sm font-bold mb-2">Select Table:</label>
                             <select id="map_table_name" name="table_name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -451,8 +508,6 @@
                 </div>
             </div>
         </div>
-
-
 
     </div>
 </div>
@@ -778,7 +833,7 @@ forms.forEach(form => {
             new URL(urlInput.value);
         } catch (e) {
             event.preventDefault();
-            alert('Please enter a valid URL (including http:// or https://)');
+            alert('Please enter a valid URL (including http:// or https://)')
             urlInput.focus();
             return;
         }
@@ -1018,6 +1073,7 @@ function openMapModal(moduleId, structureId) {
     document.getElementById('map_module_id').value = moduleId;
     document.getElementById('map_view_edit_module_id').value = moduleId;
     document.getElementById('map_view_edit_structure_id').value = structureId;
+    document.getElementById('map_expected_structure_id').value = structureId;
 
     // Fetch the expected structure data via AJAX
     fetch(`/admin/modules/${moduleId}/expected-structure/${structureId}/fetch`, {
@@ -1108,7 +1164,38 @@ document.getElementById('map_table_name').addEventListener('change', function() 
     }
 });
 
+document.getElementById('mapTableForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const moduleId = document.getElementById('map_view_edit_module_id').value;
+    const structureId = document.getElementById('map_view_edit_structure_id').value;
 
+    fetch(`/admin/modules/${moduleId}/actual-structure`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            expected_structure_id: structureId,
+            table_name: formData.get('table_name'),
+            columns: formData.get('columns').split(',').map(col => col.trim())
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeMapModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to save actual structure.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving actual structure:', error);
+        alert('Failed to save actual structure. Please try again.');
+    });
+});
 
 </script>
 {% endblock %}

@@ -21,29 +21,41 @@
             Add New Gateway
         </button>
 
-        <!-- Gateways Table -->
-        <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-6">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Manage Gateways</h3>
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                <thead class="bg-gray-50 dark:bg-gray-700">
+        <!-- Configuration Table -->
+        <div class="overflow-x-auto mt-6">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">API Key</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sender ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SMS Provider</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SMS API Key</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SMS Sender ID</th>
+                        <th class="px-6 py-3 bg-gray-50">Africa's Talking Username</th>
+                        <th class="px-6 py-3 bg-gray-50">Twilio Account SID</th>
+                        <th class="px-6 py-3 bg-gray-50">Twilio Auth Token</th>
+                        <th class="px-6 py-3 bg-gray-50">Infobip Base URL</th>
+                        <th class="px-6 py-3 bg-gray-50">Created At</th>
+                        <th class="px-6 py-3 bg-gray-50">Updated At</th>
+                        <th class="px-6 py-3 bg-gray-50"></th>
                     </tr>
                 </thead>
-                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                    <!-- Example Row -->
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">Infobip</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">********</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Sender1</td>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for config in configs %}
+                    <tr data-config-id="{{ config.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.sms_provider or 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.sms_api_key|truncate(15) if config.sms_api_key else 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.sms_sender_id or 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.africas_talking_username or 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.twilio_account_sid|truncate(10) if config.twilio_account_sid else 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.twilio_auth_token|truncate(10) if config.twilio_auth_token else 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.infobip_base_url or 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.created_at|datetime if config.created_at else 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.updated_at|datetime if config.updated_at else 'N/A' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button class="text-primary hover:text-primary-dark">Edit</button>
-                            <button class="text-red-600 hover:text-red-900 ml-2">Delete</button>
+                            <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-config-id="{{ config.id }}">Edit</button>
+                            <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-config-id="{{ config.id }}">Delete</button>
                         </td>
                     </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -70,7 +82,7 @@
                 <div class="grid grid-cols-1 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">SMS Provider</label>
-                        <select id="smsProvider" name="sms_provider" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <select id="provider" name="provider" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                             <option value="africas_talking">Africa's Talking</option>
                             <option value="twilio">Twilio</option>
                             <option value="infobip">Infobip</option>
@@ -86,11 +98,11 @@
                     <!-- Common Fields -->
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
-                        <input type="password" name="api_key" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="password" id="apiKey" name="api_key" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sender ID</label>
-                        <input type="text" name="sender_id" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" id="senderId" name="sender_id" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                         <p class="mt-1 text-sm text-gray-500">The name that will appear as the sender of SMS messages</p>
                     </div>
 
@@ -147,7 +159,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const providerSelect = document.getElementById('smsProvider');
+        const providerSelect = document.getElementById('provider');
         const africasTalkingFields = document.getElementById('africasTalkingFields');
         const twilioFields = document.getElementById('twilioFields');
         const twilioAuthToken = document.getElementById('twilioAuthToken');
@@ -229,11 +241,55 @@
             });
         });
 
-        // Prevent form submission for demonstration
-        const form = document.getElementById('smsGatewayForm');
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            alert('Form submission handled here.');
+        // Edit handlers
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const configId = e.target.dataset.configId;
+                const response = await fetch(`/sms-gateway/${configId}`);
+                const config = await response.json();
+
+                // Populate form
+                document.getElementById('provider').value = config.provider;
+                document.getElementById('apiKey').value = config.api_key;
+                document.getElementById('senderId').value = config.sender_id;
+                document.getElementById('smsGatewayForm').dataset.editId = configId;
+
+                modal.classList.remove('hidden');
+            });
+        });
+
+        // Delete handlers
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                if(confirm('Are you sure you want to delete this configuration?')) {
+                    const configId = e.target.dataset.configId;
+                    await fetch(`/sms-gateway/${configId}`, {
+                        method: 'DELETE'
+                    });
+                    location.reload();
+                }
+            });
+        });
+
+        // Form submission
+        document.getElementById('smsGatewayForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const configId = e.target.dataset.editId;
+
+            const endpoint = configId 
+                ? `/sms-gateway/${configId}`
+                : '/sms-gateway';
+
+            const response = await fetch(endpoint, {
+                method: configId ? 'PUT' : 'POST',
+                body: JSON.stringify(Object.fromEntries(formData)),
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            if(response.ok) {
+                location.reload();
+            }
         });
     });
 </script>

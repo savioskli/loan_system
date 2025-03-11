@@ -102,7 +102,8 @@ def sms_gateway():
             return redirect(url_for('integrations.sms_gateway'))
 
     try:
-        return render_template('admin/integrations/sms_gateway.html')
+        configs = SmsGatewayConfig.get_all()
+        return render_template('admin/integrations/sms_gateway.html', configs=configs)
     except Exception as e:
         logger.error(f"Error rendering SMS gateway template: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -781,3 +782,18 @@ def get_active_config():
             'success': False,
             'message': f'Error fetching active configuration: {str(e)}'
         }), 500
+
+@integrations_bp.route('/sms-gateway/<int:config_id>', methods=['GET', 'PUT', 'DELETE'])
+def sms_gateway_config(config_id):
+    if request.method == 'GET':
+        config = SmsGatewayConfig.get_by_id(config_id)
+        return jsonify(config.to_dict())
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        config = SmsGatewayConfig.update(config_id, **data)
+        return jsonify(config.to_dict())
+    
+    if request.method == 'DELETE':
+        SmsGatewayConfig.delete(config_id)
+        return jsonify({'success': True})

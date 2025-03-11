@@ -36,3 +36,29 @@ class SmsGatewayConfig(db.Model):
     def get_active_config():
         """Get the active configuration."""
         return SmsGatewayConfig.query.first()
+
+    @classmethod
+    def get_all(cls):
+        """Get all configurations."""
+        return cls.query.all()
+
+    @classmethod
+    def get_by_id(cls, config_id):
+        """Get configuration by ID."""
+        return cls.query.get(config_id)
+
+    @classmethod
+    def update(cls, config_id, **kwargs):
+        """Update configuration."""
+        config = cls.query.get(config_id)
+        for key, value in kwargs.items():
+            setattr(config, key, value)
+        db.session.commit()
+        return config
+
+    @classmethod
+    def delete(cls, config_id):
+        """Delete configuration."""
+        config = cls.query.get(config_id)
+        db.session.delete(config)
+        db.session.commit()

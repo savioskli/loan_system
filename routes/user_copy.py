@@ -1004,8 +1004,6 @@ def reports():
     # TODO: Implement reports page
     return render_template('user/reports.html')
 
-
-
 @user_bp.route('/post-disbursement')
 @login_required
 def post_disbursement():
@@ -1097,22 +1095,14 @@ def post_disbursement():
                 expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
                 mapping = {}
                 for expected in expected_mappings:
+                    expected_columns = expected.columns
                     actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
                     if not actual:
                         raise Exception(f"No mapping found for expected table {expected.table_name}")
-                    
-                    # Retrieve expected and actual columns as lists
-                    expected_columns = expected.columns  # e.g., ['LoanID', 'LedgerID', ...]
-                    actual_columns = actual.columns       # e.g., ['loan_id', 'ledger_id', ...]
-                    
-                    # Create a dictionary mapping expected to actual columns
-                    columns_dict = dict(zip(expected_columns, actual_columns))
-                    
                     mapping[expected.table_name] = {
                         "actual_table_name": actual.table_name,
-                        "columns": columns_dict  # Now a dictionary
+                        "columns": actual.columns
                     }
-                    current_app.logger.info(f"Retrieved mapping: {mapping}")
                 return mapping
             except Exception as e:
                 current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
@@ -1120,7 +1110,6 @@ def post_disbursement():
 
         try:
             mapping = get_mapping_for_module(module_id)
-            current_app.logger.info(f"Mapping Data: {mapping}")
         except Exception as e:
             flash(f'Error retrieving mapping data: {str(e)}', 'error')
             return render_template('user/post_disbursement.html',
@@ -1143,22 +1132,12 @@ def post_disbursement():
                                    last_sync=None,
                                    error=f'Error retrieving mapping data: {str(e)}')
 
+        # Build the dynamic query
         def build_dynamic_query(mapping):
             try:
-                # Access the mapping correctly using string keys
-                ll = mapping.get("LoanLedgerEntries", {})
-                ld = mapping.get("LoanDisbursements", {})
-                la = mapping.get("LoanApplications", {})
-
-                # Ensure that the necessary columns are present in the mapping
-                if not all(key in ll["columns"] for key in ["LoanID", "LedgerID", "OutstandingBalance", "ArrearsAmount", "ArrearsDays"]):
-                    raise KeyError("Missing columns in LoanLedgerEntries mapping")
-
-                if not all(key in ld["columns"] for key in ["LoanAppID", "LoanStatus"]):
-                    raise KeyError("Missing columns in LoanDisbursements mapping")
-
-                if not all(key in la["columns"] for key in ["LoanAppID", "LoanNo", "LoanAmount"]):
-                    raise KeyError("Missing columns in LoanApplications mapping")
+                ll = mapping["LoanLedgerEntries"]
+                ld = mapping["LoanDisbursements"]
+                la = mapping["LoanApplications"]
 
                 query = f"""
                 SELECT
@@ -1172,7 +1151,7 @@ def post_disbursement():
                 FROM {ll["actual_table_name"]} l
                 JOIN (
                     SELECT {ll["columns"]["LoanID"]} AS LoanID,
-                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
+                           MAX({ll["columns"]["LedgerID"]}) AS latest_id
                     FROM {ll["actual_table_name"]}
                     GROUP BY {ll["columns"]["LoanID"]}
                 ) latest
@@ -1185,75 +1164,17 @@ def post_disbursement():
                 WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
                 ORDER BY l.{ll["columns"]["LoanID"]}
                 """
-                current_app.logger.info(f"Built query: {query}")
                 return query
             except Exception as e:
                 current_app.logger.error(f"Error building dynamic query: {str(e)}")
                 raise
-        def build_dynamic_query(mapping):
-            try:
-                # Ensure mapping is a dictionary
-                if not isinstance(mapping, dict):
-                    raise ValueError("Mapping should be a dictionary")
-
-                # Access the mapping correctly using string keys
-                ll = mapping.get("LoanLedgerEntries", {})
-                ld = mapping.get("LoanDisbursements", {})
-                la = mapping.get("LoanApplications", {})
-
-                # Ensure that the necessary columns are present in the mapping
-                required_ll_columns = ["LoanID", "LedgerID", "OutstandingBalance", "ArrearsAmount", "ArrearsDays"]
-                required_ld_columns = ["LoanAppID", "LoanStatus"]
-                required_la_columns = ["LoanAppID", "LoanNo", "LoanAmount"]
-
-                if not all(column in ll.get("columns", []) for column in required_ll_columns):
-                    raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {required_ll_columns}")
-
-                if not all(column in ld.get("columns", []) for column in required_ld_columns):
-                    raise KeyError(f"Missing columns in LoanDisbursements mapping: {required_ld_columns}")
-
-                if not all(column in la.get("columns", []) for column in required_la_columns):
-                    raise KeyError(f"Missing columns in LoanApplications mapping: {required_la_columns}")
-
-                query = f"""
-                SELECT
-                    l.{ll["columns"]["LoanID"]} AS LoanID,
-                    l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
-                    l.{ll["columns"]["ArrearsAmount"]} AS ArrearsAmount,
-                    l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
-                    la.{la["columns"]["LoanNo"]} AS LoanNo,
-                    la.{la["columns"]["LoanAmount"]} AS LoanAmount,
-                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
-                FROM {ll["actual_table_name"]} l
-                JOIN (
-                    SELECT {ll["columns"]["LoanID"]} AS LoanID,
-                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
-                    FROM {ll["actual_table_name"]}
-                    GROUP BY {ll["columns"]["LoanID"]}
-                ) latest
-                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
-                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
-                JOIN {ld["actual_table_name"]} ld
-                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
-                JOIN {la["actual_table_name"]} la
-                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
-                WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
-                ORDER BY l.{ll["columns"]["LoanID"]}
-                """
-                current_app.logger.info(f"Built query: {query}")
-                return query
-            except Exception as e:
-                current_app.logger.error(f"Error building dynamic query: {str(e)}")
-                raise
-
-
 
         try:
             query = build_dynamic_query(mapping)
             current_app.logger.info(f"Executing query: {query}")
             cursor.execute(query)
             loan_data = cursor.fetchall()
-            current_app.logger.info(f"Fetched Loan Data: {loan_data}")
+            current_app.logger.info(f"Found {len(loan_data)} active loans")
         except Exception as e:
             flash(f'Error executing query: {str(e)}', 'error')
             return render_template('user/post_disbursement.html',
@@ -1322,8 +1243,6 @@ def post_disbursement():
                 current_app.logger.error(f"Error processing loan {loan.get('LoanID', 'Unknown')}: {str(e)}")
                 continue
 
-        current_app.logger.info(f"Overdue Loans Data: {overdue_loans}")
-
         total_amount = sum(cat['amount'] for cat in overdue_loans.values())
         if total_amount > 0:
             for category in overdue_loans:
@@ -1375,8 +1294,6 @@ def post_disbursement():
             ]
         }
 
-        current_app.logger.info(f"Classification Data: {classification_data}")
-
         cursor.close()
         conn.close()
 
@@ -1424,6 +1341,7 @@ def post_disbursement():
         }
 
         return render_template('user/post_disbursement.html', **default_values)
+
 @user_bp.route('/analytics', methods=['GET'])
 @login_required
 def analytics():
@@ -1713,126 +1631,42 @@ def create_notification():
 def get_metrics():
     """Get updated metrics for the dashboard."""
     try:
-        # Statically define the module ID
-        module_id = 1  # Replace with the desired module ID
-
-        # Get the active core banking system
-        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
-        if not core_system:
-            return jsonify({'error': 'No active core banking system configured'}), 400
-
-        # Connect to core banking database
-        try:
-            auth_credentials = core_system.auth_credentials_dict
-        except (json.JSONDecodeError, TypeError) as e:
-            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
-            auth_credentials = {'username': 'root', 'password': ''}
-
-        core_banking_config = {
-            'host': core_system.base_url,
-            'port': core_system.port or 3306,
-            'user': auth_credentials.get('username', 'root'),
-            'password': auth_credentials.get('password', ''),
-            'database': core_system.database_name,
-            'auth_plugin': 'mysql_native_password'
+        # Get database configuration for the core banking database
+        db_config = {
+            'host': 'localhost',
+            'port': 3306,
+            'user': 'root',
+            'password': '',
+            'database': 'sacco_db'  # Use core_banking database
         }
 
-        conn = mysql.connector.connect(**core_banking_config)
+        # Connect to the database
+        conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
-        # Retrieve the mapping data
-        def get_mapping_for_module(module_id):
-            try:
-                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
-                mapping = {}
-                for expected in expected_mappings:
-                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
-                    if not actual:
-                        raise Exception(f"No mapping found for expected table {expected.table_name}")
-                    
-                    # Retrieve expected and actual columns as lists
-                    expected_columns = expected.columns  # e.g., ['LoanID', 'LedgerID', ...]
-                    actual_columns = actual.columns       # e.g., ['loan_id', 'ledger_id', ...]
-                    
-                    # Create a dictionary mapping expected to actual columns
-                    columns_dict = dict(zip(expected_columns, actual_columns))
-                    
-                    mapping[expected.table_name] = {
-                        "actual_table_name": actual.table_name,
-                        "columns": columns_dict  # Now a dictionary
-                    }
-                    current_app.logger.info(f"Retrieved mapping: {mapping}")
-                return mapping
-            except Exception as e:
-                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
-                raise
-
-        try:
-            mapping = get_mapping_for_module(module_id)
-            current_app.logger.info(f"Mapping Data: {mapping}")
-        except Exception as e:
-            return jsonify({'error': f'Error retrieving mapping data: {str(e)}'}), 500
-
-        # Build dynamic query
-        def build_dynamic_query(mapping):
-            try:
-                ll = mapping.get("LoanLedgerEntries", {})
-                ld = mapping.get("LoanDisbursements", {})
-                la = mapping.get("LoanApplications", {})
-
-                # Ensure that the necessary columns are present in the mapping
-                required_ll_columns = ["LoanID", "LedgerID", "OutstandingBalance", "ArrearsAmount", "ArrearsDays"]
-                required_ld_columns = ["LoanAppID", "LoanStatus"]
-                required_la_columns = ["LoanAppID", "LoanNo", "LoanAmount"]
-
-                if not all(column in ll.get("columns", []) for column in required_ll_columns):
-                    raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {required_ll_columns}")
-
-                if not all(column in ld.get("columns", []) for column in required_ld_columns):
-                    raise KeyError(f"Missing columns in LoanDisbursements mapping: {required_ld_columns}")
-
-                if not all(column in la.get("columns", []) for column in required_la_columns):
-                    raise KeyError(f"Missing columns in LoanApplications mapping: {required_la_columns}")
-
-                query = f"""
-                SELECT
-                    l.{ll["columns"]["LoanID"]} AS LoanID,
-                    l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
-                    l.{ll["columns"]["ArrearsAmount"]} AS ArrearsAmount,
-                    l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
-                    la.{la["columns"]["LoanNo"]} AS LoanNo,
-                    la.{la["columns"]["LoanAmount"]} AS LoanAmount,
-                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
-                FROM {ll["actual_table_name"]} l
-                JOIN (
-                    SELECT {ll["columns"]["LoanID"]} AS LoanID,
-                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
-                    FROM {ll["actual_table_name"]}
-                    GROUP BY {ll["columns"]["LoanID"]}
-                ) latest
-                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
-                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
-                JOIN {ld["actual_table_name"]} ld
-                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
-                JOIN {la["actual_table_name"]} la
-                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
-                WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
-                ORDER BY l.{ll["columns"]["LoanID"]}
-                """
-                current_app.logger.info(f"Built query: {query}")
-                return query
-            except Exception as e:
-                current_app.logger.error(f"Error building dynamic query: {str(e)}")
-                raise
-
-        try:
-            query = build_dynamic_query(mapping)
-            current_app.logger.info(f"Executing query: {query}")
-            cursor.execute(query)
-            loan_data = cursor.fetchall()
-            current_app.logger.info(f"Fetched Loan Data: {loan_data}")
-        except Exception as e:
-            return jsonify({'error': f'Error executing query: {str(e)}'}), 500
+        # Get loan data using the same query as post_disbursement
+        query = """
+        SELECT
+        l.LoanID,
+        l.OutstandingBalance,
+        l.ArrearsAmount,
+        l.ArrearsDays,
+        la.LoanNo,
+        la.LoanAmount,
+        ld.LoanStatus
+        FROM LoanLedgerEntries l
+        JOIN (
+        SELECT LoanID, MAX(LedgerID) as latest_id
+        FROM LoanLedgerEntries
+        GROUP BY LoanID
+        ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
+        JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
+        JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
+        WHERE ld.LoanStatus = 'Active'
+        ORDER BY l.LoanID
+        """
+        cursor.execute(query)
+        loan_data = cursor.fetchall()
 
         # Initialize loan classification counters
         overdue_loans = {
@@ -1848,12 +1682,14 @@ def get_metrics():
         total_in_arrears = float(0)
         for loan in loan_data:
             try:
+                # Extract values from loan ledger entries with proper error handling
                 loan_id = loan.get('LoanID', 'Unknown')
                 loan_no = loan.get('LoanNo', 'Unknown')
                 outstanding_balance = float(loan.get('OutstandingBalance', 0))
                 arrears_amount = float(loan.get('ArrearsAmount', 0))
                 arrears_days = int(loan.get('ArrearsDays', 0))
 
+                # Update totals
                 total_outstanding += outstanding_balance
                 total_in_arrears += arrears_amount
 
@@ -1869,6 +1705,7 @@ def get_metrics():
                 else:
                     category = 'LOSS'
 
+                # Update classification counters
                 overdue_loans[category]['count'] += 1
                 overdue_loans[category]['amount'] += outstanding_balance
             except Exception as e:
@@ -1883,8 +1720,8 @@ def get_metrics():
 
         # Calculate NPL amount and ratio
         npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] +
-                       overdue_loans['DOUBTFUL']['amount'] +
-                       overdue_loans['LOSS']['amount'])
+                           overdue_loans['DOUBTFUL']['amount'] +
+                           overdue_loans['LOSS']['amount'])
         npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
 
         # Calculate recovery rate
@@ -1892,13 +1729,13 @@ def get_metrics():
 
         # Calculate provisions
         total_provisions = float(sum(overdue_loans[category]['amount'] * rate
-                                   for category, rate in {
-                                       'NORMAL': 0.01,  # 1%
-                                       'WATCH': 0.05,  # 5%
-                                       'SUBSTANDARD': 0.25,  # 25%
-                                       'DOUBTFUL': 0.50,  # 50%
-                                       'LOSS': 1.00  # 100%
-                                   }.items()))
+                                     for category, rate in {
+                                         'NORMAL': 0.01,  # 1%
+                                         'WATCH': 0.05,  # 5%
+                                         'SUBSTANDARD': 0.25,  # 25%
+                                         'DOUBTFUL': 0.50,  # 50%
+                                         'LOSS': 1.00  # 100%
+                                     }.items()))
 
         # Calculate NPL coverage ratio
         npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else float(0)
@@ -1908,7 +1745,7 @@ def get_metrics():
 
         # Calculate PAR30
         par30_amount = float(sum(overdue_loans[grade]['amount']
-                              for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
+                                  for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
         par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
 
         cursor.close()
@@ -1937,131 +1774,93 @@ def get_metrics():
             'error': 'Failed to fetch metrics',
             'details': str(e)
         }), 500
-
 @user_bp.route('/get_detailed_loans', methods=['GET'])
 @login_required
 def get_detailed_loans():
     try:
-        # Statically define the module ID
-        module_id = 1  # Replace with the desired module ID
-
         # Get the active core banking system
         core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
         if not core_system:
             return jsonify({'error': 'No active core banking system configured'}), 400
 
+        # Get loan details endpoint
+        loan_details_endpoint = CoreBankingEndpoint.query.filter_by(
+            system_id=core_system.id,
+            name='loan_details',
+            is_active=True
+        ).first()
+
+        if not loan_details_endpoint:
+            return jsonify({'error': 'Loan details endpoint not configured'}), 400
+
         # Connect to core banking database
         try:
             auth_credentials = core_system.auth_credentials_dict
-        except (json.JSONDecodeError, TypeError) as e:
-            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+        except (json.JSONDecodeError, TypeError):
             auth_credentials = {'username': 'root', 'password': ''}
-
+            
         core_banking_config = {
             'host': core_system.base_url,
             'port': core_system.port or 3306,
-            'user': auth_credentials.get('username', 'root'),
-            'password': auth_credentials.get('password', ''),
-            'database': core_system.database_name,
-            'auth_plugin': 'mysql_native_password'
+            'user': auth_credentials.get('username'),
+            'password': auth_credentials.get('password'),
+            'database': core_system.database_name
         }
 
         conn = mysql.connector.connect(**core_banking_config)
         cursor = conn.cursor(dictionary=True)
 
-        # Retrieve the mapping data
-        def get_mapping_for_module(module_id):
-            try:
-                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
-                mapping = {}
-                for expected in expected_mappings:
-                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
-                    if not actual:
-                        raise Exception(f"No mapping found for expected table {expected.table_name}")
-                    
-                    # Retrieve expected and actual columns as lists
-                    expected_columns = expected.columns  # e.g., ['LoanID', 'LedgerID', ...]
-                    actual_columns = actual.columns       # e.g., ['loan_id', 'ledger_id', ...]
-                    
-                    # Create a dictionary mapping expected to actual columns
-                    columns_dict = dict(zip(expected_columns, actual_columns))
-                    
-                    mapping[expected.table_name] = {
-                        "actual_table_name": actual.table_name,
-                        "columns": columns_dict  # Now a dictionary
-                    }
-                    current_app.logger.info(f"Retrieved mapping: {mapping}")
-                return mapping
-            except Exception as e:
-                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
-                raise
+        # List tables to check the correct table name
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        current_app.logger.info(f"Available tables: {tables}")
+        
+        # Check table schema
+        cursor.execute("DESCRIBE LoanCommunicationLog")
+        columns = cursor.fetchall()
+        current_app.logger.info(f"Table schema: {columns}")
+        
+        # Check LoanApplications schema
+        cursor.execute("DESCRIBE LoanApplications")
+        loan_columns = cursor.fetchall()
+        current_app.logger.info(f"LoanApplications schema: {loan_columns}")
+        
+        # Check Members schema
+        cursor.execute("DESCRIBE Members")
+        member_columns = cursor.fetchall()
+        current_app.logger.info(f"Members schema: {member_columns}")
+        
+        # Check Users schema
+        cursor.execute("DESCRIBE Users")
+        user_columns = cursor.fetchall()
+        current_app.logger.info(f"Users schema: {user_columns}")
+        
+        # Build query from endpoint configuration
+        endpoint_params = json.loads(loan_details_endpoint.parameters)
+        
+        # Construct the query
+        fields = ", ".join(endpoint_params['fields'])
+        tables = endpoint_params['tables'][0]
+        joins = " ".join([f"JOIN {join['table']} ON {join['on']}" for join in endpoint_params['joins']])
+        filters = " AND ".join([f"{filter_info['field']} = '{filter_info['value']}'" 
+                              for filter_info in endpoint_params['filters'].values()])
 
-        try:
-            mapping = get_mapping_for_module(module_id)
-            current_app.logger.info(f"Mapping Data: {mapping}")
-        except Exception as e:
-            return jsonify({'error': f'Error retrieving mapping data: {str(e)}'}), 500
+        query = f"""
+            SELECT {fields}
+            FROM {tables}
+            JOIN (
+                SELECT LoanID, MAX(LedgerID) as latest_id
+                FROM LoanLedgerEntries
+                GROUP BY LoanID
+            ) latest ON LoanLedgerEntries.LoanID = latest.LoanID 
+                AND LoanLedgerEntries.LedgerID = latest.latest_id
+            {joins}
+            WHERE {filters}
+            ORDER BY LoanLedgerEntries.LoanID
+        """
 
-        # Build dynamic query
-        def build_dynamic_query(mapping):
-            try:
-                ll = mapping.get("LoanLedgerEntries", {})
-                ld = mapping.get("LoanDisbursements", {})
-                la = mapping.get("LoanApplications", {})
-
-                # Ensure that the necessary columns are present in the mapping
-                required_ll_columns = ["LoanID", "LedgerID", "OutstandingBalance", "ArrearsAmount", "ArrearsDays"]
-                required_ld_columns = ["LoanAppID", "LoanStatus"]
-                required_la_columns = ["LoanAppID", "LoanNo", "LoanAmount"]
-
-                if not all(column in ll.get("columns", []) for column in required_ll_columns):
-                    raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {required_ll_columns}")
-
-                if not all(column in ld.get("columns", []) for column in required_ld_columns):
-                    raise KeyError(f"Missing columns in LoanDisbursements mapping: {required_ld_columns}")
-
-                if not all(column in la.get("columns", []) for column in required_la_columns):
-                    raise KeyError(f"Missing columns in LoanApplications mapping: {required_la_columns}")
-
-                query = f"""
-                SELECT
-                    l.{ll["columns"]["LoanID"]} AS LoanID,
-                    l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
-                    l.{ll["columns"]["ArrearsAmount"]} AS ArrearsAmount,
-                    l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
-                    la.{la["columns"]["LoanNo"]} AS LoanNo,
-                    la.{la["columns"]["LoanAmount"]} AS LoanAmount,
-                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
-                FROM {ll["actual_table_name"]} l
-                JOIN (
-                    SELECT {ll["columns"]["LoanID"]} AS LoanID,
-                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
-                    FROM {ll["actual_table_name"]}
-                    GROUP BY {ll["columns"]["LoanID"]}
-                ) latest
-                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
-                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
-                JOIN {ld["actual_table_name"]} ld
-                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
-                JOIN {la["actual_table_name"]} la
-                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
-                WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
-                ORDER BY l.{ll["columns"]["LoanID"]}
-                """
-                current_app.logger.info(f"Built query: {query}")
-                return query
-            except Exception as e:
-                current_app.logger.error(f"Error building dynamic query: {str(e)}")
-                raise
-
-        try:
-            query = build_dynamic_query(mapping)
-            current_app.logger.info(f"Executing query: {query}")
-            cursor.execute(query)
-            loan_data = cursor.fetchall()
-            current_app.logger.info(f"Fetched Loan Data: {loan_data}")
-        except Exception as e:
-            return jsonify({'error': f'Error executing query: {str(e)}'}), 500
+        cursor.execute(query)
+        loan_data = cursor.fetchall()
 
         # Format dates for JSON serialization and ensure list format
         formatted_data = []
@@ -2276,40 +2075,116 @@ def get_client_loans(client_id):
             'loans': []
         }), 500
 
-@user_bp.route('/api/metrics')
+@user_bp.route('/api/metrics', methods=['GET'])
 @login_required
 def api_get_metrics():
     """Get updated metrics for the dashboard."""
+    current_app.logger.info("Starting api_get_metrics route")
+
+    # Statically define the module ID
+    module_id = 1  # Replace with the desired module ID
+
     try:
-        # Connect to the database
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Get loan data using the same query as post_disbursement
-        query = """
-            SELECT 
-                l.LoanID,
-                l.OutstandingBalance,
-                l.ArrearsAmount,
-                l.ArrearsDays,
-                la.LoanNo,
-                la.LoanAmount,
-                ld.LoanStatus
-            FROM LoanLedgerEntries l
-            JOIN (
-                SELECT LoanID, MAX(LedgerID) as latest_id
-                FROM LoanLedgerEntries
-                GROUP BY LoanID
-            ) latest ON l.LoanID = latest.LoanID AND l.LedgerID = latest.latest_id
-            JOIN LoanDisbursements ld ON l.LoanID = ld.LoanAppID
-            JOIN LoanApplications la ON ld.LoanAppID = la.LoanAppID
-            WHERE ld.LoanStatus = 'Active'
-            ORDER BY l.LoanID
-        """
-        
-        cursor.execute(query)
-        loan_data = cursor.fetchall()
-        
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            current_app.logger.error("No active core banking system configured")
+            return jsonify({'error': 'No active core banking system configured'}), 500
+
+        # Connect to core banking database
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
+
+        try:
+            conn = mysql.connector.connect(**core_banking_config)
+            cursor = conn.cursor(dictionary=True)
+        except mysql.connector.Error as e:
+            current_app.logger.error(f"Error connecting to database: {str(e)}")
+            return jsonify({'error': f'Error connecting to database: {str(e)}'}), 500
+
+        # Retrieve the mapping data
+        def get_mapping_for_module(module_id):
+            try:
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    expected_columns = expected.columns
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": actual.columns
+                    }
+                return mapping
+            except Exception as e:
+                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+                raise
+
+        try:
+            mapping = get_mapping_for_module(module_id)
+        except Exception as e:
+            return jsonify({'error': f'Error retrieving mapping data: {str(e)}'}), 500
+
+        # Build the dynamic query
+        def build_dynamic_query(mapping):
+            try:
+                ll = mapping["LoanLedgerEntries"]
+                ld = mapping["LoanDisbursements"]
+                la = mapping["LoanApplications"]
+
+                query = f"""
+                SELECT
+                    l.{ll["columns"]["LoanID"]} AS LoanID,
+                    l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
+                    l.{ll["columns"]["ArrearsAmount"]} AS ArrearsAmount,
+                    l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
+                    la.{la["columns"]["LoanNo"]} AS LoanNo,
+                    la.{la["columns"]["LoanAmount"]} AS LoanAmount,
+                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
+                FROM {ll["actual_table_name"]} l
+                JOIN (
+                    SELECT {ll["columns"]["LoanID"]} AS LoanID,
+                           MAX({ll["columns"]["LedgerID"]}) AS latest_id
+                    FROM {ll["actual_table_name"]}
+                    GROUP BY {ll["columns"]["LoanID"]}
+                ) latest
+                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
+                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
+                JOIN {ld["actual_table_name"]} ld
+                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
+                JOIN {la["actual_table_name"]} la
+                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
+                WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
+                ORDER BY l.{ll["columns"]["LoanID"]}
+                """
+                return query
+            except Exception as e:
+                current_app.logger.error(f"Error building dynamic query: {str(e)}")
+                raise
+
+        try:
+            query = build_dynamic_query(mapping)
+            current_app.logger.info(f"Executing query: {query}")
+            cursor.execute(query)
+            loan_data = cursor.fetchall()
+            current_app.logger.info(f"Found {len(loan_data)} active loans")
+        except Exception as e:
+            return jsonify({'error': f'Error executing query: {str(e)}'}), 500
+
         # Initialize loan classification counters
         overdue_loans = {
             'NORMAL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '0-30 days'},
@@ -2322,21 +2197,18 @@ def api_get_metrics():
         # Process loan data
         total_outstanding = float(0)
         total_in_arrears = float(0)
-        
+
         for loan in loan_data:
             try:
-                # Extract values from loan ledger entries with proper error handling
                 loan_id = loan.get('LoanID', 'Unknown')
                 loan_no = loan.get('LoanNo', 'Unknown')
                 outstanding_balance = float(loan.get('OutstandingBalance', 0))
                 arrears_amount = float(loan.get('ArrearsAmount', 0))
                 arrears_days = int(loan.get('ArrearsDays', 0))
-                
-                # Update totals
+
                 total_outstanding += outstanding_balance
                 total_in_arrears += arrears_amount
-                
-                # Classify loan based on arrears days
+
                 if arrears_days <= 30:
                     category = 'NORMAL'
                 elif 31 <= arrears_days <= 90:
@@ -2347,32 +2219,25 @@ def api_get_metrics():
                     category = 'DOUBTFUL'
                 else:
                     category = 'LOSS'
-                
-                # Update classification counters
+
                 overdue_loans[category]['count'] += 1
                 overdue_loans[category]['amount'] += outstanding_balance
-                
+
             except Exception as e:
                 current_app.logger.error(f"Error processing loan {loan.get('LoanID', 'Unknown')}: {str(e)}")
                 continue
 
-        # Calculate percentages
         total_amount = sum(cat['amount'] for cat in overdue_loans.values())
         if total_amount > 0:
             for category in overdue_loans:
                 overdue_loans[category]['percentage'] = (overdue_loans[category]['amount'] / total_amount * 100)
-        
-        # Calculate NPL amount and ratio
-        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] + 
-                         overdue_loans['DOUBTFUL']['amount'] + 
+
+        npl_amount = float(overdue_loans['SUBSTANDARD']['amount'] +
+                         overdue_loans['DOUBTFUL']['amount'] +
                          overdue_loans['LOSS']['amount'])
         npl_ratio = (npl_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
-        # Calculate recovery rate
-        recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
-        # Calculate provisions
-        total_provisions = float(sum(overdue_loans[category]['amount'] * rate 
+
+        total_provisions = float(sum(overdue_loans[category]['amount'] * rate
             for category, rate in {
                 'NORMAL': 0.01,      # 1%
                 'WATCH': 0.05,       # 5%
@@ -2380,21 +2245,19 @@ def api_get_metrics():
                 'DOUBTFUL': 0.50,    # 50%
                 'LOSS': 1.00         # 100%
             }.items()))
-        
-        # Calculate NPL coverage ratio
+
         npl_coverage_ratio = (total_provisions / npl_amount * 100) if npl_amount > 0 else float(0)
-        
-        # Calculate cost of risk
         cost_of_risk = (total_provisions / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
-        # Calculate PAR30
-        par30_amount = float(sum(overdue_loans[grade]['amount'] 
+
+        par30_amount = float(sum(overdue_loans[grade]['amount']
                          for grade in ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS']))
         par30_ratio = (par30_amount / total_outstanding * 100) if total_outstanding > 0 else float(0)
-        
+
+        recovery_rate = ((total_outstanding - total_in_arrears) / total_outstanding * 100) if total_outstanding > 0 else float(0)
+
         cursor.close()
         conn.close()
-        
+
         return jsonify({
             'metrics': {
                 'total_loans': len(loan_data),
@@ -2409,7 +2272,7 @@ def api_get_metrics():
                 'overdue_loans': overdue_loans
             }
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error fetching metrics: {str(e)}")
         return jsonify({

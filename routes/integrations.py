@@ -4,10 +4,14 @@ from utils.decorators import admin_required
 import requests
 from datetime import datetime
 import json
+import re
 import logging
 import mysql.connector
 from extensions import csrf, db
 from models.integrations import CoreBankingConfig
+from models.sms_gateway import SmsGatewayConfig
+from services.twillo_sms_service import TwilioSmsService
+from services.infobip_sms_service import InfobipSmsService
 from utils.encryption import encrypt_value, decrypt_value
 
 logger = logging.getLogger(__name__)
@@ -46,15 +50,151 @@ def core_banking():
         logger.error(f"Error rendering core banking template: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-@integrations_bp.route('/sms-gateway')
+@integrations_bp.route('/sms-gateway', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def sms_gateway():
+    if request.method == 'POST':
+        try:
+            # Retrieve form data
+            sms_provider = request.form.get('sms_provider')
+            sms_api_key = request.form.get('api_key')
+            sms_sender_id = request.form.get('sender_id')
+
+            # Retrieve provider-specific fields
+            africas_talking_username = request.form.get('africas_talking_username') if sms_provider == 'africas_talking' else None
+            twilio_account_sid = request.form.get('twilio_account_sid') if sms_provider == 'twilio' else None
+            twilio_auth_token = request.form.get('twilio_auth_token') if sms_provider == 'twilio' else None
+            infobip_base_url = request.form.get('infobip_base_url') if sms_provider == 'infobip' else None
+
+            # Validate required fields
+            if not sms_provider or not sms_api_key or not sms_sender_id:
+                flash('All fields are required.', 'error')
+                return redirect(url_for('integrations.sms_gateway'))
+
+            # Encrypt sensitive fields
+            encrypted_api_key = encrypt_value(sms_api_key)
+            encrypted_twilio_sid = encrypt_value(twilio_account_sid) if twilio_account_sid else None
+            encrypted_twilio_token = encrypt_value(twilio_auth_token) if twilio_auth_token else None
+
+            # Save or update configuration
+            config = SmsGatewayConfig.query.first()
+            if not config:
+                config = SmsGatewayConfig()
+
+            config.sms_provider = sms_provider
+            config.sms_api_key = encrypted_api_key
+            config.sms_sender_id = sms_sender_id
+            config.africas_talking_username = africas_talking_username
+            config.twilio_account_sid = encrypted_twilio_sid
+            config.twilio_auth_token = encrypted_twilio_token
+            config.infobip_base_url = infobip_base_url
+
+            db.session.add(config)
+            db.session.commit()
+
+            flash('SMS Gateway configuration saved successfully.', 'success')
+            return redirect(url_for('integrations.sms_gateway'))
+
+        except Exception as e:
+            logger.error(f"Error saving SMS gateway configuration: {str(e)}", exc_info=True)
+            flash('An error occurred while saving the configuration.', 'error')
+            return redirect(url_for('integrations.sms_gateway'))
+
     try:
         return render_template('admin/integrations/sms_gateway.html')
     except Exception as e:
-        logger.error(f"Error rendering sms gateway template: {str(e)}", exc_info=True)
+        logger.error(f"Error rendering SMS gateway template: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+@integrations_bp.route('/send-test-sms', methods=['POST'])
+@login_required
+@admin_required
+def send_test_sms():
+    """
+    Send a test SMS using the configured SMS gateway.
+    """
+    data = request.json
+    phone_number = data.get('phone_number')
+    provider = data.get('provider')
+
+    # Validate phone number format
+    if not re.match(r'^\+?[1-9]\d{1,14}$', phone_number):
+        return jsonify({'success': False, 'error': 'Invalid phone number format. Use E.164 (e.g., +1234567890)'}), 400
+
+    if not phone_number or not provider:
+        return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+
+    try:
+        config = SmsGatewayConfig.query.first()
+        if not config:
+            return jsonify({'success': False, 'error': 'SMS Gateway not configured'}), 400
+
+        if provider == 'twilio':
+            if not config.twilio_account_sid or not config.twilio_auth_token:
+                return jsonify({'success': False, 'error': 'Twilio credentials missing'}), 400
+
+            try:
+                account_sid = decrypt_value(config.twilio_account_sid)
+                auth_token = decrypt_value(config.twilio_auth_token)
+            except Exception as e:
+                logger.error(f"Error decrypting Twilio credentials: {str(e)}")
+                return jsonify({'success': False, 'error': 'Invalid Twilio credentials'}), 400
+
+            sms_service = TwilioSmsService(account_sid, auth_token)
+            sms_service.send_sms(to=phone_number, body='Test message from Twilio', from_=config.sms_sender_id)
+            return jsonify({'success': True}), 200
+
+        elif provider == 'africas_talking':
+            if not config.africas_talking_username or not config.sms_api_key:
+                return jsonify({'success': False, 'error': 'Africa\'s Talking credentials missing'}), 400
+
+            try:
+                api_key = decrypt_value(config.sms_api_key)
+                username = config.africas_talking_username
+                # Implement Africa's Talking SMS sending logic here
+                return jsonify({'success': False, 'error': 'Africa\'s Talking integration not implemented'}), 400
+            except Exception as e:
+                logger.error(f"Error decrypting API key: {str(e)}")
+                return jsonify({'success': False, 'error': 'Invalid API key'}), 400
+
+        elif provider == 'infobip':
+            if not config.sms_api_key:
+                return jsonify({'success': False, 'error': 'Infobip credentials missing'}), 400
+
+            try:
+                api_key = decrypt_value(config.sms_api_key)
+                sender_id = config.sms_sender_id
+
+                # Check if sender_id is present
+                if not sender_id:
+                    return jsonify({'success': False, 'error': 'Sender ID is missing'}), 400
+
+                # Initialize InfobipSmsService with static base URL
+                sms_service = InfobipSmsService(
+                    api_key=api_key,
+                    default_sender_id=sender_id
+                )
+                sms_service.send_sms(
+                    to=phone_number,
+                    message='This is a test message from the LOAP app.',
+                    sender_id=sender_id
+                )
+                return jsonify({'success': True}), 200
+            except ValueError as e:
+                logger.error(f"Invalid Infobip configuration: {str(e)}")
+                return jsonify({'success': False, 'error': str(e)}), 400
+            except Exception as e:
+                logger.error(f"Infobip SMS failed: {str(e)}")
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported provider'}), 400
+
+    except Exception as e:
+        logger.error(f"Failed to send test SMS: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Core Banking API Integration
 class CoreBankingAPI:

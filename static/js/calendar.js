@@ -2,29 +2,80 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get CSRF token
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+    // Function to calculate Easter date for a given year
+    function calculateEaster(year) {
+        const f = Math.floor,
+            // Golden Number - 1
+            G = year % 19,
+            C = f(year / 100),
+            // related to Epact
+            H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30,
+            // number of days from 21 March to Paschal Full Moon
+            I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)),
+            // weekday for Paschal Full Moon
+            J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7,
+            // number of days from 21 March to Sunday on or before Paschal Full Moon
+            L = I - J,
+            month = 3 + f((L + 40) / 44),
+            day = L + 28 - 31 * f(month / 4);
+
+        return new Date(year, month - 1, day);
+    }
+
+    // Function to add Kenyan holidays to the calendar
+    function addKenyanHolidays(year) {
+        const easter = calculateEaster(year);
+        const goodFriday = new Date(easter);
+        goodFriday.setDate(easter.getDate() - 2);
+        const easterMonday = new Date(easter);
+        easterMonday.setDate(easter.getDate() + 1);
+
+        const kenyanHolidays = [
+            { title: "New Year's Day", date: new Date(year, 0, 1) },
+            { title: "Good Friday", date: goodFriday },
+            { title: "Easter Monday", date: easterMonday },
+            { title: "Labour Day", date: new Date(year, 4, 1) },
+            { title: "Madaraka Day", date: new Date(year, 5, 1) },
+            { title: "Mashujaa Day", date: new Date(year, 9, 20) },
+            { title: "Jamhuri Day", date: new Date(year, 11, 12) },
+            { title: "Christmas Day", date: new Date(year, 11, 25) },
+            { title: "Boxing Day", date: new Date(year, 11, 26) }
+        ];
+
+        kenyanHolidays.forEach(holiday => {
+            calendar.addEvent({
+                title: holiday.title,
+                start: holiday.date,
+                allDay: true,
+                backgroundColor: 'red', // Optional: Customize the color for holidays
+                borderColor: 'red'
+            });
+        });
+    }
+
     // Event click handler
     function handleEventClick(info) {
         const event = info.event;
         const modal = document.getElementById('eventDetailsModal');
-        
+
         // Update modal content
         document.getElementById('eventDetailsTitle').textContent = event.title;
         document.getElementById('eventDetailsType').textContent = event.extendedProps.type;
-        
+
         // Format date and time
         const startDate = new Date(event.start);
-        const dateFormatter = new Intl.DateTimeFormat('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+        const dateFormatter = new Intl.DateTimeFormat('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
-        const timeFormatter = new Intl.DateTimeFormat('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit', 
-            hour12: true 
+        const timeFormatter = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
         });
-        
+
         document.getElementById('eventDetailsDate').textContent = dateFormatter.format(startDate);
         document.getElementById('eventDetailsTime').textContent = event.allDay ? 'All day' : timeFormatter.format(startDate);
         document.getElementById('eventDetailsDescription').textContent = event.extendedProps.description || 'No description provided';
@@ -87,12 +138,12 @@ document.addEventListener('DOMContentLoaded', function() {
     window.openEditEventModal = function(event) {
         const modal = document.getElementById('editEventModal');
         const form = document.getElementById('editEventForm');
-        
+
         // Populate form fields
         document.getElementById('editEventId').value = event.id;
         document.getElementById('editEventTitle').value = event.title;
         document.getElementById('editEventType').value = event.extendedProps.type;
-        
+
         const startDate = new Date(event.start);
         document.getElementById('editEventDate').value = startDate.toISOString().split('T')[0];
         document.getElementById('editEventTime').value = startDate.toTimeString().slice(0, 5);
@@ -104,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Handle form submission
         form.onsubmit = async (e) => {
             e.preventDefault();
-            
+
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
@@ -130,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     const updatedEventData = await response.json();
-                    
+
                     // Update the event in the calendar
                     event.setProp('title', updatedEventData.title);
                     event.setExtendedProp('type', updatedEventData.type);
@@ -139,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (updatedEventData.end) {
                         event.setEnd(new Date(updatedEventData.end));
                     }
-                    
+
                     modal.classList.add('hidden');
                     showToast('Event updated successfully', 'success');
                 } else {
@@ -212,13 +263,13 @@ document.addEventListener('DOMContentLoaded', function() {
         eventContent: function(arg) {
             const event = arg.event;
             const timeText = event.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            
+
             return {
                 html: `
                     <div class="fc-event-main-frame p-1">
-                        <div class="fc-event-time text-xs">${timeText}</div>
-                        <div class="fc-event-title-container">
-                            <div class="fc-event-title text-sm font-medium">${event.title}</div>
+                        <div class="fc-event-time text-xs" style="color: white;">${timeText}</div>
+                        <div class="fc-event-title-container" style="white-space: normal; overflow: hidden; text-overflow: ellipsis;">
+                            <div class="fc-event-title text-sm font-medium" style="word-wrap: break-word; color: white;">${event.title}</div>
                         </div>
                     </div>
                 `
@@ -226,6 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     calendar.render();
+
+    // Add Kenyan holidays to the calendar for the current year
+    const currentYear = new Date().getFullYear();
+    addKenyanHolidays(currentYear);
 
     // Handle calendar view controls
     document.getElementById('prevMonth').addEventListener('click', () => {
@@ -255,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let displayText = '';
 
         if (view.type === 'timeGridDay') {
-            displayText = date.toLocaleDateString('default', { 
+            displayText = date.toLocaleDateString('default', {
                 weekday: 'long',
                 month: 'long',
                 day: 'numeric',
@@ -267,12 +322,12 @@ document.addEventListener('DOMContentLoaded', function() {
             displayText = `${date.toLocaleDateString('default', { month: 'short', day: 'numeric' })} - ${
                 endDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`;
         } else {
-            displayText = date.toLocaleDateString('default', { 
+            displayText = date.toLocaleDateString('default', {
                 month: 'long',
                 year: 'numeric'
             });
         }
-        
+
         document.getElementById('currentMonth').textContent = displayText;
     }
     updateCurrentMonth();
@@ -307,12 +362,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle form submission with improved feedback
     eventForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const submitBtn = eventForm.querySelector('button[type="submit"]');
         const originalText = submitBtn.textContent;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
-        
+
         const formData = {
             title: document.getElementById('eventTitle').value,
             type: document.getElementById('eventType').value,
@@ -346,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 closeNewEventModal();
-                
+
                 // Show success message
                 const toast = document.createElement('div');
                 toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300';
@@ -380,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRFToken': csrfToken
                 }
             });
-            
+
             if (!response.ok) {
                 if (response.status === 401) {
                     window.location.href = '/login';  // Redirect to login if unauthorized
@@ -389,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            
+
             const events = await response.json();
             events.forEach(eventData => {
                 calendar.addEvent({

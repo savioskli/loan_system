@@ -15,17 +15,62 @@
             </div>
         </div>
 
+        <!-- Button to Open Modal -->
+        <button id="openModalButton" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mb-6">
+            <i class="fas fa-plus mr-2"></i>
+            Add New Gateway
+        </button>
+
+        <!-- Gateways Table -->
+        <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Manage Gateways</h3>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">API Key</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sender ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                    <!-- Example Row -->
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">Infobip</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">********</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Sender1</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="text-primary hover:text-primary-dark">Edit</button>
+                            <button class="text-red-600 hover:text-red-900 ml-2">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden flex justify-center items-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Add New Gateway</h3>
+            <button id="closeModalButton" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
         <!-- Configuration Form -->
-        <form method="POST" action="/admin/integrations/sms-gateway" class="space-y-6">
-            {{ form.csrf_token if form }}
-            
+        <form id="smsGatewayForm" method="POST" action="/sms-gateway" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <!-- Provider Selection -->
             <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Provider Selection</h3>
                 <div class="grid grid-cols-1 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">SMS Provider</label>
-                        <select name="sms_provider" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <select id="smsProvider" name="sms_provider" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                             <option value="africas_talking">Africa's Talking</option>
                             <option value="twilio">Twilio</option>
                             <option value="infobip">Infobip</option>
@@ -37,41 +82,38 @@
             <!-- API Configuration -->
             <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">API Configuration</h3>
-                <div class="grid grid-cols-1 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Common Fields -->
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
                         <input type="password" name="api_key" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username/Account ID</label>
-                        <input type="text" name="username" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sender ID</label>
                         <input type="text" name="sender_id" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                         <p class="mt-1 text-sm text-gray-500">The name that will appear as the sender of SMS messages</p>
                     </div>
-                </div>
-            </div>
 
-            <!-- Message Templates -->
-            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Default Message Templates</h3>
-                <div class="grid grid-cols-1 gap-6">
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Welcome Message</label>
-                        <textarea name="welcome_template" rows="2" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"></textarea>
-                        <p class="mt-1 text-sm text-gray-500">Available variables: {name}, {account_number}</p>
+                    <!-- Africa's Talking Specific Fields -->
+                    <div id="africasTalkingFields" class="space-y-2 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                        <input type="text" name="africas_talking_username" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Payment Reminder</label>
-                        <textarea name="payment_reminder_template" rows="2" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"></textarea>
-                        <p class="mt-1 text-sm text-gray-500">Available variables: {name}, {amount}, {due_date}</p>
+
+                    <!-- Twilio Specific Fields -->
+                    <div id="twilioFields" class="space-y-2 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Account SID</label>
+                        <input type="text" name="twilio_account_sid" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Payment Confirmation</label>
-                        <textarea name="payment_confirmation_template" rows="2" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"></textarea>
-                        <p class="mt-1 text-sm text-gray-500">Available variables: {name}, {amount}, {transaction_id}</p>
+                    <div id="twilioAuthToken" class="space-y-2 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auth Token</label>
+                        <input type="password" name="twilio_auth_token" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    </div>
+
+                    <!-- Infobip Specific Fields -->
+                    <div id="infobipFields" class="space-y-2 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Base URL</label>
+                        <input type="text" name="infobip_base_url" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                     </div>
                 </div>
             </div>
@@ -82,10 +124,10 @@
                 <div class="space-y-4">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Test Phone Number</label>
-                        <input type="text" name="test_phone" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <input type="text" id="testPhone" class="mt-2 px-4 py-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                         <p class="mt-1 text-sm text-gray-500">Enter a phone number to receive the test message</p>
                     </div>
-                    <button type="button" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    <button type="button" id="sendTestMessage" class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                         <i class="fas fa-paper-plane mr-2"></i>
                         Send Test Message
                     </button>
@@ -102,4 +144,97 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const providerSelect = document.getElementById('smsProvider');
+        const africasTalkingFields = document.getElementById('africasTalkingFields');
+        const twilioFields = document.getElementById('twilioFields');
+        const twilioAuthToken = document.getElementById('twilioAuthToken');
+        const infobipFields = document.getElementById('infobipFields');
+        const sendTestMessageButton = document.getElementById('sendTestMessage');
+        const openModalButton = document.getElementById('openModalButton');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const modal = document.getElementById('modal');
+
+        // Toggle provider-specific fields
+        function toggleFields() {
+            const selectedProvider = providerSelect.value;
+            africasTalkingFields.classList.add('hidden');
+            twilioFields.classList.add('hidden');
+            twilioAuthToken.classList.add('hidden');
+            infobipFields.classList.add('hidden');
+
+            if (selectedProvider === 'africas_talking') {
+                africasTalkingFields.classList.remove('hidden');
+            } else if (selectedProvider === 'twilio') {
+                twilioFields.classList.remove('hidden');
+                twilioAuthToken.classList.remove('hidden');
+            } else if (selectedProvider === 'infobip') {
+                infobipFields.classList.remove('hidden');
+            }
+        }
+
+        // Initialize field visibility
+        toggleFields();
+
+        // Event listeners
+        providerSelect.addEventListener('change', toggleFields);
+
+        openModalButton.addEventListener('click', function() {
+            modal.classList.remove('hidden');
+        });
+
+        closeModalButton.addEventListener('click', function() {
+            modal.classList.add('hidden');
+        });
+
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+
+        sendTestMessageButton.addEventListener('click', function() {
+            const testPhone = document.getElementById('testPhone').value;
+            const smsProvider = providerSelect.value;
+
+            if (!testPhone) {
+                alert('Please enter a test phone number.');
+                return;
+            }
+
+            fetch('/send-test-sms', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    phone_number: testPhone,
+                    provider: smsProvider
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Test SMS sent successfully!');
+                } else {
+                    alert('Failed to send test SMS: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while sending the test SMS.');
+            });
+        });
+
+        // Prevent form submission for demonstration
+        const form = document.getElementById('smsGatewayForm');
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            alert('Form submission handled here.');
+        });
+    });
+</script>
 {% endblock %}

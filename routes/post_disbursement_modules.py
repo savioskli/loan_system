@@ -395,22 +395,32 @@ def edit_expected_structure(module_id, structure_id):
 @login_required
 @admin_required
 def fetch_expected_structure(module_id, structure_id):
-    """Fetch the expected structure for a specific module"""
+    """Fetch the expected structure and related actual structure ID for a specific module"""
     logger.info(f"Fetching expected structure with ID: {structure_id} for module with ID: {module_id}")
     try:
         # Fetch the expected structure
         expected_structure = ExpectedStructure.query.get_or_404(structure_id)
 
-        # Return the expected structure data as JSON
+        # Fetch the corresponding actual structure
+        actual_structure = ActualStructure.query.filter_by(
+            module_id=module_id,
+            expected_structure_id=structure_id
+        ).first()
+
+        actual_structure_id = actual_structure.id if actual_structure else None
+
+        # Return the expected structure data along with the actual structure ID as JSON
         return jsonify({
             'success': True,
             'table_name': expected_structure.table_name,
-            'columns': expected_structure.columns
+            'columns': expected_structure.columns,
+            'actual_structure_id': actual_structure_id  # Include the actual structure ID
         })
 
     except Exception as e:
         logger.error(f"Error fetching expected structure: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': 'An error occurred while fetching the expected structure.'}), 500
+
 
 @post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/selected-tables', methods=['GET'])
 @login_required
@@ -494,6 +504,68 @@ def save_actual_structure(module_id):
         logger.error(f"Error saving actual structure: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'message': 'An error occurred while saving the actual structure.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/actual-structure/<int:structure_id>', methods=['POST'])
+@login_required
+@admin_required
+def edit_actual_structure(module_id, structure_id):
+    """Edit the actual structure for a specific module"""
+    logger.info(f"Editing actual structure with ID: {structure_id} for module with ID: {module_id}")
+    try:
+        # Ensure the request contains form data
+        if not request.form:
+            return jsonify({'success': False, 'message': 'Request must contain form data'}), 400
+
+        table_name = request.form.get('table_name')
+        columns = request.form.get('columns')
+
+        if not table_name or not columns:
+            return jsonify({'success': False, 'message': 'Table name and columns are required'}), 400
+
+        # Convert columns from a string to a list
+        columns_list = [col.strip() for col in columns.split(',')]
+
+        # Fetch the actual structure
+        actual_structure = ActualStructure.query.get_or_404(structure_id)
+
+        # Update the actual structure
+        actual_structure.table_name = table_name
+        actual_structure.columns = columns_list
+
+        db.session.commit()
+        flash('Actual structure updated successfully!', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error editing actual structure: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred while editing the actual structure.'}), 500
+
+@post_disbursement_modules_bp.route('/admin/modules/<int:module_id>/actual-structure/<int:structure_id>/fetch', methods=['GET'])
+@login_required
+@admin_required
+def fetch_actual_structure(module_id, structure_id):
+    """Fetch the actual structure for a specific module"""
+    logger.info(f"Fetching actual structure with ID: {structure_id} for module with ID: {module_id}")
+    try:
+        # Fetch the actual structure
+        actual_structure = ActualStructure.query.get(structure_id)
+
+        if not actual_structure:
+            return jsonify({'success': False, 'message': 'Actual structure not found.'}), 404
+
+        # Return the actual structure data as JSON
+        return jsonify({
+            'success': True,
+            'table_name': actual_structure.table_name,
+            'columns': actual_structure.columns
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching actual structure: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while fetching the actual structure.'}), 500
+
+
 
 
 

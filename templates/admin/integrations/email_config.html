@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-6">Email Configuration</h2>
+        
+        <button class="bg-primary text-white px-4 py-2 rounded-md mb-6"
+                onclick="document.getElementById('emailModal').classList.remove('hidden')">
+            Add New Configuration
+        </button>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SMTP Server</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Email</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+                        <th class="px-6 py-3 bg-gray-50"></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for config in configs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.provider }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.smtp_server }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.from_email }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ config.updated_at.strftime('%Y-%m-%d %H:%M') if config.updated_at else 'N/A' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <button class="text-primary hover:text-primary-dark edit-btn" 
+                                    data-config-id="{{ config.id }}">Edit</button>
+                            <button class="text-red-600 hover:text-red-900 ml-4 delete-btn"
+                                    data-config-id="{{ config.id }}">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Modal -->
+<div id="emailModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium">Email Configuration</h3>
+            <button onclick="document.getElementById('emailModal').classList.add('hidden')"
+                    class="text-gray-500 hover:text-gray-700">&times;</button>
+        </div>
+        
+        <form id="emailConfigForm">
+            <input type="hidden" name="config_id" id="configId">
+            <div class="grid grid-cols-1 gap-4">
+                <!-- Form fields for email configuration -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email Provider</label>
+                    <select name="provider" id="provider" class="w-full rounded-md border-gray-300 px-4 py-2">
+                        <option value="smtp">SMTP</option>
+                        <option value="sendgrid">SendGrid</option>
+                        <option value="mailgun">Mailgun</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">API Key</label>
+                    <input type="password" name="api_key" class="w-full rounded-md border-gray-300 px-4 py-2">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">SMTP Server</label>
+                        <input type="text" name="smtp_server" class="w-full rounded-md border-gray-300 px-4 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">SMTP Port</label>
+                        <input type="number" name="smtp_port" class="w-full rounded-md border-gray-300 px-4 py-2">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">SMTP Username</label>
+                        <input type="text" name="smtp_username" class="w-full rounded-md border-gray-300 px-4 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">SMTP Password</label>
+                        <input type="password" name="smtp_password" class="w-full rounded-md border-gray-300 px-4 py-2">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">From Email</label>
+                    <input type="email" name="from_email" class="w-full rounded-md border-gray-300 px-4 py-2">
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-4">
+                <button type="button" onclick="document.getElementById('emailModal').classList.add('hidden')"
+                        class="px-4 py-2 border rounded-md">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('emailConfigForm');
+    const modal = document.getElementById('emailModal');
+
+    // Edit handler
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const configId = e.target.dataset.configId;
+            const response = await fetch(`/email-config/${configId}`);
+            const config = await response.json();
+            
+            // Populate form fields
+            document.getElementById('configId').value = config.id;
+            document.getElementById('provider').value = config.provider;
+            form.elements['api_key'].value = config.api_key;
+            form.elements['smtp_server'].value = config.smtp_server;
+            form.elements['smtp_port'].value = config.smtp_port;
+            form.elements['smtp_username'].value = config.smtp_username;
+            form.elements['smtp_password'].value = config.smtp_password;
+            form.elements['from_email'].value = config.from_email;
+            
+            modal.classList.remove('hidden');
+        });
+    });
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+
+    // Log the form data for debugging
+    console.log('Submitting:', data);
+
+    // Convert numeric fields
+    data.smtp_port = parseInt(data.smtp_port);
+
+    try {
+        const url = data.config_id ? `/email-config/${data.config_id}` : '/email-config';
+        const method = data.config_id ? 'PUT' : 'POST'; 
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Server error:', error);
+            alert(`Error: ${error.error}`);
+            return;
+        }
+
+        const result = await response.json();
+        window.location.reload();
+    } catch (error) {
+        console.error('Network error:', error);
+        alert('Failed to save configuration');
+    }
+});
+
+
+    // Delete handler
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (confirm('Are you sure you want to delete this configuration?')) {
+                const configId = e.target.dataset.configId;
+                await fetch(`/email-config/${configId}`, { method: 'DELETE' });
+                location.reload();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

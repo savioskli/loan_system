@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_login import login_required
 from utils.decorators import admin_required
 import requests
@@ -10,6 +11,7 @@ import mysql.connector
 from extensions import csrf, db
 from models.integrations import CoreBankingConfig
 from models.sms_gateway import SmsGatewayConfig
+from models.email_config import EmailConfig
 from services.twillo_sms_service import TwilioSmsService
 from services.infobip_sms_service import InfobipSmsService
 from utils.encryption import encrypt_value, decrypt_value
@@ -797,3 +799,88 @@ def sms_gateway_config(config_id):
     if request.method == 'DELETE':
         SmsGatewayConfig.delete(config_id)
         return jsonify({'success': True})
+
+@integrations_bp.route('/email-config')
+def email_config():
+    configs = EmailConfig.get_all()
+    return render_template('admin/integrations/email_config.html', configs=configs)
+# routes/integrations.py
+@integrations_bp.route('/email-config', methods=['POST'])
+@login_required
+@admin_required
+def create_email_config():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        required_fields = ['provider', 'smtp_server', 'smtp_port', 'from_email']
+        missing = [field for field in required_fields if field not in data]
+        if missing:
+            return jsonify({'error': 'Missing required fields', 'missing': missing}), 400
+
+        config = EmailConfig.create(
+            provider=data['provider'],
+            smtp_server=data['smtp_server'],
+            smtp_port=data['smtp_port'],
+            smtp_username=data.get('smtp_username'),
+            smtp_password=encrypt_value(data.get('smtp_password', '')),
+            from_email=data['from_email'],
+            api_key=encrypt_value(data.get('api_key', '')) if data['provider'] != 'smtp' else None
+        )
+        return jsonify(config.to_dict()), 201
+    except Exception as e:
+        logger.error(f"Creation error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@integrations_bp.route('/email-config/<int:config_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+@admin_required
+def email_config_detail(config_id):
+    if request.method == 'GET':
+        config = EmailConfig.get_by_id(config_id)
+        if not config:
+            return jsonify({'error': 'Configuration not found'}), 404
+        return jsonify(config.to_dict())
+
+    if request.method == 'PUT':
+        try:
+            config = EmailConfig.get_by_id(config_id)
+            if not config:
+                return jsonify({'error': 'Configuration not found'}), 404
+
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'No JSON data provided'}), 400
+
+            config.update(
+                provider=data['provider'],
+                smtp_server=data['smtp_server'],
+                smtp_port=data['smtp_port'],
+                smtp_username=data.get('smtp_username'),
+                smtp_password=encrypt_value(data.get('smtp_password', '')),
+                from_email=data['from_email'],
+                api_key=encrypt_value(data.get('api_key', '')) if data['provider'] != 'smtp' else None
+            )
+            return jsonify(config.to_dict()), 200
+        except Exception as e:
+            logger.error(f"Update error: {str(e)}")
+            return jsonify({'error': 'Internal server error'}), 500
+
+    if request.method == 'DELETE':
+        EmailConfig.delete(config_id)
+        return jsonify({'success': True})
+
+@integrations_bp.app_errorhandler(Exception)
+def handle_all_errors(e):
+    logger.error(f"Unhandled exception: {str(e)}")
+    if isinstance(e, HTTPException):
+        return jsonify({
+            "error": e.description,
+            "status_code": e.code
+        }), e.code
+    return jsonify({
+        "error": "Internal server error",
+        "status_code": 500
+    }), 500
+

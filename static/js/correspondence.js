@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Communication type changed:', type);
             
             // Hide all dynamic fields first
-            $('#smsEmailFields, #callFields, #visitFields').addClass('hidden');
+            $('#smsEmailFields, #callFields').addClass('hidden');
             
             // Show relevant fields based on type
             switch(type) {
@@ -194,9 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 case 'call':
                     $('#callFields').removeClass('hidden');
-                    break;
-                case 'visit':
-                    $('#visitFields').removeClass('hidden');
                     break;
             }
             

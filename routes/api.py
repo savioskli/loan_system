@@ -237,7 +237,7 @@ def search_users():
 @api_bp.route('/communications', methods=['POST'])
 @login_required
 def create_communication():
-    """Create a new communication record"""
+    """Create a new communication record and send SMS/Email if applicable"""
     try:
         data = request.json
         current_app.logger.info(f"Received data: {data}")
@@ -259,12 +259,12 @@ def create_communication():
                 client_name=data['client_name'],
                 type=data['type'],
                 message=data['message'],
-                status=data.get('status', 'pending'),
+                status='pending',  # Always start with pending
                 sent_by=current_user.username,
                 staff_id=staff.id,
                 recipient=data.get('recipient') or None,
-                delivery_status=data.get('delivery_status') or None,
-                delivery_time=datetime.strptime(data['delivery_time'], '%Y-%m-%dT%H:%M') if data.get('delivery_time') else None,
+                delivery_status=None,  # Will be updated after sending
+                delivery_time=None,  # Will be updated after sending
                 call_duration=int(data['call_duration']) if data.get('call_duration') else None,
                 call_outcome=data.get('call_outcome') or None,
                 location=data.get('location') or None,
@@ -279,8 +279,69 @@ def create_communication():
                 'message': f'Missing required field: {str(e)}'
             }), 400
         
+        # Add to database first to get an ID
         db.session.add(new_comm)
         db.session.commit()
+        
+        # Send SMS if the communication type is SMS
+        if data['type'] == 'sms' and data.get('recipient'):
+            try:
+                from services.infobip_sms_service import InfobipSmsService
+                from models.sms_gateway import SmsGatewayConfig
+                from utils.encryption import decrypt_value
+                
+                # Get SMS gateway configuration
+                config = SmsGatewayConfig.query.first()
+                if not config:
+                    current_app.logger.error('SMS Gateway configuration not found')
+                    new_comm.status = 'failed'
+                    new_comm.delivery_status = 'SMS Gateway configuration not found'
+                else:
+                    try:
+                        # Decrypt API key
+                        api_key = decrypt_value(config.sms_api_key)
+                        
+                        # Initialize SMS service
+                        sms_service = InfobipSmsService(
+                            api_key=api_key,
+                            default_sender_id=config.sms_sender_id
+                        )
+                        
+                        # Send SMS
+                        success = sms_service.send_sms(
+                            to=data['recipient'],
+                            message=data['message']
+                        )
+                        
+                        # Update communication status
+                        if success:
+                            new_comm.status = 'delivered'
+                            new_comm.delivery_status = 'Sent successfully'
+                            new_comm.delivery_time = datetime.now()
+                        else:
+                            new_comm.status = 'failed'
+                            new_comm.delivery_status = 'Failed to send SMS'
+                            
+                        db.session.commit()
+                        current_app.logger.info(f'SMS sent with status: {success}')
+                    except Exception as e:
+                        current_app.logger.error(f'Error sending SMS: {str(e)}')
+                        new_comm.status = 'failed'
+                        new_comm.delivery_status = f'Error: {str(e)}'
+                        db.session.commit()
+            except Exception as e:
+                current_app.logger.error(f'Error in SMS service: {str(e)}')
+                new_comm.status = 'failed'
+                new_comm.delivery_status = f'Service error: {str(e)}'
+                db.session.commit()
+        
+        # Send Email if the communication type is email (placeholder for future implementation)
+        elif data['type'] == 'email' and data.get('recipient'):
+            # TODO: Implement email sending functionality
+            current_app.logger.info('Email sending not yet implemented')
+            new_comm.status = 'pending'
+            new_comm.delivery_status = 'Email sending not implemented yet'
+            db.session.commit()
         
         current_app.logger.info('Communication created successfully')
         current_app.logger.info('Returning success response')

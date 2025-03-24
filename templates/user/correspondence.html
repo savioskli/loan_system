@@ -322,9 +322,21 @@
             
             <!-- Dynamic Fields Container -->
             <div id="dynamicFields" class="w-full px-2">
-                <!-- SMS/Email specific fields - hidden input for recipient, will be auto-filled -->
+                <!-- SMS/Email specific fields -->
                 <div id="smsEmailFields" class="w-full px-2 mb-4">
-                    <input type="hidden" id="recipient" name="recipient">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipient</label>
+                        <input class="w-full border border-gray-300 rounded-lg p-1.5" type="text" id="recipient" name="recipient" placeholder="Phone number or email">
+                    </div>
+                    
+                    <!-- SMS Provider Selection (only shown for SMS type) -->
+                    <div id="smsProviderField" class="mb-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SMS Gateway</label>
+                        <select class="w-full border border-gray-300 rounded-lg p-1.5" id="smsProvider" name="smsProvider">
+                            <option value="">Loading providers...</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Select which SMS gateway to use for this message</p>
+                    </div>
                 </div>
                 
                 <!-- Call specific fields -->

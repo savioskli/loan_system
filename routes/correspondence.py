@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from models import Client, Loan
 from models.correspondence import Correspondence
+from models.sms_gateway import SmsGatewayConfig
+from services.correspondence_service import CorrespondenceService
 import csv
 from io import StringIO
 from flask import Response
@@ -401,3 +403,116 @@ def export_correspondence():
     except Exception as e:
         current_app.logger.error(f"Error exporting correspondence: {str(e)}")
         return jsonify({'error': 'Failed to export correspondence'}), 500
+
+@correspondence_bp.route('/api/send-sms', methods=['POST'])
+@login_required
+def send_sms():
+    """Send an SMS message using the configured SMS gateway."""
+    try:
+        # Validate required fields
+        required_fields = ['recipient', 'message', 'account_no', 'client_name']
+        for field in required_fields:
+            if field not in request.json:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+        
+        # Get request data
+        recipient = request.json.get('recipient')
+        message = request.json.get('message')
+        account_no = request.json.get('account_no')
+        client_name = request.json.get('client_name')
+        
+        # Send SMS using the correspondence service
+        # We'll use the single configured SMS provider from the database
+        result = CorrespondenceService.send_sms(
+            to=recipient,
+            message=message,
+            account_no=account_no,
+            client_name=client_name,
+            staff_id=current_user.id,
+            sent_by=current_user.username,
+            provider=None  # Use the default provider configured in the database
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error sending SMS: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error sending SMS: {str(e)}",
+            'correspondence_id': None
+        }), 500
+
+@correspondence_bp.route('/api/sms-providers', methods=['GET'])
+@login_required
+def get_sms_providers():
+    """Get available SMS providers and the active provider."""
+    try:
+        active_provider = CorrespondenceService.get_active_sms_provider()
+        available_providers = CorrespondenceService.get_available_sms_providers()
+        
+        return jsonify({
+            'active_provider': active_provider,
+            'available_providers': available_providers
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting SMS providers: {str(e)}")
+        return jsonify({'error': f"Error getting SMS providers: {str(e)}"}), 500
+
+@correspondence_bp.route('/api/send-bulk-sms', methods=['POST'])
+@login_required
+def send_bulk_sms():
+    """Send SMS messages to multiple recipients."""
+    try:
+        # Log the incoming request for debugging
+        current_app.logger.info(f"Received bulk SMS request: {request.data}")
+        
+        # Validate request data
+        if not request.json or not isinstance(request.json, list):
+            current_app.logger.error(f"Invalid request format: {request.data}")
+            return jsonify({'success': False, 'error': 'Invalid request format. Expected a list of SMS messages.'}), 400
+        
+        messages = request.json
+        current_app.logger.info(f"Processing {len(messages)} SMS messages")
+        results = []
+        
+        # Process each message in the list
+        for msg in messages:
+            # Validate required fields for each message
+            required_fields = ['recipient', 'message', 'account_no', 'client_name']
+            for field in required_fields:
+                if field not in msg:
+                    current_app.logger.error(f"Missing required field: {field} in message: {msg}")
+                    return jsonify({'success': False, 'error': f'Missing required field: {field} in one of the messages'}), 400
+                    
+            # Validate phone number format
+            if not msg['recipient'] or len(msg['recipient'].strip()) < 10:
+                current_app.logger.error(f"Invalid phone number format: {msg['recipient']} in message: {msg}")
+                return jsonify({'success': False, 'error': f'Invalid phone number format: {msg["recipient"]}'}), 400
+            
+            # Send SMS using the correspondence service
+            result = CorrespondenceService.send_sms(
+                to=msg['recipient'],
+                message=msg['message'],
+                account_no=msg['account_no'],
+                client_name=msg['client_name'],
+                staff_id=current_user.id,
+                sent_by=current_user.username
+            )
+            
+            results.append(result)
+        
+        # Return the results
+        return jsonify({
+            'success': all(result['success'] for result in results),
+            'results': results
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error sending bulk SMS: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error sending bulk SMS: {str(e)}",
+            'results': []
+        }), 500

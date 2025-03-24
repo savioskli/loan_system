@@ -119,8 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const commType = $('#type').val();
         if (commType === 'sms' && clientData.phone) {
             $('#recipient').val(clientData.phone);
+            // Show SMS provider field when SMS type is selected and we have a phone number
+            $('#smsProviderField').removeClass('hidden');
         } else if (commType === 'email' && clientData.email) {
             $('#recipient').val(clientData.email);
+            // Hide SMS provider field for email type
+            $('#smsProviderField').addClass('hidden');
         }
     }
 
@@ -172,6 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#newCorrespondenceBtn').click(function() {
             console.log('Opening new correspondence modal');
             $('#newCorrespondenceModal').removeClass('hidden');
+            
+            // Load SMS providers when the modal is opened
+            loadSmsProviders();
         });
 
         $('#closeCorrespondenceModal').click(function() {
@@ -187,11 +194,16 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Communication type changed:', type);
             
             // Hide all dynamic fields first
-            $('#smsEmailFields, #callFields').addClass('hidden');
+            $('#smsEmailFields, #callFields, #smsProviderField').addClass('hidden');
             
             // Show relevant fields based on type
             switch(type) {
                 case 'sms':
+                    $('#smsEmailFields').removeClass('hidden');
+                    $('#smsProviderField').removeClass('hidden');
+                    // Load SMS providers when SMS type is selected
+                    loadSmsProviders();
+                    break;
                 case 'email':
                     $('#smsEmailFields').removeClass('hidden');
                     break;
@@ -210,6 +222,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // Load available SMS providers
+        function loadSmsProviders() {
+            $.ajax({
+                url: '/correspondence/api/sms-providers',
+                method: 'GET',
+                success: function(response) {
+                    console.log('SMS providers loaded:', response);
+                    
+                    // Populate provider dropdown if it exists
+                    const providerSelect = $('#smsProvider');
+                    if (providerSelect.length) {
+                        providerSelect.empty();
+                        
+                        // Add default option (use active provider)
+                        providerSelect.append(`<option value="">Default (${response.active_provider})</option>`);
+                        
+                        // Add available providers
+                        response.available_providers.forEach(provider => {
+                            providerSelect.append(`<option value="${provider}">${provider.charAt(0).toUpperCase() + provider.slice(1)}</option>`);
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading SMS providers:', error);
+                }
+            });
+        }
+        
         // Form submission
         $('#newCorrespondenceForm').submit(function(e) {
             e.preventDefault();
@@ -237,9 +277,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Please enter a message');
                 return;
             }
+            
+            // Determine the API endpoint based on the communication type
+            let apiUrl = '/correspondence/api/communications';
+            let contentType = 'application/json';
+            
+            // If it's an SMS, use our new SMS gateway service
+            if (jsonData.type === 'sms') {
+                apiUrl = '/correspondence/api/send-sms';
+                
+                // Prepare the SMS-specific data
+                jsonData = {
+                    recipient: jsonData.recipient,
+                    message: jsonData.message,
+                    account_no: jsonData.account_no || '',
+                    client_name: jsonData.client_name,
+                    provider: $('#smsProvider').val() || null // Use selected provider or default
+                };
+            }
 
             $.ajax({
-                url: '/api/communications',
+                url: apiUrl,
                 method: 'POST',
                 data: JSON.stringify(jsonData),
                 contentType: 'application/json',
@@ -248,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 success: function(response) {
                     console.log('Communication saved:', response);
-                    if (response.status === 'success') {
+                    if (response.success || response.status === 'success') {
                         $('#newCorrespondenceModal').addClass('hidden');
                         $('#newCorrespondenceForm')[0].reset();
                         $('#clientSelect2').val(null).trigger('change');
@@ -463,6 +521,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#overdueCount').text(response.counts.overdue_loans);
                 $('#delinquentCount').text(response.counts.delinquent_accounts);
                 $('#highriskCount').text(response.counts.high_risk_loans);
+
+                // Hide or show buttons based on counts
+    $('[data-reminder-type="upcoming"]').toggle(response.counts.upcoming_installments > 0);
+    $('[data-reminder-type="overdue"]').toggle(response.counts.overdue_loans > 0);
+    $('[data-reminder-type="delinquent"]').toggle(response.counts.delinquent_accounts > 0);
+    $('[data-reminder-type="highrisk"]').toggle(response.counts.high_risk_loans > 0);
+
                 
                 // Store the full data for later use
                 window.reminderData = response;
@@ -541,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryData.forEach(function(loan) {
                 $('#accountsSelect').append(`<option value="${loan.ClientID}" 
                     data-loan-id="${loan.LoanID}" 
-                    data-amount="${loan.InstallmentAmount || loan.ArrearsAmount}" 
+                    data-amount="${loan.InstallmentAmount || loan.OutstandingBalance}" 
                     data-date="${loan.NextInstallmentDate || ''}"
                     data-email="${loan.Email || ''}"
                     data-phone="${loan.Phone || ''}"
@@ -619,6 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Process each selected account
         const promises = [];
         const sentMessages = [];
+        const smsMessages = [];
         
         selectedAccounts.forEach(function(clientId) {
             const option = $(`#accountsSelect option[value='${clientId}']`);
@@ -645,9 +711,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 .replace('[Date]', date)
                 .replace('[Phone]', phone)
                 .replace('[Name]', name);
+                
+            // For SMS, ensure name and amount are included in the message
+            if (sendVia === 'sms') {
+                // If the template doesn't already include the name and amount, add them
+                if (!personalizedMessage.includes(name)) {
+                    personalizedMessage = `Dear ${name}, ` + personalizedMessage;
+                }
+                if (!personalizedMessage.includes(formattedAmount)) {
+                    personalizedMessage = personalizedMessage.replace('overdue', `overdue. Your outstanding balance is ${formattedAmount}`);
+                }
+            }
             
             // Create correspondence record
             const recipient = sendVia === 'email' ? email : phone;
+            
+            // Skip if recipient is missing or invalid
+            if (sendVia === 'sms' && (!recipient || recipient.trim().length < 10)) {
+                console.warn(`Skipping SMS to ${name} due to invalid phone number: ${recipient}`);
+                return;
+            }
             
             // Store sent message info for display
             sentMessages.push({
@@ -658,8 +741,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 message: personalizedMessage
             });
             
-            // If API endpoint is available, use it, otherwise simulate success for demo
-            try {
+            // Collect SMS messages for bulk sending
+            if (sendVia === 'sms') {
+                // Add to the messages array to be sent in bulk
+                smsMessages.push({
+                    recipient: recipient,
+                    message: personalizedMessage,
+                    account_no: loanNo || '',
+                    client_name: name
+                });
+                
+                // Store reference to the message data for display
+                sentMessages[sentMessages.length - 1].data = smsMessages[smsMessages.length - 1];
+            
+            } else {
+                // For email or other types, use the existing correspondence endpoint
                 promises.push($.ajax({
                     url: '/api/correspondence',
                     method: 'POST',
@@ -672,15 +768,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         reminder_template: '1'
                     }
                 }).catch(function(error) {
-                    // If API fails, resolve promise anyway for demo purposes
                     console.log('API call failed, but continuing for demo purposes');
                     return Promise.resolve();
                 }));
-            } catch (e) {
-                // Simulate API success for demo purposes
-                promises.push(new Promise(resolve => setTimeout(resolve, 500)));
             }
         });
+        
+        // Send bulk SMS messages if any
+        if (sendVia === 'sms' && smsMessages.length > 0) {
+            // Log the SMS messages being sent for debugging
+            console.log('Sending bulk SMS messages:', JSON.stringify(smsMessages));
+            
+            // Add a single bulk SMS request instead of individual requests
+            promises.push($.ajax({
+                url: '/correspondence/api/send-bulk-sms',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(smsMessages),
+                headers: {
+                    'X-CSRFToken': $('input[name=csrf_token]').val()
+                },
+                success: function(response) {
+                    console.log('Bulk SMS sent successfully:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error sending bulk SMS:', error);
+                    console.error('Error details:', xhr.responseText);
+                    return Promise.resolve();
+                }
+            }));
+        }
         
         // Wait for all requests to complete
         Promise.all(promises)
@@ -689,7 +806,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#sendRemindersModal').addClass('hidden');
                 
                 // Show success message with details
-                let messageDetails = '<div class="mt-4 text-left">'; 
+                let messageDetails = '<div class="mt-4 text-left">';
                 sentMessages.forEach(msg => {
                     messageDetails += `<p class="mb-2"><strong>${msg.name}</strong> (${msg.loanNo}) - ${msg.method === 'email' ? 'Email' : 'SMS'} to ${msg.recipient}</p>`;
                 });

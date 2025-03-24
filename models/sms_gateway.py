@@ -34,8 +34,17 @@ class SmsGatewayConfig(db.Model):
 
     @staticmethod
     def get_active_config():
-        """Get the active configuration."""
+        """
+        Get the active SMS provider configuration.
+        The system now uses a single configured SMS provider.
+        """
+        # Return the single configured SMS provider
         return SmsGatewayConfig.query.first()
+        
+    @staticmethod
+    def get_config_by_provider(provider_name):
+        """Get configuration for a specific provider."""
+        return SmsGatewayConfig.query.filter_by(sms_provider=provider_name).first()
 
     @classmethod
     def get_all(cls):

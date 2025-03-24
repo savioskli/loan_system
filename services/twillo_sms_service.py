@@ -7,18 +7,32 @@ from models.sms_gateway import SmsGatewayConfig  # Import the SMS Gateway Config
 logger = logging.getLogger(__name__)
 
 class TwilioSmsService:
-    def __init__(self):
-        # Retrieve the configuration from the database
-        config = SmsGatewayConfig.query.first()
-        if not config:
-            raise ValueError("SMS Gateway configuration not found in the database.")
+    def __init__(self, account_sid=None, auth_token=None, from_number=None):
+        """
+        Initialize the Twilio SMS Service.
+        
+        Args:
+            account_sid (str, optional): The Twilio account SID. If None, will be retrieved from DB.
+            auth_token (str, optional): The Twilio auth token. If None, will be retrieved from DB.
+            from_number (str, optional): The sender phone number. If None, will be retrieved from DB.
+        """
+        # If parameters are not provided, retrieve from database
+        if not account_sid or not auth_token or not from_number:
+            config = SmsGatewayConfig.query.first()
+            if not config:
+                raise ValueError("SMS Gateway configuration not found in the database.")
+            
+            # Use provided values or fall back to database values
+            account_sid = account_sid or config.twilio_account_sid
+            auth_token = auth_token or config.twilio_auth_token
+            from_number = from_number or config.sms_sender_id
 
         # Validate Twilio-specific fields
-        if not config.twilio_account_sid or not config.twilio_auth_token:
+        if not account_sid or not auth_token:
             raise ValueError("Twilio Account SID or Auth Token missing.")
 
-        self.client = Client(config.twilio_account_sid, config.twilio_auth_token)
-        self.sender_id = config.sms_sender_id
+        self.client = Client(account_sid, auth_token)
+        self.sender_id = from_number
 
         # Validate sender ID format (Twilio requires E.164 or alphanumeric)
         if not self._validate_sender_id():

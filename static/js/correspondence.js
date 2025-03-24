@@ -754,6 +754,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const messageTemplate = $('#messageTemplate').val();
         const sendVia = $('#sendVia').val();
         
+        // Check if email is configured when email is selected
+        if (sendVia === 'email') {
+            // We'll proceed with the submission and let the server handle any configuration errors
+            console.log('Email selected as send method');
+        }
+        
         if (!selectedAccounts || selectedAccounts.length === 0) {
             Swal.fire({
                 icon: 'warning',
@@ -820,8 +826,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const recipient = sendVia === 'email' ? email : phone;
             
             // Skip if recipient is missing or invalid
-            if (sendVia === 'sms' && (!recipient || recipient.trim().length < 10)) {
-                console.warn(`Skipping SMS to ${name} due to invalid phone number: ${recipient}`);
+            if ((sendVia === 'sms' && (!recipient || recipient.trim().length < 10)) || 
+                (sendVia === 'email' && (!recipient || !recipient.includes('@')))) {
+                console.warn(`Skipping ${sendVia.toUpperCase()} to ${name} due to invalid ${sendVia === 'sms' ? 'phone number' : 'email address'}: ${recipient}`);
                 return;
             }
             
@@ -848,22 +855,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 sentMessages[sentMessages.length - 1].data = smsMessages[smsMessages.length - 1];
             
             } else {
-                // For email or other types, use the existing correspondence endpoint
-                promises.push($.ajax({
-                    url: '/api/correspondence',
-                    method: 'POST',
-                    data: {
-                        client_id: clientId,
-                        loan_id: loanId,
-                        type: sendVia,
-                        recipient: recipient,
-                        message: personalizedMessage,
-                        reminder_template: '1'
-                    }
-                }).catch(function(error) {
-                    console.log('API call failed, but continuing for demo purposes');
-                    return Promise.resolve();
-                }));
+                // For email, use the dedicated email reminder endpoint
+                if (sendVia === 'email') {
+                    promises.push($.ajax({
+                        url: '/correspondence/api/send-email-reminder',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            client_id: clientId,
+                            loan_id: loanId,
+                            email: recipient
+                        }),
+                        headers: {
+                            'X-CSRFToken': $('input[name=csrf_token]').val()
+                        }
+                    }).catch(function(error) {
+                        console.error('Error sending email reminder:', error);
+                        return Promise.resolve();
+                    }));
+                } else {
+                    // For other types, use the existing correspondence endpoint
+                    promises.push($.ajax({
+                        url: '/api/correspondence',
+                        method: 'POST',
+                        data: {
+                            client_id: clientId,
+                            loan_id: loanId,
+                            type: sendVia,
+                            recipient: recipient,
+                            message: personalizedMessage,
+                            reminder_template: '1'
+                        }
+                    }).catch(function(error) {
+                        console.log('API call failed, but continuing for demo purposes');
+                        return Promise.resolve();
+                    }));
+                }
             }
         });
         

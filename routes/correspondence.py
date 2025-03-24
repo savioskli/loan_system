@@ -7,6 +7,7 @@ from extensions import db
 from models import Client, Loan
 from models.correspondence import Correspondence
 from models.sms_gateway import SmsGatewayConfig
+from models.email_config import EmailConfig
 from services.correspondence_service import CorrespondenceService
 import csv
 from io import StringIO
@@ -200,6 +201,85 @@ def create_correspondence():
     except Exception as e:
         current_app.logger.error(f"Unexpected error: {str(e)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@correspondence_bp.route('/api/send-email-reminder', methods=['POST'])
+@login_required
+def send_email_reminder():
+    """
+    Send an email reminder to a client.
+    
+    Expected JSON payload:
+    {
+        "client_id": int,
+        "loan_id": int,
+        "email": str
+    }
+    """
+    try:
+        # Check if email is configured
+        if not CorrespondenceService.is_email_configured():
+            return jsonify({
+                'success': False,
+                'message': 'Email service is not configured'
+            }), 400
+            
+        # Validate request data
+        data = request.json
+        if not data or not all(k in data for k in ['client_id', 'loan_id', 'email']):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields: client_id, loan_id, email'
+            }), 400
+            
+        client_id = data.get('client_id')
+        loan_id = data.get('loan_id')
+        email = data.get('email')
+        
+        # Get client and loan details
+        client = Client.query.get(client_id)
+        if not client:
+            return jsonify({
+                'success': False,
+                'message': f'Client with ID {client_id} not found'
+            }), 404
+            
+        loan = Loan.query.get(loan_id)
+        if not loan:
+            return jsonify({
+                'success': False,
+                'message': f'Loan with ID {loan_id} not found'
+            }), 404
+            
+        # Send email reminder
+        result = CorrespondenceService.send_payment_reminder_email(
+            to=email,
+            client_name=client.name,
+            account_no=loan.account_no,
+            loan_amount=float(loan.amount),
+            outstanding_balance=float(loan.outstanding_balance),
+            due_date=loan.next_payment_date or datetime.utcnow() + timedelta(days=7),
+            staff_id=current_user.id,
+            sent_by=current_user.username
+        )
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': 'Email reminder sent successfully',
+                'correspondence_id': result['correspondence_id']
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Error sending email reminder: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'An error occurred: {str(e)}'
+        }), 500
 
 @correspondence_bp.route('/api/clients')
 @login_required

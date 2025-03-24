@@ -131,23 +131,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeEventListeners() {
         console.log('Initializing event listeners');
         
-        // Initialize Select2 for type filter
-        $('#typeFilter').select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: 'All Types'
+        // Initialize search input with debounce
+        let searchTimeout;
+        $('#searchInput').on('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadCommunications(1);
+            }, 300);
         });
 
-        // Initialize Select2 for per page filter
-        $('#perPage').select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            minimumResultsForSearch: Infinity // Disable search
-        });
-
-        // Initialize date pickers with better formatting
-        $('#startDate, #endDate').on('change', function() {
-            loadCommunications(1);
+        // Add clear search button functionality
+        $('#searchInput').on('keyup', function(e) {
+            if (e.key === 'Escape') {
+                $(this).val('');
+                loadCommunications(1);
+            }
         });
         
         // Filter change handlers
@@ -352,21 +350,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadCommunications(page = 1) {
-        const filters = {
+        const searchQuery = $('#searchInput').val() || '';
+        const data = {
             page: page,
             per_page: 10,
-            member_id: $('#clientSelect').val() || '',
-            start_date: $('#startDate').val() || '',
-            end_date: $('#endDate').val() || '',
-            type: $('#typeFilter').val() || ''
+            search: searchQuery
         };
         
-        console.log('Loading communications with filters:', filters);
+        console.log('Loading communications with search:', data);
         
         $.ajax({
             url: '/correspondence/api/correspondence',
             method: 'GET',
-            data: filters,
+            data: data,
             success: function(response) {
                 console.log('Communications loaded:', response);
                 if (response.error) {
@@ -504,12 +500,12 @@ document.addEventListener('DOMContentLoaded', function() {
         pages.push(`
             <li>
                 <button type="button" data-page="${currentPage - 1}" 
-                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'} text-sm font-medium text-gray-500"
+                        class="relative inline-flex items-center px-4 py-2 text-sm font-medium ${currentPage === 1 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-primary-50 hover:text-primary'} border border-gray-300 rounded-l-lg focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200"
                         ${currentPage === 1 ? 'disabled' : ''}>
-                    <span class="sr-only">Previous</span>
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                     </svg>
+                    Previous
                 </button>
             </li>
         `);
@@ -518,11 +514,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (startPage > 1) {
             pages.push(`
                 <li>
-                    <button type="button" data-page="1" class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">1</button>
+                    <button type="button" data-page="1" 
+                            class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-primary-50 hover:text-primary focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200">
+                        1
+                    </button>
                 </li>
             `);
             if (startPage > 2) {
-                pages.push('<li><span class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700">...</span></li>');
+                pages.push(`
+                    <li>
+                        <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+                            ...
+                        </span>
+                    </li>
+                `);
             }
         }
         
@@ -531,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
             pages.push(`
                 <li>
                     <button type="button" data-page="${i}"
-                            class="relative inline-flex items-center px-4 py-2 border ${i === currentPage ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'} text-sm font-medium">
+                            class="relative inline-flex items-center px-4 py-2 text-sm font-medium ${i === currentPage ? 'z-10 bg-primary-600 text-white border-primary-600 hover:bg-primary-700' : 'text-gray-700 bg-white border-gray-300 hover:bg-primary-50 hover:text-primary'} border focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200">
                         ${i}
                     </button>
                 </li>
@@ -541,11 +546,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Last page if not in range
         if (endPage < totalPages) {
             if (endPage < totalPages - 1) {
-                pages.push('<li><span class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700">...</span></li>');
+                pages.push(`
+                    <li>
+                        <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+                            ...
+                        </span>
+                    </li>
+                `);
             }
             pages.push(`
                 <li>
-                    <button type="button" data-page="${totalPages}" class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">${totalPages}</button>
+                    <button type="button" data-page="${totalPages}" 
+                            class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-primary-50 hover:text-primary focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200">
+                        ${totalPages}
+                    </button>
                 </li>
             `);
         }
@@ -554,19 +568,21 @@ document.addEventListener('DOMContentLoaded', function() {
         pages.push(`
             <li>
                 <button type="button" data-page="${currentPage + 1}"
-                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'} text-sm font-medium text-gray-500"
+                        class="relative inline-flex items-center px-4 py-2 text-sm font-medium ${currentPage === totalPages ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-primary-50 hover:text-primary'} border border-gray-300 rounded-r-lg focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200"
                         ${currentPage === totalPages ? 'disabled' : ''}>
-                    <span class="sr-only">Next</span>
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    Next
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
                 </button>
             </li>
         `);
         
         const nav = $(`
-            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" data-type="${type}">
-                ${pages.join('')}
+            <nav class="flex justify-center mt-6" aria-label="Pagination" data-type="${type}">
+                <ul class="inline-flex -space-x-px rounded-md shadow-sm bg-white dark:bg-gray-800">
+                    ${pages.join('')}
+                </ul>
             </nav>
         `);
         

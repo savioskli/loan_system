@@ -209,47 +209,16 @@
             </div>
         </div>
 
-        <!-- Filters Section -->
+        <!-- Search Section -->
         <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
-            <div class="grid grid-cols-5 gap-4">
-                <!-- Client Filter -->
-                <div class="col-span-2">
-                    <label for="clientSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
-                    <select id="clientSelect" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></select>
-                </div>
-
-                <!-- Type Filter -->
-                <div class="col-span-1">
-                    <label for="typeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                    <select id="typeFilter" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">All Types</option>
-                        <option value="sms">SMS</option>
-                        <option value="email">Email</option>
-                        <option value="call">Call</option>
-                        <option value="visit">Visit</option>
-                    </select>
-                </div>
-
-                <!-- Per Page -->
-                <div class="col-span-1">
-                    <label for="perPage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per Page</label>
-                    <select id="perPage" class="form-select w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-
-                <!-- Date Range -->
-                <div class="col-span-1">
-                    <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                    <input type="date" id="startDate" class="form-input w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-1.5">
-                </div>
-
-                <div class="col-span-1">
-                    <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                    <input type="date" id="endDate" class="form-input w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-1.5">
+            <div class="max-w-xl mx-auto relative">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search communications..." class="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>

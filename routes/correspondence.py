@@ -239,40 +239,23 @@ def get_correspondence():
         # Get query parameters
         page = max(1, int(request.args.get('page', 1)))
         per_page = min(50, max(10, int(request.args.get('per_page', 10))))
-        account_no = request.args.get('account_no')
-        client_name = request.args.get('client_name')
-        corr_type = request.args.get('type')
-        status = request.args.get('status')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        search = request.args.get('search', '').strip()
         
         # Base query
         query = Correspondence.query
         
-        # Apply filters
-        if account_no:
-            query = query.filter(Correspondence.account_no.ilike(f'%{account_no}%'))
-        if client_name:
-            query = query.filter(Correspondence.client_name.ilike(f'%{client_name}%'))
-        if corr_type:
-            query = query.filter(Correspondence.type == corr_type)
-        if status:
-            query = query.filter(Correspondence.status == status)
-            
-        # Handle date filters with proper datetime conversion
-        if start_date:
-            try:
-                start_datetime = datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
-                query = query.filter(Correspondence.created_at >= start_datetime)
-            except ValueError:
-                current_app.logger.warning(f"Invalid start_date format: {start_date}")
-                
-        if end_date:
-            try:
-                end_datetime = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-                query = query.filter(Correspondence.created_at <= end_datetime)
-            except ValueError:
-                current_app.logger.warning(f"Invalid end_date format: {end_date}")
+        # Apply search filter if provided
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    Correspondence.client_name.ilike(search_term),
+                    Correspondence.account_no.ilike(search_term),
+                    Correspondence.message.ilike(search_term),
+                    Correspondence.type.ilike(search_term),
+                    Correspondence.status.ilike(search_term)
+                )
+            )
         
         # Always order by created_at in descending order (newest first)
         query = query.order_by(Correspondence.created_at.desc())

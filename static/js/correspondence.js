@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadCommunications(page = 1) {
         const filters = {
             page: page,
-            per_page: $('#perPage').val() || 10,
+            per_page: 10,
             member_id: $('#clientSelect').val() || '',
             start_date: $('#startDate').val() || '',
             end_date: $('#endDate').val() || '',
@@ -364,21 +364,23 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Loading communications with filters:', filters);
         
         $.ajax({
-            url: '/user/loans/communications',
+            url: '/correspondence/api/correspondence',
             method: 'GET',
             data: filters,
             success: function(response) {
                 console.log('Communications loaded:', response);
                 if (response.error) {
-                    $('#communicationsList').html(`<p class="text-center text-red-500">${response.error}</p>`);
+                    $('#communicationsList').html(`<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">${response.error}</td></tr>`);
                     return;
                 }
-                displayCommunications(response.communications || []);
-                updatePagination(response.page, response.total_pages, 'system');
+                displayCommunications(response.correspondence || []);
+                if (response.pagination) {
+                    updatePagination(response.pagination.current_page, response.pagination.total_pages, 'system');
+                }
             },
             error: function(xhr, status, error) {
                 console.error('Error loading communications:', error);
-                $('#communicationsList').html('<p class="text-center text-red-500">Error loading communications</p>');
+                $('#communicationsList').html('<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading communications</td></tr>');
             }
         });
     }
@@ -386,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadCoreCommunications(page = 1) {
         const filters = {
             page: page,
-            per_page: $('#perPage').val() || 10,
+            per_page: 10,
             member_id: $('#clientSelect').val() || '',
             start_date: $('#startDate').val() || '',
             end_date: $('#endDate').val() || '',
@@ -396,21 +398,23 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Loading core communications with filters:', filters);
         
         $.ajax({
-            url: '/user/loans/communications/core',
+            url: '/correspondence/api/core-correspondence',
             method: 'GET',
             data: filters,
             success: function(response) {
                 console.log('Core communications loaded:', response);
                 if (response.error) {
-                    $('#coreCommunicationsList').html(`<p class="text-center text-red-500">${response.error}</p>`);
+                    $('#coreCommunicationsList').html(`<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">${response.error}</td></tr>`);
                     return;
                 }
-                displayCoreCommunications(response.communications || []);
-                updatePagination(response.page, response.total_pages, 'core');
+                displayCoreCommunications(response.correspondence || []);
+                if (response.pagination) {
+                    updatePagination(response.pagination.current_page, response.pagination.total_pages, 'core');
+                }
             },
             error: function(xhr, status, error) {
                 console.error('Error loading core communications:', error);
-                $('#coreCommunicationsList').html('<p class="text-center text-red-500">Error loading communications</p>');
+                $('#coreCommunicationsList').html('<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading communications</td></tr>');
             }
         });
     }
@@ -420,7 +424,13 @@ document.addEventListener('DOMContentLoaded', function() {
         container.empty();
         
         if (communications.length === 0) {
-            container.html('<p class="text-center text-gray-500">No communications found</p>');
+            container.html(`
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        No communications found
+                    </td>
+                </tr>
+            `);
             return;
         }
         
@@ -434,7 +444,13 @@ document.addEventListener('DOMContentLoaded', function() {
         container.empty();
         
         if (communications.length === 0) {
-            container.html('<p class="text-center text-gray-500">No communications found</p>');
+            container.html(`
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        No communications found
+                    </td>
+                </tr>
+            `);
             return;
         }
         
@@ -444,27 +460,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createCommunicationItem(comm) {
+        const formattedDate = new Date(comm.created_at).toLocaleString();
         return `
-            <div class="communication-item communication-type-${comm.type}">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h3 class="text-lg font-medium">${comm.member_name}</h3>
-                        <p class="text-sm text-gray-500">Member: ${comm.member_no}</p>
-                        <p class="text-sm text-gray-500">Loan: ${comm.loan_no || 'N/A'}</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-sm font-medium status-${comm.status}">${comm.status}</span>
-                        <p class="text-sm text-gray-500">${comm.created_at}</p>
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <p class="text-gray-700">${comm.message}</p>
-                </div>
-                <div class="mt-2 text-sm text-gray-500">
-                    <span class="capitalize">${comm.type}</span> • Sent by ${comm.sent_by}
-                    ${comm.response ? ` • Response: ${comm.response}` : ''}
-                </div>
-            </div>
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${comm.client_name || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white capitalize">${comm.type}</td>
+                <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">${comm.message}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${comm.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${comm.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${comm.sent_by}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
+            </tr>
         `;
     }
 
@@ -472,43 +481,111 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = type === 'system' ? $('#systemPagination') : $('#corePagination');
         container.empty();
         
-        if (totalPages <= 1) return;
+        if (!totalPages || totalPages <= 1) return;
         
-        const loadFunc = type === 'system' ? loadCommunications : loadCoreCommunications;
+        currentPage = parseInt(currentPage) || 1;
+        totalPages = parseInt(totalPages);
+        
+        // Calculate the range of pages to show
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+        
+        // Adjust the range if we're near the start or end
+        if (startPage <= 3) {
+            endPage = Math.min(5, totalPages);
+        }
+        if (endPage >= totalPages - 2) {
+            startPage = Math.max(1, totalPages - 4);
+        }
+        
+        const pages = [];
         
         // Previous button
-        container.append(`
-            <button 
-                class="px-3 py-1 rounded-md ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                ${currentPage === 1 ? 'disabled' : ''}
-                onclick="${currentPage > 1 ? `${loadFunc.name}(${currentPage - 1})` : ''}"
-            >
-                Previous
-            </button>
+        pages.push(`
+            <li>
+                <button type="button" data-page="${currentPage - 1}" 
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'} text-sm font-medium text-gray-500"
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </li>
         `);
         
+        // First page if not in range
+        if (startPage > 1) {
+            pages.push(`
+                <li>
+                    <button type="button" data-page="1" class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">1</button>
+                </li>
+            `);
+            if (startPage > 2) {
+                pages.push('<li><span class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700">...</span></li>');
+            }
+        }
+        
         // Page numbers
-        for (let i = 1; i <= totalPages; i++) {
-            container.append(`
-                <button 
-                    class="px-3 py-1 rounded-md ${i === currentPage ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}"
-                    onclick="${loadFunc.name}(${i})"
-                >
-                    ${i}
-                </button>
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(`
+                <li>
+                    <button type="button" data-page="${i}"
+                            class="relative inline-flex items-center px-4 py-2 border ${i === currentPage ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'} text-sm font-medium">
+                        ${i}
+                    </button>
+                </li>
+            `);
+        }
+        
+        // Last page if not in range
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                pages.push('<li><span class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700">...</span></li>');
+            }
+            pages.push(`
+                <li>
+                    <button type="button" data-page="${totalPages}" class="relative inline-flex items-center px-4 py-2 border bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">${totalPages}</button>
+                </li>
             `);
         }
         
         // Next button
-        container.append(`
-            <button 
-                class="px-3 py-1 rounded-md ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}"
-                ${currentPage === totalPages ? 'disabled' : ''}
-                onclick="${currentPage < totalPages ? `${loadFunc.name}(${currentPage + 1})` : ''}"
-            >
-                Next
-            </button>
+        pages.push(`
+            <li>
+                <button type="button" data-page="${currentPage + 1}"
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'} text-sm font-medium text-gray-500"
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                    <span class="sr-only">Next</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </li>
         `);
+        
+        const nav = $(`
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" data-type="${type}">
+                ${pages.join('')}
+            </nav>
+        `);
+        
+        // Add click handler using event delegation
+        nav.on('click', 'button[data-page]', function(e) {
+            e.preventDefault();
+            const page = parseInt($(this).data('page'));
+            const paginationType = $(this).closest('nav').data('type');
+            
+            if (!page || $(this).prop('disabled')) return;
+            
+            if (paginationType === 'system') {
+                loadCommunications(page);
+            } else {
+                loadCoreCommunications(page);
+            }
+        });
+        
+        container.append(nav);
     }
 
     function loadReminderCounts() {

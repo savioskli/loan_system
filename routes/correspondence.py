@@ -237,8 +237,8 @@ def get_correspondence():
         current_app.logger.info("Getting correspondence data")
         
         # Get query parameters
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 10))
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = min(50, max(10, int(request.args.get('per_page', 10))))
         account_no = request.args.get('account_no')
         client_name = request.args.get('client_name')
         corr_type = request.args.get('type')
@@ -258,44 +258,51 @@ def get_correspondence():
             query = query.filter(Correspondence.type == corr_type)
         if status:
             query = query.filter(Correspondence.status == status)
+            
+        # Handle date filters with proper datetime conversion
         if start_date:
-            query = query.filter(Correspondence.created_at >= start_date)
+            try:
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
+                query = query.filter(Correspondence.created_at >= start_datetime)
+            except ValueError:
+                current_app.logger.warning(f"Invalid start_date format: {start_date}")
+                
         if end_date:
-            query = query.filter(Correspondence.created_at <= end_date)
+            try:
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                query = query.filter(Correspondence.created_at <= end_datetime)
+            except ValueError:
+                current_app.logger.warning(f"Invalid end_date format: {end_date}")
+        
+        # Always order by created_at in descending order (newest first)
+        query = query.order_by(Correspondence.created_at.desc())
         
         # Get total count for pagination
         total = query.count()
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        
+        # Ensure page is within valid range
+        page = min(page, total_pages)
         
         # Get correspondence for current page
-        correspondence = query.order_by(Correspondence.created_at.desc())\
-            .offset((page - 1) * per_page)\
-            .limit(per_page)\
-            .all()
+        correspondence = query.offset((page - 1) * per_page).limit(per_page).all()
         
-        # Prepare pagination info
-        total_pages = (total + per_page - 1) // per_page
-        pages = []
-        for p in range(max(1, page - 2), min(total_pages + 1, page + 3)):
-            pages.append({
-                'number': p,
-                'current': p == page
-            })
-        
-        pagination = {
-            'current_page': page,
-            'total_pages': total_pages,
-            'total': total,
-            'start': (page - 1) * per_page + 1 if total > 0 else 0,
-            'end': min(page * per_page, total),
-            'pages': pages
-        }
-        
-        # Convert correspondence to dict
-        correspondence_data = [c.to_dict() for c in correspondence]
+        # Convert correspondence to dict and format dates
+        correspondence_data = []
+        for c in correspondence:
+            data = c.to_dict()
+            if isinstance(data.get('created_at'), datetime):
+                data['created_at'] = data['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            correspondence_data.append(data)
         
         return jsonify({
             'correspondence': correspondence_data,
-            'pagination': pagination
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total': total,
+                'per_page': per_page
+            }
         })
         
     except Exception as e:

@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -2083,6 +2084,418 @@ def get_detailed_loans():
             cursor.close()
         if 'conn' in locals():
             conn.close()
+
+
+@user_bp.route('/reminders/loans', methods=['GET'])
+@login_required
+def get_reminder_loans():
+    conn = None
+    cursor = None
+    
+    try:
+        current_app.logger.info("Starting get_reminder_loans function")
+        
+        # Use module ID 8 as specified
+        module_id = 8
+        current_app.logger.info(f"Using module_id: {module_id}")
+
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            current_app.logger.error("No active core banking system found")
+            return jsonify({'error': 'No active core banking system configured'}), 400
+        
+        current_app.logger.info(f"Found active core banking system: {core_system.name if hasattr(core_system, 'name') else 'Unknown'}")
+
+        # Connect to core banking database
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+            current_app.logger.info("Successfully decoded auth credentials")
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+            current_app.logger.info("Using default auth credentials")
+
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        
+        current_app.logger.info(f"Database connection config: host={core_banking_config['host']}, port={core_banking_config['port']}, user={core_banking_config['user']}, database={core_banking_config['database']}")
+
+        try:
+            conn = mysql.connector.connect(**core_banking_config)
+            cursor = conn.cursor(dictionary=True)
+            current_app.logger.info(f"Successfully connected to database: {core_banking_config['database']}")
+            
+            # Test basic connectivity
+            cursor.execute("SELECT 1 as test")
+            result = cursor.fetchone()
+            current_app.logger.info(f"Basic connectivity test: {result}")
+        except Exception as e:
+            current_app.logger.error(f"Database connection failed: {str(e)}")
+            return jsonify({'error': f'Failed to connect to database: {str(e)}'}), 500
+
+        # Retrieve the mapping data
+        def get_mapping_for_module(module_id):
+            try:
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    
+                    # Retrieve expected and actual columns as lists
+                    expected_columns = expected.columns  # e.g., ['LoanID', 'LedgerID', ...]
+                    actual_columns = actual.columns       # e.g., ['loan_id', 'ledger_id', ...]
+                    
+                    # Create a dictionary mapping expected to actual columns
+                    columns_dict = dict(zip(expected_columns, actual_columns))
+                    
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": columns_dict  # Now a dictionary
+                    }
+                    current_app.logger.info(f"Retrieved mapping: {mapping}")
+                return mapping
+            except Exception as e:
+                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+                raise
+
+        # Get mapping data for module 8
+        try:
+            current_app.logger.info(f"Retrieving mapping for module_id: {module_id}")
+            mapping = get_mapping_for_module(module_id)
+            current_app.logger.info(f"Retrieved mapping data: {mapping}")
+            
+            # Validate mapping structure
+            if not mapping:
+                current_app.logger.error("Mapping data is empty")
+                return jsonify({'error': 'No mapping data found for the specified module'}), 500
+                
+            required_tables = ["LoanLedgerEntries", "LoanDisbursements", "LoanApplications", "Members"]
+            missing_tables = [table for table in required_tables if table not in mapping]
+            if missing_tables:
+                current_app.logger.error(f"Missing required tables in mapping: {missing_tables}")
+                return jsonify({'error': f'Missing required tables in mapping: {missing_tables}'}), 500
+                
+        except Exception as e:
+            current_app.logger.error(f"Error retrieving mapping: {str(e)}")
+            return jsonify({'error': f'Error retrieving database mappings: {str(e)}'}), 500
+
+        # Build dynamic query
+        def build_dynamic_query(mapping):
+            try:
+                current_app.logger.info("Starting to build dynamic query")
+                ll = mapping.get("LoanLedgerEntries", {})
+                ld = mapping.get("LoanDisbursements", {})
+                la = mapping.get("LoanApplications", {})
+                mb = mapping.get("Members", {})
+                
+                # Log table names for debugging
+                current_app.logger.info(f"Actual table names: LoanLedgerEntries={ll.get('actual_table_name', 'N/A')}, "
+                                       f"LoanDisbursements={ld.get('actual_table_name', 'N/A')}, "
+                                       f"LoanApplications={la.get('actual_table_name', 'N/A')}, "
+                                       f"Members={mb.get('actual_table_name', 'N/A')}")
+                
+                # Update required columns based on actual structure
+                required_ll_columns = ["LedgerID", "LoanID", "MemberID", "OutstandingBalance", "RepaymentDueDate", 
+                                      "ArrearsAmount", "ArrearsDays", "PenaltyAmount"]
+                required_ld_columns = ["LoanAppID", "LoanStatus"]
+                required_la_columns = ["LoanAppID", "MemberID", "LoanNo", "LoanAmount"]
+                required_mb_columns = ["MemberID", "FirstName", "LastName", "Email", "PhoneNumber"]
+                
+                # Validate columns exist in mappings
+                if not all(column in ll.get("columns", {}) for column in required_ll_columns):
+                    missing = [col for col in required_ll_columns if col not in ll.get("columns", {})]
+                    current_app.logger.error(f"Missing columns in LoanLedgerEntries mapping: {missing}")
+                    raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {missing}")
+                
+                if not all(column in ld.get("columns", {}) for column in required_ld_columns):
+                    missing = [col for col in required_ld_columns if col not in ld.get("columns", {})]
+                    current_app.logger.error(f"Missing columns in LoanDisbursements mapping: {missing}")
+                    raise KeyError(f"Missing columns in LoanDisbursements mapping: {missing}")
+                
+                if not all(column in la.get("columns", {}) for column in required_la_columns):
+                    missing = [col for col in required_la_columns if col not in la.get("columns", {})]
+                    current_app.logger.error(f"Missing columns in LoanApplications mapping: {missing}")
+                    raise KeyError(f"Missing columns in LoanApplications mapping: {missing}")
+                    
+                if not all(column in mb.get("columns", {}) for column in required_mb_columns):
+                    missing = [col for col in required_mb_columns if col not in mb.get("columns", {})]
+                    current_app.logger.error(f"Missing columns in Members mapping: {missing}")
+                    raise KeyError(f"Missing columns in Members mapping: {missing}")
+                
+                current_app.logger.info("All required columns validated successfully")
+                
+                # Updated query with the new structure
+                query = f"""
+                SELECT
+                    l.{ll["columns"]["LoanID"]} AS LoanID,
+                    l.{ll["columns"]["MemberID"]} AS ClientID,  
+                    la.{la["columns"]["LoanNo"]} AS LoanNo,
+                    la.{la["columns"]["LoanAmount"]} AS LoanAmount,
+                    l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
+                    l.{ll["columns"]["ArrearsAmount"]} AS ArrearsAmount,
+                    l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
+                    l.{ll["columns"]["OutstandingBalance"]} AS InstallmentAmount,  -- Using OutstandingBalance as InstallmentAmount
+                    l.{ll["columns"]["RepaymentDueDate"]} AS NextInstallmentDate,  -- Using RepaymentDueDate as NextInstallmentDate
+                    m.{mb["columns"]["FirstName"]} AS FirstName,
+                    m.{mb["columns"]["LastName"]} AS LastName,
+                    m.{mb["columns"]["Email"]} AS Email,
+                    m.{mb["columns"]["PhoneNumber"]} AS Phone,
+                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
+                FROM {ll["actual_table_name"]} l
+                JOIN (
+                    SELECT {ll["columns"]["LoanID"]} AS LoanID,
+                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
+                    FROM {ll["actual_table_name"]}
+                    GROUP BY {ll["columns"]["LoanID"]}
+                ) latest
+                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
+                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
+                JOIN {ld["actual_table_name"]} ld
+                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
+                JOIN {la["actual_table_name"]} la
+                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
+                JOIN {mb["actual_table_name"]} m
+                    ON l.{ll["columns"]["MemberID"]} = m.{mb["columns"]["MemberID"]}
+                WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
+                ORDER BY l.{ll["columns"]["LoanID"]}
+                """
+                current_app.logger.info(f"Built query: {query}")
+                return query
+            except Exception as e:
+                current_app.logger.error(f"Error building dynamic query: {str(e)}")
+                raise
+
+        # Execute query and get data
+        try:
+            current_app.logger.info("About to build and execute query")
+            query = build_dynamic_query(mapping)
+            current_app.logger.info(f"Executing query: {query}")
+            cursor.execute(query)
+            loan_data = cursor.fetchall()
+            current_app.logger.info(f"Fetched {len(loan_data)} loan records")
+            
+            # Log a sample of the data
+            if loan_data:
+                sample = loan_data[0]
+                current_app.logger.info(f"Sample loan data: {sample}")
+                current_app.logger.info(f"Sample keys: {list(sample.keys())}")
+            else:
+                current_app.logger.warning("No loan data returned from query")
+        except Exception as e:
+            current_app.logger.error(f"Error executing query: {str(e)}")
+            return jsonify({'error': f'Error executing database query: {str(e)}'}), 500
+
+        # Helper function for safe date parsing
+        def parse_date(date_str):
+            """Safe date parser with error handling"""
+            try:
+                if isinstance(date_str, datetime):
+                    return date_str.date()
+                elif isinstance(date_str, str) and date_str:
+                    return parse(date_str).date()
+                return None
+            except Exception as e:
+                current_app.logger.warning(f"Date parsing error for '{date_str}': {str(e)}")
+                return None
+
+        # Format dates for JSON serialization
+        try:
+            current_app.logger.info("Formatting dates for JSON serialization")
+            for loan in loan_data:
+                # Convert date objects to strings
+                if 'NextInstallmentDate' in loan and loan['NextInstallmentDate']:
+                    if not isinstance(loan['NextInstallmentDate'], str):
+                        loan['NextInstallmentDate'] = loan['NextInstallmentDate'].strftime('%Y-%m-%d')
+                    # Add DueDate field for display in UI
+                    loan['DueDate'] = loan['NextInstallmentDate']
+            current_app.logger.info("Date formatting completed")
+        except Exception as e:
+            current_app.logger.error(f"Error formatting dates: {str(e)}")
+            return jsonify({'error': f'Error formatting dates: {str(e)}'}), 500
+
+        # Categorize loans with improved logic
+        try:
+            current_app.logger.info("Starting loan categorization with improved logic")
+            upcoming_installments = []
+            overdue_loans = []
+            delinquent_accounts = []
+            high_risk_loans = []
+
+            today = datetime.now().date()
+            current_app.logger.info(f"Today's date for comparison: {today}")
+
+            # Log the total number of loans before categorization
+            current_app.logger.info(f"Total loans before categorization: {len(loan_data)}")
+            
+            # Create a detailed breakdown of arrears days for analysis
+            arrears_breakdown = {
+                '>=60': 0,
+                '30-59': 0,
+                '1-29': 0,
+                '<=0': 0,
+                'invalid': 0
+            }
+            
+            for loan in loan_data:
+                try:
+                    loan_id = loan.get('LoanID', 'Unknown')
+                    # Safely get ArrearsDays with proper validation
+                    arrears_days_raw = loan.get('ArrearsDays')
+                    outstanding_balance = loan.get('OutstandingBalance', 0)
+                    
+                    # Log raw values for debugging
+                    current_app.logger.info(f"Processing loan {loan_id}: Raw ArrearsDays={arrears_days_raw}, Type={type(arrears_days_raw)}, OutstandingBalance={outstanding_balance}")
+                    
+                    # Skip loans without ArrearsDays data
+                    if arrears_days_raw is None:
+                        current_app.logger.warning(f"Loan {loan_id} missing ArrearsDays, skipping")
+                        arrears_breakdown['invalid'] += 1
+                        continue
+                        
+                    # Convert to integer safely
+                    try:
+                        # Ensure we handle string values properly
+                        arrears_days = int(float(str(arrears_days_raw).strip() or '0'))
+                        current_app.logger.info(f"Loan {loan_id} has ArrearsDays: {arrears_days}")
+                    except (ValueError, TypeError) as e:
+                        current_app.logger.warning(f"Invalid ArrearsDays value for loan {loan_id}: {arrears_days_raw}, Error: {str(e)}")
+                        arrears_breakdown['invalid'] += 1
+                        continue
+                    
+                    # Update arrears breakdown
+                    if arrears_days >= 60:
+                        arrears_breakdown['>=60'] += 1
+                    elif arrears_days >= 30:
+                        arrears_breakdown['30-59'] += 1
+                    elif arrears_days > 0:
+                        arrears_breakdown['1-29'] += 1
+                    else:
+                        arrears_breakdown['<=0'] += 1
+                    
+                    # Categorize based on arrears days with fixed boundary conditions
+                    if arrears_days >= 60:  # Changed from > to >=
+                        # High risk: 60+ days late
+                        high_risk_loans.append(loan)
+                        current_app.logger.info(f"Loan {loan_id} categorized as high risk with {arrears_days} days")
+                    elif arrears_days >= 30:  # Changed from > to >=
+                        # Delinquent: 30-59 days late
+                        delinquent_accounts.append(loan)
+                        current_app.logger.info(f"Loan {loan_id} categorized as delinquent with {arrears_days} days")
+                    elif arrears_days > 0:
+                        # Overdue: 1-29 days late
+                        overdue_loans.append(loan)
+                        current_app.logger.info(f"Loan {loan_id} categorized as overdue with {arrears_days} days")
+                    else:
+                        # Not late, check if it's upcoming (due within 7 days)
+                        if 'NextInstallmentDate' in loan and loan['NextInstallmentDate']:
+                            try:
+                                # Parse the next installment date
+                                next_date = parse_date(loan['NextInstallmentDate'])
+                                if next_date:
+                                    # Calculate days until next installment
+                                    days_until = (next_date - today).days
+                                    current_app.logger.info(f"Loan {loan_id} has {days_until} days until next installment")
+                                    
+                                    # Add to upcoming if due within a week and in the future
+                                    if 0 <= days_until <= 7:
+                                        upcoming_installments.append(loan)
+                                        current_app.logger.info(f"Loan {loan_id} categorized as upcoming")
+                            except Exception as e:
+                                current_app.logger.warning(f"Invalid NextInstallmentDate for loan {loan_id}: {loan.get('NextInstallmentDate')}. Error: {str(e)}")
+                                continue
+                except Exception as e:
+                    current_app.logger.error(f"Error categorizing loan {loan.get('LoanID', 'Unknown')}: {str(e)}")
+                    continue
+                    
+            # Log the arrears breakdown
+            current_app.logger.info(f"Arrears days breakdown: {arrears_breakdown}")
+            current_app.logger.info(f"Categorization results: {len(high_risk_loans)} high risk, {len(delinquent_accounts)} delinquent, {len(overdue_loans)} overdue, {len(upcoming_installments)} upcoming")
+            
+            # Calculate financial exposures
+            def sum_balance(loans):
+                try:
+                    return round(sum(float(loan.get('OutstandingBalance', 0)) for loan in loans), 2)
+                except Exception as e:
+                    current_app.logger.error(f"Error calculating balance sum: {str(e)}")
+                    return 0
+                    
+            high_risk_exposure = sum_balance(high_risk_loans)
+            delinquent_exposure = sum_balance(delinquent_accounts)
+            overdue_exposure = sum_balance(overdue_loans)
+            upcoming_exposure = sum_balance(upcoming_installments)
+            
+            current_app.logger.info(f"Categorization complete: {len(upcoming_installments)} upcoming, {len(overdue_loans)} overdue, {len(delinquent_accounts)} delinquent, {len(high_risk_loans)} high risk")
+            current_app.logger.info(f"Financial exposure: high_risk=${high_risk_exposure}, delinquent=${delinquent_exposure}, overdue=${overdue_exposure}, upcoming=${upcoming_exposure}")
+        except Exception as e:
+            current_app.logger.error(f"Error in loan categorization: {str(e)}")
+            return jsonify({'error': f'Error categorizing loans: {str(e)}'}), 500
+        
+        # Return categorized data with exposure amounts and raw data for debugging
+        try:
+            current_app.logger.info("Preparing JSON response with exposure data and raw data for debugging")
+            
+            # Log raw data for debugging
+            current_app.logger.info(f"Raw loan data (first 5 entries):")
+            for i, loan in enumerate(loan_data[:5]):
+                current_app.logger.info(f"Raw loan #{i+1}: ID={loan.get('LoanID')}, ArrearsDays={loan.get('ArrearsDays')}, OutstandingBalance={loan.get('OutstandingBalance')}")
+            
+            # Check for duplicate loan IDs
+            loan_ids = {}
+            for loan in loan_data:
+                loan_id = loan.get('LoanID')
+                if loan_id in loan_ids:
+                    loan_ids[loan_id] += 1
+                else:
+                    loan_ids[loan_id] = 1
+            
+            duplicate_loans = {loan_id: count for loan_id, count in loan_ids.items() if count > 1}
+            current_app.logger.info(f"Found {len(duplicate_loans)} loan IDs with multiple entries: {duplicate_loans}")
+            
+            response_data = {
+                'upcoming_installments': upcoming_installments,
+                'overdue_loans': overdue_loans,
+                'delinquent_accounts': delinquent_accounts,
+                'high_risk_loans': high_risk_loans,
+                'exposure': {
+                    'high_risk': high_risk_exposure,
+                    'delinquent': delinquent_exposure,
+                    'overdue': overdue_exposure,
+                    'upcoming': upcoming_exposure
+                },
+                'counts': {
+                    'upcoming_installments': len(upcoming_installments),
+                    'overdue_loans': len(overdue_loans),
+                    'delinquent_accounts': len(delinquent_accounts),
+                    'high_risk_loans': len(high_risk_loans)
+                },
+                'raw_data': loan_data  # Include raw data for debugging
+            }
+            current_app.logger.info("JSON response prepared successfully")
+            return jsonify(response_data)
+        except Exception as e:
+            current_app.logger.error(f"Error preparing JSON response: {str(e)}")
+            return jsonify({'error': f'Error preparing response: {str(e)}'}), 500
+    
+    except Exception as e:
+        current_app.logger.error(f"Error processing reminder loans: {str(e)}")
+        return jsonify({'error': f'Error processing loan reminders: {str(e)}'}), 500
+    
+    finally:
+        # Clean up database resources
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        current_app.logger.info("Database resources cleaned up")
 
 @user_bp.route('/loans/communications', methods=['GET'])
 @login_required

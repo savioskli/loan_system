@@ -804,7 +804,7 @@ def sms_gateway_config(config_id):
 def email_config():
     configs = EmailConfig.get_all()
     return render_template('admin/integrations/email_config.html', configs=configs)
-# routes/integrations.py
+
 @integrations_bp.route('/email-config', methods=['POST'])
 @login_required
 @admin_required
@@ -871,6 +871,32 @@ def email_config_detail(config_id):
         EmailConfig.delete(config_id)
         return jsonify({'success': True})
 
+@integrations_bp.route('/api/get_client_account', methods=['GET'])
+@login_required
+def get_client_account():
+    try:
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({'error': 'Missing client_id parameter'}), 400
+
+        client = Client.query.get(client_id)
+        if not client:
+            return jsonify({'error': 'Client not found'}), 404
+
+        return jsonify({
+            'account_no': client.account_number,
+            'branch': client.branch.name,
+            'full_name': client.full_name,
+            'loan_balance': client.active_loan.balance if client.active_loan else 0
+        })
+
+    except SQLAlchemyError as e:
+        logger.error(f'Database error fetching client account: {str(e)}')
+        return jsonify({'error': 'Error retrieving client data'}), 500
+    except Exception as e:
+        logger.error(f'Unexpected error in get_client_account: {str(e)}')
+        return jsonify({'error': 'Internal server error'}), 500
+
 @integrations_bp.app_errorhandler(Exception)
 def handle_all_errors(e):
     logger.error(f"Unhandled exception: {str(e)}")
@@ -883,4 +909,3 @@ def handle_all_errors(e):
         "error": "Internal server error",
         "status_code": 500
     }), 500
-

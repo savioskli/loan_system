@@ -51,7 +51,7 @@ class EmailConfig(db.Model):
             'smtp_server': self.smtp_server,
             'smtp_port': self.smtp_port,
             'smtp_username': self.smtp_username,
-            'smtp_password': decrypt_value(self.smtp_password) if self.smtp_password else None,
+            'smtp_password': self.smtp_password if self.smtp_password else None,  # Using password directly without decryption
             'from_email': self.from_email,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

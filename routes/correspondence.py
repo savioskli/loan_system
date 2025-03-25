@@ -202,7 +202,7 @@ def create_correspondence():
         current_app.logger.error(f"Unexpected error: {str(e)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
-@correspondence_bp.route('/api/send-email-reminder', methods=['POST'])
+@correspondence_bp.route('/api/send-email-reminder', methods=['POST'])  # Full URL: /correspondence/api/send-email-reminder
 @login_required
 def send_email_reminder():
     """
@@ -215,67 +215,514 @@ def send_email_reminder():
         "email": str
     }
     """
+    # Main try block for the entire function
     try:
+        # Try to print the raw request data for debugging
+        try:
+            print(f"[DEBUG] Raw request data: {request.data}")
+        except Exception as e:
+            print(f"[ERROR] Error accessing request data: {str(e)}")
+        
         # Check if email is configured
-        if not CorrespondenceService.is_email_configured():
+        email_config = CorrespondenceService.is_email_configured()
+        if not email_config:
+            print(f"[ERROR] Email service is not configured")
             return jsonify({
                 'success': False,
                 'message': 'Email service is not configured'
             }), 400
+        else:
+            print(f"[INFO] Email configuration found and valid")
             
         # Validate request data
-        data = request.json
-        if not data or not all(k in data for k in ['client_id', 'loan_id', 'email']):
+        try:
+            data = request.json
+            print(f"[DEBUG] Parsed JSON data: {data}")
+        except Exception as e:
+            print(f"[ERROR] Failed to parse JSON data: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'Missing required fields: client_id, loan_id, email'
+                'message': f'Invalid JSON data: {str(e)}'
             }), 400
             
-        client_id = data.get('client_id')
-        loan_id = data.get('loan_id')
+        if not data:
+            print(f"[ERROR] Empty request data")
+            return jsonify({
+                'success': False,
+                'message': 'Empty request data'
+            }), 400
+            
+        # Check if we're using the old format (client_id and loan_id) or new format (direct client details)
+        old_format = 'client_id' in data and 'loan_id' in data
+        new_format = all(field in data for field in ['email', 'client_name', 'account_no', 'loan_amount', 'outstanding_balance'])
+        
+        # Get email which is required in both formats
         email = data.get('email')
-        
-        # Get client and loan details
-        client = Client.query.get(client_id)
-        if not client:
+        if not email:
+            print(f"[ERROR] Missing required field: email")
             return jsonify({
                 'success': False,
-                'message': f'Client with ID {client_id} not found'
-            }), 404
+                'message': 'Missing required field: email'
+            }), 400
             
-        loan = Loan.query.get(loan_id)
-        if not loan:
-            return jsonify({
-                'success': False,
-                'message': f'Loan with ID {loan_id} not found'
-            }), 404
+        # Handle old format (client_id and loan_id)
+        if old_format and not new_format:
+            print(f"[INFO] Using old format with client_id and loan_id")
+            client_id = data.get('client_id')
+            loan_id = data.get('loan_id')
             
-        # Send email reminder
-        result = CorrespondenceService.send_payment_reminder_email(
-            to=email,
-            client_name=client.name,
-            account_no=loan.account_no,
-            loan_amount=float(loan.amount),
-            outstanding_balance=float(loan.outstanding_balance),
-            due_date=loan.next_payment_date or datetime.utcnow() + timedelta(days=7),
-            staff_id=current_user.id,
-            sent_by=current_user.username
-        )
-        
-        if result['success']:
-            return jsonify({
-                'success': True,
-                'message': 'Email reminder sent successfully',
-                'correspondence_id': result['correspondence_id']
-            }), 200
+            if not client_id or not loan_id:
+                print(f"[ERROR] Missing required fields: client_id or loan_id")
+                return jsonify({
+                    'success': False,
+                    'message': 'Missing required fields: client_id and loan_id are required'
+                }), 400
+                
+            # Get client and loan details from database
+            try:
+                client = Client.query.get(client_id)
+                if not client:
+                    print(f"[ERROR] Client with ID {client_id} not found")
+                    return jsonify({
+                        'success': False,
+                        'message': f'Client with ID {client_id} not found'
+                    }), 404
+                
+                loan = Loan.query.get(loan_id)
+                if not loan:
+                    print(f"[ERROR] Loan with ID {loan_id} not found")
+                    return jsonify({
+                        'success': False,
+                        'message': f'Loan with ID {loan_id} not found'
+                    }), 404
+                    
+                # Set variables from database objects
+                client_name = client.full_name
+                account_no = loan.account_no
+                try:
+                    loan_amount = float(loan.amount)
+                except (ValueError, TypeError) as e:
+                    print(f"[ERROR] Invalid loan amount value: {loan.amount}. Error: {str(e)}")
+                    return jsonify({
+                        'success': False,
+                        'message': f'Invalid loan amount value: {str(e)}'
+                    }), 400
+                    
+                try:
+                    outstanding_balance = float(loan.outstanding_balance)
+                except (ValueError, TypeError) as e:
+                    print(f"[ERROR] Invalid outstanding balance value: {loan.outstanding_balance}. Error: {str(e)}")
+                    return jsonify({
+                        'success': False,
+                        'message': f'Invalid outstanding balance value: {str(e)}'
+                    }), 400
+                    
+            except Exception as e:
+                print(f"[ERROR] Database error when fetching client/loan: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Database error: {str(e)}'
+                }), 500
+                
+        # Handle new format (direct client details)
+        elif new_format:
+            print(f"[INFO] Using new format with direct client details")
+            client_name = data.get('client_name')
+            account_no = data.get('account_no')
+            
+            try:
+                loan_amount = float(data.get('loan_amount'))
+                outstanding_balance = float(data.get('outstanding_balance'))
+            except (ValueError, TypeError) as e:
+                print(f"[ERROR] Invalid numeric value in request data: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Invalid numeric value: {str(e)}'
+                }), 400
+                
+        # Neither format is valid
         else:
+            print(f"[ERROR] Invalid request format. Must provide either client_id and loan_id, or all client details directly")
             return jsonify({
                 'success': False,
-                'message': result['message']
+                'message': 'Invalid request format. Must provide either client_id and loan_id, or all client details directly'
+            }), 400
+        
+        print(f"[INFO] Processing email reminder request for client={client_name}, account={account_no}, email={email}")
+        
+        # Validate email format
+        if not email or '@' not in email:
+            print(f"[ERROR] Invalid email format: {email}")
+            return jsonify({
+                'success': False,
+                'message': f'Invalid email format: {email}'
+            }), 400
+            
+        # Log the email sending attempt - using data directly from the request
+        current_app.logger.info(f"Sending email reminder to {email} for client {client_name}")
+        print(f"[INFO] Preparing to send email reminder to {email} for client {client_name}")
+        
+        # Prepare data for the email reminder
+        try:
+            # Set due date to 7 days from now if not provided
+            due_date = data.get('due_date')
+            if not due_date:
+                due_date = datetime.utcnow() + timedelta(days=7)
+                print(f"[INFO] Using default due date: {due_date}")
+            else:
+                print(f"[INFO] Using provided due date: {due_date}")
+            
+            # As per system requirements, use OutstandingBalance when InstallmentAmount is not available
+            try:
+                outstanding_balance = float(outstanding_balance)
+                print(f"[INFO] Using outstanding balance: {outstanding_balance}")
+            except (ValueError, TypeError) as e:
+                print(f"[ERROR] Invalid outstanding balance value: {outstanding_balance}. Error: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Invalid outstanding balance value: {str(e)}'
+                }), 400
+                
+            try:
+                loan_amount = float(loan_amount)
+                print(f"[INFO] Using loan amount: {loan_amount}")
+            except (ValueError, TypeError) as e:
+                print(f"[ERROR] Invalid loan amount value: {loan_amount}. Error: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Invalid loan amount value: {str(e)}'
+                }), 400
+        except Exception as e:
+            print(f"[ERROR] Error preparing email data: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Error preparing email data: {str(e)}'
+            }), 500
+        
+        # Validate staff information
+        if not current_user or not current_user.id:
+            print(f"[ERROR] Invalid current user information")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid staff information'
+            }), 400
+        
+        print(f"[INFO] Sending email with the following data: To: {email}, Client: {client_name}, Account: {account_no}, Loan Amount: {loan_amount}, Outstanding: {outstanding_balance}, Due Date: {due_date}, Staff: {current_user.username} (ID: {current_user.id})")
+        
+        # Send email reminder
+        try:
+            result = CorrespondenceService.send_payment_reminder_email(
+                to=email,
+                client_name=client_name,
+                account_no=account_no,
+                loan_amount=loan_amount,
+                outstanding_balance=outstanding_balance,
+                due_date=due_date,
+                staff_id=current_user.id,
+                sent_by=current_user.username
+            )
+            
+            print(f"[DEBUG] Email service result: {result}")
+            
+            if result['success']:
+                current_app.logger.info(f"Email reminder sent successfully to {email}")
+                print(f"[SUCCESS] Email reminder sent successfully to {email}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Email reminder sent successfully',
+                    'correspondence_id': result.get('correspondence_id')
+                }), 200
+            else:
+                error_message = result.get('message', 'Unknown error')
+                current_app.logger.error(f"Failed to send email reminder: {error_message}")
+                print(f"[ERROR] Failed to send email reminder: {error_message}")
+                return jsonify({
+                    'success': False,
+                    'message': error_message
+                }), 500
+        except Exception as e:
+            print(f"[ERROR] Exception while calling correspondence service: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Exception while sending email: {str(e)}'
             }), 500
             
     except Exception as e:
-        current_app.logger.error(f"Error sending email reminder: {str(e)}")
+        current_app.logger.error(f"Error sending email reminder: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'An error occurred: {str(e)}'
+        }), 500
+
+@correspondence_bp.route('/api/batch-send-email-reminders', methods=['POST'])
+@login_required
+def batch_send_email_reminders():
+    """
+    Send email reminders to multiple clients in a single batch operation.
+    This is more efficient than sending emails one by one as it reuses a single SMTP connection.
+    
+    Expected JSON payload:
+    {
+        "reminders": [
+            {
+                "client_id": int,
+                "loan_id": int,
+                "email": str
+            },
+            ...
+        ]
+    }
+    """
+    # Main try block for the entire function
+    try:
+        # Try to print the raw request data for debugging
+        try:
+            print(f"[DEBUG] Raw batch request data: {request.data}")
+        except Exception as e:
+            print(f"[ERROR] Error accessing batch request data: {str(e)}")
+        
+        # Check if email is configured
+        email_config = CorrespondenceService.is_email_configured()
+        if not email_config:
+            print(f"[ERROR] Email service is not configured")
+            return jsonify({
+                'success': False,
+                'message': 'Email service is not configured'
+            }), 400
+        else:
+            print(f"[INFO] Email configuration found and valid")
+            
+        # Validate request data
+        try:
+            data = request.json
+            print(f"[DEBUG] Parsed batch JSON data: {data}")
+        except Exception as e:
+            print(f"[ERROR] Failed to parse batch JSON data: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Invalid JSON data: {str(e)}'
+            }), 400
+            
+        if not data:
+            print(f"[ERROR] Empty batch request data")
+            return jsonify({
+                'success': False,
+                'message': 'Empty request data'
+            }), 400
+        
+        # Check for reminders array
+        reminders = data.get('reminders', [])
+        if not reminders or not isinstance(reminders, list):
+            print(f"[ERROR] Missing or invalid reminders array")
+            return jsonify({
+                'success': False,
+                'message': 'Missing or invalid reminders array'
+            }), 400
+        
+        print(f"[INFO] Processing batch email reminders for {len(reminders)} recipients")
+        
+        # Prepare data for batch email sending
+        email_data = []
+        invalid_reminders = []
+        
+        for i, reminder in enumerate(reminders):
+            try:
+                # Check if we're using the old format (client_id and loan_id) or new format (direct client details)
+                old_format = 'client_id' in reminder and 'loan_id' in reminder
+                new_format = all(field in reminder for field in ['email', 'client_name', 'account_no', 'loan_amount', 'outstanding_balance'])
+                
+                # Get email which is required in both formats
+                email = reminder.get('email')
+                if not email:
+                    invalid_reminders.append({
+                        'index': i,
+                        'error': 'Missing required field: email',
+                        'data': reminder
+                    })
+                    continue
+                    
+                # Handle old format (client_id and loan_id)
+                if old_format and not new_format:
+                    print(f"[INFO] Using old format with client_id and loan_id for reminder {i}")
+                    client_id = reminder.get('client_id')
+                    loan_id = reminder.get('loan_id')
+                    
+                    if not client_id or not loan_id:
+                        invalid_reminders.append({
+                            'index': i,
+                            'error': 'Missing required fields: client_id or loan_id',
+                            'data': reminder
+                        })
+                        continue
+                    
+                    # Get client and loan details from database
+                    try:
+                        client = Client.query.get(client_id)
+                        if not client:
+                            invalid_reminders.append({
+                                'index': i,
+                                'error': f'Client with ID {client_id} not found',
+                                'data': reminder
+                            })
+                            continue
+                        
+                        loan = Loan.query.get(loan_id)
+                        if not loan:
+                            invalid_reminders.append({
+                                'index': i,
+                                'error': f'Loan with ID {loan_id} not found',
+                                'data': reminder
+                            })
+                            continue
+                            
+                        # Set variables from database objects
+                        client_name = client.full_name
+                        account_no = loan.account_no
+                        
+                        try:
+                            loan_amount = float(loan.amount)
+                        except (ValueError, TypeError):
+                            invalid_reminders.append({
+                                'index': i,
+                                'error': f'Invalid loan amount value: {loan.amount}',
+                                'data': reminder
+                            })
+                            continue
+                            
+                        try:
+                            outstanding_balance = float(loan.outstanding_balance)
+                        except (ValueError, TypeError):
+                            invalid_reminders.append({
+                                'index': i,
+                                'error': f'Invalid outstanding balance value: {loan.outstanding_balance}',
+                                'data': reminder
+                            })
+                            continue
+                            
+                    except Exception as e:
+                        invalid_reminders.append({
+                            'index': i,
+                            'error': f'Database error: {str(e)}',
+                            'data': reminder
+                        })
+                        continue
+                        
+                # Handle new format (direct client details)
+                elif new_format:
+                    print(f"[INFO] Using new format with direct client details for reminder {i}")
+                    client_name = reminder.get('client_name')
+                    account_no = reminder.get('account_no')
+                    
+                    try:
+                        loan_amount = float(reminder.get('loan_amount'))
+                        outstanding_balance = float(reminder.get('outstanding_balance'))
+                    except (ValueError, TypeError) as e:
+                        invalid_reminders.append({
+                            'index': i,
+                            'error': f'Invalid numeric value in request data: {str(e)}',
+                            'data': reminder
+                        })
+                        continue
+                        
+                # Neither format is valid
+                else:
+                    invalid_reminders.append({
+                        'index': i,
+                        'error': 'Invalid request format. Must provide either client_id and loan_id, or all client details directly',
+                        'data': reminder
+                    })
+                    continue
+                
+                # Validate email format
+                if not email or '@' not in email:
+                    invalid_reminders.append({
+                        'index': i,
+                        'error': f'Invalid email format: {email}',
+                        'data': reminder
+                    })
+                    continue
+                
+                # Set due date to 7 days from now if not provided
+                due_date = reminder.get('due_date')
+                if not due_date:
+                    due_date = datetime.utcnow() + timedelta(days=7)
+                
+                # Add to valid email data
+                email_data.append({
+                    'to': email,
+                    'client_name': client_name,
+                    'account_no': account_no,
+                    'loan_amount': loan_amount,
+                    'outstanding_balance': outstanding_balance,  # Using outstanding balance as per system requirements
+                    'due_date': due_date
+                })
+                
+            except Exception as e:
+                invalid_reminders.append({
+                    'index': i,
+                    'error': f'Error processing reminder: {str(e)}',
+                    'data': reminder
+                })
+        
+        # Check if we have any valid reminders to send
+        if not email_data:
+            print(f"[ERROR] No valid reminders to send after validation")
+            return jsonify({
+                'success': False,
+                'message': 'No valid reminders to send after validation',
+                'invalid_reminders': invalid_reminders
+            }), 400
+        
+        # Validate staff information
+        if not current_user or not current_user.id:
+            print(f"[ERROR] Invalid current user information")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid staff information'
+            }), 400
+        
+        print(f"[INFO] Sending batch emails to {len(email_data)} recipients")
+        
+        # Send batch email reminders
+        try:
+            result = CorrespondenceService.batch_send_payment_reminder_emails(
+                reminders=email_data,
+                staff_id=current_user.id,
+                sent_by=current_user.username
+            )
+            
+            print(f"[DEBUG] Batch email service result: {result}")
+            
+            # Prepare response with both successes and failures
+            response = {
+                'success': result['success'],
+                'message': result['message'],
+                'total': result['total'],
+                'sent': result['sent'],
+                'failed': result['failed'],
+                'invalid_reminders': invalid_reminders
+            }
+            
+            if result['sent'] > 0:
+                current_app.logger.info(f"Batch email reminders sent successfully to {result['sent']} recipients")
+                print(f"[SUCCESS] Batch email reminders sent successfully to {result['sent']} recipients")
+                return jsonify(response), 200
+            else:
+                error_message = result.get('message', 'Unknown error')
+                current_app.logger.error(f"Failed to send any batch email reminders: {error_message}")
+                print(f"[ERROR] Failed to send any batch email reminders: {error_message}")
+                return jsonify(response), 500
+                
+        except Exception as e:
+            print(f"[ERROR] Exception while calling batch correspondence service: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Exception while sending batch emails: {str(e)}',
+                'invalid_reminders': invalid_reminders
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Error sending batch email reminders: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'An error occurred: {str(e)}'
@@ -289,7 +736,7 @@ def get_clients():
         clients = Client.query.all()
         return jsonify([{
             'id': client.id,
-            'name': client.name
+            'name': client.full_name  # Using full_name property instead of name attribute
         } for client in clients])
     except Exception as e:
         current_app.logger.error(f"Error getting clients: {str(e)}")

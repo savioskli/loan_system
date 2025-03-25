@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 from models.correspondence import Correspondence
 from models.sms_gateway import SmsGatewayConfig
 from models.email_config import EmailConfig
+from models.email_template import EmailTemplateType
 from services.sms_gateway_factory import SmsGatewayFactory
 from services.email_service import EmailService
 from extensions import db
@@ -190,26 +191,143 @@ class CorrespondenceService:
         Returns:
             Dict[str, Any]: A dictionary containing the result of the operation.
         """
-        template_data = {
-            'client_name': client_name,
-            'account_no': account_no,
-            'loan_amount': loan_amount,
-            'outstanding_balance': outstanding_balance,
-            'due_date': due_date.strftime('%Y-%m-%d'),
-            'current_date': datetime.utcnow().strftime('%Y-%m-%d')
-        }
+        logger.info(f"Sending payment reminder email to {to} for account {account_no}")
         
-        return CorrespondenceService.send_email(
+        # First, use EmailService to send the actual email
+        # Note: We use outstanding_balance as per system requirements when InstallmentAmount is not available
+        email_result = EmailService.send_payment_reminder(
             to=to,
-            subject='Payment Reminder',  # Will be overridden by template
-            message='Payment reminder for your loan',  # Will be overridden by template
-            account_no=account_no,
             client_name=client_name,
-            staff_id=staff_id,
-            sent_by=sent_by,
-            template_type='payment_reminder',
-            template_data=template_data
+            account_no=account_no,
+            loan_amount=loan_amount,
+            outstanding_balance=outstanding_balance,  # Using outstanding balance for payment amount
+            due_date=due_date
         )
+        
+        if not email_result['success']:
+            logger.error(f"Failed to send payment reminder email: {email_result['message']}")
+            return email_result
+        
+        # Then, record the correspondence in the database
+        try:
+            correspondence = Correspondence(
+                type='email',
+                to=to,
+                subject='Payment Reminder',
+                message='Payment reminder email sent',
+                account_no=account_no,
+                client_name=client_name,
+                staff_id=staff_id,
+                sent_by=sent_by,
+                sent_at=datetime.utcnow()
+            )
+            
+            db.session.add(correspondence)
+            db.session.commit()
+            
+            logger.info(f"Correspondence record created with ID: {correspondence.id}")
+            
+            return {
+                'success': True,
+                'message': 'Email sent and correspondence recorded',
+                'correspondence_id': correspondence.id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error recording correspondence: {str(e)}", exc_info=True)
+            db.session.rollback()
+            
+            # Even if we failed to record the correspondence, the email was sent
+            return {
+                'success': True,
+                'message': 'Email sent but failed to record correspondence',
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def batch_send_payment_reminder_emails(reminders: list, staff_id: int, sent_by: str) -> Dict[str, Any]:
+        """
+        Send payment reminder emails to multiple recipients in a single batch operation.
+        This is more efficient than sending emails one by one as it reuses a single SMTP connection.
+        
+        Args:
+            reminders (list): A list of dictionaries containing recipient data with the following structure:
+                [
+                    {
+                        'to': str,                  # Recipient email address
+                        'client_name': str,         # Client name
+                        'account_no': str,          # Loan account number
+                        'loan_amount': float,       # Original loan amount
+                        'outstanding_balance': float, # Outstanding balance (used as payment amount)
+                        'due_date': datetime       # Payment due date
+                    },
+                    ...
+                ]
+            staff_id (int): The ID of the staff member sending the reminders.
+            sent_by (str): The name of the user sending the reminders.
+            
+        Returns:
+            Dict[str, Any]: A dictionary containing the result of the operation with details for each recipient.
+        """
+        logger.info(f"Sending batch payment reminder emails to {len(reminders)} recipients")
+        
+        # First, use EmailService to send the actual emails in batch
+        email_result = EmailService.batch_send_payment_reminders(reminders)
+        
+        # Now record correspondences for successful emails
+        correspondence_results = []
+        
+        if email_result['sent'] > 0:
+            try:
+                # Get successful email details
+                successful_emails = [detail for detail in email_result['details'] if detail['success']]
+                
+                # Create correspondence records for each successful email
+                correspondences = []
+                for detail in successful_emails:
+                    # Find the original reminder data for this recipient
+                    recipient_email = detail['to']
+                    reminder_data = next((r for r in reminders if r.get('to') == recipient_email), None)
+                    
+                    if reminder_data:
+                        correspondence = Correspondence(
+                            type='email',
+                            to=recipient_email,
+                            subject='Payment Reminder',
+                            message='Payment reminder email sent',
+                            account_no=reminder_data.get('account_no', ''),
+                            client_name=reminder_data.get('client_name', ''),
+                            staff_id=staff_id,
+                            sent_by=sent_by,
+                            sent_at=datetime.utcnow()
+                        )
+                        correspondences.append(correspondence)
+                
+                # Bulk insert all correspondence records
+                if correspondences:
+                    db.session.add_all(correspondences)
+                    db.session.commit()
+                    
+                    # Add correspondence IDs to the results
+                    for i, corr in enumerate(correspondences):
+                        correspondence_results.append({
+                            'to': corr.to,
+                            'correspondence_id': corr.id,
+                            'success': True
+                        })
+                    
+                    logger.info(f"Created {len(correspondences)} correspondence records")
+            except Exception as e:
+                logger.error(f"Error recording correspondences: {str(e)}", exc_info=True)
+                db.session.rollback()
+                
+                # Add error info to the result
+                email_result['correspondence_error'] = str(e)
+        
+        # Add correspondence results to the email results
+        email_result['correspondences'] = correspondence_results
+        
+        return email_result
     
     @staticmethod
     def is_email_configured() -> bool:

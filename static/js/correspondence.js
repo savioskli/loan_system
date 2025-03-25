@@ -857,6 +857,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // For email, use the dedicated email reminder endpoint
                 if (sendVia === 'email') {
+                    console.log('Sending email reminder...');
                     promises.push($.ajax({
                         url: '/correspondence/api/send-email-reminder',
                         method: 'POST',

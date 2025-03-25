@@ -1,17 +1,31 @@
+from flask import Flask
+import logging
+import sys
+import os
+
+# Add the project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from extensions import db
 from models.email_template import EmailTemplate, EmailTemplateType
-import logging
+from config import Config
 
 logger = logging.getLogger(__name__)
 
+# Create Flask app and configure it
+app = Flask(__name__)
+app.config.from_object(Config)
+db.init_app(app)
+
 def update_payment_reminder_template():
     try:
-        # Update the payment reminder template
-        payment_reminder = EmailTemplate.query.filter_by(type=EmailTemplateType.PAYMENT_REMINDER.value).first()
-        
-        if payment_reminder:
-            payment_reminder.subject = 'Payment Reminder for Your Loan'
-            payment_reminder.content = '''
+        with app.app_context():
+            # Update the payment reminder template
+            payment_reminder = EmailTemplate.query.filter_by(type=EmailTemplateType.PAYMENT_REMINDER.value).first()
+            
+            if payment_reminder:
+                payment_reminder.subject = 'Payment Reminder for Your Loan'
+                payment_reminder.content = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -58,12 +72,12 @@ def update_payment_reminder_template():
 </body>
 </html>
 '''
-            db.session.commit()
-            logger.info("Payment reminder template updated successfully")
-            return True
-        else:
-            logger.error("Payment reminder template not found")
-            return False
+                db.session.commit()
+                logger.info("Payment reminder template updated successfully")
+                return True
+            else:
+                logger.error("Payment reminder template not found")
+                return False
 
     except Exception as e:
         logger.error(f"Error updating payment reminder template: {str(e)}")
@@ -72,12 +86,13 @@ def update_payment_reminder_template():
 
 def update_payment_overdue_template():
     try:
-        # Update the payment overdue template
-        payment_overdue = EmailTemplate.query.filter_by(type=EmailTemplateType.PAYMENT_OVERDUE.value).first()
-        
-        if payment_overdue:
-            payment_overdue.subject = 'URGENT: Payment Overdue Notice'
-            payment_overdue.content = '''
+        with app.app_context():
+            # Update the payment overdue template
+            payment_overdue = EmailTemplate.query.filter_by(type=EmailTemplateType.PAYMENT_OVERDUE.value).first()
+            
+            if payment_overdue:
+                payment_overdue.subject = 'URGENT: Payment Overdue Notice'
+                payment_overdue.content = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -125,12 +140,12 @@ def update_payment_overdue_template():
 </body>
 </html>
 '''
-            db.session.commit()
-            logger.info("Payment overdue template updated successfully")
-            return True
-        else:
-            logger.error("Payment overdue template not found")
-            return False
+                db.session.commit()
+                logger.info("Payment overdue template updated successfully")
+                return True
+            else:
+                logger.error("Payment overdue template not found")
+                return False
 
     except Exception as e:
         logger.error(f"Error updating payment overdue template: {str(e)}")

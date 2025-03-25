@@ -6,6 +6,7 @@ class Role(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
+    code = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(200))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -25,6 +26,20 @@ class Role(db.Model):
         self.updated_by = created_by
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
+        self.code = self._generate_unique_code(name)
+    
+    def _generate_unique_code(self, name):
+        """Generate a unique code based on the role name"""
+        base_code = '_'.join(word.upper() for word in name.split())
+        code = base_code
+        counter = 1
+        
+        while True:
+            existing_role = Role.query.filter_by(code=code).first()
+            if not existing_role:
+                return code
+            counter += 1
+            code = f"{base_code}_{counter}"
     
     def __repr__(self):
         return f'<Role {self.name}>'
@@ -33,6 +48,7 @@ class Role(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'code': self.code,
             'description': self.description,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,

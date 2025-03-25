@@ -99,6 +99,21 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- Breadcrumbs -->
+    <nav class="mb-6" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{{ url_for('admin.dashboard') }}" class="text-gray-600 hover:text-gray-900">Dashboard</a>
+            </li>
+            <li class="flex items-center">
+                <i class="fas fa-chevron-right mx-3 text-gray-400"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{{ url_for('roles.list_roles') }}" class="text-gray-600 hover:text-gray-900">User Roles</a>
+            </li>
+        </ol>
+    </nav>
+
     <!-- Header -->
     <div class="bg-white shadow rounded-lg p-6 mb-6">
         <div class="flex items-center justify-between">

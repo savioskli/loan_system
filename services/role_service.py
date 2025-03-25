@@ -45,52 +45,26 @@ class RoleService:
                 return None, "Role name must be between 2 and 50 characters"
             
             # Check for existing role with same name (case-insensitive)
-            try:
-                print("Checking for existing role with name:", name)  # Debug print
-                existing_role = Role.query.filter(Role.name.ilike(name)).first()
-                print("Existing role query result:", existing_role)  # Debug print
-                if existing_role:
-                    return None, "A role with this name already exists"
-            except Exception as e:
-                print(f"Database error while checking existing role: {str(e)}")  # Debug print
-                print(f"Error type: {type(e)}")  # Debug print
-                import traceback
-                print(f"Traceback: {traceback.format_exc()}")  # Debug print
-                return None, f"Database error: {str(e)}"
-
+            existing_role = Role.query.filter(Role.name.ilike(name)).first()
+            if existing_role:
+                return None, f"Role with name '{name}' already exists"
+            
             # Create new role
-            try:
-                print("Creating new role object")  # Debug print
-                role = Role(
-                    name=name,
-                    description=description.strip() if description else None,
-                    is_active=is_active,
-                    created_by=created_by
-                )
-                
-                print("Adding role to session")  # Debug print
-                db.session.add(role)
-                print("Committing session")  # Debug print
-                db.session.commit()
-                print("Role created successfully:", role.name)  # Debug print
-                return role, None
-                
-            except Exception as e:
-                print(f"Database error while creating role: {str(e)}")  # Debug print
-                print(f"Error type: {type(e)}")  # Debug print
-                import traceback
-                print(f"Traceback: {traceback.format_exc()}")  # Debug print
-                db.session.rollback()
-                return None, f"Database error: {str(e)}"
+            role = Role(
+                name=name,
+                description=description,
+                is_active=is_active,
+                created_by=created_by
+            )
+            
+            db.session.add(role)
+            db.session.commit()
+            return role, None
             
         except Exception as e:
-            print(f"Unexpected error in create_role: {str(e)}")  # Debug print
-            print(f"Error type: {type(e)}")  # Debug print
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")  # Debug print
-            if db.session.is_active:
-                db.session.rollback()
-            return None, f"Error creating role: {str(e)}"
+            db.session.rollback()
+            current_app.logger.error(f'Error creating role: {str(e)}')
+            return None, str(e)
 
     @staticmethod
     def get_role(role_id: int) -> Tuple[Optional[Role], Optional[str]]:

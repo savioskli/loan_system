@@ -175,3 +175,91 @@ class UserCreateForm(FlaskForm):
         
         if query.first():
             raise ValidationError('This email is already registered')
+
+class UserEditForm(FlaskForm):
+    email = StringField('Email *', validators=[
+        DataRequired(message='Email is required'),
+        Email(message='Please enter a valid email address'),
+        Length(max=120, message='Email cannot exceed 120 characters')
+    ])
+    username = StringField('Username *', validators=[
+        DataRequired(message='Username is required'),
+        Length(min=3, max=50, message='Username must be between 3 and 50 characters'),
+        Regexp(r'^[\w.-]+$', message='Username can only contain letters, numbers, dots, and dashes')
+    ])
+    first_name = StringField('First Name *', validators=[
+        DataRequired(message='First name is required'),
+        Length(max=50, message='First name cannot exceed 50 characters')
+    ])
+    last_name = StringField('Last Name *', validators=[
+        DataRequired(message='Last name is required'),
+        Length(max=50, message='Last name cannot exceed 50 characters')
+    ])
+    phone = StringField('Phone Number', validators=[
+        Optional(),
+        Length(max=20, message='Phone number cannot exceed 20 characters'),
+        Regexp(r'^\+?1?\d{9,15}$', message='Please enter a valid phone number. Format: +1234567890')
+    ])
+    branch_id = SelectField('Branch', coerce=int, validators=[Optional()], choices=[])
+    role_id = SelectField('Role *', coerce=int, validators=[
+        DataRequired(message='Role is required')
+    ], choices=[])
+    password = PasswordField('New Password', validators=[
+        Optional(),
+        Length(min=6, message='Password must be at least 6 characters long')
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        Optional(),
+        EqualTo('password', message='Passwords must match')
+    ])
+    is_active = BooleanField('Active')
+    submit = SubmitField('Save Changes')
+
+    def __init__(self, *args, **kwargs):
+        self._obj = kwargs.get('obj', None)  # Store the original object
+        super(UserEditForm, self).__init__(*args, **kwargs)
+        # Convert string 'y' to boolean True for is_active field
+        if isinstance(self.is_active.data, str):
+            self.is_active.data = self.is_active.data.lower() in ['true', 't', 'yes', 'y', '1']
+
+        # Load roles and branches for the dropdowns
+        from models.role import Role
+        from models.branch import Branch
+        
+        # Load roles
+        roles = Role.query.all()
+        self.role_id.choices = [(role.id, role.name) for role in roles]
+        
+        # Load branches
+        branches = Branch.query.all()
+        self.branch_id.choices = [(branch.id, branch.name) for branch in branches]
+
+    def validate_password(self, field):
+        if field.data and not self.confirm_password.data:
+            raise ValidationError('Please confirm your new password')
+
+    def validate_username(self, field):
+        if not field.data:
+            return
+        
+        from models.staff import Staff
+        # Check if username already exists (case-insensitive)
+        query = Staff.query.filter(Staff.username.ilike(field.data.strip()))
+        if self._obj:
+            query = query.filter(Staff.id != self._obj.id)
+        
+        if query.first():
+            raise ValidationError('This username is already taken')
+
+    def validate_email(self, field):
+        if not field.data:
+            return
+            
+        from models.staff import Staff
+        # Check if email already exists (case-insensitive)
+        query = Staff.query.filter(Staff.email.ilike(field.data.strip()))
+        if self._obj:
+            query = query.filter(Staff.id != self._obj.id)
+        
+        if query.first():
+            raise ValidationError('This email is already registered')

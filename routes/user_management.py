@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from models.staff import Staff
 from models.branch import Branch
 from models.role import Role
-from forms.user_management import UserCreateForm, UserApprovalForm
+from forms.user_management import UserCreateForm, UserApprovalForm, UserEditForm
 from extensions import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash
@@ -381,30 +381,40 @@ def edit_user(user_id):
     try:
         user = Staff.query.get_or_404(user_id)
         
-        form = UserCreateForm(obj=user)
+        form = UserEditForm(obj=user)
+        
         if form.validate_on_submit():
-            user.username = form.username.data
-            user.first_name = form.first_name.data
-            user.last_name = form.last_name.data
-            user.email = form.email.data
-            user.phone = form.phone.data
-            user.role_id = form.role_id.data
-            user.branch_id = form.branch_id.data
-            user.status = form.status.data
-            user.is_active = form.is_active.data
-            
-            if form.password.data:
-                user.set_password(form.password.data)
-            
-            db.session.commit()
-            flash('User updated successfully.', 'success')
-            return redirect(url_for('user_management.list_users'))
+            try:
+                # Update user data
+                user.username = form.username.data.strip()
+                user.first_name = form.first_name.data.strip()
+                user.last_name = form.last_name.data.strip()
+                user.email = form.email.data.strip()
+                user.phone = form.phone.data.strip() if form.phone.data else None
+                user.role_id = form.role_id.data
+                user.branch_id = form.branch_id.data if form.branch_id.data else None
+                user.is_active = form.is_active.data
+                
+                # Only update password if provided
+                if form.password.data:
+                    user.set_password(form.password.data)
+                
+                db.session.commit()
+                flash('User updated successfully!', 'success')
+                return redirect(url_for('user_management.list_users'))
+                
+            except ValueError as e:
+                flash(str(e), 'error')
+                return render_template('admin/users/edit.html', form=form, user=user)
+            except Exception as e:
+                flash('An unexpected error occurred while updating the user.', 'error')
+                return render_template('admin/users/edit.html', form=form, user=user)
         
         return render_template('admin/users/edit.html', form=form, user=user)
         
     except Exception as e:
         current_app.logger.error(f"Error in edit_user: {str(e)}", exc_info=True)
-        flash('An error occurred while updating the user.', 'error')
+        flash('An error occurred while setting up the form.', 'error')
         return redirect(url_for('user_management.list_users'))
 
 @bp.route('/delete/<int:user_id>', methods=['POST'])

@@ -193,7 +193,22 @@ class CorrespondenceService:
         """
         logger.info(f"Sending payment reminder email to {to} for account {account_no}")
         
-        # First, use EmailService to send the actual email
+        # First, create the email content that will be sent
+        # This is similar to what EmailService.send_payment_reminder does
+        formatted_loan_amount = '{:,.2f}'.format(loan_amount)
+        formatted_outstanding_balance = '{:,.2f}'.format(outstanding_balance)
+        formatted_due_date = due_date.strftime('%B %d, %Y') if due_date else 'N/A'
+        
+        # Create a summary of the email content for the database
+        email_summary = f"Payment Reminder for Loan {account_no}\n"
+        email_summary += f"Dear {client_name},\n"
+        email_summary += f"This is a friendly reminder that your loan payment of KES {formatted_outstanding_balance} is due on {formatted_due_date}.\n"
+        email_summary += f"Loan Details:\n"
+        email_summary += f"- Account Number: {account_no}\n"
+        email_summary += f"- Original Loan Amount: KES {formatted_loan_amount}\n"
+        email_summary += f"- Outstanding Balance: KES {formatted_outstanding_balance}\n"
+        email_summary += f"- Due Date: {formatted_due_date}\n"
+        
         # Note: We use outstanding_balance as per system requirements when InstallmentAmount is not available
         email_result = EmailService.send_payment_reminder(
             to=to,
@@ -211,15 +226,16 @@ class CorrespondenceService:
         # Then, record the correspondence in the database
         try:
             correspondence = Correspondence(
-                type='email',
-                to=to,
-                subject='Payment Reminder',
-                message='Payment reminder email sent',
                 account_no=account_no,
                 client_name=client_name,
-                staff_id=staff_id,
+                type='email',
+                message=email_summary,  # Save the actual email content summary
+                status='sent',  # Since we know the email was sent successfully
                 sent_by=sent_by,
-                sent_at=datetime.utcnow()
+                recipient=to,
+                delivery_status='delivered',
+                delivery_time=datetime.utcnow(),
+                staff_id=staff_id
             )
             
             db.session.add(correspondence)
@@ -290,16 +306,38 @@ class CorrespondenceService:
                     reminder_data = next((r for r in reminders if r.get('to') == recipient_email), None)
                     
                     if reminder_data:
+                        # Format the values for display
+                        loan_amount = reminder_data.get('loan_amount', 0)
+                        outstanding_balance = reminder_data.get('outstanding_balance', 0)
+                        due_date = reminder_data.get('due_date')
+                        
+                        formatted_loan_amount = '{:,.2f}'.format(loan_amount)
+                        formatted_outstanding_balance = '{:,.2f}'.format(outstanding_balance)
+                        formatted_due_date = due_date.strftime('%B %d, %Y') if due_date else 'N/A'
+                        account_no = reminder_data.get('account_no', '')
+                        client_name = reminder_data.get('client_name', '')
+                        
+                        # Create a summary of the email content for the database
+                        email_summary = f"Payment Reminder for Loan {account_no}\n"
+                        email_summary += f"Dear {client_name},\n"
+                        email_summary += f"This is a friendly reminder that your loan payment of KES {formatted_outstanding_balance} is due on {formatted_due_date}.\n"
+                        email_summary += f"Loan Details:\n"
+                        email_summary += f"- Account Number: {account_no}\n"
+                        email_summary += f"- Original Loan Amount: KES {formatted_loan_amount}\n"
+                        email_summary += f"- Outstanding Balance: KES {formatted_outstanding_balance}\n"
+                        email_summary += f"- Due Date: {formatted_due_date}\n"
+                        
                         correspondence = Correspondence(
+                            account_no=account_no,
+                            client_name=client_name,
                             type='email',
-                            to=recipient_email,
-                            subject='Payment Reminder',
-                            message='Payment reminder email sent',
-                            account_no=reminder_data.get('account_no', ''),
-                            client_name=reminder_data.get('client_name', ''),
-                            staff_id=staff_id,
+                            message=email_summary,  # Save the actual email content summary
+                            status='sent',  # Since we know the email was sent successfully
                             sent_by=sent_by,
-                            sent_at=datetime.utcnow()
+                            recipient=recipient_email,
+                            delivery_status='delivered',
+                            delivery_time=datetime.utcnow(),
+                            staff_id=staff_id
                         )
                         correspondences.append(correspondence)
                 
@@ -311,7 +349,7 @@ class CorrespondenceService:
                     # Add correspondence IDs to the results
                     for i, corr in enumerate(correspondences):
                         correspondence_results.append({
-                            'to': corr.to,
+                            'to': corr.recipient,
                             'correspondence_id': corr.id,
                             'success': True
                         })

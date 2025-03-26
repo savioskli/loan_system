@@ -44,7 +44,7 @@ from models.legal_case import LegalCase
 from models.auction import Auction
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
-from models.post_disbursement_modules import ExpectedStructure, ActualStructure
+from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
 
 user_bp = Blueprint('user', __name__)
 
@@ -1012,6 +1012,14 @@ def reports():
 def post_disbursement():
     current_app.logger.info("Starting post_disbursement route")
 
+    # Get visible modules for the sidebar
+    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
+    
+    # Helper function to add visible_modules to template parameters
+    def render_with_modules(template, **kwargs):
+        kwargs['visible_modules'] = visible_modules
+        return render_template(template, **kwargs)
+    
     # Statically define the module ID
     module_id = 1  # Replace with the desired module ID
 
@@ -1029,7 +1037,7 @@ def post_disbursement():
         core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
         if not core_system:
             flash('No active core banking system configured', 'error')
-            return render_template('user/post_disbursement.html',
+            return render_with_modules('user/post_disbursement.html',
                                    total_loans=0,
                                    total_outstanding=0,
                                    total_in_arrears=0,
@@ -1072,7 +1080,7 @@ def post_disbursement():
         except mysql.connector.Error as e:
             current_app.logger.error(f"Error connecting to database: {str(e)}")
             flash(f'Error connecting to database: {str(e)}', 'error')
-            return render_template('user/post_disbursement.html',
+            return render_with_modules('user/post_disbursement.html',
                                    total_loans=0,
                                    total_outstanding=0,
                                    total_in_arrears=0,
@@ -1124,7 +1132,7 @@ def post_disbursement():
             current_app.logger.info(f"Mapping Data: {mapping}")
         except Exception as e:
             flash(f'Error retrieving mapping data: {str(e)}', 'error')
-            return render_template('user/post_disbursement.html',
+            return render_with_modules('user/post_disbursement.html',
                                    total_loans=0,
                                    total_outstanding=0,
                                    total_in_arrears=0,
@@ -1381,7 +1389,7 @@ def post_disbursement():
         cursor.close()
         conn.close()
 
-        return render_template(
+        return render_with_modules(
             'user/post_disbursement.html',
             total_loans=len(loan_data),
             total_outstanding=float(total_outstanding),
@@ -1424,7 +1432,7 @@ def post_disbursement():
             'error': str(e)
         }
 
-        return render_template('user/post_disbursement.html', **default_values)
+        return render_with_modules('user/post_disbursement.html', **default_values)
 @user_bp.route('/analytics', methods=['GET'])
 @login_required
 def analytics():

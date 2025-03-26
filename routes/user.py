@@ -46,6 +46,12 @@ from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
 
+# Global helper function to add visible_modules to template parameters
+def render_with_modules(template, **kwargs):
+    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
+    kwargs['visible_modules'] = visible_modules
+    return render_template(template, **kwargs)
+
 user_bp = Blueprint('user', __name__)
 
 # Register collection schedule blueprint without additional prefix
@@ -83,7 +89,7 @@ def dashboard():
         )
     ).first()
     
-    return render_template('user/dashboard.html',
+    return render_with_modules('user/dashboard.html',
                          client_modules=client_modules,
                          loan_modules=loan_modules,
                          client_parent=client_parent,
@@ -139,7 +145,7 @@ def dynamic_form(module_code):
         ]
         
         # Render the form template
-        return render_template('user/dynamic_form.html',
+        return render_with_modules('user/dynamic_form.html',
                             module=module,
                             sections=sections,
                             client_types=client_types,
@@ -322,7 +328,7 @@ def manage_module(module_code):
             print(f"Full traceback: {traceback.format_exc()}")
             raise
         
-        return render_template('user/manage_module.html',
+        return render_with_modules('user/manage_module.html',
                              module=module,
                              submissions=submissions,
                              client_types=client_types,
@@ -434,7 +440,7 @@ def view_prospect(submission_id):
         print("Form Data:", submission.form_data)
         print("ID Type from form data:", submission.form_data.get('id_type'))
         
-        return render_template('user/view_prospect.html',
+        return render_with_modules('user/view_prospect.html',
                              submission=submission,
                              sections=sections,
                              products=products,
@@ -543,7 +549,7 @@ def edit_prospect(submission_id):
             flash('Prospect updated successfully', 'success')
             return redirect(url_for('user.manage_module', module_code=submission.module.code))
             
-        return render_template('user/edit_prospect.html', 
+        return render_with_modules('user/edit_prospect.html', 
                              submission=submission,
                              products=products,
                              client_types=client_types,
@@ -609,7 +615,7 @@ def convert_to_client(submission_id):
             form_data = submission.form_data
             
             # Render the conversion form
-            return render_template('user/convert_form.html',
+            return render_with_modules('user/convert_form.html',
                                 submission=submission,
                                 module=clm02_module,
                                 sections=sections,
@@ -712,7 +718,7 @@ def register_client(submission_id):
             print(f"Client type: {client_type}")
             
             # Render the registration form
-            return render_template('user/register_form.html',
+            return render_with_modules('user/register_form.html',
                                 submission=submission,
                                 module=clm02_module,
                                 sections=sections,
@@ -817,7 +823,7 @@ def search_clients():
 @user_bp.route('/correspondence')
 @login_required
 def correspondence():
-    return render_template('user/correspondence.html')
+    return render_with_modules('user/correspondence.html')
 
 @user_bp.route('/api/communications', methods=['GET'])
 @login_required
@@ -919,7 +925,7 @@ def get_correspondence(client_id):
 @user_bp.route('/manage-calendar')
 @login_required
 def manage_calendar():
-    return render_template('user/manage_calendar.html')
+    return render_with_modules('user/manage_calendar.html')
 
 @user_bp.route('/api/calendar/events', methods=['GET'])
 @login_required
@@ -1003,7 +1009,7 @@ def delete_calendar_event(event_id):
 @login_required
 def reports():
     # TODO: Implement reports page
-    return render_template('user/reports.html')
+    return render_with_modules('user/reports.html')
 
 
 
@@ -1012,13 +1018,7 @@ def reports():
 def post_disbursement():
     current_app.logger.info("Starting post_disbursement route")
 
-    # Get visible modules for the sidebar
-    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
-    
-    # Helper function to add visible_modules to template parameters
-    def render_with_modules(template, **kwargs):
-        kwargs['visible_modules'] = visible_modules
-        return render_template(template, **kwargs)
+    # Use the global render_with_modules function
     
     # Statically define the module ID
     module_id = 1  # Replace with the desired module ID
@@ -1482,7 +1482,7 @@ def analytics():
     current_page = request.args.get('page', 1, type=int)
     current_page = max(1, min(current_page, total_pages))  # Ensure page is in valid range
     
-    return render_template('user/analytics.html',
+    return render_with_modules('user/analytics.html',
                          data=sorted_correspondence,
                          type_counts=type_counts,
                          status_counts=status_counts,
@@ -1507,13 +1507,13 @@ def analytics():
 @login_required
 def collection_schedule():
     """Render the collection schedule page."""
-    return render_template('user/collection_schedule.html')
+    return render_with_modules('user/collection_schedule.html')
 
 @user_bp.route('/guarantors')
 @login_required
 def guarantors():
     """Display guarantors list page"""
-    return render_template('user/guarantors_list.html')
+    return render_with_modules('user/guarantors_list.html')
 
 @user_bp.route('/api/guarantors/sync/<customer_no>', methods=['POST'])
 @login_required
@@ -1715,7 +1715,7 @@ def sync_all_guarantors():
 @login_required
 def create_notification():
     """Display the notification creation form"""
-    return render_template('user/create_notification.html')
+    return render_with_modules('user/create_notification.html')
 
 @user_bp.route('/api/metrics')
 @login_required
@@ -2869,7 +2869,7 @@ def loan_rescheduling():
 
         # Fetch loan rescheduling requests from the database
         loan_reschedules = query.all()
-        return render_template('user/loan_rescheduling.html', loan_reschedules=loan_reschedules)
+        return render_with_modules('user/loan_rescheduling.html', loan_reschedules=loan_reschedules)
     except Exception as e:
         current_app.logger.error(f"Error rendering loan rescheduling page: {str(e)}")
         flash('An error occurred while loading the loan rescheduling page', 'error')
@@ -2884,7 +2884,7 @@ def refinancing():
         refinancing_applications = RefinanceApplication.query.all()
 
         # Render the template with the refinancing applications data
-        return render_template('user/refinancing.html', refinancing_applications=refinancing_applications)
+        return render_with_modules('user/refinancing.html', refinancing_applications=refinancing_applications)
     except Exception as e:
         current_app.logger.error(f"Error rendering refinancing page: {str(e)}")
         flash('An error occurred while loading the refinancing page', 'error')
@@ -2895,7 +2895,7 @@ def refinancing():
 def settlement_plans():
     """Render the settlement plans page"""
     try:
-        return render_template('user/settlement_plans.html')
+        return render_with_modules('user/settlement_plans.html')
     except Exception as e:
         current_app.logger.error(f"Error rendering settlement plans page: {str(e)}")
         flash('An error occurred while loading the settlement plans page', 'error')
@@ -2950,7 +2950,7 @@ def demand_letters():
         created_by=current_user.id
     ).order_by(DemandLetter.created_at.desc()).all()
     
-    return render_template('user/demand_letters.html', 
+    return render_with_modules('user/demand_letters.html', 
                            form=form, 
                            demand_letters=demand_letters)
 
@@ -2988,7 +2988,7 @@ def get_letter_templates():
 def crb_reports():
     """Render the CRB reports page"""
     try:
-        return render_template('user/crb_reports.html')
+        return render_with_modules('user/crb_reports.html')
     except Exception as e:
         current_app.logger.error(f"Error rendering CRB reports page: {str(e)}")
         flash('An error occurred while loading the CRB reports page', 'error')
@@ -3027,7 +3027,7 @@ def legal_cases():
         else:
             amount_display = f"KES {total_amount:,.0f}"
 
-        return render_template('user/legal_cases.html',
+        return render_with_modules('user/legal_cases.html',
                            legal_cases=legal_cases,
                            active_cases=active_cases,
                            resolved_cases=resolved_cases,
@@ -3057,7 +3057,7 @@ def auction_process():
             .filter(Auction.status == 'Completed')\
             .scalar() or 0
         
-        return render_template('user/auction_process.html',
+        return render_with_modules('user/auction_process.html',
                              auctions=auctions,
                              pending_auctions=pending_auctions,
                              completed_auctions=completed_auctions,
@@ -3122,7 +3122,7 @@ def create_auction():
 def field_visits():
     """Render the field visits page"""
     try:
-        return render_template('user/field_visits.html')
+        return render_with_modules('user/field_visits.html')
     except Exception as e:
         current_app.logger.error(f"Error rendering field visits page: {str(e)}")
         flash('An error occurred while loading the field visits page', 'error')
@@ -3351,7 +3351,7 @@ def mark_communication_read(communication_id):
 @user_bp.route('/reports/guarantor-claims')
 @login_required
 def guarantor_claims_report():
-    return render_template('user/reports/guarantor_claims.html')
+    return render_with_modules('user/reports/guarantor_claims.html')
 
 @user_bp.route('/api/reports/guarantor-claims/data', methods=['POST'])
 @login_required
@@ -3404,22 +3404,22 @@ def download_guarantor_claims():
 @user_bp.route('/reports/collection')
 @login_required
 def collection_report():
-    return render_template('user/reports/collection_report.html')
+    return render_with_modules('user/reports/collection_report.html')
 
 @user_bp.route('/reports/communication-logs')
 @login_required
 def communication_logs():
-    return render_template('user/reports/communication_logs.html')
+    return render_with_modules('user/reports/communication_logs.html')
 
 @user_bp.route('/reports/legal-status')
 @login_required
 def legal_status():
-    return render_template('user/reports/legal_status.html')
+    return render_with_modules('user/reports/legal_status.html')
 
 @user_bp.route('/reports/recovery-analytics')
 @login_required
 def recovery_analytics():
-    return render_template('user/reports/recovery_analytics.html')
+    return render_with_modules('user/reports/recovery_analytics.html')
 
 # API endpoints for report data
 @user_bp.route('/api/reports/collection/data', methods=['POST'])

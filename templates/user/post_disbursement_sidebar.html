@@ -1,4 +1,4 @@
-<aside class="fixed top-[64px] left-0 z-40 w-64 h-[calc(100vh-64px)] transition-transform -translate-x-full sm:translate-x-0">
+<aside class="fixed top-[64px] left-0 z-40 w-64 h-[calc(100vh-64px)] transition-transform -translate-x-full sm:translate-x-0" id="sidebar">
     <div class="h-full px-4 py-6 overflow-y-auto bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
         <div class="mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white text-left" style="font-family: 'Inter', sans-serif;">Loan Follow-up</h2>
@@ -17,234 +17,69 @@
                 </a>
             </li>
             
-            <!-- Menu items will be displayed based on module visibility -->
-
-            {% if 'communication' in visible_modules|map(attribute='name')|map('lower')|list %}
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-
-            <!-- Communication Center -->
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="communication-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-comments w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Communication</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                <ul id="communication-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="{{ url_for('user.manage_calendar') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-calendar-check w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Manage Calendar</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.correspondence') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-history w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Correspondence</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.analytics') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-chart-line w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Analytics</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            {% endif %}
+            {# Get all parent modules (those without a parent_id) #}
+            {% set parent_modules = visible_modules|selectattr('parent_id', 'none')|list|sort(attribute='order') %}
             
-            {% if 'collection' in visible_modules|map(attribute='name')|map('lower')|list %}
+            {# Loop through all parent modules #}
+            {% for parent_module in parent_modules if parent_module.name != 'Dashboard' %}
             <li class="my-3">
                 <hr class="border-gray-200 dark:border-gray-700">
             </li>
 
-            <!-- Collection Strategies -->
+            <!-- {{ parent_module.name }} -->
             <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="collection-menu">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="module-menu-{{ parent_module.id }}">
                     <div class="flex items-center">
-                        <i class="fas fa-tasks w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Collection</span>
+                        <i class="fas 
+                        {% if parent_module.name == 'Communication' %}fa-comments
+                        {% elif parent_module.name == 'Collection' %}fa-tasks
+                        {% elif parent_module.name == 'Guarantors' %}fa-user-shield
+                        {% elif parent_module.name == 'Legal' %}fa-gavel
+                        {% elif parent_module.name == 'Restructuring' %}fa-sync
+                        {% elif parent_module.name == 'Reports' %}fa-file-alt
+                        {% else %}fa-folder
+                        {% endif %} w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">{{ parent_module.name }}</span>
                     </div>
                     <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
                 </button>
-                <ul id="collection-menu" class="hidden py-2 space-y-1">
+                
+                {# Get all submodules for this parent #}
+                {% set submodules = visible_modules|selectattr('parent_id', 'equalto', parent_module.id)|list|sort(attribute='order') %}
+                {% if submodules|length > 0 %}
+                <ul id="module-menu-{{ parent_module.id }}" class="hidden py-2 space-y-1">
+                    {% for submodule in submodules %}
                     <li>
-                        <a href="{{ url_for('user.collection_schedule') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-calendar-alt w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Collection Schedule</span>
+                        <a href="{{ submodule.url }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                            <i class="fas 
+                            {% if submodule.name == 'Manage Calendar' %}fa-calendar-check
+                            {% elif submodule.name == 'Correspondence' %}fa-history
+                            {% elif submodule.name == 'Analytics' %}fa-chart-line
+                            {% elif submodule.name == 'Collection Schedule' %}fa-calendar-alt
+                            {% elif submodule.name == 'Field Visits' %}fa-walking
+                            {% elif submodule.name == 'Guarantor List' %}fa-users
+                            {% elif submodule.name == 'Guarantor Claims' %}fa-file-invoice
+                            {% elif submodule.name == 'Demand Letters' %}fa-envelope-open-text
+                            {% elif submodule.name == 'CRB Reports' %}fa-credit-card
+                            {% elif submodule.name == 'Legal Cases' %}fa-balance-scale
+                            {% elif submodule.name == 'Auction Process' %}fa-gavel
+                            {% elif submodule.name == 'Loan Rescheduling' %}fa-calendar-plus
+                            {% elif submodule.name == 'Refinancing' %}fa-sync-alt
+                            {% elif submodule.name == 'Settlement Plans' %}fa-handshake
+                            {% elif submodule.name == 'Collection Reports' %}fa-chart-bar
+                            {% elif submodule.name == 'Communication Logs' %}fa-comments
+                            {% elif submodule.name == 'Legal Status' %}fa-balance-scale
+                            {% elif submodule.name == 'Recovery Analytics' %}fa-chart-line
+                            {% else %}fa-file
+                            {% endif %} w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                            <span class="ml-2">{{ submodule.name }}</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="{{ url_for('user.field_visits') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-walking w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Field Visits</span>
-                        </a>
-                    </li>
+                    {% endfor %}
                 </ul>
+                {% endif %}
             </li>
-
-            {% endif %}
-            
-            {% if 'guarantor' in visible_modules|map(attribute='name')|map('lower')|list %}
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-
-            <!-- Guarantor Management -->
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="guarantor-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-user-shield w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Guarantors</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                <ul id="guarantor-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="{{ url_for('user.guarantors') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-users w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Guarantor List</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.guarantor_claims_report') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-file-invoice w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Guarantor Claims</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            {% endif %}
-            
-            {% if 'legal' in visible_modules|map(attribute='name')|map('lower')|list %}
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-
-            <!-- Legal Actions -->
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="legal-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-gavel w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Legal</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                <ul id="legal-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="{{ url_for('user.demand_letters') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-envelope-open-text w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Demand Letters</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.crb_reports') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-credit-card w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">CRB Reports</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.legal_cases') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-balance-scale w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Legal Cases</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.auction_process') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-gavel w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Auction Process</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            {% endif %}
-            
-            {% if 'restructuring' in visible_modules|map(attribute='name')|map('lower')|list %}
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-
-            <!-- Restructuring -->
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="restructure-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-sync w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Restructuring</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                <ul id="restructure-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="{{ url_for('user.loan_rescheduling') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-calendar-plus w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Loan Rescheduling</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.refinancing') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-sync-alt w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Refinancing</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.settlement_plans') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-handshake w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Settlement Plans</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            {% endif %}
-            
-            {% if 'reports' in visible_modules|map(attribute='name')|map('lower')|list %}
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-
-            <!-- Reports -->
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="reports-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-file-alt w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Reports</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                <ul id="reports-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="{{ url_for('user.collection_report') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-chart-bar w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Collection Reports</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.communication_logs') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-comments w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Communication Logs</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.legal_status') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-balance-scale w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Legal Status</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('user.recovery_analytics') }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-chart-line w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Recovery Analytics</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            {% endif %}
+            {% endfor %}
         </ul>
     </div>
 </aside>
@@ -253,19 +88,17 @@
     // Self-executing function to handle sidebar functionality
     (function() {
         function initializeSidebar() {
-            // Get all menu buttons with data-collapse-toggle attribute
+            // Get all the buttons that open menus
             const menuButtons = document.querySelectorAll('[data-collapse-toggle]');
             
+            // Add click event to each button
             menuButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault(); // Prevent default button behavior
-                    
-                    // Get the target menu ID from the data attribute
+                button.addEventListener('click', function() {
                     const targetId = this.getAttribute('data-collapse-toggle');
                     const targetMenu = document.getElementById(targetId);
                     
-                    // Toggle the menu visibility
                     if (targetMenu) {
+                        // Toggle the menu
                         targetMenu.classList.toggle('hidden');
                         
                         // Rotate the chevron icon
@@ -277,7 +110,7 @@
                         }
                         
                         // Close other open menus
-                        const otherMenus = document.querySelectorAll('[id$="-menu"]');
+                        const otherMenus = document.querySelectorAll('[id^="module-menu-"]');
                         otherMenus.forEach(menu => {
                             if (menu.id !== targetId && !menu.classList.contains('hidden')) {
                                 menu.classList.add('hidden');
@@ -292,24 +125,13 @@
                     }
                 });
             });
-
-            // Add active state to menu items
-            const menuItems = document.querySelectorAll('.menu-item a');
-            menuItems.forEach(item => {
-                item.addEventListener('click', function(e) {
-                    // Remove active class from all items
-                    menuItems.forEach(i => i.classList.remove('bg-gray-100', 'dark:bg-gray-700'));
-                    // Add active class to clicked item
-                    this.classList.add('bg-gray-100', 'dark:bg-gray-700');
-                });
-            });
-
-            // Handle mobile sidebar toggle
-            const sidebarToggleBtn = document.querySelector('[data-drawer-toggle="sidebar"]');
-            const sidebar = document.querySelector('aside');
             
-            if (sidebarToggleBtn && sidebar) {
-                sidebarToggleBtn.addEventListener('click', () => {
+            // Mobile menu toggle
+            const mobileMenuButton = document.querySelector('[data-drawer-toggle="sidebar"]');
+            const sidebar = document.querySelector('#sidebar');
+            
+            if (mobileMenuButton && sidebar) {
+                mobileMenuButton.addEventListener('click', function() {
                     sidebar.classList.toggle('-translate-x-full');
                 });
             }

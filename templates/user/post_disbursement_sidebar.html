@@ -17,40 +17,7 @@
                 </a>
             </li>
             
-            <!-- Check if visible_modules is defined and has items -->
-            {% if visible_modules is defined and visible_modules|length > 0 %}
-                <!-- Generate menu items dynamically based on modules -->
-                {% for module in visible_modules if not module.parent_id %}
-                <li class="my-3">
-                    <hr class="border-gray-200 dark:border-gray-700">
-                </li>
-                
-                <li class="menu-item">
-                    <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="module-menu-{{ module.id }}">
-                        <div class="flex items-center">
-                            <i class="fas fa-folder w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2 text-sm">{{ module.name }}</span>
-                        </div>
-                        <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                    </button>
-                    
-                    <!-- Check if this module has submodules -->
-                    {% set submodules = visible_modules|selectattr('parent_id', 'equalto', module.id)|list %}
-                    {% if submodules|length > 0 %}
-                    <ul id="module-menu-{{ module.id }}" class="hidden py-2 space-y-1">
-                        {% for submodule in submodules %}
-                        <li>
-                            <a href="{{ submodule.url or '#' }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                                <i class="fas fa-file w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                                <span class="ml-2">{{ submodule.name }}</span>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            {% endif %}
+            <!-- Menu items will be displayed based on module visibility -->
 
             {% if 'communication' in visible_modules|map(attribute='name')|map('lower')|list %}
             <li class="my-3">

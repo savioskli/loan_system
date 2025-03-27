@@ -472,6 +472,17 @@ $('#newCollectionScheduleForm').submit(function(event) {
         $('#paymentHistoryModal').addClass('hidden');
     });
     
+    // Close new collection schedule modal - using event delegation
+    $(document).on('click', '#closeCollectionScheduleModal', function() {
+        const modal = document.getElementById('newCollectionScheduleModal');
+        modal.classList.add('hidden');
+        // Reset form
+        document.getElementById('newCollectionScheduleForm').reset();
+        // Re-enable selects
+        document.getElementById('collectionClientSelect').disabled = false;
+        document.getElementById('loanSelect').disabled = false;
+    });
+    
     // Load payment history for a schedule
     function loadPaymentHistory(scheduleId) {
         $.ajax({
@@ -720,6 +731,10 @@ window.viewLoanDetails = function(loanId) {
                     noGuarantorsRow.style.display = 'table-row';
                 }
                 
+                // Store loan data for create schedule functionality
+                modal.dataset.loanId = loan.loan_id;
+                modal.dataset.customerName = loan.customer_name;
+                
                 // Show modal using custom implementation
                 modal.style.display = 'block';
                 modal.classList.remove('hidden');
@@ -731,6 +746,34 @@ window.viewLoanDetails = function(loanId) {
                         modal.style.display = 'none';
                         modal.classList.add('hidden');
                     });
+                });
+                
+                // Add event listener for create schedule button
+                const createScheduleBtn = document.getElementById('create-collection-from-loan');
+                createScheduleBtn.addEventListener('click', function() {
+                    // Close the loan details modal
+                    modal.style.display = 'none';
+                    modal.classList.add('hidden');
+                    
+                    // Show the new collection schedule modal
+                    const newScheduleModal = document.getElementById('newCollectionScheduleModal');
+                    newScheduleModal.classList.remove('hidden');
+                    
+                    // Pre-populate the client and loan fields
+                    const clientSelect = document.getElementById('collectionClientSelect');
+                    const loanSelect = document.getElementById('loanSelect');
+                    
+                    // Create and select the client option
+                    const clientOption = new Option(loan.customer_name, loan.loan_id, true, true);
+                    clientSelect.innerHTML = '';
+                    clientSelect.appendChild(clientOption);
+                    clientSelect.disabled = true; // Disable changes since we're creating from loan details
+                    
+                    // Create and select the loan option
+                    const loanOption = new Option(`Loan #${loan.loan_no}`, loan.loan_id, true, true);
+                    loanSelect.innerHTML = '';
+                    loanSelect.appendChild(loanOption);
+                    loanSelect.disabled = true; // Disable changes since we're creating from loan details
                 });
                 
                 // Close modal when clicking outside

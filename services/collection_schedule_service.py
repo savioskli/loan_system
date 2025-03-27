@@ -39,6 +39,7 @@ class CollectionScheduleService:
                 staff_id=data.get('staff_id'),
                 loan_id=data.get('loan_id'),
                 supervisor_id=data.get('supervisor_id'),
+                manager_id=data.get('manager_id'),
                 assigned_branch=data.get('assigned_branch'),
                 assignment_date=datetime.strptime(data.get('assignment_date'), '%Y-%m-%dT%H:%M') if data.get('assignment_date') else datetime.utcnow(),
                 follow_up_deadline=datetime.strptime(data.get('follow_up_deadline'), '%Y-%m-%dT%H:%M'),
@@ -165,6 +166,16 @@ class CollectionScheduleService:
         except Exception as e:
             current_app.logger.error(f"Error in get_schedule: {str(e)}")
             raise
+            
+    @staticmethod
+    def get_schedule_by_id(schedule_id):
+        """Get a collection schedule by ID without raising 404."""
+        try:
+            current_app.logger.info(f"Getting schedule with ID: {schedule_id}")
+            return CollectionSchedule.query.get(schedule_id)
+        except Exception as e:
+            current_app.logger.error(f"Error in get_schedule_by_id: {str(e)}")
+            return None
 
     @staticmethod
     def update_schedule(schedule_id, data):
@@ -180,6 +191,8 @@ class CollectionScheduleService:
                 schedule.staff_id = data['staff_id']
             if 'supervisor_id' in data:
                 schedule.supervisor_id = data['supervisor_id']
+            if 'manager_id' in data:
+                schedule.manager_id = data['manager_id']
             if 'assigned_branch' in data:
                 schedule.assigned_branch = data['assigned_branch']
             if 'follow_up_deadline' in data:
@@ -195,7 +208,7 @@ class CollectionScheduleService:
             if 'preferred_collection_method' in data:
                 schedule.preferred_collection_method = data['preferred_collection_method']
             if 'promised_payment_date' in data:
-                schedule.promised_payment_date = datetime.strptime(data['promised_payment_date'], '%Y-%m-%dT%H:%M') if data['promised_payment_date'] else None
+                schedule.promised_payment_date = datetime.strptime(data['promised_payment_date'], '%Y-%m-%dT%H:%M') if data.get('promised_payment_date') else None
             if 'attempts_allowed' in data:
                 schedule.attempts_allowed = data['attempts_allowed']
             

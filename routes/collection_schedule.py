@@ -1,9 +1,15 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, url_for
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from services.collection_schedule_service import CollectionScheduleService
 from models.staff import Staff
+from models.role import Role
 from models.loan import Loan
+from models.payment_record import PaymentRecord
+from extensions import db
 from datetime import datetime
+import os
+import uuid
 import traceback
 
 collection_schedule_bp = Blueprint('collection_schedule', __name__)
@@ -224,12 +230,39 @@ def approve_schedule(schedule_id):
 @login_required
 def get_available_staff():
     """Get list of staff available for collection assignments."""
-    staff = Staff.query.all()
-    return jsonify([{
-        'id': s.id,
-        'name': s.name,
-        'branch': s.branch
-    } for s in staff]), 200
+    try:
+        # Get role parameter (optional)
+        role_type = request.args.get('role_type', 'all')
+        
+        # Start with active staff query
+        query = Staff.query.filter_by(is_active=True)
+        
+        # Filter by role if specified
+        if role_type == 'officer':
+            # Get staff with Collection Officer role (role_id = 4)
+            query = query.filter(Staff.role_id == 4)  # Collection Officer
+        elif role_type == 'supervisor':
+            # Get staff with Collection Supervisor (role_id = 5) or Collections Manager (role_id = 9) role
+            query = query.filter(Staff.role_id.in_([5, 9]))  # Collection Supervisor or Collections Manager
+        elif role_type == 'manager':
+            # Get staff with Collections Manager role (role_id = 9)
+            query = query.filter(Staff.role_id == 9)  # Collections Manager
+            
+        # Execute query
+        staff = query.all()
+        
+        # Return formatted staff data
+        return jsonify([{
+            'id': s.id,
+            'name': s.full_name,
+            'role': s.role.name if s.role else None,
+            'role_code': s.role.code if s.role else None,
+            'branch': s.branch.name if s.branch else None,
+            'branch_id': s.branch_id
+        } for s in staff]), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching available staff: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'error': 'Failed to retrieve staff members'}), 500
 
 @collection_schedule_bp.route('/api/collection-schedules/loans', methods=['GET'])
 @login_required
@@ -256,3 +289,100 @@ def view_logs():
         return jsonify({'error': 'Log file not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@collection_schedule_bp.route('/api/collection-schedules/<int:schedule_id>/payments', methods=['GET'])
+@login_required
+def get_payment_records(schedule_id):
+    """Get all payment records for a collection schedule."""
+    try:
+        # Get the schedule
+        schedule = CollectionScheduleService.get_schedule_by_id(schedule_id)
+        if not schedule:
+            return jsonify({'error': 'Schedule not found'}), 404
+            
+        # Get payment records for this schedule
+        payment_records = PaymentRecord.query.filter_by(schedule_id=schedule_id).order_by(PaymentRecord.payment_date.desc()).all()
+        
+        # Convert to dictionaries for JSON response
+        payments = [record.to_dict() for record in payment_records]
+        
+        return jsonify(payments), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching payment records: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'error': 'Failed to fetch payment records'}), 500
+
+@collection_schedule_bp.route('/api/collection-schedules/<int:schedule_id>/payments', methods=['POST'])
+@login_required
+def create_payment_record(schedule_id):
+    """Create a new payment record for a collection schedule."""
+    try:
+        # Get the schedule
+        schedule = CollectionScheduleService.get_schedule_by_id(schedule_id)
+        if not schedule:
+            return jsonify({'error': 'Schedule not found'}), 404
+        
+        # Get form data
+        amount = request.form.get('amount')
+        payment_date = request.form.get('payment_date')
+        description = request.form.get('description')
+        loan_id = request.form.get('loan_id') or schedule.loan_id
+        
+        # Validate required fields
+        if not amount or not payment_date or not description:
+            return jsonify({'error': 'Amount, payment date, and description are required'}), 400
+        
+        # Handle file upload if present
+        attachment_url = None
+        if 'attachment' in request.files and request.files['attachment'].filename:
+            file = request.files['attachment']
+            filename = secure_filename(file.filename)
+            # Generate unique filename to prevent collisions
+            unique_filename = f"{uuid.uuid4()}_{filename}"
+            
+            # Ensure upload directory exists
+            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'payment_attachments')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Save file
+            file_path = os.path.join(upload_dir, unique_filename)
+            file.save(file_path)
+            
+            # Generate URL for the file
+            attachment_url = url_for('static', filename=f"uploads/payment_attachments/{unique_filename}")
+        
+        # Create new payment record
+        new_payment = PaymentRecord(
+            schedule_id=schedule_id,
+            loan_id=loan_id,
+            amount=amount,
+            payment_date=datetime.strptime(payment_date, '%Y-%m-%dT%H:%M'),
+            description=description,
+            attachment_url=attachment_url,
+            created_by=current_user.id
+        )
+        
+        db.session.add(new_payment)
+        db.session.commit()
+        
+        # Check if this payment should update the schedule status
+        # For example, if the payment is the full amount, mark as completed
+        update_status = False
+        
+        # Get the loan's outstanding balance from the database
+        loan = Loan.query.get(loan_id)
+        if loan and loan.outstanding_balance is not None:
+            # If payment amount is at least 50% of the outstanding balance, mark as completed
+            if float(amount) >= (float(loan.outstanding_balance) * 0.5):
+                update_status = True
+        
+        return jsonify({
+            'message': 'Payment record created successfully', 
+            'payment': new_payment.to_dict(),
+            'update_status': update_status
+        }), 201
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating payment record: {str(e)}\n{traceback.format_exc()}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create payment record'}), 500

@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 import mysql.connector
+import json
 from config import db_config
 from models.correspondence import Correspondence
 from models.staff import Staff
@@ -12,6 +13,8 @@ import os
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from models.letter_template import LetterTemplate  # Import LetterTemplate model
+from models.core_banking import CoreBankingSystem  # Import CoreBankingSystem model
+from models.post_disbursement_modules import ExpectedStructure, ActualStructure  # Import mapping models
 from sqlalchemy import text, select  # Import text function for raw SQL queries
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -34,77 +37,237 @@ def search_customers():
                 'items': [],
                 'has_more': False
             })
+            
+        # Statically define the module ID for customer search
+        module_id = 8  # Module ID for customer search
+            
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            current_app.logger.error('No active core banking system configured')
+            return jsonify({
+                'error': 'No active core banking system configured',
+                'items': [],
+                'has_more': False
+            }), 500
 
         # Connect to core banking database
-        conn = mysql.connector.connect(
-            host=db_config['host'],
-            user=db_config['user'],
-            password=db_config['password'],
-            database='sacco_db',
-            auth_plugin=db_config['auth_plugin']
-        )
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
+
+        try:
+            conn = mysql.connector.connect(**core_banking_config)
+        except mysql.connector.Error as e:
+            current_app.logger.error(f"Error connecting to database: {str(e)}")
+            return jsonify({
+                'error': f'Error connecting to database: {str(e)}',
+                'items': [],
+                'has_more': False
+            }), 500
         cursor = conn.cursor(dictionary=True)
+
+        # Retrieve the mapping data for customer search module
+        def get_mapping_for_module(module_id):
+            try:
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    
+                    # Retrieve expected and actual columns as lists
+                    expected_columns = expected.columns  # e.g., ['MemberID', 'FullName', ...]
+                    actual_columns = actual.columns     # e.g., ['member_id', 'full_name', ...]
+                    
+                    # Create a dictionary mapping expected to actual columns
+                    columns_dict = dict(zip(expected_columns, actual_columns))
+                    
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": columns_dict  # Now a dictionary
+                    }
+                return mapping
+            except Exception as e:
+                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+                raise
+
+        try:
+            mapping = get_mapping_for_module(module_id)
+            current_app.logger.info(f"Mapping Data for customer search: {mapping}")
+        except Exception as e:
+            current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+            return jsonify({
+                'error': f'Error retrieving mapping data: {str(e)}',
+                'items': [],
+                'has_more': False
+            }), 500
 
         # Calculate offset for pagination
         offset = (page - 1) * per_page
 
-        # Search query with LIKE for FullName and include loan and guarantor information
-        search_term = f"%{query}%"
-        sql = """
-            SELECT 
-                m.MemberID,
-                m.FullName,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
-                    l.LoanAppID, 
-                    l.LoanNo,
-                    COALESCE(l.LoanAmount, 0),
-                    COALESCE(lle.OutstandingBalance, 0),
-                    COALESCE(l.RepaymentPeriod, 0)
-                )) AS LoanInfo,
-                GROUP_CONCAT(DISTINCT 
-                    CASE 
-                        WHEN g.GuarantorID IS NOT NULL 
-                        THEN CONCAT_WS(':', 
-                            COALESCE(g.GuarantorID, ''),
-                            COALESCE(g.GuarantorMemberID, ''),
-                            COALESCE(gm.FullName, ''),
-                            COALESCE(g.GuaranteedAmount, 0),
-                            COALESCE(g.Status, ''),
-                            COALESCE(l.LoanAppID, '')
+        # Build dynamic query based on mapping
+        def build_dynamic_query(mapping, search_term, per_page, offset):
+            try:
+                # Access the mapping correctly using string keys
+                members = mapping.get("Members", {})
+                loan_apps = mapping.get("LoanApplications", {})
+                loan_ledger = mapping.get("LoanLedgerEntries", {})
+                guarantors = mapping.get("Guarantors", {})
+                
+                # Ensure that the necessary tables and columns are present in the mapping
+                if not members or not "columns" in members:
+                    raise KeyError("Missing Members table in mapping")
+                
+                # Get column mappings
+                m_cols = members["columns"]
+                l_cols = loan_apps.get("columns", {}) if loan_apps else {}
+                lle_cols = loan_ledger.get("columns", {}) if loan_ledger else {}
+                g_cols = guarantors.get("columns", {}) if guarantors else {}
+                
+                # Build the dynamic SQL query
+                sql = f"""
+                SELECT 
+                    m.{m_cols.get('MemberID', 'MemberID')} AS MemberID,
+                    m.{m_cols.get('FullName', 'FullName')} AS FullName"""
+                
+                # Add loan information if available
+                if loan_apps and loan_ledger:
+                    sql += f"""
+                    ,GROUP_CONCAT(DISTINCT CONCAT_WS(':', 
+                        l.{l_cols.get('LoanAppID', 'LoanAppID')}, 
+                        l.{l_cols.get('LoanNo', 'LoanNo')},
+                        COALESCE(l.{l_cols.get('LoanAmount', 'LoanAmount')}, 0),
+                        COALESCE(lle.{lle_cols.get('OutstandingBalance', 'OutstandingBalance')}, 0),
+                        COALESCE(l.{l_cols.get('RepaymentPeriod', 'RepaymentPeriod')}, 0)
+                    )) AS LoanInfo"""
+                
+                # Add guarantor information if available
+                if guarantors:
+                    sql += f"""
+                    ,GROUP_CONCAT(DISTINCT 
+                        CASE 
+                            WHEN g.{g_cols.get('GuarantorID', 'GuarantorID')} IS NOT NULL 
+                            THEN CONCAT_WS(':', 
+                                COALESCE(g.{g_cols.get('GuarantorID', 'GuarantorID')}, ''),
+                                COALESCE(g.{g_cols.get('GuarantorMemberID', 'GuarantorMemberID')}, ''),
+                                COALESCE(gm.{m_cols.get('FullName', 'FullName')}, ''),
+                                COALESCE(g.{g_cols.get('GuaranteedAmount', 'GuaranteedAmount')}, 0),
+                                COALESCE(g.{g_cols.get('Status', 'Status')}, ''),
+                                COALESCE(l.{l_cols.get('LoanAppID', 'LoanAppID')}, '')
+                            )
+                        END
+                    ) AS GuarantorInfo"""
+                
+                # FROM clause
+                sql += f"""
+                FROM {members["actual_table_name"]} m"""
+                
+                # JOINs
+                if loan_apps:
+                    sql += f"""
+                    LEFT JOIN {loan_apps["actual_table_name"]} l ON m.{m_cols.get('MemberID', 'MemberID')} = l.{l_cols.get('MemberID', 'MemberID')}"""
+                
+                if loan_ledger:
+                    sql += f"""
+                    LEFT JOIN (
+                        SELECT {lle_cols.get('LoanID', 'LoanID')} AS LoanID, {lle_cols.get('OutstandingBalance', 'OutstandingBalance')} AS OutstandingBalance
+                        FROM {loan_ledger["actual_table_name"]}
+                        WHERE {lle_cols.get('LedgerID', 'LedgerID')} IN (
+                            SELECT MAX({lle_cols.get('LedgerID', 'LedgerID')})
+                            FROM {loan_ledger["actual_table_name"]}
+                            GROUP BY {lle_cols.get('LoanID', 'LoanID')}
                         )
-                    END
-                ) AS GuarantorInfo
-            FROM Members m
-            LEFT JOIN LoanApplications l ON m.MemberID = l.MemberID
-            LEFT JOIN (
-                SELECT LoanID, OutstandingBalance
-                FROM LoanLedgerEntries
-                WHERE LedgerID IN (
-                    SELECT MAX(LedgerID)
-                    FROM LoanLedgerEntries
-                    GROUP BY LoanID
-                )
-            ) lle ON l.LoanAppID = lle.LoanID
-            LEFT JOIN Guarantors g ON l.LoanAppID = g.LoanAppID
-            LEFT JOIN Members gm ON g.GuarantorMemberID = gm.MemberID
-            WHERE 
-                m.FullName LIKE %s
-                AND m.Status = 'Active'
-            GROUP BY m.MemberID
-            LIMIT %s OFFSET %s
-        """
-        cursor.execute(sql, (search_term, per_page, offset))
+                    ) lle ON l.{l_cols.get('LoanAppID', 'LoanAppID')} = lle.LoanID"""
+                
+                if guarantors:
+                    sql += f"""
+                    LEFT JOIN {guarantors["actual_table_name"]} g ON l.{l_cols.get('LoanAppID', 'LoanAppID')} = g.{g_cols.get('LoanAppID', 'LoanAppID')}
+                    LEFT JOIN {members["actual_table_name"]} gm ON g.{g_cols.get('GuarantorMemberID', 'GuarantorMemberID')} = gm.{m_cols.get('MemberID', 'MemberID')}"""
+                
+                # WHERE clause
+                sql += f"""
+                WHERE 
+                    m.{m_cols.get('FullName', 'FullName')} LIKE %s"""
+                
+                # Add status filter if available
+                if 'Status' in m_cols:
+                    sql += f"""
+                    AND m.{m_cols.get('Status', 'Status')} = 'Active'"""
+                
+                # GROUP BY, LIMIT, OFFSET
+                sql += f"""
+                GROUP BY m.{m_cols.get('MemberID', 'MemberID')}
+                LIMIT %s OFFSET %s
+                """
+                
+                return sql
+            except Exception as e:
+                current_app.logger.error(f"Error building dynamic query: {str(e)}")
+                raise
+        
+        try:
+            # Build the dynamic query
+            search_term = f"%{query}%"
+            sql = build_dynamic_query(mapping, search_term, per_page, offset)
+            current_app.logger.info(f"Dynamic SQL query: {sql}")
+            cursor.execute(sql, (search_term, per_page, offset))
+        except Exception as e:
+            current_app.logger.error(f"Error executing dynamic query: {str(e)}")
+            return jsonify({
+                'error': f'Error searching customers: {str(e)}',
+                'items': [],
+                'has_more': False
+            }), 500
         members = cursor.fetchall()
 
         # Get total count for pagination
-        count_sql = """
-            SELECT COUNT(DISTINCT m.MemberID) as count
-            FROM Members m
-            WHERE 
-                m.FullName LIKE %s
-                AND m.Status = 'Active'
-        """
-        cursor.execute(count_sql, (search_term,))
+        try:
+            # Build dynamic count query based on mapping
+            members_table = mapping.get("Members", {})
+            if not members_table or not "columns" in members_table:
+                raise KeyError("Missing Members table in mapping")
+                
+            m_cols = members_table["columns"]
+            
+            count_sql = f"""
+                SELECT COUNT(DISTINCT m.{m_cols.get('MemberID', 'MemberID')}) as count
+                FROM {members_table["actual_table_name"]} m
+                WHERE 
+                    m.{m_cols.get('FullName', 'FullName')} LIKE %s
+            """
+            
+            # Add status filter if available
+            if 'Status' in m_cols:
+                count_sql += f"""
+                    AND m.{m_cols.get('Status', 'Status')} = 'Active'
+                """
+                
+            count_sql += """
+            """
+            
+            current_app.logger.info(f"Dynamic count SQL query: {count_sql}")
+            cursor.execute(count_sql, (search_term,))
+        except Exception as e:
+            current_app.logger.error(f"Error executing count query: {str(e)}")
+            return jsonify({
+                'error': f'Error counting customers: {str(e)}',
+                'items': [],
+                'has_more': False
+            }), 500
         total_count = cursor.fetchone()['count']
 
         cursor.close()
@@ -116,18 +279,24 @@ def search_customers():
             loans = []
             guarantors = []
             
+            # Get the mapping data for field names
+            loan_apps = mapping.get("LoanApplications", {})
+            loan_ledger = mapping.get("LoanLedgerEntries", {})
+            guarantors_mapping = mapping.get("Guarantors", {})
+            
             # Process loan information
-# Process loan information
-            if member['LoanInfo']:
+            if 'LoanInfo' in member and member['LoanInfo']:
                 loan_info_list = member['LoanInfo'].split(',')
                 for loan_info in loan_info_list:
                     try:
                         loan_id, loan_no, loan_amount, outstanding, repayment_period = loan_info.split(':')
                         if loan_id and loan_no:  # Only add if we have valid loan info
+                            # Use the expected column names for the client-side
                             loans.append({
                                 'LoanAppID': loan_id,
                                 'LoanNo': loan_no,
                                 'LoanAmount': float(loan_amount) if loan_amount else 0,
+                                # Use OutstandingBalance as per the memory
                                 'OutstandingBalance': float(outstanding) if outstanding else 0,
                                 'RepaymentPeriod': int(repayment_period) if repayment_period else 0
                             })
@@ -136,7 +305,7 @@ def search_customers():
                         continue
             
             # Process guarantor information
-            if member['GuarantorInfo'] and member['GuarantorInfo'] != 'NULL':
+            if 'GuarantorInfo' in member and member['GuarantorInfo'] and member['GuarantorInfo'] != 'NULL':
                 current_app.logger.info(f"Raw GuarantorInfo: {member['GuarantorInfo']}")
                 guarantor_info_list = [g for g in member['GuarantorInfo'].split(',') if g]  # Filter out empty strings
                 for guarantor_info in guarantor_info_list:
@@ -144,6 +313,7 @@ def search_customers():
                         fields = guarantor_info.split(':')
                         if len(fields) == 6:  # Only process if we have all fields
                             guarantor_id, member_id, guarantor_name, guaranteed_amount, status, loan_app_id = fields
+                            # Check if status is Active - use the expected value for client-side
                             if guarantor_id and member_id and status == 'Active':
                                 guarantors.append({
                                     'GuarantorID': guarantor_id,

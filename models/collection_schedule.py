@@ -11,6 +11,7 @@ class CollectionSchedule(db.Model):
     staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     supervisor_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
     
     # Collection Staff Assignment
     assigned_branch = db.Column(db.String(100), nullable=False)
@@ -45,6 +46,7 @@ class CollectionSchedule(db.Model):
     staff = db.relationship('Staff', foreign_keys=[staff_id], backref=db.backref('assigned_schedules', lazy=True))
     loan = db.relationship('Loan', backref=db.backref('collection_schedules', lazy=True))
     supervisor = db.relationship('Staff', foreign_keys=[supervisor_id], backref=db.backref('supervised_schedules', lazy=True))
+    manager = db.relationship('Staff', foreign_keys=[manager_id], backref=db.backref('managed_schedules', lazy=True))
     reviewer = db.relationship('Staff', foreign_keys=[reviewed_by], backref=db.backref('reviewed_schedules', lazy=True))
 
     def __repr__(self):
@@ -61,6 +63,8 @@ class CollectionSchedule(db.Model):
             'borrower_name': self.loan.borrower_name if self.loan else None,
             'supervisor_id': self.supervisor_id,
             'supervisor_name': f"{self.supervisor.first_name} {self.supervisor.last_name}" if self.supervisor else None,
+            'manager_id': self.manager_id,
+            'manager_name': f"{self.manager.first_name} {self.manager.last_name}" if self.manager else None,
             'assigned_branch': self.assigned_branch,
             'assignment_date': self.assignment_date.isoformat() if self.assignment_date else None,
             'follow_up_deadline': self.follow_up_deadline.isoformat() if self.follow_up_deadline else None,

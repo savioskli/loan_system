@@ -11,27 +11,29 @@ const staffSelect2Config = {
     allowClear: true,
     width: '100%',
     ajax: {
-        url: '/api/users/search',
+        url: '/api/collection-schedules/staff',
         dataType: 'json',
         delay: 250,
         data: function(params) {
-            console.log('Sending search:', params.term);
+            console.log('Sending staff search:', params.term);
             return {
-                query: params.term, // Change 'search' to 'query'
+                term: params.term,
+                role_type: 'officer',  // Filter for collection officers only
                 page: params.page || 1
             };
         },
         processResults: function(data) {
-            console.log('Received data:', data);
-            if (!data || !Array.isArray(data.staff)) {
-                console.error('Expected data.staff to be an array:', data);
-                return { results: [] }; // Return an empty array if the format is incorrect
+            console.log('Received staff data:', data);
+            if (!data || !Array.isArray(data)) {
+                console.error('Expected data to be an array:', data);
+                return { results: [] };
             }
             return {
-                results: data.staff.map(item => ({
-                    id: item.UserID, // Ensure this matches your API response
-                    text: item.FullName, // Ensure this matches your API response
-                    branchId: item.BranchID // Include BranchID in the result
+                results: data.map(item => ({
+                    id: item.id,
+                    text: item.name,
+                    role: item.role,
+                    branchId: item.branch_id
                 }))
             };
         },
@@ -46,38 +48,40 @@ const staffSelect2Config = {
     },
     templateSelection: function(staff) {
         // Set the hidden input value for BranchID when a staff member is selected
-        $('#branchInput').val(staff.branchId); // Set the BranchID in the hidden input
+        $('#branchInput').val(staff.branchId);
         return staff.text;
     }
 };
 
-// New configuration for supervisorSelect with a different placeholder
+// Configuration for supervisorSelect
 const supervisorSelect2Config = {
     theme: 'bootstrap-5',
     placeholder: 'Select a supervisor',
     allowClear: true,
     width: '100%',
     ajax: {
-        url: '/api/users/search',
+        url: '/api/collection-schedules/staff',
         dataType: 'json',
         delay: 250,
         data: function(params) {
-            console.log('Sending search:', params.term);
+            console.log('Sending supervisor search:', params.term);
             return {
-                query: params.term, // Change 'search' to 'query'
+                term: params.term,
+                role_type: 'supervisor',  // Filter for collection supervisors and managers only
                 page: params.page || 1
             };
         },
         processResults: function(data) {
-            console.log('Received data:', data);
-            if (!data || !Array.isArray(data.staff)) {
-                console.error('Expected data.staff to be an array:', data);
-                return { results: [] }; // Return an empty array if the format is incorrect
+            console.log('Received supervisor data:', data);
+            if (!data || !Array.isArray(data)) {
+                console.error('Expected data to be an array:', data);
+                return { results: [] };
             }
             return {
-                results: data.staff.map(item => ({
-                    id: item.UserID, // Ensure this matches your API response
-                    text: item.FullName // Ensure this matches your API response
+                results: data.map(item => ({
+                    id: item.id,
+                    text: item.name,
+                    role: item.role
                 }))
             };
         },
@@ -91,17 +95,62 @@ const supervisorSelect2Config = {
         return staff.text;
     },
     templateSelection: function(staff) {
-        // No need to update BranchID for supervisor selection
         return staff.text;
+    }
+};
+
+// Configuration for managerSelect
+const managerSelect2Config = {
+    theme: 'bootstrap-5',
+    placeholder: 'Select a Collections Manager',
+    allowClear: true,
+    width: '100%',
+    ajax: {
+        url: '/api/collection-schedules/staff',
+        dataType: 'json',
+        delay: 250,
+        data: function(params) {
+            console.log('Sending manager search:', params.term);
+            return {
+                term: params.term,
+                role_type: 'manager',  // Filter for Collections Managers only
+                page: params.page || 1
+            };
+        },
+        processResults: function(data) {
+            console.log('Received manager data:', data);
+            if (!data || !Array.isArray(data)) {
+                console.error('Expected data to be an array:', data);
+                return { results: [] };
+            }
+            return {
+                results: data.map(item => ({
+                    id: item.id,
+                    text: item.name,
+                    role: item.role
+                }))
+            };
+        },
+        cache: true
+    },
+    minimumInputLength: 0,
+    templateResult: function(manager) {
+        if (manager.loading) {
+            return 'Loading...';
+        }
+        return manager.text;
+    },
+    templateSelection: function(manager) {
+        return manager.text;
     }
 };
 
 // Initialize Select2 for both staff select fields
 $(document).ready(function() {
     $('#staffSelect').select2(staffSelect2Config);
-    $('#supervisorSelect').select2(supervisorSelect2Config); // Use the new configuration for supervisorSelect
+    $('#supervisorSelect').select2(supervisorSelect2Config);
+    $('#managerSelect').select2(managerSelect2Config);
 });
-  
 
     $(document).ready(function() {
    
@@ -310,7 +359,7 @@ function initializeClientSelect(selector, isModal) {
                                     
                                     <div class="flex flex-col space-y-2 mt-4 md:mt-0 md:ml-4">
                                         <button class="update-progress-btn px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded hover:bg-blue-600"
-                                                data-id="${schedule.id}">
+                                                data-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || 'Unknown'}">
                                             Update Progress
                                         </button>
                                         ${schedule.progress_status !== 'Escalated' ? `
@@ -380,28 +429,126 @@ $('#newCollectionScheduleForm').submit(function(event) {
     });
 });
 
-    // Update progress
+    // Update progress and show payment history modal
     $(document).on('click', '.update-progress-btn', function() {
         const scheduleId = $(this).data('id');
-        const newStatus = prompt('Enter new status (Not Started, In Progress, Completed, Escalated):');
-        if (newStatus) {
-            $.ajax({
-                url: `/api/collection-schedules/${scheduleId}/progress`,
-                method: 'PUT',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    status: newStatus,
-                    resolution_date: newStatus === 'Completed' ? new Date().toISOString() : null
-                }),
-                success: function() {
-                    showNotification('Success', 'Progress updated successfully');
-                    loadCollectionSchedules();
-                },
-                error: function(xhr) {
-                    showNotification('Error', xhr.responseJSON?.error || 'Failed to update progress');
+        const loanId = $(this).data('loan-id');
+        const borrowerName = $(this).data('borrower-name');
+        
+        // Set the schedule ID and loan ID in the payment form
+        $('#paymentScheduleId').val(scheduleId);
+        $('#paymentLoanId').val(loanId);
+        
+        // Set default payment date to current date and time
+        const now = new Date();
+        const formattedDate = now.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+        $('#paymentDate').val(formattedDate);
+        
+        // Load payment history for this schedule
+        loadPaymentHistory(scheduleId);
+        
+        // Show the payment history modal
+        $('#paymentHistoryModal').removeClass('hidden');
+    });
+    
+    // Close payment history modal
+    $('#closePaymentHistoryModal, #cancelPaymentBtn').on('click', function() {
+        $('#paymentHistoryModal').addClass('hidden');
+    });
+    
+    // Load payment history for a schedule
+    function loadPaymentHistory(scheduleId) {
+        $.ajax({
+            url: `/api/collection-schedules/${scheduleId}/payments`,
+            method: 'GET',
+            success: function(data) {
+                // Clear existing table rows
+                const tableBody = $('#paymentHistoryTableBody');
+                tableBody.empty();
+                
+                // Check if there are payments
+                if (data && data.length > 0) {
+                    // Add each payment to the table
+                    data.forEach(payment => {
+                        const attachmentLink = payment.attachment_url ? 
+                            `<a href="${payment.attachment_url}" target="_blank" class="text-indigo-600 hover:text-indigo-900">View</a>` : 
+                            'None';
+                            
+                        tableBody.append(`
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(payment.payment_date)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${payment.amount.toLocaleString('en-US', { style: 'currency', currency: 'KES' })}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500">${payment.description}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${attachmentLink}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    // Show no payments message
+                    tableBody.append(`
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">No payment records found</td>
+                        </tr>
+                    `);
                 }
-            });
-        }
+            },
+            error: function(xhr) {
+                showNotification('Error', xhr.responseJSON?.error || 'Failed to load payment history');
+                // Show error message in table
+                $('#paymentHistoryTableBody').html(`
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">Failed to load payment history</td>
+                    </tr>
+                `);
+            }
+        });
+    }
+    
+    // Handle new payment form submission
+    $('#newPaymentForm').submit(function(event) {
+        event.preventDefault();
+        
+        const scheduleId = $('#paymentScheduleId').val();
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: `/api/collection-schedules/${scheduleId}/payments`,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                showNotification('Success', 'Payment recorded successfully');
+                
+                // Reload payment history
+                loadPaymentHistory(scheduleId);
+                
+                // Clear form
+                $('#paymentDescription').val('');
+                $('#paymentAmount').val('');
+                $('#paymentAttachment').val('');
+                
+                // If payment was successful and marked as completed, update the collection schedule status
+                if (response.update_status) {
+                    $.ajax({
+                        url: `/api/collection-schedules/${scheduleId}/progress`,
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            status: 'Completed',
+                            resolution_date: new Date().toISOString()
+                        }),
+                        success: function() {
+                            // Reload collection schedules in the background
+                            loadCollectionSchedules();
+                        }
+                    });
+                }
+            },
+            error: function(xhr) {
+                showNotification('Error', xhr.responseJSON?.error || 'Failed to record payment');
+            }
+        });
     });
 
     // Escalate schedule

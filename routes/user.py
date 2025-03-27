@@ -2017,21 +2017,26 @@ def get_detailed_loans():
                 ll = mapping.get("LoanLedgerEntries", {})
                 ld = mapping.get("LoanDisbursements", {})
                 la = mapping.get("LoanApplications", {})
-
+                m = mapping.get("Members", {}) 
+        
                 # Ensure that the necessary columns are present in the mapping
                 required_ll_columns = ["LoanID", "LedgerID", "OutstandingBalance", "ArrearsAmount", "ArrearsDays"]
                 required_ld_columns = ["LoanAppID", "LoanStatus"]
-                required_la_columns = ["LoanAppID", "LoanNo", "LoanAmount"]
-
+                required_la_columns = ["LoanAppID", "LoanNo", "LoanAmount", "MemberID"]  # Added MemberID
+                required_m_columns = ["MemberID", "FirstName", "LastName"]
+        
                 if not all(column in ll.get("columns", []) for column in required_ll_columns):
                     raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {required_ll_columns}")
-
+        
                 if not all(column in ld.get("columns", []) for column in required_ld_columns):
                     raise KeyError(f"Missing columns in LoanDisbursements mapping: {required_ld_columns}")
-
+        
                 if not all(column in la.get("columns", []) for column in required_la_columns):
                     raise KeyError(f"Missing columns in LoanApplications mapping: {required_la_columns}")
-
+        
+                if not all(column in m.get("columns", []) for column in required_m_columns):
+                    raise KeyError(f"Missing columns in Members mapping: {required_m_columns}")
+        
                 query = f"""
                 SELECT
                     l.{ll["columns"]["LoanID"]} AS LoanID,
@@ -2040,20 +2045,18 @@ def get_detailed_loans():
                     l.{ll["columns"]["ArrearsDays"]} AS ArrearsDays,
                     la.{la["columns"]["LoanNo"]} AS LoanNo,
                     la.{la["columns"]["LoanAmount"]} AS LoanAmount,
-                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus
+                    ld.{ld["columns"]["LoanStatus"]} AS LoanStatus,
+                    CONCAT(m.{m["columns"]["FirstName"]}, ' ', m.{m["columns"]["LastName"]}) AS CustomerName
                 FROM {ll["actual_table_name"]} l
                 JOIN (
                     SELECT {ll["columns"]["LoanID"]} AS LoanID,
                         MAX({ll["columns"]["LedgerID"]}) AS latest_id
                     FROM {ll["actual_table_name"]}
                     GROUP BY {ll["columns"]["LoanID"]}
-                ) latest
-                    ON l.{ll["columns"]["LoanID"]} = latest.LoanID
-                    AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
-                JOIN {ld["actual_table_name"]} ld
-                    ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
-                JOIN {la["actual_table_name"]} la
-                    ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
+                ) latest ON l.{ll["columns"]["LoanID"]} = latest.LoanID AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
+                JOIN {la["actual_table_name"]} la ON l.{ll["columns"]["LoanID"]} = la.{la["columns"]["LoanAppID"]}
+                JOIN {ld["actual_table_name"]} ld ON la.{la["columns"]["LoanAppID"]} = ld.{ld["columns"]["LoanAppID"]}
+                JOIN {m["actual_table_name"]} m ON la.{la["columns"]["MemberID"]} = m.{m["columns"]["MemberID"]}
                 WHERE ld.{ld["columns"]["LoanStatus"]} = 'Active'
                 ORDER BY l.{ll["columns"]["LoanID"]}
                 """

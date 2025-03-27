@@ -57,183 +57,182 @@
 <div class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
     <!-- Sidebar -->
     {% include 'user/post_disbursement_sidebar.html' %}
-   
-
-    <!-- Main Content -->
-    <div class="p-4 sm:ml-64">
-        <div class="mt-14"> <!-- Add top margin to account for the fixed header -->
-            <!-- Content Header -->
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Post Disbursement Dashboard</h1>
-                <div class="flex flex-col items-end">
-                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        Last Updated: <span id="lastUpdated"></span>
-                        <span class="ml-2 text-xs">(Updates every 1 minute)</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <!-- Total Loans -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</h3>
-                    </div>
-                    <p id="total-loans" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.0f}'.format(total_loans|default(0)) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <i class="fas fa-circle-info mr-1"></i>Sum of all active loans
-                    </p>
-                </div>
-                <!-- Total Outstanding -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</h3>
-                    </div>
-                    <p id="total-outstanding" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding|default(0)) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <i class="fas fa-circle-info mr-1"></i>Sum of all outstanding balances
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">∑(Principal + Interest + Fees)</p>
-                </div>
-                <!-- NPL Amount -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Amount</h3>
-                    </div>
-                    <p id="total-provisions" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_provisions|default(0)) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <i class="fas fa-circle-info mr-1"></i>Sum of all non-performing loans
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">∑(Loans Past Due > 90 Days)</p>
-                </div>
-                <!-- Total in Arrears -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total in Arrears</h3>
-                    <p id="total-in-arrears" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears|default(0)) }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Overdue Amount</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <i class="fas fa-circle-info mr-1"></i>Sum of all overdue payments
-                    </p>
-                </div>
-            </div>
-
-            <!-- Additional Metrics Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <!-- NPL Ratio -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</h3>
-                    </div>
-                    <p id="npl-ratio" class="text-2xl font-bold {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.2f}'.format(npl_ratio|default(0)) }}%
-                    </p>
-                    <p class="text-xs {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
-                        <i class="fas {% if (npl_ratio|default(0)) > 5 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
-                        {% if (npl_ratio|default(0)) > 5 %}Alert: Above 5%{% else %}Target: Below 5%{% endif %}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">%(NPL Amount / Total Portfolio)</p>
-                </div>
-                <!-- NPL Coverage -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Coverage</h3>
-                    </div>
-                    <p id="npl-coverage" class="text-2xl font-bold {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.2f}'.format(npl_coverage_ratio|default(0)) }}%
-                    </p>
-                    <p class="text-xs {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-500{% endif %} mt-1">
-                        <i class="fas {% if (npl_coverage_ratio|default(0)) < 100 %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
-                        {% if (npl_coverage_ratio|default(0)) < 100 %}Warning: Below 100%{% else %}Good: Above 100%{% endif %}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">%(Total Provisions / NPL Amount)</p>
-                </div>
-                <!-- PAR30 -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">PAR > 30 Days</h3>
-                    </div>
-                    <p id="par30" class="text-2xl font-bold {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.2f}'.format(par30_ratio|default(0)) }}%
-                    </p>
-                    <p class="text-xs {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
-                        <i class="fas {% if (par30_ratio|default(0)) > 10 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
-                        {% if (par30_ratio|default(0)) > 10 %}Alert: Above 10%{% else %}Target: Below 10%{% endif %}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">%(Loans Overdue > 30 Days / Total Portfolio)</p>
-                </div>
-                <!-- Recovery Rate -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</h3>
-                    </div>
-                    <p id="recovery-rate" class="text-2xl font-bold {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-900{% endif %} dark:text-white">
-                        {{ '{:.2f}'.format(recovery_rate|default(0)) }}%
-                    </p>
-                    <p class="text-xs {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-500{% endif %} mt-1">
-                        <i class="fas {% if (recovery_rate|default(0)) < 90 %}fa-triangle-exclamation{% elif (recovery_rate|default(0)) >= 90 %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-1"></i>
-                        {% if (recovery_rate|default(0)) < 90 %}Warning: Below 90%{% elif (recovery_rate|default(0)) >= 90 %}Good: Above 90%{% endif %}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">%(Recovered Amount / Total Outstanding)</p>
-                </div>
-
-            </div>
-
-            <!-- Loan Classification Overview -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Classification Chart -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Loan Classification</h3>
-                    <div class="h-[400px]">
-                        <canvas id="classificationChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Classification Details -->
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Classification Details</h3>
-                    <div class="overflow-x-auto">
-                        <div class="inline-block min-w-full align-middle">
-                            <table class="min-w-full text-sm">
-                                <thead>
-                                    <tr>
-                                        <th class="text-left font-medium text-gray-500 dark:text-gray-400 py-2">Classification</th>
-                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Count</th>
-                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Amount</th>
-                                        <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">% of Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for category, data in overdue_loans.items() %}
-                                    <tr class="border-t border-gray-200 dark:border-gray-700">
-                                        <td class="py-2">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                                {% if category == 'NORMAL' %}
-                                                    bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                                {% elif category == 'WATCH' %}
-                                                    bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
-                                                {% elif category == 'SUBSTANDARD' %}
-                                                    bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
-                                                {% elif category == 'DOUBTFUL' %}
-                                                    bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
-                                                {% else %}
-                                                    bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
-                                                {% endif %}">
-                                                {{ category }} ({{ data.description }})
-                                            </span>
-                                        </td>
-                                        <td class="text-right py-2">{{ '{:,.0f}'.format(data.count) }}</td>
-                                        <td class="text-right py-2">{{ '{:,.2f}'.format(data.amount) }}</td>
-                                        <td class="text-right py-2">{{ '{:.2f}%'.format(data.percentage) }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+    
+    <div class="flex-1 overflow-x-hidden">
+        <div class="p-4 sm:ml-64">
+            <div class="mt-14"> 
+                <!-- Content Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Post Disbursement Dashboard</h1>
+                    <div class="flex flex-col items-end">
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Last Updated: <span id="lastUpdated"></span>
+                            <span class="ml-2 text-xs">(Updates every 1 minute)</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- Total Loans -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Loans</h3>
+                        </div>
+                        <p id="total-loans" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.0f}'.format(total_loans|default(0)) }}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-circle-info mr-1"></i>Sum of all active loans
+                        </p>
+                    </div>
+                    <!-- Total Outstanding -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Outstanding</h3>
+                        </div>
+                        <p id="total-outstanding" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_outstanding|default(0)) }}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-circle-info mr-1"></i>Sum of all outstanding balances
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">∑(Principal + Interest + Fees)</p>
+                    </div>
+                    <!-- NPL Amount -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Amount</h3>
+                        </div>
+                        <p id="total-provisions" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_provisions|default(0)) }}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-circle-info mr-1"></i>Sum of all non-performing loans
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">∑(Loans Past Due > 90 Days)</p>
+                    </div>
+                    <!-- Total in Arrears -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total in Arrears</h3>
+                        <p id="total-in-arrears" class="text-2xl font-bold text-gray-900 dark:text-white">{{ '{:,.2f}'.format(total_in_arrears|default(0)) }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Overdue Amount</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-circle-info mr-1"></i>Sum of all overdue payments
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Additional Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- NPL Ratio -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Ratio</h3>
+                        </div>
+                        <p id="npl-ratio" class="text-2xl font-bold {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                            {{ '{:.2f}'.format(npl_ratio|default(0)) }}%
+                        </p>
+                        <p class="text-xs {% if (npl_ratio|default(0)) > 5 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
+                            <i class="fas {% if (npl_ratio|default(0)) > 5 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                            {% if (npl_ratio|default(0)) > 5 %}Alert: Above 5%{% else %}Target: Below 5%{% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">%(NPL Amount / Total Portfolio)</p>
+                    </div>
+                    <!-- NPL Coverage -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">NPL Coverage</h3>
+                        </div>
+                        <p id="npl-coverage" class="text-2xl font-bold {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-900{% endif %} dark:text-white">
+                            {{ '{:.2f}'.format(npl_coverage_ratio|default(0)) }}%
+                        </p>
+                        <p class="text-xs {% if (npl_coverage_ratio|default(0)) < 100 %}text-yellow-600{% else %}text-gray-500{% endif %} mt-1">
+                            <i class="fas {% if (npl_coverage_ratio|default(0)) < 100 %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                            {% if (npl_coverage_ratio|default(0)) < 100 %}Warning: Below 100%{% else %}Good: Above 100%{% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">%(Total Provisions / NPL Amount)</p>
+                    </div>
+                    <!-- PAR30 -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">PAR > 30 Days</h3>
+                        </div>
+                        <p id="par30" class="text-2xl font-bold {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-900{% endif %} dark:text-white">
+                            {{ '{:.2f}'.format(par30_ratio|default(0)) }}%
+                        </p>
+                        <p class="text-xs {% if (par30_ratio|default(0)) > 10 %}text-red-600{% else %}text-gray-500{% endif %} mt-1">
+                            <i class="fas {% if (par30_ratio|default(0)) > 10 %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} mr-1"></i>
+                            {% if (par30_ratio|default(0)) > 10 %}Alert: Above 10%{% else %}Target: Below 10%{% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">%(Loans Overdue > 30 Days / Total Portfolio)</p>
+                    </div>
+                    <!-- Recovery Rate -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Recovery Rate</h3>
+                        </div>
+                        <p id="recovery-rate" class="text-2xl font-bold {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-900{% endif %} dark:text-white">
+                            {{ '{:.2f}'.format(recovery_rate|default(0)) }}%
+                        </p>
+                        <p class="text-xs {% if (recovery_rate|default(0)) < 90 %}text-yellow-600{% elif (recovery_rate|default(0)) >= 90 %}text-green-600{% else %}text-gray-500{% endif %} mt-1">
+                            <i class="fas {% if (recovery_rate|default(0)) < 90 %}fa-triangle-exclamation{% elif (recovery_rate|default(0)) >= 90 %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-1"></i>
+                            {% if (recovery_rate|default(0)) < 90 %}Warning: Below 90%{% elif (recovery_rate|default(0)) >= 90 %}Good: Above 90%{% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">%(Recovered Amount / Total Outstanding)</p>
+                    </div>
+
+                </div>
+
+                <!-- Loan Classification Overview -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Classification Chart -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Loan Classification</h3>
+                        <div class="h-[400px]">
+                            <canvas id="classificationChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Classification Details -->
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Classification Details</h3>
+                        <div class="overflow-x-auto">
+                            <div class="inline-block min-w-full align-middle">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-left font-medium text-gray-500 dark:text-gray-400 py-2">Classification</th>
+                                            <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Count</th>
+                                            <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">Amount</th>
+                                            <th class="text-right font-medium text-gray-500 dark:text-gray-400 py-2">% of Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for category, data in overdue_loans.items() %}
+                                        <tr class="border-t border-gray-200 dark:border-gray-700">
+                                            <td class="py-2">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                                    {% if category == 'NORMAL' %}
+                                                        bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                                    {% elif category == 'WATCH' %}
+                                                        bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                                                    {% elif category == 'SUBSTANDARD' %}
+                                                        bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
+                                                    {% elif category == 'DOUBTFUL' %}
+                                                        bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                                                    {% else %}
+                                                        bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                                    {% endif %}">
+                                                    {{ category }} ({{ data.description }})
+                                                </span>
+                                            </td>
+                                            <td class="text-right py-2">{{ '{:,.0f}'.format(data.count) }}</td>
+                                            <td class="text-right py-2">{{ '{:,.2f}'.format(data.amount) }}</td>
+                                            <td class="text-right py-2">{{ '{:.2f}%'.format(data.percentage) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
 <!-- Loan Details -->
 <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6">
     <div class="flex justify-between items-center mb-4">
@@ -280,29 +279,19 @@
         </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="w-full overflow-x-auto">
         <table id="loan-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-            <thead class="bg-gray-50 dark:bg-gray-600">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account No.</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer Name</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outstanding</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Days in Arrears</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total in Arrears</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Classification</th>
-                </tr>
-            </thead>
+                <thead class="bg-gray-50 dark:bg-gray-600">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account No.</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer Name</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outstanding</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Days in Arrears</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total in Arrears</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Classification</th>
+                    </tr>
+                </thead>
             <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600" id="loan-table-body">
-                {% for loan in loan_data|default([]) %}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${[loan.FirstName, loan.MiddleName, loan.LastName].filter(Boolean).join(' ') || loan.FullName || ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0, 2)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.ArrearsDays || 0}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.ArrearsAmount || 0, 2)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white" data-status="${loan.ApplicationStatus || ''}">${loan.ApplicationStatus || 'N/A'}</td>
-                </tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -740,10 +729,22 @@
                     console.error('Error loading loan data:', data.error);
                     return;
                 }
-
+        
+                console.log('Loaded loan data:', data.data); // Add this line for debugging
+                
                 const tableBody = document.getElementById('loan-table-body');
+                if (!tableBody) {
+                    console.error('Table body not found');
+                    return;
+                }
+                
                 tableBody.innerHTML = ''; // Clear existing rows
                 
+                if (!Array.isArray(data.data)) {
+                    console.error('Invalid data format:', data.data);
+                    return;
+                }
+        
                 data.data.forEach(loan => {
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50 dark:hover:bg-gray-600';
@@ -757,7 +758,7 @@
                     
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${[loan.FirstName, loan.MiddleName, loan.LastName].filter(Boolean).join(' ') || loan.FullName || ''}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.CustomerName || ''}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0, 2)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${arrearsDays}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.ArrearsAmount || 0, 2)}</td>
@@ -772,6 +773,11 @@
                 
             } catch (error) {
                 console.error('Error loading loan data:', error);
+                // Add a user-friendly error message to the UI
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'text-red-500 text-center p-4';
+                errorDiv.textContent = 'Failed to load loan data. Please try again.';
+                document.querySelector('.bg-white.dark:bg-gray-700.shadow.rounded-lg.p-6.mb-6').insertBefore(errorDiv, document.querySelector('#loan-table'));
             }
         }
 

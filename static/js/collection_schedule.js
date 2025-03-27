@@ -645,7 +645,116 @@ $('#newCollectionScheduleForm').submit(function(event) {
         alert(`${title}: ${message}`);
     }
 
+    // Make viewLoanDetails globally accessible
+window.viewLoanDetails = function(loanId) {
+        // Fetch loan details
+        fetch(`/api/loans/${loanId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch loan details');
+                }
+                return response.json();
+            })
+            .then(loan => {
+                // Populate modal with loan details
+                const modal = document.getElementById('loanDetailsModal');
+                document.getElementById('loan-details-id').textContent = loan.loan_id;
+                document.getElementById('loan-details-customer').textContent = loan.customer_name;
+                document.getElementById('loan-details-amount').textContent = loan.outstanding_balance?.toFixed(2) || '0.00';
+                document.getElementById('loan-details-arrears').textContent = loan.days_in_arrears || '0';
+                
+                // Remove reference to due_date since it's not available
+                const dueDateElement = document.getElementById('loan-details-due-date');
+                if (dueDateElement) {
+                    dueDateElement.textContent = 'N/A';
+                }
+                
+                // Show modal using custom implementation
+                modal.style.display = 'block';
+                
+                // Add event listeners to close buttons
+                const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"]');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        modal.style.display = 'none';
+                    });
+                });
+                
+                // Close modal when clicking outside
+                window.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching loan details:', error);
+                showNotification('Error', 'Failed to load loan details');
+            });
+    };
+
+    // Load overdue loans
+async function loadOverdueLoans() {
+    try {
+        const response = await fetch('/api/overdue_loans');
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        const tbody = document.getElementById('overdue-loans-body');
+        if (!tbody) {
+            throw new Error('Could not find the overdue loans table body element');
+        }
+        
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(data.data)) {
+            throw new Error('Data is not an array');
+        }
+
+        data.data.forEach(loan => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">${loan.loan_no || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${loan.customer_name || 'N/A'}</td>
+                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.outstanding_balance?.toFixed(2) || '0.00'}</td>
+                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.arrears_amount?.toFixed(2) || '0.00'}</td>
+                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.arrears_days || 0}</td>
+                <td class="px-6 py-4 text-right whitespace-nowrap">
+                    <button class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700" onclick="viewLoanDetails('${loan.loan_id}')">
+                        View Details
+                    </button>
+                </td>
+            `;
+        });
+        
+        // Update last updated timestamp
+        const lastUpdatedEl = document.getElementById('overdue-loans-last-updated');
+        if (lastUpdatedEl) {
+            lastUpdatedEl.textContent = new Date().toLocaleString();
+        }
+        
+    } catch (error) {
+        console.error('Error loading overdue loans:', error);
+        const tbody = document.getElementById('overdue-loans-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-red-500">
+                        Error loading overdue loans: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
 
     // Initialize collection schedules on page load
     loadCollectionSchedules();
+    loadOverdueLoans();
+
+    // Refresh overdue loans every 5 minutes
+    setInterval(loadOverdueLoans, 5 * 60 * 1000);
 });

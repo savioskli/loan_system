@@ -323,6 +323,34 @@
     {% include 'user/chat.html' %}
 </div>
 
+<!-- Loan Details Modal -->
+<div class="modal fade" id="loanDetailsModal" tabindex="-1" aria-labelledby="loanDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="loanDetailsModalLabel">Loan Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Loan ID:</strong> <span id="loan-details-id"></span></p>
+                        <p><strong>Customer:</strong> <span id="loan-details-customer"></span></p>
+                        <p><strong>Outstanding Balance:</strong> <span id="loan-details-amount"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Days in Arrears:</strong> <span id="loan-details-arrears"></span></p>
+                        <p><strong>Due Date:</strong> <span id="loan-details-due-date"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Add JavaScript for table functionality -->
 <script>
     // Table configuration

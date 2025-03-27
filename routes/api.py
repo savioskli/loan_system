@@ -978,8 +978,10 @@ def get_loan_details(loan_id):
                 ld = mapping.get("LoanDisbursements", {})
                 la = mapping.get("LoanApplications", {})
                 m = mapping.get("Members", {})
+                guarantors = mapping.get("Guarantors", {})
                 
-                query = f"""
+                # Define base query
+                base_query = f"""
                 SELECT
                     l.{ll["columns"]["LoanID"]} AS LoanID,
                     l.{ll["columns"]["OutstandingBalance"]} AS OutstandingBalance,
@@ -989,6 +991,32 @@ def get_loan_details(loan_id):
                     la.{la["columns"]["LoanAmount"]} AS LoanAmount,
                     ld.{ld["columns"]["LoanStatus"]} AS LoanStatus,
                     CONCAT(m.{m["columns"]["FirstName"]}, ' ', m.{m["columns"]["LastName"]}) AS CustomerName
+                """
+                
+                # Add guarantor information if available
+                guarantor_query = ""
+                if guarantors and "columns" in guarantors and "actual_table_name" in guarantors:
+                    g_cols = guarantors.get("columns", {})
+                    guarantor_query = f"""
+                    ,GROUP_CONCAT(
+                        CASE
+                            WHEN g.{g_cols.get('GuarantorID', 'GuarantorID')} IS NOT NULL 
+                            THEN CONCAT(
+                                COALESCE(g.{g_cols.get('GuarantorID', 'GuarantorID')}, ''),
+                                ':', COALESCE(g.{g_cols.get('GuarantorMemberID', 'GuarantorMemberID')}, ''),
+                                ':', COALESCE(CONCAT(gm.{m["columns"]["FirstName"]}, ' ', gm.{m["columns"]["LastName"]}), ''),
+                                ':', COALESCE(g.{g_cols.get('GuaranteedAmount', 'GuaranteedAmount')}, '0'),
+                                ':', COALESCE(g.{g_cols.get('Status', 'Status')}, 'Unknown'),
+                                ':', COALESCE(g.{g_cols.get('LoanAppID', 'LoanAppID')}, '')
+                            )
+                            ELSE NULL
+                        END
+                        SEPARATOR ','
+                    ) AS GuarantorInfo
+                    """
+                
+                # Combine queries
+                from_query = f"""
                 FROM {ll["actual_table_name"]} l
                 JOIN (
                     SELECT {ll["columns"]["LoanID"]} AS LoanID,
@@ -999,8 +1027,28 @@ def get_loan_details(loan_id):
                 JOIN {la["actual_table_name"]} la ON l.{ll["columns"]["LoanID"]} = la.{la["columns"]["LoanAppID"]}
                 JOIN {ld["actual_table_name"]} ld ON la.{la["columns"]["LoanAppID"]} = ld.{ld["columns"]["LoanAppID"]}
                 JOIN {m["actual_table_name"]} m ON la.{la["columns"]["MemberID"]} = m.{m["columns"]["MemberID"]}
-                WHERE l.{ll["columns"]["LoanID"]} = %s
                 """
+                
+                # Add guarantor joins if available
+                if guarantors and "columns" in guarantors and "actual_table_name" in guarantors:
+                    g_cols = guarantors.get("columns", {})
+                    from_query += f"""
+                    LEFT JOIN {guarantors["actual_table_name"]} g ON la.{la["columns"]["LoanAppID"]} = g.{g_cols.get('LoanAppID', 'LoanAppID')}
+                    LEFT JOIN {m["actual_table_name"]} gm ON g.{g_cols.get('GuarantorMemberID', 'GuarantorMemberID')} = gm.{m["columns"]["MemberID"]}
+                    """
+                
+                # Add where clause
+                where_clause = f"""WHERE l.{ll["columns"]["LoanID"]} = %s"""
+                
+                # Add group by if using guarantors
+                group_by = ""
+                if guarantors and "columns" in guarantors and "actual_table_name" in guarantors:
+                    group_by = f"""GROUP BY l.{ll["columns"]["LoanID"]}, l.{ll["columns"]["OutstandingBalance"]}, l.{ll["columns"]["ArrearsAmount"]}, l.{ll["columns"]["ArrearsDays"]}, la.{la["columns"]["LoanNo"]}, la.{la["columns"]["LoanAmount"]}, ld.{ld["columns"]["LoanStatus"]}, m.{m["columns"]["FirstName"]}, m.{m["columns"]["LastName"]}"""
+
+                
+                # Combine all parts of the query
+                query = f"""{base_query} {guarantor_query} {from_query} {where_clause} {group_by}"""
+                
                 return query
             except Exception as e:
                 current_app.logger.error(f"Error building loan query: {str(e)}")
@@ -1017,6 +1065,29 @@ def get_loan_details(loan_id):
                 
             # Format the loan data
             loan_dict = dict(loan_data)
+            
+            # Process guarantor information if available
+            guarantors = []
+            if 'GuarantorInfo' in loan_dict and loan_dict['GuarantorInfo'] and loan_dict['GuarantorInfo'] != 'NULL':
+                current_app.logger.info(f"Raw GuarantorInfo: {loan_dict['GuarantorInfo']}")
+                guarantor_info_list = [g for g in loan_dict['GuarantorInfo'].split(',') if g]  # Filter out empty strings
+                for guarantor_info in guarantor_info_list:
+                    try:
+                        fields = guarantor_info.split(':')
+                        if len(fields) >= 6:
+                            guarantor_id, member_id, guarantor_name, guaranteed_amount, status, loan_app_id = fields
+                            
+                            if guarantor_id and member_id and status == 'Active':
+                                guarantors.append({
+                                    'guarantor_id': guarantor_id,
+                                    'member_id': member_id,
+                                    'name': guarantor_name.strip() if guarantor_name else '',
+                                    'guaranteed_amount': float(guaranteed_amount) if guaranteed_amount and guaranteed_amount.strip() else 0,
+                                    'status': status
+                                })
+                    except Exception as e:
+                        current_app.logger.error(f"Error parsing guarantor info: {guarantor_info}, Error: {str(e)}")
+            
             formatted_loan = {
                 'loan_id': loan_dict['LoanID'],
                 'loan_no': loan_dict['LoanNo'],
@@ -1025,7 +1096,8 @@ def get_loan_details(loan_id):
                 'arrears_amount': float(loan_dict.get('ArrearsAmount', 0)),
                 'days_in_arrears': int(loan_dict.get('ArrearsDays', 0)),
                 'loan_amount': float(loan_dict['LoanAmount']),
-                'loan_status': loan_dict['LoanStatus']
+                'loan_status': loan_dict['LoanStatus'],
+                'guarantors': guarantors
             }
             
             return jsonify(formatted_loan)

@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Helper functions
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    }
+    
+    // Initialize tabs and filters
+    initializeTabs();
+    initializeFilterToggle();
+    
     // Modal handling
     const modal = document.getElementById('newCollectionScheduleModal');
     const openModalBtn = document.getElementById('newCollectionScheduleBtn');
@@ -289,90 +301,94 @@ function initializeClientSelect(selector, isModal) {
                         const method = schedule.preferred_collection_method || 'Not specified';
                         
                         const scheduleHtml = `
-                            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
-                                <div class="flex flex-col md:flex-row justify-between">
-                                    <div class="flex-1">
-                                        <div class="flex items-center mb-2">
-                                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                                ${borrowerInfo}
-                                            </h3>
-                                            ${schedule.collection_priority ? `
-                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full 
-                                                ${getPriorityClass(schedule.collection_priority)}">
-                                                ${schedule.collection_priority}
-                                            </span>
-                                            ` : ''}
-                                        </div>
-                                        
-                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                            <div>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">Assigned To</p>
-                                                <p class="font-medium">${staffName}</p>
-                                            </div>
-                                            <div>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">Next Follow-up</p>
-                                                <p class="font-medium">${nextFollowUp}</p>
-                                            </div>
-                                            <div>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">Method</p>
-                                                <p class="font-medium">${method}</p>
-                                            </div>
-                                            ${schedule.promised_payment_date ? `
-                                            <div>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">Promised Payment</p>
-                                                <p class="font-medium">${formatDate(schedule.promised_payment_date)}</p>
-                                            </div>
-                                            ` : ''}
-                                            <div>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">Attempts</p>
-                                                <p class="font-medium">${schedule.attempts_made || 0} / ${schedule.attempts_allowed || '-'}</p>
-                                            </div>
-                                        </div>
-                                        
-                                        ${schedule.task_description ? `
-                                        <div class="mb-4">
-                                            <p class="text-sm text-gray-600 dark:text-gray-400">Task Description</p>
-                                            <p class="mt-1">${schedule.task_description}</p>
-                                        </div>
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden mb-4">
+                                <!-- Card Header -->
+                                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex flex-wrap items-center justify-between">
+                                    <div class="flex items-center flex-wrap">
+                                        <h3 class="text-md font-semibold text-gray-900 dark:text-white truncate mr-2">
+                                            ${borrowerInfo}
+                                        </h3>
+                                        ${schedule.collection_priority ? `
+                                        <span class="mr-2 px-2 py-0.5 text-xs font-medium rounded-full ${getPriorityClass(schedule.collection_priority)}">
+                                            ${schedule.collection_priority}
+                                        </span>
                                         ` : ''}
-                                        
-                                        ${schedule.special_instructions ? `
-                                        <div class="mb-4">
-                                            <p class="text-sm text-gray-600 dark:text-gray-400">Special Instructions</p>
-                                            <p class="mt-1">${schedule.special_instructions}</p>
-                                        </div>
-                                        ` : ''}
-                                        
                                         ${schedule.progress_status ? `
-                                        <div class="mt-2">
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(schedule.progress_status)}">
-                                                ${schedule.progress_status}
-                                            </span>
-                                            ${schedule.escalation_level ? `
-                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                                                Escalation Level ${schedule.escalation_level}
-                                            </span>
-                                            ` : ''}
+                                        <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getStatusClass(schedule.progress_status)}">
+                                            ${schedule.progress_status}
+                                        </span>
+                                        ` : ''}
+                                        ${schedule.escalation_level ? `
+                                        <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                                            Escalation ${schedule.escalation_level}
+                                        </span>
+                                        ` : ''}
+                                    </div>
+                                    <div class="flex items-center mt-2 sm:mt-0">
+                                        <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 mr-3" onclick="viewLoanDetails('${schedule.loan_id}')">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                        </button>
+                                        <button class="update-progress-btn text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                                                data-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || 'Unknown'}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </button>
+                                        ${schedule.progress_status !== 'Escalated' ? `
+                                        <button class="escalate-btn text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3"
+                                                data-id="${schedule.id}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        </button>
+                                        ` : ''}
+                                        <button class="delete-btn text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                                data-id="${schedule.id}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Card Body -->
+                                <div class="p-4">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                        <div>
+                                            <p class="text-gray-500 dark:text-gray-400">Assigned To</p>
+                                            <p class="font-medium">${staffName}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-gray-500 dark:text-gray-400">Next Follow-up</p>
+                                            <p class="font-medium">${nextFollowUp}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-gray-500 dark:text-gray-400">Method</p>
+                                            <p class="font-medium">${method}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-gray-500 dark:text-gray-400">Attempts</p>
+                                            <p class="font-medium">${schedule.attempts_made || 0} / ${schedule.attempts_allowed || '-'}</p>
+                                        </div>
+                                        ${schedule.promised_payment_date ? `
+                                        <div class="col-span-2">
+                                            <p class="text-gray-500 dark:text-gray-400">Promised Payment</p>
+                                            <p class="font-medium">${formatDate(schedule.promised_payment_date)}</p>
                                         </div>
                                         ` : ''}
                                     </div>
                                     
-                                    <div class="flex flex-col space-y-2 mt-4 md:mt-0 md:ml-4">
-                                        <button class="update-progress-btn px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded hover:bg-blue-600"
-                                                data-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || 'Unknown'}">
-                                            Update Progress
-                                        </button>
-                                        ${schedule.progress_status !== 'Escalated' ? `
-                                        <button class="escalate-btn px-4 py-2 text-sm font-medium text-white bg-yellow-500 rounded hover:bg-yellow-600"
-                                                data-id="${schedule.id}">
-                                            Escalate
-                                        </button>
+                                    ${(schedule.task_description || schedule.special_instructions) ? `
+                                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        ${schedule.task_description ? `
+                                        <div class="mb-2">
+                                            <p class="text-gray-500 dark:text-gray-400 text-sm">Task Description</p>
+                                            <p class="text-sm">${schedule.task_description}</p>
+                                        </div>
                                         ` : ''}
-                                        <button class="delete-btn px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600"
-                                                data-id="${schedule.id}">
-                                            Delete
-                                        </button>
+                                        
+                                        ${schedule.special_instructions ? `
+                                        <div>
+                                            <p class="text-gray-500 dark:text-gray-400 text-sm">Special Instructions</p>
+                                            <p class="text-sm">${schedule.special_instructions}</p>
+                                        </div>
+                                        ` : ''}
                                     </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         `;
@@ -477,7 +493,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
                         tableBody.append(`
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(payment.payment_date)}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${payment.amount.toLocaleString('en-US', { style: 'currency', currency: 'KES' })}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(payment.amount)}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">${payment.description}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${attachmentLink}</td>
                             </tr>
@@ -660,7 +676,7 @@ window.viewLoanDetails = function(loanId) {
                 const modal = document.getElementById('loanDetailsModal');
                 document.getElementById('loan-details-id').textContent = loan.loan_id;
                 document.getElementById('loan-details-customer').textContent = loan.customer_name;
-                document.getElementById('loan-details-amount').textContent = loan.outstanding_balance?.toFixed(2) || '0.00';
+                document.getElementById('loan-details-amount').textContent = formatCurrency(loan.outstanding_balance) || '0.00';
                 document.getElementById('loan-details-arrears').textContent = loan.days_in_arrears || '0';
                 
                 // Remove reference to due_date since it's not available
@@ -669,14 +685,51 @@ window.viewLoanDetails = function(loanId) {
                     dueDateElement.textContent = 'N/A';
                 }
                 
+                // Populate guarantors table
+                const guarantorsList = document.getElementById('guarantors-list');
+                const noGuarantorsRow = document.getElementById('no-guarantors-row');
+                
+                // Clear existing guarantors
+                while (guarantorsList.firstChild) {
+                    guarantorsList.removeChild(guarantorsList.firstChild);
+                }
+                
+                // Add guarantors if available
+                if (loan.guarantors && loan.guarantors.length > 0) {
+                    // Hide the "no guarantors" message
+                    guarantorsList.appendChild(noGuarantorsRow);
+                    noGuarantorsRow.style.display = 'none';
+                    
+                    // Add each guarantor to the table
+                    loan.guarantors.forEach(guarantor => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-4 py-2 text-sm text-gray-500">${guarantor.name}</td>
+                            <td class="px-4 py-2 text-sm text-gray-500">${formatCurrency(guarantor.guaranteed_amount)}</td>
+                            <td class="px-4 py-2 text-sm text-gray-500">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    ${guarantor.status}
+                                </span>
+                            </td>
+                        `;
+                        guarantorsList.appendChild(row);
+                    });
+                } else {
+                    // Show the "no guarantors" message
+                    guarantorsList.appendChild(noGuarantorsRow);
+                    noGuarantorsRow.style.display = 'table-row';
+                }
+                
                 // Show modal using custom implementation
                 modal.style.display = 'block';
+                modal.classList.remove('hidden');
                 
                 // Add event listeners to close buttons
                 const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"]');
                 closeButtons.forEach(button => {
                     button.addEventListener('click', function() {
                         modal.style.display = 'none';
+                        modal.classList.add('hidden');
                     });
                 });
                 
@@ -694,6 +747,10 @@ window.viewLoanDetails = function(loanId) {
     };
 
     // Load overdue loans
+let overdueLoansData = [];
+let overdueCurrentPage = 1;
+const overdueItemsPerPage = 10;
+
 async function loadOverdueLoans() {
     try {
         const response = await fetch('/api/overdue_loans');
@@ -708,52 +765,257 @@ async function loadOverdueLoans() {
             throw new Error('Could not find the overdue loans table body element');
         }
         
-        tbody.innerHTML = '';
-
         if (!Array.isArray(data.data)) {
             throw new Error('Data is not an array');
         }
-
-        data.data.forEach(loan => {
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap">${loan.loan_no || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${loan.customer_name || 'N/A'}</td>
-                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.outstanding_balance?.toFixed(2) || '0.00'}</td>
-                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.arrears_amount?.toFixed(2) || '0.00'}</td>
-                <td class="px-6 py-4 text-right whitespace-nowrap">${loan.arrears_days || 0}</td>
-                <td class="px-6 py-4 text-right whitespace-nowrap">
-                    <button class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700" onclick="viewLoanDetails('${loan.loan_id}')">
-                        View Details
-                    </button>
-                </td>
-            `;
-        });
+        
+        // Store the data globally for pagination
+        overdueLoansData = data.data;
+        
+        // Update the overdue count in the summary cards
+        $('#overdue-count').text(overdueLoansData.length);
+        
+        // Initialize pagination
+        initializeOverduePagination();
+        
+        // Display the first page
+        displayOverduePage(1);
         
         // Update last updated timestamp
         const lastUpdatedEl = document.getElementById('overdue-loans-last-updated');
         if (lastUpdatedEl) {
             lastUpdatedEl.textContent = new Date().toLocaleString();
         }
-        
     } catch (error) {
         console.error('Error loading overdue loans:', error);
         const tbody = document.getElementById('overdue-loans-body');
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="px-6 py-4 text-center text-red-500">
-                        Error loading overdue loans: ${error.message}
+                    <td colspan="6" class="px-4 py-4 text-center">
+                        <div class="flex flex-col items-center justify-center text-sm">
+                            <svg class="w-8 h-8 text-red-500 dark:text-red-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-red-500 dark:text-red-400">Error loading overdue loans</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">${error.message}</p>
+                        </div>
                     </td>
                 </tr>
             `;
+            
+            // Hide pagination when there's an error
+            document.getElementById('overdue-pagination').classList.add('hidden');
         }
     }
 }
 
+// Display a specific page of overdue loans
+function displayOverduePage(page) {
+    const tbody = document.getElementById('overdue-loans-body');
+    if (!tbody) return;
+    
+    // Clear the table
+    tbody.innerHTML = '';
+    
+    // Calculate start and end indices
+    const startIndex = (page - 1) * overdueItemsPerPage;
+    const endIndex = Math.min(startIndex + overdueItemsPerPage, overdueLoansData.length);
+    
+    // No data case
+    if (overdueLoansData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-4 text-center">
+                    <p class="text-gray-500 dark:text-gray-400">No overdue loans found</p>
+                </td>
+            </tr>
+        `;
+        document.getElementById('overdue-pagination').classList.add('hidden');
+        return;
+    } else {
+        document.getElementById('overdue-pagination').classList.remove('hidden');
+    }
+    
+    // Update pagination info
+    document.getElementById('overdue-range-start').textContent = startIndex + 1;
+    document.getElementById('overdue-range-end').textContent = endIndex;
+    document.getElementById('overdue-total').textContent = overdueLoansData.length;
+    document.getElementById('overdue-current-page').textContent = page;
+    document.getElementById('overdue-total-pages').textContent = Math.ceil(overdueLoansData.length / overdueItemsPerPage);
+    
+    // Display the current page data
+    for (let i = startIndex; i < endIndex; i++) {
+        const loan = overdueLoansData[i];
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 whitespace-nowrap">${loan.loan_no || 'N/A'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 whitespace-nowrap">${loan.customer_name || 'N/A'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 text-right whitespace-nowrap">${formatCurrency(loan.outstanding_balance || 0)}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 text-right whitespace-nowrap">${formatCurrency(loan.arrears_amount || 0)}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 text-right whitespace-nowrap">
+                <span class="${loan.arrears_days > 30 ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${loan.arrears_days || 0}</span>
+            </td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+                <button class="px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" onclick="viewLoanDetails('${loan.loan_id}')">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        Details
+                    </span>
+                </button>
+            </td>
+        `;
+    }
+}
+
+// Initialize pagination controls
+function initializeOverduePagination() {
+    const totalPages = Math.ceil(overdueLoansData.length / overdueItemsPerPage);
+    
+    // Update button states
+    updateOverduePaginationButtons();
+    
+    // Add event listeners for pagination controls
+    document.getElementById('overdue-prev').addEventListener('click', function() {
+        if (overdueCurrentPage > 1) {
+            overdueCurrentPage--;
+            displayOverduePage(overdueCurrentPage);
+            updateOverduePaginationButtons();
+        }
+    });
+    
+    document.getElementById('overdue-next').addEventListener('click', function() {
+        if (overdueCurrentPage < totalPages) {
+            overdueCurrentPage++;
+            displayOverduePage(overdueCurrentPage);
+            updateOverduePaginationButtons();
+        }
+    });
+    
+    document.getElementById('overdue-prev-mobile').addEventListener('click', function() {
+        if (overdueCurrentPage > 1) {
+            overdueCurrentPage--;
+            displayOverduePage(overdueCurrentPage);
+            updateOverduePaginationButtons();
+        }
+    });
+    
+    document.getElementById('overdue-next-mobile').addEventListener('click', function() {
+        if (overdueCurrentPage < totalPages) {
+            overdueCurrentPage++;
+            displayOverduePage(overdueCurrentPage);
+            updateOverduePaginationButtons();
+        }
+    });
+}
+
+// Update pagination button states
+function updateOverduePaginationButtons() {
+    const totalPages = Math.ceil(overdueLoansData.length / overdueItemsPerPage);
+    
+    // Disable/enable previous buttons
+    document.getElementById('overdue-prev').disabled = overdueCurrentPage === 1;
+    document.getElementById('overdue-prev').classList.toggle('opacity-50', overdueCurrentPage === 1);
+    document.getElementById('overdue-prev-mobile').disabled = overdueCurrentPage === 1;
+    document.getElementById('overdue-prev-mobile').classList.toggle('opacity-50', overdueCurrentPage === 1);
+    
+    // Disable/enable next buttons
+    document.getElementById('overdue-next').disabled = overdueCurrentPage === totalPages || totalPages === 0;
+    document.getElementById('overdue-next').classList.toggle('opacity-50', overdueCurrentPage === totalPages || totalPages === 0);
+    document.getElementById('overdue-next-mobile').disabled = overdueCurrentPage === totalPages || totalPages === 0;
+    document.getElementById('overdue-next-mobile').classList.toggle('opacity-50', overdueCurrentPage === totalPages || totalPages === 0);
+}
+
+    // Initialize tab functionality
+    function initializeTabs() {
+        const tabs = document.querySelectorAll('[data-tabs-target]');
+        const tabContents = document.querySelectorAll('[role=\'tabpanel\']');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = document.querySelector(tab.dataset.tabsTarget);
+                
+                // Hide all tab contents
+                tabContents.forEach(tabContent => {
+                    tabContent.classList.add('hidden');
+                    tabContent.classList.remove('block');
+                });
+                
+                // Remove active class from all tabs
+                tabs.forEach(t => {
+                    t.classList.remove('active', 'border-blue-600', 'text-blue-600');
+                    t.classList.add('border-transparent');
+                    t.setAttribute('aria-selected', 'false');
+                });
+                
+                // Show the selected tab content
+                target.classList.remove('hidden');
+                target.classList.add('block');
+                
+                // Add active class to the clicked tab
+                tab.classList.add('active', 'border-blue-600', 'text-blue-600');
+                tab.classList.remove('border-transparent');
+                tab.setAttribute('aria-selected', 'true');
+                
+                // If switching to overdue loans tab, refresh the data
+                if (tab.id === 'overdue-tab') {
+                    loadOverdueLoans();
+                }
+            });
+        });
+    }
+    
+    // Initialize filter toggle functionality
+    function initializeFilterToggle() {
+        const filterToggle = document.getElementById('filter-toggle');
+        const filterContent = document.getElementById('filter-content');
+        const filterArrow = document.getElementById('filter-arrow');
+        
+        if (filterToggle && filterContent) {
+            filterToggle.addEventListener('click', () => {
+                filterContent.classList.toggle('hidden');
+                filterArrow.classList.toggle('rotate-180');
+            });
+        }
+        
+        // Initialize filter buttons
+        const applyFiltersBtn = document.getElementById('apply-filters');
+        const resetFiltersBtn = document.getElementById('reset-filters');
+        
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => {
+                const filters = {
+                    staff: $('#filterStaff').val(),
+                    priority: $('#filterPriority').val(),
+                    status: $('#filterStatus').val(),
+                    method: $('#filterMethod').val()
+                };
+                loadCollectionSchedules(filters);
+            });
+        }
+        
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', () => {
+                $('#filterStaff').val('');
+                $('#filterPriority').val('');
+                $('#filterStatus').val('');
+                $('#filterMethod').val('');
+                loadCollectionSchedules();
+            });
+        }
+    }
+    
+    // Update summary cards
+    function updateSummaryCards(data) {
+        $('#total-schedules').text(data?.total || 0);
+        $('#pending-followups').text(data?.pending || 0);
+        $('#overdue-count').text(data?.overdue || 0);
+        $('#completed-schedules').text(data?.completed || 0);
+    }
+
     // Initialize collection schedules on page load
     loadCollectionSchedules();
     loadOverdueLoans();
+    initializeTabs();
+    initializeFilterToggle();
 
     // Refresh overdue loans every 5 minutes
     setInterval(loadOverdueLoans, 5 * 60 * 1000);

@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Helper functions
     function formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-KE', {
+            style: 'currency',
+            currency: 'KES',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(amount);
@@ -16,8 +18,156 @@ document.addEventListener('DOMContentLoaded', function() {
     const openModalBtn = document.getElementById('newCollectionScheduleBtn');
     const closeModalBtn = document.getElementById('closeCollectionScheduleModal');
 
-    // Initialize Select2 dropdowns
-const staffSelect2Config = {
+    // Function to update loan details in form
+    function updateLoanDetailsInForm(loan, formPrefix = '') {
+        console.log('Updating loan details in form:', loan);
+        
+        // Update outstanding balance
+        const outstandingBalanceInput = document.getElementById(formPrefix + 'outstandingBalance');
+        if (outstandingBalanceInput) {
+            const outstandingBalance = loan.OutstandingBalance || loan.outstanding_balance || 0;
+            console.log('Setting outstanding balance:', outstandingBalance);
+            outstandingBalanceInput.value = formatCurrency(outstandingBalance);
+            console.log('Outstanding balance input value set to:', outstandingBalanceInput.value);
+        } else {
+            console.log('Outstanding balance input not found with ID:', formPrefix + 'outstandingBalance');
+        }
+
+        // Update missed payments
+        const missedPaymentsInput = document.getElementById(formPrefix + 'missedPayments');
+        if (missedPaymentsInput) {
+            const missedPayments = loan.DaysInArrears || loan.days_in_arrears || 0;
+            console.log('Setting missed payments:', missedPayments);
+            missedPaymentsInput.value = missedPayments;
+        } else {
+            console.log('Missed payments input not found with ID:', formPrefix + 'missedPayments');
+        }
+
+        // Set priority based on days in arrears
+        const daysInArrears = loan.DaysInArrears || loan.days_in_arrears || 0;
+        const prioritySelect = document.getElementById(formPrefix + 'priority');
+        if (prioritySelect) {
+            let priorityValue = 'Low';
+            if (daysInArrears >= 90) {
+                priorityValue = 'Critical';
+            } else if (daysInArrears >= 60) {
+                priorityValue = 'High';
+            } else if (daysInArrears >= 30) {
+                priorityValue = 'Medium';
+            }
+            console.log('Setting priority to:', priorityValue, 'based on days in arrears:', daysInArrears);
+            prioritySelect.value = priorityValue;
+        } else {
+            console.log('Priority select not found with ID:', formPrefix + 'priority');
+        }
+    }
+
+    // Event handler for client select change in new collection schedule modal
+    document.getElementById('collectionClientSelect').addEventListener('change', function() {
+        console.log('Client selected:', this.options[this.selectedIndex]);
+        const selectedOption = this.options[this.selectedIndex];
+        const loanSelect = document.getElementById('loanSelect');
+        
+        // Clear existing options
+        loanSelect.innerHTML = '';
+        
+        // Access loans directly from the option object
+        if (selectedOption && selectedOption.loans && selectedOption.loans.length > 0) {
+            console.log('Client loans:', selectedOption.loans);
+            
+            // Store loans in the client option for later access
+            this.loans = selectedOption.loans;
+            
+            selectedOption.loans.forEach(loan => {
+                const option = new Option(
+                    `${loan.LoanNo} - ${formatCurrency(loan.LoanAmount)}`,
+                    loan.LoanAppID
+                );
+                loanSelect.add(option);
+            });
+            
+            // If there's only one loan, select it automatically
+            if (selectedOption.loans.length === 1) {
+                loanSelect.selectedIndex = 0;
+                const loan = selectedOption.loans[0];
+                console.log('Auto-selecting first loan:', loan);
+                updateLoanDetailsInForm(loan);
+            }
+        }
+    });
+
+    // Event handler for loan select change in new collection schedule modal
+    document.getElementById('loanSelect').addEventListener('change', function() {
+        console.log('Loan selected:', this.options[this.selectedIndex]);
+        const selectedOption = this.options[this.selectedIndex];
+        const clientSelect = document.getElementById('collectionClientSelect');
+        
+        if (clientSelect && clientSelect.loans && clientSelect.loans.length > 0) {
+            // Find the selected loan by ID
+            const selectedLoan = clientSelect.loans.find(loan => loan.LoanAppID === selectedOption.value);
+            if (selectedLoan) {
+                console.log('Found selected loan:', selectedLoan);
+                updateLoanDetailsInForm(selectedLoan);
+            } else {
+                console.log('Selected loan not found in client loans');
+            }
+        } else {
+            console.log('Client loans not available');
+        }
+    });
+
+    // Event handler for create collection from loan details modal
+    document.getElementById('create-collection-from-loan').addEventListener('click', function() {
+        console.log('Create collection from loan details clicked');
+        
+        // Get loan details from the modal
+        const loanDetailsAmount = document.getElementById('loan-details-amount').textContent;
+        const loanDetailsArrears = document.getElementById('loan-details-arrears').textContent;
+        
+        console.log('Loan details amount:', loanDetailsAmount);
+        console.log('Loan details arrears:', loanDetailsArrears);
+        
+        // Wait for the new modal to be visible before updating fields
+        setTimeout(() => {
+            // Update the fields in the new collection schedule modal
+            const outstandingBalanceInput = document.getElementById('outstandingBalance');
+            if (outstandingBalanceInput) {
+                outstandingBalanceInput.value = loanDetailsAmount;
+                console.log('Set outstanding balance to:', loanDetailsAmount);
+            } else {
+                console.log('Outstanding balance input not found');
+            }
+            
+            const missedPaymentsInput = document.getElementById('missedPayments');
+            if (missedPaymentsInput) {
+                missedPaymentsInput.value = loanDetailsArrears;
+                console.log('Set missed payments to:', loanDetailsArrears);
+            } else {
+                console.log('Missed payments input not found');
+            }
+            
+            // Set priority based on days in arrears
+            const daysInArrears = parseInt(loanDetailsArrears) || 0;
+            const prioritySelect = document.getElementById('priority');
+            if (prioritySelect) {
+                let priorityValue = 'Low';
+                if (daysInArrears >= 90) {
+                    priorityValue = 'Critical';
+                } else if (daysInArrears >= 60) {
+                    priorityValue = 'High';
+                } else if (daysInArrears >= 30) {
+                    priorityValue = 'Medium';
+                }
+                console.log('Setting priority to:', priorityValue);
+                prioritySelect.value = priorityValue;
+            } else {
+                console.log('Priority select not found');
+            }
+        }, 500); // Wait 500ms for the modal to be fully visible
+    });
+
+    // Initialize staff select with Select2
+    const staffSelect2Config = {
     theme: 'bootstrap-5',
     placeholder: 'Select a collection officer',
     allowClear: true,
@@ -172,6 +322,39 @@ $(document).ready(function() {
          $('#loanSelect').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select a Loan Account',
+            width: '100%',
+            dropdownParent: $('#newCollectionScheduleModal')
+        }).on('select2:select', function(e) {
+            const loanId = $(this).val();
+            const clientSelect = $('#collectionClientSelect');
+            const clientData = clientSelect.select2('data')[0];
+            
+            console.log('Loan selected with ID:', loanId);
+            console.log('Client data:', clientData);
+            
+            if (clientData && clientData.loans && clientData.loans.length > 0) {
+                const selectedLoan = clientData.loans.find(loan => loan.LoanAppID === loanId);
+                if (selectedLoan) {
+                    console.log('Found loan with OutstandingBalance:', selectedLoan.OutstandingBalance);
+                    $('#outstandingBalance').val(formatCurrency(selectedLoan.OutstandingBalance || 0));
+                    $('#missedPayments').val(selectedLoan.DaysInArrears || 0);
+                    
+                    // Set priority based on days in arrears
+                    const daysInArrears = selectedLoan.DaysInArrears || 0;
+                    const prioritySelect = document.getElementById('priority');
+                    if (prioritySelect) {
+                        if (daysInArrears >= 90) {
+                            prioritySelect.value = 'Critical';
+                        } else if (daysInArrears >= 60) {
+                            prioritySelect.value = 'High';
+                        } else if (daysInArrears >= 30) {
+                            prioritySelect.value = 'Medium';
+                        } else {
+                            prioritySelect.value = 'Low';
+                        }
+                    }
+                }
+            }
         }); 
     });
 
@@ -254,8 +437,50 @@ function initializeClientSelect(selector, isModal) {
             // Populate the loanSelect with all LoanNos for the selected client
             loanSelect.empty(); // Clear previous options
             data.loans.forEach(loan => {
-                loanSelect.append(new Option(loan.LoanNo, loan.LoanAppID, false, false)); // Add each LoanNo
+                const option = new Option(
+                    `${loan.LoanNo} - ${formatCurrency(loan.LoanAmount)}`,
+                    loan.LoanAppID, false, false
+                );
+                loanSelect.append(option);
             });
+            
+            // Update outstanding balance if there's only one loan
+            if (data.loans.length === 1) {
+                const loan = data.loans[0];
+                console.log('Auto-selecting first loan:', loan);
+                document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || 0);
+                document.getElementById('missedPayments').value = loan.DaysInArrears || 0;
+                
+                // Set priority based on days in arrears
+                const daysInArrears = loan.DaysInArrears || 0;
+                const prioritySelect = document.getElementById('priority');
+                if (prioritySelect) {
+                    if (daysInArrears >= 90) {
+                        prioritySelect.value = 'Critical';
+                    } else if (daysInArrears >= 60) {
+                        prioritySelect.value = 'High';
+                    } else if (daysInArrears >= 30) {
+                        prioritySelect.value = 'Medium';
+                    } else {
+                        prioritySelect.value = 'Low';
+                    }
+                }
+            }
+            
+            // If we have a loan, update the outstanding balance field directly
+            if (data.loans && data.loans.length > 0) {
+                // Store loans in a data attribute for later access
+                $(this).data('loans', data.loans);
+                
+                // If there's only one loan, update fields immediately
+                if (data.loans.length === 1) {
+                    const loan = data.loans[0];
+                    console.log('Auto-selecting first loan with OutstandingBalance:', loan.OutstandingBalance);
+                    $('#outstandingBalance').val(formatCurrency(loan.OutstandingBalance || 0));
+                    $('#missedPayments').val(loan.DaysInArrears || 0);
+                }
+            }
+            
             loanSelect.trigger('change'); // Trigger change event to update the UI
         })
         .on('select2:clear', function() {
@@ -748,6 +973,131 @@ window.viewLoanDetails = function(loanId) {
                     });
                 });
                 
+                // Function to format currency
+                function formatCurrency(amount) {
+                    return new Intl.NumberFormat('en-KE', {
+                        style: 'currency',
+                        currency: 'KES'
+                    }).format(amount);
+                }
+
+                // Function to load loan details
+                function loadLoanDetails(loanId) {
+                    fetch(`/api/loans/${loanId}`)
+                        .then(response => response.json())
+                        .then(loan => {
+                            // Update outstanding balance
+                            document.getElementById('outstandingBalance').value = formatCurrency(loan.outstanding_balance);
+                            
+                            // Update missed payments if available
+                            const missedPayments = loan.days_in_arrears || 0;
+                            document.getElementById('missedPayments').value = missedPayments;
+                            
+                            // Auto-select priority based on days in arrears
+                            const prioritySelect = document.getElementById('priority');
+                            if (missedPayments >= 90) {
+                                prioritySelect.value = 'Critical';
+                            } else if (missedPayments >= 60) {
+                                prioritySelect.value = 'High';
+                            } else if (missedPayments >= 30) {
+                                prioritySelect.value = 'Medium';
+                            } else {
+                                prioritySelect.value = 'Low';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading loan details:', error);
+                            // Clear fields on error
+                            document.getElementById('outstandingBalance').value = '';
+                            document.getElementById('missedPayments').value = '';
+                        });
+                }
+
+                // Add event listener for client select change
+                document.getElementById('collectionClientSelect').addEventListener('change', function() {
+                    console.log('Selected client:', this.options[this.selectedIndex]);
+                    const selectedOption = this.options[this.selectedIndex];
+                    const loanSelect = document.getElementById('loanSelect');
+                    
+                    // Clear existing options
+                    loanSelect.innerHTML = '';
+                    
+                    // Access loans directly from the option object
+                    if (selectedOption && selectedOption.loans && selectedOption.loans.length > 0) {
+                        console.log('Loans:', selectedOption.loans);
+                        selectedOption.loans.forEach(loan => {
+                            const option = new Option(
+                                `${loan.LoanNo} - ${formatCurrency(loan.LoanAmount)}`,
+                                loan.LoanAppID
+                            );
+                            loanSelect.add(option);
+                        });
+                        
+                        // If there's only one loan, select it automatically
+                        if (selectedOption.loans.length === 1) {
+                            loanSelect.selectedIndex = 0;
+                            const loan = selectedOption.loans[0];
+                            // Update form fields
+                            document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || 0);
+                            document.getElementById('missedPayments').value = loan.DaysInArrears || 0;
+                        }
+                    }
+                });
+
+                // Add event listener for loan select change
+                document.getElementById('loanSelect').addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const clientSelect = document.getElementById('collectionClientSelect');
+                    const selectedClient = clientSelect.options[clientSelect.selectedIndex];
+                    
+                    if (selectedClient && selectedClient.loans) {
+                        const selectedLoan = selectedClient.loans.find(loan => loan.LoanAppID === selectedOption.value);
+                        if (selectedLoan) {
+                            document.getElementById('outstandingBalance').value = formatCurrency(selectedLoan.OutstandingBalance || 0);
+                            document.getElementById('missedPayments').value = selectedLoan.DaysInArrears || 0;
+                            
+                            // Set priority based on days in arrears
+                            const daysInArrears = selectedLoan.DaysInArrears || 0;
+                            const prioritySelect = document.getElementById('priority');
+                            if (daysInArrears >= 90) {
+                                prioritySelect.value = 'Critical';
+                            } else if (daysInArrears >= 60) {
+                                prioritySelect.value = 'High';
+                            } else if (daysInArrears >= 30) {
+                                prioritySelect.value = 'Medium';
+                            } else {
+                                prioritySelect.value = 'Low';
+                            }
+                        } else {
+                            // Clear fields if no loan selected
+                            document.getElementById('outstandingBalance').value = '';
+                            document.getElementById('missedPayments').value = '';
+                        }
+                    }
+                });
+
+                // Function to update loan details in the form
+                function updateLoanDetails(loan) {
+                    // Update outstanding balance
+                    document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance);
+                    
+                    // Update missed payments if available
+                    const missedPayments = loan.DaysInArrears || 0;
+                    document.getElementById('missedPayments').value = missedPayments;
+                    
+                    // Auto-select priority based on days in arrears
+                    const prioritySelect = document.getElementById('priority');
+                    if (missedPayments >= 90) {
+                        prioritySelect.value = 'Critical';
+                    } else if (missedPayments >= 60) {
+                        prioritySelect.value = 'High';
+                    } else if (missedPayments >= 30) {
+                        prioritySelect.value = 'Medium';
+                    } else {
+                        prioritySelect.value = 'Low';
+                    }
+                }
+
                 // Add event listener for create schedule button
                 const createScheduleBtn = document.getElementById('create-collection-from-loan');
                 createScheduleBtn.addEventListener('click', function() {
@@ -765,15 +1115,40 @@ window.viewLoanDetails = function(loanId) {
                     
                     // Create and select the client option
                     const clientOption = new Option(loan.customer_name, loan.loan_id, true, true);
+                    clientOption.loans = [{
+                        LoanNo: loan.loan_no,
+                        LoanAppID: loan.loan_id,
+                        LoanAmount: loan.loan_amount,
+                        OutstandingBalance: loan.outstanding_balance,
+                        DaysInArrears: loan.days_in_arrears || 0
+                    }];
                     clientSelect.innerHTML = '';
                     clientSelect.appendChild(clientOption);
                     clientSelect.disabled = true; // Disable changes since we're creating from loan details
                     
                     // Create and select the loan option
                     const loanOption = new Option(`Loan #${loan.loan_no}`, loan.loan_id, true, true);
+                    loanOption.dataset.loanDetails = JSON.stringify(clientOption.loans[0]);
                     loanSelect.innerHTML = '';
                     loanSelect.appendChild(loanOption);
                     loanSelect.disabled = true; // Disable changes since we're creating from loan details
+
+                    // Update the outstanding balance and other fields
+                    document.getElementById('outstandingBalance').value = formatCurrency(loan.outstanding_balance);
+                    document.getElementById('missedPayments').value = loan.days_in_arrears || 0;
+
+                    // Set priority based on days in arrears
+                    const daysInArrears = loan.days_in_arrears || 0;
+                    const prioritySelect = document.getElementById('priority');
+                    if (daysInArrears >= 90) {
+                        prioritySelect.value = 'Critical';
+                    } else if (daysInArrears >= 60) {
+                        prioritySelect.value = 'High';
+                    } else if (daysInArrears >= 30) {
+                        prioritySelect.value = 'Medium';
+                    } else {
+                        prioritySelect.value = 'Low';
+                    }
                 });
                 
                 // Close modal when clicking outside

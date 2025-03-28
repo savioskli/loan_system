@@ -39,11 +39,11 @@ def get_collection_schedules():
         filters = {}
         
         # Only add filters if they are provided and valid
-        if request.args.get('staff_id'):
+        if request.args.get('assigned_id'):
             try:
-                filters['staff_id'] = int(request.args.get('staff_id'))
+                filters['assigned_id'] = int(request.args.get('assigned_id'))
             except ValueError:
-                current_app.logger.error(f"Invalid staff_id: {request.args.get('staff_id')}")
+                current_app.logger.error(f"Invalid assigned_id: {request.args.get('assigned_id')}")
         
         if request.args.get('loan_id'):
             try:
@@ -110,7 +110,8 @@ def get_collection_schedule(schedule_id):
             
         return jsonify({
             'id': schedule.id,
-            'staff_id': schedule.staff_id,
+            'assigned_id': schedule.assigned_id,
+            'assigned_name': schedule.staff.name if schedule.staff else None,
             'staff_name': schedule.staff.full_name if schedule.staff else None,
             'loan_id': schedule.loan_id,
             'loan_account': schedule.loan.account_no if schedule.loan else None,

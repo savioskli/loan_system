@@ -549,10 +549,16 @@ def create_collection_schedule():
 
         # Create new collection schedule
         try:
+            # Log the incoming data for debugging
+            current_app.logger.info(f'Creating collection schedule with data: {data}')
+            
+            # Create new schedule
             new_schedule = CollectionSchedule(
-                staff_id=staff.id,
-                client_id=data['client_id'],  # Keep this line for client_id
+                assigned_id=data['assigned_id'],  # Using assigned_id consistently
+                client_id=data['client_id'],  # Reference to client in core banking system
                 loan_id=data['loan_id'],
+                supervisor_id=data.get('supervisor_id'),  # Add supervisor_id
+                manager_id=data.get('manager_id'),  # Add manager_id
                 follow_up_deadline=data['follow_up_deadline'],
                 collection_priority=data['collection_priority'],
                 follow_up_frequency=data['follow_up_frequency'],
@@ -562,7 +568,16 @@ def create_collection_schedule():
                 preferred_collection_method=data['preferred_collection_method'],
                 task_description=data['task_description'],
                 special_instructions=data.get('special_instructions', None),
-                assigned_branch=data['branch_id']
+                assigned_branch=data['branch_id'],
+                
+                # Add loan details
+                outstanding_balance=float(data.get('outstanding_balance', 0)),
+                missed_payments=int(data.get('missed_payments', 0)),
+                
+                # Add contact details
+                best_contact_time=data.get('best_contact_time'),
+                collection_location=data.get('collection_location'),
+                alternative_contact=data.get('alternative_contact')
             )
             
             db.session.add(new_schedule)

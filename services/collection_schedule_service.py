@@ -36,11 +36,11 @@ class CollectionScheduleService:
             
             new_schedule = CollectionSchedule(
                 # Staff Assignment
-                staff_id=data.get('staff_id'),
+                staff_id=data.get('assigned_id'),  # Changed from staff_id to assigned_id
                 loan_id=data.get('loan_id'),
                 supervisor_id=data.get('supervisor_id'),
                 manager_id=data.get('manager_id'),
-                assigned_branch=data.get('assigned_branch'),
+                assigned_branch=data.get('branch_id'),  # Changed from assigned_branch to branch_id
                 assignment_date=datetime.strptime(data.get('assignment_date'), '%Y-%m-%dT%H:%M') if data.get('assignment_date') else datetime.utcnow(),
                 follow_up_deadline=datetime.strptime(data.get('follow_up_deadline'), '%Y-%m-%dT%H:%M'),
                 collection_priority=data.get('collection_priority', 'Medium'),
@@ -56,6 +56,15 @@ class CollectionScheduleService:
                 # Task Details
                 task_description=data.get('task_description'),
                 progress_status='Not Started',
+                
+                # Loan Details
+                outstanding_balance=float(data.get('outstanding_balance', 0)),
+                missed_payments=int(data.get('missed_payments', 0)),
+                
+                # Contact Details
+                best_contact_time=data.get('best_contact_time'),
+                collection_location=data.get('collection_location'),
+                alternative_contact=data.get('alternative_contact'),
                 escalation_level=data.get('escalation_level'),
                 
                 # Initial Review
@@ -87,15 +96,15 @@ class CollectionScheduleService:
                 Loan.account_no.label('loan_account'),
                 Loan.client_id.label('client_id')
             ).outerjoin(
-                Staff, Staff.id == CollectionSchedule.staff_id
+                Staff, Staff.id == CollectionSchedule.assigned_id
             ).outerjoin(
                 Loan, Loan.id == CollectionSchedule.loan_id
             )
             
             if filters:
                 current_app.logger.info(f"Applying filters: {filters}")
-                if filters.get('staff_id'):
-                    query = query.filter(CollectionSchedule.staff_id == filters['staff_id'])
+                if filters.get('assigned_id'):
+                    query = query.filter(CollectionSchedule.assigned_id == filters['assigned_id'])
                 if filters.get('loan_id'):
                     query = query.filter(CollectionSchedule.loan_id == filters['loan_id'])
                 if filters.get('priority'):
@@ -124,7 +133,7 @@ class CollectionScheduleService:
                     
                     schedule_dict = {
                         'id': schedule.id,
-                        'staff_id': schedule.staff_id,
+                        'assigned_id': schedule.assigned_id,
                         'staff_name': staff_name,
                         'loan_id': schedule.loan_id,
                         'loan_account': loan_account,
@@ -187,8 +196,8 @@ class CollectionScheduleService:
             schedule = CollectionSchedule.query.get_or_404(schedule_id)
             
             # Update Staff Assignment
-            if 'staff_id' in data:
-                schedule.staff_id = data['staff_id']
+            if 'assigned_id' in data:
+                schedule.assigned_id = data['assigned_id']
             if 'supervisor_id' in data:
                 schedule.supervisor_id = data['supervisor_id']
             if 'manager_id' in data:

@@ -8,7 +8,8 @@ class CollectionSchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Foreign Keys
-    staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
+    assigned_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)  # Changed from staff_id
+    client_id = db.Column(db.Integer, nullable=False)  # Reference to external core banking system
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     supervisor_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
     manager_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
@@ -33,6 +34,15 @@ class CollectionSchedule(db.Model):
     escalation_level = db.Column(db.Integer, nullable=True)
     resolution_date = db.Column(db.DateTime, nullable=True)
     
+    # Loan Details
+    outstanding_balance = db.Column(db.Float, nullable=True)
+    missed_payments = db.Column(db.Integer, nullable=True)
+    
+    # Contact Details
+    best_contact_time = db.Column(db.String(20), nullable=True)  # Morning, Afternoon, Evening
+    collection_location = db.Column(db.String(200), nullable=True)
+    alternative_contact = db.Column(db.String(200), nullable=True)
+    
     # Supervisor/Manager Review
     reviewed_by = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
     approval_date = db.Column(db.DateTime, nullable=True)
@@ -43,7 +53,7 @@ class CollectionSchedule(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    staff = db.relationship('Staff', foreign_keys=[staff_id], backref=db.backref('assigned_schedules', lazy=True))
+    staff = db.relationship('Staff', foreign_keys=[assigned_id], backref=db.backref('assigned_schedules', lazy=True))
     loan = db.relationship('Loan', backref=db.backref('collection_schedules', lazy=True))
     supervisor = db.relationship('Staff', foreign_keys=[supervisor_id], backref=db.backref('supervised_schedules', lazy=True))
     manager = db.relationship('Staff', foreign_keys=[manager_id], backref=db.backref('managed_schedules', lazy=True))
@@ -56,11 +66,11 @@ class CollectionSchedule(db.Model):
         """Convert the collection schedule to a dictionary for JSON serialization."""
         return {
             'id': self.id,
-            'staff_id': self.staff_id,
+            'assigned_id': self.assigned_id,
             'staff_name': f"{self.staff.first_name} {self.staff.last_name}" if self.staff else None,
             'loan_id': self.loan_id,
             'loan_account': self.loan.account_no if self.loan else None,
-            'borrower_name': self.loan.borrower_name if self.loan else None,
+            'borrower_name': self.loan.client.full_name if self.loan and self.loan.client else None,
             'supervisor_id': self.supervisor_id,
             'supervisor_name': f"{self.supervisor.first_name} {self.supervisor.last_name}" if self.supervisor else None,
             'manager_id': self.manager_id,

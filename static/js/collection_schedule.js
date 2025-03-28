@@ -36,9 +36,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update missed payments
         const missedPaymentsInput = document.getElementById(formPrefix + 'missedPayments');
         if (missedPaymentsInput) {
-            const missedPayments = loan.DaysInArrears || loan.days_in_arrears || 0;
-            console.log('Setting missed payments:', missedPayments);
-            missedPaymentsInput.value = missedPayments;
+            // Get days in arrears and ensure it's a number
+            let daysInArrears = 0;
+            if (loan.days_in_arrears !== undefined) {
+                daysInArrears = Number(loan.days_in_arrears);
+            } else if (loan.DaysInArrears !== undefined) {
+                daysInArrears = Number(loan.DaysInArrears);
+            }
+            
+            // Calculate missed installments (1 per 30 days)
+            const missedInstallments = Math.ceil(daysInArrears / 30);
+            console.log('Setting missed payments:', missedInstallments, 'calculated from days in arrears:', daysInArrears);
+            missedPaymentsInput.value = missedInstallments;
         } else {
             console.log('Missed payments input not found with ID:', formPrefix + 'missedPayments');
         }
@@ -107,7 +116,39 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedLoan = clientSelect.loans.find(loan => loan.LoanAppID === selectedOption.value);
             if (selectedLoan) {
                 console.log('Found selected loan:', selectedLoan);
-                updateLoanDetailsInForm(selectedLoan);
+                
+                // Update outstanding balance
+                const outstandingBalance = selectedLoan.OutstandingBalance || 0;
+                document.getElementById('outstandingBalance').value = formatCurrency(outstandingBalance);
+                window.outstandingBalance = outstandingBalance; // Store raw value
+                
+                // Calculate missed payments based on days in arrears
+                const daysInArrears = selectedLoan.DaysInArrears || 0;
+                const missedInstallments = Math.ceil(daysInArrears / 30); // 1 missed payment per 30 days
+                document.getElementById('missedPayments').value = missedInstallments;
+                window.missedPayments = missedInstallments; // Store raw value
+                
+                // Set priority based on days in arrears
+                const prioritySelect = document.getElementById('priority');
+                if (prioritySelect) {
+                    if (daysInArrears >= 90) {
+                        prioritySelect.value = 'Critical';
+                    } else if (daysInArrears >= 60) {
+                        prioritySelect.value = 'High';
+                    } else if (daysInArrears >= 30) {
+                        prioritySelect.value = 'Medium';
+                    } else {
+                        prioritySelect.value = 'Low';
+                    }
+                }
+                
+                // Set default values
+                if (!document.getElementById('method').value) {
+                    document.getElementById('method').value = 'Phone Call';
+                }
+                if (!document.getElementById('bestContactTime').value) {
+                    document.getElementById('bestContactTime').value = 'Morning';
+                }
             } else {
                 console.log('Selected loan not found in client loans');
             }
@@ -140,8 +181,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const missedPaymentsInput = document.getElementById('missedPayments');
             if (missedPaymentsInput) {
-                missedPaymentsInput.value = loanDetailsArrears;
-                console.log('Set missed payments to:', loanDetailsArrears);
+                // Calculate missed installments from days in arrears
+                const daysInArrears = parseInt(loanDetailsArrears) || 0;
+                const missedInstallments = Math.ceil(daysInArrears / 30);
+                missedPaymentsInput.value = missedInstallments;
+                console.log('Set missed payments to:', missedInstallments, 'calculated from days in arrears:', daysInArrears);
             } else {
                 console.log('Missed payments input not found');
             }
@@ -337,10 +381,27 @@ $(document).ready(function() {
                 if (selectedLoan) {
                     console.log('Found loan with OutstandingBalance:', selectedLoan.OutstandingBalance);
                     $('#outstandingBalance').val(formatCurrency(selectedLoan.OutstandingBalance || 0));
-                    $('#missedPayments').val(selectedLoan.DaysInArrears || 0);
+                    
+                    // Calculate missed payments based on days in arrears and repayment frequency
+                    console.log('Days in arrears value:', selectedLoan.DaysInArrears);
+                    console.log('Type of DaysInArrears:', typeof selectedLoan.DaysInArrears);
+                    
+                    // Force conversion to number to ensure proper calculation
+                    let daysInArrears = 0;
+                    if (selectedLoan.DaysInArrears !== undefined) {
+                        daysInArrears = Number(selectedLoan.DaysInArrears) || 0;
+                    }
+                    
+                    const repaymentPeriod = selectedLoan.RepaymentPeriod || 12; // Default to monthly (12 per year)
+                    
+                    // Calculate missed installments (assuming monthly payments by default)
+                    // For monthly payments: 30 days = 1 missed payment
+                    const missedInstallments = Math.ceil(daysInArrears / 30);
+                    console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                    
+                    $('#missedPayments').val(missedInstallments);
                     
                     // Set priority based on days in arrears
-                    const daysInArrears = selectedLoan.DaysInArrears || 0;
                     const prioritySelect = document.getElementById('priority');
                     if (prioritySelect) {
                         if (daysInArrears >= 90) {
@@ -477,7 +538,12 @@ function initializeClientSelect(selector, isModal) {
                     const loan = data.loans[0];
                     console.log('Auto-selecting first loan with OutstandingBalance:', loan.OutstandingBalance);
                     $('#outstandingBalance').val(formatCurrency(loan.OutstandingBalance || 0));
-                    $('#missedPayments').val(loan.DaysInArrears || 0);
+                    
+                    // Calculate missed payments based on days in arrears
+                    const daysInArrears = loan.DaysInArrears || 0;
+                    const missedInstallments = Math.ceil(daysInArrears / 30);
+                    console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                    $('#missedPayments').val(missedInstallments);
                 }
             }
             
@@ -572,27 +638,60 @@ function initializeClientSelect(selector, isModal) {
                                 
                                 <!-- Card Body -->
                                 <div class="p-4">
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
+                                        <!-- Loan Information -->
+                                        <div class="col-span-2 md:col-span-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                            <p class="text-gray-500 dark:text-gray-400 mb-1">Borrower</p>
+                                            <p class="font-medium">${schedule.borrower_name || 'Unknown'}</p>
+                                            <div class="flex justify-between mt-2">
+                                                <div>
+                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Loan Account</p>
+                                                    <p class="font-medium">${schedule.loan_account || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Outstanding Balance</p>
+                                                    <p class="font-medium">${formatCurrency(schedule.outstanding_balance || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Missed Payments</p>
+                                                    <p class="font-medium">${schedule.missed_payments || 0}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Collection Details -->
                                         <div>
                                             <p class="text-gray-500 dark:text-gray-400">Assigned To</p>
                                             <p class="font-medium">${staffName}</p>
+                                            <p class="text-xs text-gray-400 mt-1">Supervisor: ${schedule.supervisor_name || 'None'}</p>
                                         </div>
                                         <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Next Follow-up</p>
-                                            <p class="font-medium">${nextFollowUp}</p>
+                                            <p class="text-gray-500 dark:text-gray-400">Follow-up</p>
+                                            <p class="font-medium">${formatDate(schedule.follow_up_deadline)}</p>
+                                            <p class="text-xs text-gray-400 mt-1">Frequency: ${schedule.follow_up_frequency}</p>
                                         </div>
                                         <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Method</p>
+                                            <p class="text-gray-500 dark:text-gray-400">Collection Method</p>
                                             <p class="font-medium">${method}</p>
+                                            <p class="text-xs text-gray-400 mt-1">Attempts: ${schedule.attempts_made || 0}/${schedule.attempts_allowed || 3}</p>
                                         </div>
-                                        <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Attempts</p>
-                                            <p class="font-medium">${schedule.attempts_made || 0} / ${schedule.attempts_allowed || '-'}</p>
-                                        </div>
+                                        
                                         ${schedule.promised_payment_date ? `
-                                        <div class="col-span-2">
-                                            <p class="text-gray-500 dark:text-gray-400">Promised Payment</p>
-                                            <p class="font-medium">${formatDate(schedule.promised_payment_date)}</p>
+                                        <div class="col-span-2 md:col-span-3 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mt-2">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <p class="text-gray-600 dark:text-gray-300">Promised Payment Date</p>
+                                                    <p class="font-medium text-green-600 dark:text-green-400">${formatDate(schedule.promised_payment_date)}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-gray-600 dark:text-gray-300">Best Contact Time</p>
+                                                    <p class="font-medium">${schedule.best_contact_time || 'Any Time'}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-gray-600 dark:text-gray-300">Status</p>
+                                                    <p class="font-medium ${getStatusClass(schedule.progress_status)}">${schedule.progress_status}</p>
+                                                </div>
+                                            </div>
                                         </div>
                                         ` : ''}
                                     </div>
@@ -638,21 +737,97 @@ function initializeClientSelect(selector, isModal) {
     // Create new collection schedule
 $('#newCollectionScheduleForm').submit(function(event) {
     event.preventDefault();
+    
+    // Get the outstanding balance value and strip the currency formatting
+    const outstandingBalanceText = $('#outstandingBalance').val();
+    const outstandingBalance = parseFloat(outstandingBalanceText.replace(/[^0-9.-]+/g, ''));
+    
+    // Get current date in ISO format
+    const currentDate = new Date().toISOString();
+    
+    // Validate required fields
+    const requiredFields = {
+        'staffSelect': 'Staff Member',
+        'collectionClientSelect': 'Client',
+        'loanSelect': 'Loan Account',
+        'priority': 'Priority Level',
+        'method': 'Collection Method',
+        'frequency': 'Follow-up Frequency',
+        'nextFollowUp': 'Next Follow-up Date',
+        'promisedPaymentDate': 'Expected Payment Date',
+        'description': 'Collection Notes'
+    };
+    
+    let missingFields = [];
+    for (const [fieldId, fieldName] of Object.entries(requiredFields)) {
+        if (!$('#' + fieldId).val()) {
+            missingFields.push(fieldName);
+        }
+    }
+    
+    if (missingFields.length > 0) {
+        showNotification('Error', 'Please fill in all required fields: ' + missingFields.join(', '));
+        return;
+    }
+    
+    // Log supervisor and manager selection for debugging
+    const supervisorVal = $('#supervisorSelect').val();
+    const managerVal = $('#managerSelect').val();
+    console.log('Raw supervisor value:', supervisorVal);
+    console.log('Raw manager value:', managerVal);
+
+    // Get values from form
+    const bestContactTime = $('#bestContactTime').val();
+    const collectionLocation = $('#collectionLocation').val();
+    const alternativeContact = $('#alternativeContact').val();
+    
+    // Log form values for debugging
+    console.log('Contact time:', bestContactTime);
+    console.log('Location:', collectionLocation);
+    console.log('Alt contact:', alternativeContact);
+    console.log('Outstanding balance:', window.outstandingBalance);
+    console.log('Missed payments:', window.missedPayments);
+    
     const formData = {
-        staff_id: $('#staffSelect').val(),
-        loan_id: $('#loanSelect').val(),
-        client_id: $('#collectionClientSelect').val(),
-        follow_up_deadline: $('#deadline').val(),
+        // Required fields in exact order of API route
+        client_id: parseInt($('#collectionClientSelect').val()),
+        loan_id: parseInt($('#loanSelect').val()),
+        follow_up_deadline: $('#nextFollowUp').val(),
         collection_priority: $('#priority').val(),
         follow_up_frequency: $('#frequency').val(),
         next_follow_up_date: $('#nextFollowUp').val(),
-        promised_payment_date: $('#promisedPaymentDate').val(), // New field
-        attempts: $('#attempts').val(), // New field
-        preferred_collection_method: $('#method').val(), // Ensure this is included
+        promised_payment_date: $('#promisedPaymentDate').val(),
+        attempts: parseInt($('#attemptsAllowed').val()) || 3,
+        preferred_collection_method: $('#method').val() || 'Phone Call',
         task_description: $('#description').val(),
-        special_instructions: $('#instructions').val(),
-        branch_id: $('#branchInput').val() // Include assigned branch
+        special_instructions: $('#instructions').val() || '',
+        branch_id: $('#branchInput').val(),  // API expects branch_id which maps to assigned_branch
+
+        // Additional fields from modal
+        staff_id: parseInt($('#staffSelect').val()),
+        supervisor_id: supervisorVal ? parseInt(supervisorVal) : null,
+        manager_id: managerVal ? parseInt(managerVal) : null,
+        
+        // Contact and loan details
+        outstanding_balance: parseFloat(window.outstandingBalance) || 0,
+        missed_payments: parseInt(window.missedPayments) || 0,
+        best_contact_time: bestContactTime || null,
+        collection_location: collectionLocation || null,
+        alternative_contact: alternativeContact || null,
+        
+        // Status fields
+        attempts_made: 0,
+        progress_status: 'Not Started',
+        escalation_level: null,
+        resolution_date: null,
+        reviewed_by: null,
+        approval_date: null
     };
+
+    // Log the final form data values for debugging
+    console.log('Final supervisor_id:', formData.supervisor_id);
+    console.log('Final manager_id:', formData.manager_id);
+    console.log('Complete form data:', formData);
 
     $.ajax({
         url: '/api/new-collection-schedules',
@@ -990,16 +1165,18 @@ window.viewLoanDetails = function(loanId) {
                             document.getElementById('outstandingBalance').value = formatCurrency(loan.outstanding_balance);
                             
                             // Update missed payments if available
-                            const missedPayments = loan.days_in_arrears || 0;
-                            document.getElementById('missedPayments').value = missedPayments;
+                            const daysInArrears = loan.days_in_arrears || 0;
+                            const missedInstallments = Math.ceil(daysInArrears / 30);
+                            console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                            document.getElementById('missedPayments').value = missedInstallments;
                             
                             // Auto-select priority based on days in arrears
                             const prioritySelect = document.getElementById('priority');
-                            if (missedPayments >= 90) {
+                            if (daysInArrears >= 90) {
                                 prioritySelect.value = 'Critical';
-                            } else if (missedPayments >= 60) {
+                            } else if (daysInArrears >= 60) {
                                 prioritySelect.value = 'High';
-                            } else if (missedPayments >= 30) {
+                            } else if (daysInArrears >= 30) {
                                 prioritySelect.value = 'Medium';
                             } else {
                                 prioritySelect.value = 'Low';
@@ -1039,7 +1216,12 @@ window.viewLoanDetails = function(loanId) {
                             const loan = selectedOption.loans[0];
                             // Update form fields
                             document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || 0);
-                            document.getElementById('missedPayments').value = loan.DaysInArrears || 0;
+                            
+                            // Calculate missed payments based on days in arrears
+                            const daysInArrears = loan.DaysInArrears || 0;
+                            const missedInstallments = Math.ceil(daysInArrears / 30);
+                            console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                            document.getElementById('missedPayments').value = missedInstallments;
                         }
                     }
                 });
@@ -1054,10 +1236,14 @@ window.viewLoanDetails = function(loanId) {
                         const selectedLoan = selectedClient.loans.find(loan => loan.LoanAppID === selectedOption.value);
                         if (selectedLoan) {
                             document.getElementById('outstandingBalance').value = formatCurrency(selectedLoan.OutstandingBalance || 0);
-                            document.getElementById('missedPayments').value = selectedLoan.DaysInArrears || 0;
+                            
+                            // Calculate missed payments based on days in arrears
+                            const daysInArrears = selectedLoan.DaysInArrears || 0;
+                            const missedInstallments = Math.ceil(daysInArrears / 30);
+                            console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                            document.getElementById('missedPayments').value = missedInstallments;
                             
                             // Set priority based on days in arrears
-                            const daysInArrears = selectedLoan.DaysInArrears || 0;
                             const prioritySelect = document.getElementById('priority');
                             if (daysInArrears >= 90) {
                                 prioritySelect.value = 'Critical';
@@ -1078,20 +1264,40 @@ window.viewLoanDetails = function(loanId) {
 
                 // Function to update loan details in the form
                 function updateLoanDetails(loan) {
+                    console.log('Updating loan details with loan data:', loan);
+                    
                     // Update outstanding balance
-                    document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance);
+                    document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || loan.outstanding_balance || 0);
                     
                     // Update missed payments if available
-                    const missedPayments = loan.DaysInArrears || 0;
-                    document.getElementById('missedPayments').value = missedPayments;
+                    console.log('Days in arrears (camelCase):', loan.DaysInArrears);
+                    console.log('Days in arrears (snake_case):', loan.days_in_arrears);
+                    console.log('Types:', typeof loan.DaysInArrears, typeof loan.days_in_arrears);
+                    
+                    // Try to parse the value if it's a string or undefined
+                    let daysInArrears = 0;
+                    if (loan.days_in_arrears !== undefined) {
+                        daysInArrears = parseInt(loan.days_in_arrears) || 0;
+                    } else if (loan.DaysInArrears !== undefined) {
+                        daysInArrears = parseInt(loan.DaysInArrears) || 0;
+                    }
+                    
+                    console.log('Parsed days in arrears:', daysInArrears);
+                    const missedInstallments = Math.ceil(daysInArrears / 30);
+                    console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                    
+                    // Set the value and verify it was set correctly
+                    const missedPaymentsField = document.getElementById('missedPayments');
+                    missedPaymentsField.value = missedInstallments;
+                    console.log('Set missed payments field to:', missedPaymentsField.value);
                     
                     // Auto-select priority based on days in arrears
                     const prioritySelect = document.getElementById('priority');
-                    if (missedPayments >= 90) {
+                    if (daysInArrears >= 90) {
                         prioritySelect.value = 'Critical';
-                    } else if (missedPayments >= 60) {
+                    } else if (daysInArrears >= 60) {
                         prioritySelect.value = 'High';
-                    } else if (missedPayments >= 30) {
+                    } else if (daysInArrears >= 30) {
                         prioritySelect.value = 'Medium';
                     } else {
                         prioritySelect.value = 'Low';
@@ -1101,6 +1307,10 @@ window.viewLoanDetails = function(loanId) {
                 // Add event listener for create schedule button
                 const createScheduleBtn = document.getElementById('create-collection-from-loan');
                 createScheduleBtn.addEventListener('click', function() {
+                    console.log('Create collection from loan button clicked');
+                    console.log('Full loan data:', loan);
+                    console.log('Days in arrears:', loan.days_in_arrears);
+                    
                     // Close the loan details modal
                     modal.style.display = 'none';
                     modal.classList.add('hidden');
@@ -1135,10 +1345,29 @@ window.viewLoanDetails = function(loanId) {
 
                     // Update the outstanding balance and other fields
                     document.getElementById('outstandingBalance').value = formatCurrency(loan.outstanding_balance);
-                    document.getElementById('missedPayments').value = loan.days_in_arrears || 0;
+                    
+                    // Calculate missed payments based on days in arrears
+                    console.log('Loan data for missed payments calculation:', loan);
+                    console.log('Days in arrears raw value:', loan.days_in_arrears);
+                    console.log('Type of days_in_arrears:', typeof loan.days_in_arrears);
+                    
+                    // Make sure we get a valid number for days in arrears
+                    let daysInArrears = 0;
+                    if (loan.days_in_arrears !== undefined) {
+                        // Force conversion to number
+                        daysInArrears = Number(loan.days_in_arrears) || 0;
+                    }
+                    
+                    console.log('Parsed days in arrears:', daysInArrears);
+                    const missedInstallments = Math.ceil(daysInArrears / 30);
+                    console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                    
+                    // Set the value and verify it was set correctly
+                    const missedPaymentsField = document.getElementById('missedPayments');
+                    missedPaymentsField.value = missedInstallments;
+                    console.log('Set missed payments field to:', missedPaymentsField.value);
 
                     // Set priority based on days in arrears
-                    const daysInArrears = loan.days_in_arrears || 0;
                     const prioritySelect = document.getElementById('priority');
                     if (daysInArrears >= 90) {
                         prioritySelect.value = 'Critical';

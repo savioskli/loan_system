@@ -605,6 +605,34 @@ def create_collection_schedule():
             'message': 'An error occurred while creating the collection schedule'
         }), 500
 
+@api_bp.route('/current-user', methods=['GET'])
+@login_required
+def get_current_user():
+    """Get current user information"""
+    try:
+        staff = Staff.query.filter_by(username=current_user.username).first()
+        if not staff:
+            return jsonify({
+                'status': 'error',
+                'message': 'Staff record not found'
+            }), 404
+
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'id': staff.id,
+                'username': staff.username,
+                'role': staff.role.name if staff.role else None
+            }
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting current user: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'An error occurred while getting current user information'
+        }), 500
+
 @api_bp.route('/guarantor-claims/create', methods=['POST'])
 @login_required
 def create_guarantor_claim():
@@ -1128,6 +1156,142 @@ def get_loan_details(loan_id):
             cursor.close()
         if 'conn' in locals():
             conn.close()
+
+@api_bp.route('/borrower/<loan_id>', methods=['GET'])
+@login_required
+def get_borrower_name(loan_id):
+    """Get borrower name from core banking system using loan ID."""
+    try:
+        # Statically define the module ID
+        module_id = 1  # Module ID for loan data
+
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({'error': 'No active core banking system configured'}), 400
+
+        # Connect to core banking database
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+
+        conn = mysql.connector.connect(**core_banking_config)
+        cursor = conn.cursor(dictionary=True)
+
+        # Retrieve the mapping data
+        def get_mapping_for_module(module_id):
+            try:
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    
+                    expected_columns = expected.columns
+                    actual_columns = actual.columns
+                    columns_dict = dict(zip(expected_columns, actual_columns))
+                    
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": columns_dict
+                    }
+                return mapping
+            except Exception as e:
+                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+                raise
+
+        try:
+            mapping = get_mapping_for_module(module_id)
+            current_app.logger.info(f"Mapping Data: {mapping}")
+        except Exception as e:
+            return jsonify({'error': f'Error retrieving mapping data: {str(e)}'}), 500
+
+        # Build dynamic query
+        def build_dynamic_query(mapping):
+            try:
+                ll = mapping.get("LoanLedgerEntries", {})
+                ld = mapping.get("LoanDisbursements", {})
+                la = mapping.get("LoanApplications", {})
+                m = mapping.get("Members", {})
+
+                # Ensure that the necessary columns are present in the mapping
+                required_ll_columns = ["LoanID"]
+                required_ld_columns = ["LoanAppID"]
+                required_la_columns = ["LoanAppID", "MemberID"]
+                required_m_columns = ["MemberID", "FirstName", "LastName"]
+
+                if not all(column in ll.get("columns", []) for column in required_ll_columns):
+                    raise KeyError(f"Missing columns in LoanLedgerEntries mapping: {required_ll_columns}")
+
+                if not all(column in ld.get("columns", []) for column in required_ld_columns):
+                    raise KeyError(f"Missing columns in LoanDisbursements mapping: {required_ld_columns}")
+
+                if not all(column in la.get("columns", []) for column in required_la_columns):
+                    raise KeyError(f"Missing columns in LoanApplications mapping: {required_la_columns}")
+
+                if not all(column in m.get("columns", []) for column in required_m_columns):
+                    raise KeyError(f"Missing columns in Members mapping: {required_m_columns}")
+
+                query = f"""
+                SELECT
+                    m.{m["columns"]["FirstName"]} AS FirstName,
+                    m.{m["columns"]["LastName"]} AS LastName
+                FROM {ll["actual_table_name"]} l
+                JOIN {ld["actual_table_name"]} ld ON l.{ll["columns"]["LoanID"]} = ld.{ld["columns"]["LoanAppID"]}
+                JOIN {la["actual_table_name"]} la ON ld.{ld["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
+                JOIN {m["actual_table_name"]} m ON la.{la["columns"]["MemberID"]} = m.{m["columns"]["MemberID"]}
+                WHERE l.{ll["columns"]["LoanID"]} = %s
+                """
+                return query
+            except Exception as e:
+                current_app.logger.error(f"Error building dynamic query: {str(e)}")
+                raise
+
+        try:
+            query = build_dynamic_query(mapping)
+            current_app.logger.info(f"Dynamic Query: {query}")
+            
+            # Execute query
+            cursor.execute(query, (loan_id,))
+            result = cursor.fetchone()
+            
+            if result:
+                # Construct full name from first and last name
+                name_parts = [result['FirstName'], result['LastName']]
+                borrower_name = ' '.join(filter(None, name_parts))
+                
+                return jsonify({
+                    'success': True,
+                    'borrower_name': borrower_name
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Borrower not found'
+                }), 404
+
+        except mysql.connector.Error as e:
+            current_app.logger.error(f"Database error: {str(e)}")
+            return jsonify({'error': 'Database error'}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting borrower name: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/overdue_loans', methods=['GET'])
 @login_required

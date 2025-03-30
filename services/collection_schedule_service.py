@@ -1,6 +1,7 @@
 from models.collection_schedule import CollectionSchedule
 from models.loan import Loan
 from models.staff import Staff
+from models.branch import Branch
 from extensions import db
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,11 +18,25 @@ class CollectionScheduleService:
     def get_client_name(client_id):
         """Get client name from core banking system."""
         try:
+            current_app.logger.info(f"Fetching client name for ID: {client_id}")
+            if not client_id:
+                current_app.logger.warning("No client_id provided")
+                return None
+
             response = requests.get(f"{CORE_BANKING_URL}/api/clients/search", params={'client_id': client_id})
+            current_app.logger.info(f"Core banking API response status: {response.status_code}")
+            
             if response.status_code == 200:
                 clients = response.json()
+                current_app.logger.info(f"Core banking API response data: {clients}")
                 if clients:
-                    return clients[0].get('name')
+                    client_name = clients[0].get('name')
+                    current_app.logger.info(f"Found client name: {client_name}")
+                    return client_name
+                else:
+                    current_app.logger.warning("No clients found in response")
+            else:
+                current_app.logger.error(f"Core banking API error: {response.text}")
             return None
         except Exception as e:
             current_app.logger.error(f"Error fetching client from core banking: {str(e)}")
@@ -94,11 +109,14 @@ class CollectionScheduleService:
                 Staff.first_name.label('staff_first_name'),
                 Staff.last_name.label('staff_last_name'),
                 Loan.account_no.label('loan_account'),
-                Loan.client_id.label('client_id')
+                Loan.client_id.label('client_id'),
+                Branch.name.label('branch_name')
             ).outerjoin(
                 Staff, Staff.id == CollectionSchedule.assigned_id
             ).outerjoin(
                 Loan, Loan.id == CollectionSchedule.loan_id
+            ).outerjoin(
+                Branch, Branch.id == db.cast(CollectionSchedule.assigned_branch, db.Integer)
             )
             
             if filters:
@@ -123,13 +141,26 @@ class CollectionScheduleService:
             current_app.logger.info(f"Found {len(results)} schedules")
             
             schedules_list = []
-            for schedule, staff_first_name, staff_last_name, loan_account, client_id in results:
+            for result in results:
+                schedule = result[0]
+                staff_first_name = result.staff_first_name
+                staff_last_name = result.staff_last_name
+                loan_account = result.loan_account
+                client_id = result.client_id
+                branch_name = result.branch_name
                 try:
                     # Construct staff name
                     staff_name = f"{staff_first_name} {staff_last_name}" if staff_first_name and staff_last_name else None
                     
                     # Get client name from core banking
                     client_name = CollectionScheduleService.get_client_name(client_id) if client_id else None
+                    
+                    # Get supervisor name if available
+                    supervisor_name = None
+                    if schedule.supervisor_id:
+                        supervisor = Staff.query.get(schedule.supervisor_id)
+                        if supervisor:
+                            supervisor_name = f"{supervisor.first_name} {supervisor.last_name}"
                     
                     schedule_dict = {
                         'id': schedule.id,
@@ -138,7 +169,10 @@ class CollectionScheduleService:
                         'loan_id': schedule.loan_id,
                         'loan_account': loan_account,
                         'borrower_name': client_name,
+                        'supervisor_id': schedule.supervisor_id,
+                        'supervisor_name': supervisor_name,
                         'assigned_branch': schedule.assigned_branch,
+                        'branch_name': branch_name,
                         'collection_priority': schedule.collection_priority,
                         'follow_up_frequency': schedule.follow_up_frequency,
                         'next_follow_up_date': schedule.next_follow_up_date.isoformat() if schedule.next_follow_up_date else None,
@@ -149,7 +183,11 @@ class CollectionScheduleService:
                         'progress_status': schedule.progress_status,
                         'escalation_level': schedule.escalation_level,
                         'task_description': schedule.task_description,
-                        'special_instructions': schedule.special_instructions
+                        'special_instructions': schedule.special_instructions,
+                        'outstanding_balance': schedule.outstanding_balance,
+                        'missed_payments': schedule.missed_payments,
+                        'best_contact_time': schedule.best_contact_time,
+                        'alternative_contact': schedule.alternative_contact
                     }
                     current_app.logger.debug(f"Schedule {schedule.id} data: {schedule_dict}")
                     schedules_list.append(schedule_dict)

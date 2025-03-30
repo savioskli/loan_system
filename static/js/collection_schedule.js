@@ -1,12 +1,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Helper functions
     function formatCurrency(amount) {
-        return new Intl.NumberFormat('en-KE', {
-            style: 'currency',
-            currency: 'KES',
+        if (amount === undefined || amount === null) return 'N/A';
+        
+        // Remove any existing commas and convert to number
+        const cleanAmount = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(cleanAmount)) return 'N/A';
+        
+        // Format with commas and 2 decimal places
+        return cleanAmount.toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }).format(amount);
+        });
     }
     
     // Initialize tabs and filters
@@ -140,14 +145,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         prioritySelect.value = 'Low';
                     }
-                }
-                
-                // Set default values
-                if (!document.getElementById('method').value) {
-                    document.getElementById('method').value = 'Phone Call';
-                }
-                if (!document.getElementById('bestContactTime').value) {
-                    document.getElementById('bestContactTime').value = 'Morning';
                 }
             } else {
                 console.log('Selected loan not found in client loans');
@@ -591,132 +588,149 @@ function initializeClientSelect(selector, isModal) {
                         const nextFollowUp = schedule.next_follow_up_date ? formatDate(schedule.next_follow_up_date) : 'Not scheduled';
                         const method = schedule.preferred_collection_method || 'Not specified';
                         
-                        const scheduleHtml = `
-                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden mb-4">
+                        // Fetch borrower name from core banking system
+                        const fetchBorrowerName = async (loanId) => {
+                            try {
+                                const response = await fetch(`/api/borrower/${loanId}`);
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.success) {
+                                        return data.borrower_name;
+                                    }
+                                }
+                                console.error('Error fetching borrower name:', await response.text());
+                                return 'Unknown';
+                            } catch (error) {
+                                console.error('Error fetching borrower name:', error);
+                                return 'Unknown';
+                            }
+                        };
+
+                        // Format values
+                        const outstandingAmount = schedule.outstanding_balance !== undefined && schedule.outstanding_balance !== null 
+                            ? formatCurrency(String(schedule.outstanding_balance).replace(/,/g, '')) 
+                            : 'N/A';
+                        const missedPayments = schedule.missed_payments || 0;
+
+                        // Fetch borrower name and update the card
+                        fetchBorrowerName(schedule.loan_id).then(borrowerName => {
+                            const scheduleHtml = `
+                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-lg shadow-lg overflow-hidden mb-4 border border-blue-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-200">
                                 <!-- Card Header -->
-                                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex flex-wrap items-center justify-between">
-                                    <div class="flex items-center flex-wrap">
-                                        <h3 class="text-md font-semibold text-gray-900 dark:text-white truncate mr-2">
-                                            ${borrowerInfo}
-                                        </h3>
-                                        ${schedule.collection_priority ? `
-                                        <span class="mr-2 px-2 py-0.5 text-xs font-medium rounded-full ${getPriorityClass(schedule.collection_priority)}">
-                                            ${schedule.collection_priority}
-                                        </span>
-                                        ` : ''}
-                                        ${schedule.progress_status ? `
-                                        <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getStatusClass(schedule.progress_status)}">
-                                            ${schedule.progress_status}
-                                        </span>
-                                        ` : ''}
-                                        ${schedule.escalation_level ? `
-                                        <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
-                                            Escalation ${schedule.escalation_level}
-                                        </span>
-                                        ` : ''}
+                                <div class="px-4 py-3 bg-gradient-to-r from-blue-100 to-blue-50 dark:from-gray-700 dark:to-gray-800 border-b border-blue-200 dark:border-gray-600">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center space-x-2">
+                                                <h3 class="text-md font-semibold text-blue-900 dark:text-blue-100">
+                                                    ${borrowerName}
+                                                </h3>
+                                                ${schedule.collection_priority ? `
+                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getPriorityClass(schedule.collection_priority)}">
+                                                    ${schedule.collection_priority}
+                                                </span>
+                                                ` : ''}
+                                                ${schedule.progress_status ? `
+                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getStatusClass(schedule.progress_status)}">
+                                                    ${schedule.progress_status}
+                                                </span>
+                                                ` : ''}
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                ${schedule.assigned_id === currentUser.id ? `
+                                                    <button class="update-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                ` : ''}
+                                                <button class="submit-schedule-btn bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                                <button class="edit-schedule-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                    <i class="fas fa-pencil-alt"></i>
+                                                </button>
+                                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <div class="text-sm text-gray-600 dark:text-gray-400">
+                                                Attempts: ${schedule.attempts_made}/${schedule.attempts_allowed}
+                                            </div>
+                                            <div class="text-gray-600 dark:text-gray-400">
+                                                Loan Account: ${schedule.loan_account || 'N/A'}
+                                            </div>
+                                            <div class="text-gray-600 dark:text-gray-400">
+                                                Branch: ${schedule.branch_name || 'N/A'}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center mt-2 sm:mt-0">
-                                        <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 mr-3" onclick="viewLoanDetails('${schedule.loan_id}')">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                        </button>
-                                        <button class="update-progress-btn text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
-                                                data-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || 'Unknown'}">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        </button>
-                                        ${schedule.progress_status !== 'Escalated' ? `
-                                        <button class="escalate-btn text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3"
-                                                data-id="${schedule.id}">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                        </button>
-                                        ` : ''}
-                                        <button class="delete-btn text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                                                data-id="${schedule.id}">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <!-- Card Body -->
-                                <div class="p-4">
-                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
-                                        <!-- Loan Information -->
-                                        <div class="col-span-2 md:col-span-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                            <p class="text-gray-500 dark:text-gray-400 mb-1">Borrower</p>
-                                            <p class="font-medium">${schedule.borrower_name || 'Unknown'}</p>
-                                            <div class="flex justify-between mt-2">
-                                                <div>
-                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Loan Account</p>
-                                                    <p class="font-medium">${schedule.loan_account || 'N/A'}</p>
+                                    <div class="px-4 py-2">
+                                        <div class="grid grid-cols-2 gap-4 text-sm">
+                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
+                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Collection Details</div>
+                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Outstanding:</span> ${outstandingAmount}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Missed Payments:</span> ${missedPayments}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Method:</span> ${method}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Promised Payment:</span> ${formatDate(schedule.promised_payment_date) || 'Not Set'}</div>
                                                 </div>
-                                                <div>
-                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Outstanding Balance</p>
-                                                    <p class="font-medium">${formatCurrency(schedule.outstanding_balance || 0)}</p>
-                                                </div>
-                                                <div>
-                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">Missed Payments</p>
-                                                    <p class="font-medium">${schedule.missed_payments || 0}</p>
+                                            </div>
+                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
+                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Staff Assignment</div>
+                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Officer:</span> ${staffName}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Supervisor:</span> ${schedule.supervisor_name || 'Not Assigned'}</div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <!-- Collection Details -->
-                                        <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Assigned To</p>
-                                            <p class="font-medium">${staffName}</p>
-                                            <p class="text-xs text-gray-400 mt-1">Supervisor: ${schedule.supervisor_name || 'None'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Follow-up</p>
-                                            <p class="font-medium">${formatDate(schedule.follow_up_deadline)}</p>
-                                            <p class="text-xs text-gray-400 mt-1">Frequency: ${schedule.follow_up_frequency}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-gray-500 dark:text-gray-400">Collection Method</p>
-                                            <p class="font-medium">${method}</p>
-                                            <p class="text-xs text-gray-400 mt-1">Attempts: ${schedule.attempts_made || 0}/${schedule.attempts_allowed || 3}</p>
-                                        </div>
-                                        
-                                        ${schedule.promised_payment_date ? `
-                                        <div class="col-span-2 md:col-span-3 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mt-2">
-                                            <div class="flex justify-between items-center">
-                                                <div>
-                                                    <p class="text-gray-600 dark:text-gray-300">Promised Payment Date</p>
-                                                    <p class="font-medium text-green-600 dark:text-green-400">${formatDate(schedule.promised_payment_date)}</p>
+                                        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
+                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Follow-up Schedule</div>
+                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDate(schedule.next_follow_up_date) || 'Not Set'}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Frequency:</span> ${schedule.follow_up_frequency || 'Not Set'}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Best Time:</span> ${schedule.best_contact_time || 'Not Specified'}</div>
                                                 </div>
-                                                <div>
-                                                    <p class="text-gray-600 dark:text-gray-300">Best Contact Time</p>
-                                                    <p class="font-medium">${schedule.best_contact_time || 'Any Time'}</p>
+                                            </div>
+                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
+                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Contact Information</div>
+                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <div class="break-words"><span class="font-medium text-blue-700 dark:text-blue-300">Alternative:</span> ${schedule.alternative_contact || 'None'}</div>
                                                 </div>
+                                            </div>
+                                        </div>
+                                        ${(schedule.task_description || schedule.special_instructions) ? `
+                                        <div class="mt-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600 text-sm">
+                                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Task Information</div>
+                                            <div class="space-y-2 text-gray-700 dark:text-gray-300">
+                                                ${schedule.task_description ? `
                                                 <div>
-                                                    <p class="text-gray-600 dark:text-gray-300">Status</p>
-                                                    <p class="font-medium ${getStatusClass(schedule.progress_status)}">${schedule.progress_status}</p>
+                                                    <div class="font-medium text-blue-700 dark:text-blue-300 mb-1">Description</div>
+                                                    <div class="text-sm">${schedule.task_description}</div>
                                                 </div>
+                                                ` : ''}
+                                                ${schedule.special_instructions ? `
+                                                <div>
+                                                    <div class="font-medium text-blue-700 dark:text-blue-300 mb-1">Special Instructions</div>
+                                                    <div class="text-sm">${schedule.special_instructions}</div>
+                                                </div>
+                                                ` : ''}
                                             </div>
                                         </div>
                                         ` : ''}
                                     </div>
-                                    
-                                    ${(schedule.task_description || schedule.special_instructions) ? `
-                                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                        ${schedule.task_description ? `
-                                        <div class="mb-2">
-                                            <p class="text-gray-500 dark:text-gray-400 text-sm">Task Description</p>
-                                            <p class="text-sm">${schedule.task_description}</p>
-                                        </div>
-                                        ` : ''}
-                                        
-                                        ${schedule.special_instructions ? `
-                                        <div>
-                                            <p class="text-gray-500 dark:text-gray-400 text-sm">Special Instructions</p>
-                                            <p class="text-sm">${schedule.special_instructions}</p>
-                                        </div>
-                                        ` : ''}
-                                    </div>
-                                    ` : ''}
+                                    ${schedule.escalation_level ? `
+                                    <div class="mt-2 px-4 pb-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                            Escalated Level ${schedule.escalation_level}
+                                        </span>
+                                    </div>` : ''}
                                 </div>
                             </div>
                         `;
-                        scheduleList.append(scheduleHtml);
+                            // Create a new div for the schedule
+                            scheduleList.append(scheduleHtml);
+                        });
                     } catch (error) {
                         console.error('Error rendering schedule:', error, schedule);
                     }
@@ -804,13 +818,13 @@ $('#newCollectionScheduleForm').submit(function(event) {
         branch_id: $('#branchInput').val(),  // API expects branch_id which maps to assigned_branch
 
         // Additional fields from modal
-        staff_id: parseInt($('#staffSelect').val()),
+        assigned_id: parseInt($('#staffSelect').val()),
         supervisor_id: supervisorVal ? parseInt(supervisorVal) : null,
         manager_id: managerVal ? parseInt(managerVal) : null,
         
         // Contact and loan details
-        outstanding_balance: parseFloat(window.outstandingBalance) || 0,
-        missed_payments: parseInt(window.missedPayments) || 0,
+        outstanding_balance: parseFloat($('#outstandingBalance').val().replace(/[^0-9.-]+/g, '')) || 0,
+        missed_payments: parseInt($('#missedPayments').val()) || 0,
         best_contact_time: bestContactTime || null,
         collection_location: collectionLocation || null,
         alternative_contact: alternativeContact || null,
@@ -1035,8 +1049,16 @@ $('#newCollectionScheduleForm').submit(function(event) {
 
     // Utility functions
     function formatDate(dateString) {
+        if (!dateString) return 'Not Set';
         const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }
 
     function getPriorityClass(priority) {
@@ -1658,10 +1680,144 @@ function updateOverduePaginationButtons() {
         $('#completed-schedules').text(data?.completed || 0);
     }
 
-    // Initialize collection schedules on page load
-    loadCollectionSchedules();
-    loadOverdueLoans();
-    initializeTabs();
+    // Comment modal for submit action
+    const commentModal = `
+        <div id="commentModal" class="modal fade" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Comment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="commentForm">
+                            <input type="hidden" id="commentScheduleId">
+                            <input type="hidden" id="commentAction">
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Comment</label>
+                                <textarea class="form-control" id="comment" rows="3" required></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="submitComment">Submit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    $(document.body).append(commentModal);
+
+    // Event handler for update button (only shown to assigned staff)
+    $(document).on('click', '.update-schedule-btn', function() {
+        const scheduleId = $(this).data('schedule-id');
+        $('#commentScheduleId').val(scheduleId);
+        $('#commentAction').val('update');
+        const modal = new bootstrap.Modal(document.getElementById('commentModal'));
+        modal.show();
+    });
+
+    // Event handler for submit button
+    $(document).on('click', '.submit-schedule-btn', function() {
+        const scheduleId = $(this).data('schedule-id');
+        $('#commentScheduleId').val(scheduleId);
+        $('#commentAction').val('submit');
+        const modal = new bootstrap.Modal(document.getElementById('commentModal'));
+        modal.show();
+    });
+
+    // Event handler for edit button
+    $(document).on('click', '.edit-schedule-btn', function() {
+        const scheduleId = $(this).data('schedule-id');
+        // TODO: Implement edit functionality
+        console.log('Edit schedule:', scheduleId);
+    });
+
+    // Event handler for delete button
+    $(document).on('click', '.delete-schedule-btn', function() {
+        const scheduleId = $(this).data('schedule-id');
+        if (confirm('Are you sure you want to delete this collection schedule?')) {
+            $.ajax({
+                url: `/api/collection-schedules/${scheduleId}`,
+                method: 'DELETE',
+                success: function() {
+                    showNotification('Success', 'Collection schedule deleted successfully');
+                    loadCollectionSchedules(); // Refresh the list
+                },
+                error: function(xhr) {
+                    showNotification('Error', 'Failed to delete collection schedule');
+                    console.error('Error deleting schedule:', xhr);
+                }
+            });
+        }
+    });
+
+    // Handle comment submission
+    $('#submitComment').click(function() {
+        const scheduleId = $('#commentScheduleId').val();
+        const action = $('#commentAction').val();
+        const comment = $('#comment').val();
+
+        if (!comment) {
+            alert('Please enter a comment');
+            return;
+        }
+
+        // Send to appropriate endpoint based on action
+        const endpoint = action === 'update' ? 'update-progress' : 'submit';
+        
+        $.ajax({
+            url: `/api/collection-schedules/${scheduleId}/${endpoint}`,
+            method: 'POST',
+            data: JSON.stringify({ comment: comment }),
+            contentType: 'application/json',
+            success: function(response) {
+                $('#commentModal').modal('hide');
+                showNotification('Success', `Collection schedule ${action}d successfully`);
+                loadCollectionSchedules(); // Refresh the list
+                $('#comment').val(''); // Clear the comment
+            },
+            error: function(xhr) {
+                showNotification('Error', `Failed to ${action} collection schedule`);
+                console.error(`Error ${action}ing schedule:`, xhr);
+            }
+        });
+    });
+
+    // Store current user info
+    let currentUser = null;
+
+    // Function to fetch current user info
+    function fetchCurrentUser() {
+        return $.ajax({
+            url: '/api/current-user',
+            method: 'GET'
+        }).then(function(response) {
+            if (response.status === 'success') {
+                currentUser = response.data;
+                return currentUser;
+            } else {
+                throw new Error(response.message || 'Failed to fetch user info');
+            }
+        });
+    }
+
+    // Initialize application
+    async function initializeApp() {
+        try {
+            await fetchCurrentUser();
+            loadCollectionSchedules();
+            loadOverdueLoans();
+            initializeTabs();
+        } catch (error) {
+            console.error('Error initializing app:', error);
+            showNotification('Error', 'Failed to initialize application');
+        }
+    }
+
+    // Initialize application
+    initializeApp();
     initializeFilterToggle();
 
     // Refresh overdue loans every 5 minutes

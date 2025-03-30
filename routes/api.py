@@ -633,6 +633,142 @@ def get_current_user():
             'message': 'An error occurred while getting current user information'
         }), 500
 
+@api_bp.route('/collection-schedules/<int:schedule_id>', methods=['GET'])
+@login_required
+def get_collection_schedule(schedule_id):
+    """Get details of a specific collection schedule."""
+    try:
+        schedule = CollectionSchedule.query.get(schedule_id)
+        if not schedule:
+            return jsonify({
+                'status': 'error',
+                'message': 'Schedule not found'
+            }), 404
+
+        return jsonify({
+            'status': 'success',
+            'data': schedule.to_dict()
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f'Error fetching schedule: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch schedule details'
+        }), 500
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/comment', methods=['POST'])
+@login_required
+def add_schedule_comment(schedule_id):
+    """Add a comment to a collection schedule."""
+    try:
+        data = request.get_json()
+        comment = data.get('comment')
+        action = data.get('action')
+
+        if not comment:
+            return jsonify({
+                'status': 'error',
+                'message': 'Comment is required'
+            }), 400
+
+        schedule = CollectionSchedule.query.get(schedule_id)
+        if not schedule:
+            return jsonify({
+                'status': 'error',
+                'message': 'Schedule not found'
+            }), 404
+
+        # Create correspondence record
+        correspondence = Correspondence(
+            loan_id=schedule.loan_id,
+            staff_id=current_user.id,
+            message=comment,
+            type='comment',
+            status='active'
+        )
+        db.session.add(correspondence)
+
+        # Update schedule status if this is a submit action
+        if action == 'submit':
+            schedule.progress_status = 'pending_review'
+            schedule.last_updated = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Comment added successfully'
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f'Error adding comment: {str(e)}')
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to add comment'
+        }), 500
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/update', methods=['POST'])
+@login_required
+def update_collection_schedule(schedule_id):
+    """Update a collection schedule progress."""
+    try:
+        data = request.get_json()
+        comment = data.get('comment')
+        status = data.get('status', 'in_progress')
+
+        if not comment:
+            return jsonify({
+                'status': 'error',
+                'message': 'Update notes are required'
+            }), 400
+
+        schedule = CollectionSchedule.query.get(schedule_id)
+        if not schedule:
+            return jsonify({
+                'status': 'error',
+                'message': 'Schedule not found'
+            }), 404
+
+        # Only assigned staff can update the schedule
+        if schedule.assigned_id != current_user.id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Only assigned staff can update this schedule'
+            }), 403
+
+        # Create correspondence record for the update
+        correspondence = Correspondence(
+            loan_id=schedule.loan_id,
+            staff_id=current_user.id,
+            message=comment,
+            type='update',
+            status='active'
+        )
+        db.session.add(correspondence)
+
+        # Update schedule
+        schedule.notes = comment
+        schedule.progress_status = status
+        schedule.last_updated = datetime.utcnow()
+        schedule.attempts_made = schedule.attempts_made + 1
+
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Schedule updated successfully'
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f'Error updating schedule: {str(e)}')
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to update schedule'
+        }), 500
+
 @api_bp.route('/guarantor-claims/create', methods=['POST'])
 @login_required
 def create_guarantor_claim():

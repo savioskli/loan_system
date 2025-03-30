@@ -90,6 +90,7 @@ class CollectionSchedule(db.Model):
             'escalation_level': self.escalation_level,
             'resolution_date': self.resolution_date.isoformat() if self.resolution_date else None,
             'special_instructions': self.special_instructions,
+            'collection_location': self.collection_location,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

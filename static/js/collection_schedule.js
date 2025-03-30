@@ -350,9 +350,18 @@ const managerSelect2Config = {
 
 // Initialize Select2 for both staff select fields
 $(document).ready(function() {
-    $('#staffSelect').select2(staffSelect2Config);
-    $('#supervisorSelect').select2(supervisorSelect2Config);
-    $('#managerSelect').select2(managerSelect2Config);
+    $('#staffSelect').select2({
+        ...staffSelect2Config,
+        dropdownParent: $('#newCollectionScheduleModal')
+    });
+    $('#supervisorSelect').select2({
+        ...supervisorSelect2Config,
+        dropdownParent: $('#newCollectionScheduleModal')
+    });
+    $('#managerSelect').select2({
+        ...managerSelect2Config,
+        dropdownParent: $('#newCollectionScheduleModal')
+    });
 });
 
     $(document).ready(function() {
@@ -611,11 +620,12 @@ function initializeClientSelect(selector, isModal) {
                             ? formatCurrency(String(schedule.outstanding_balance).replace(/,/g, '')) 
                             : 'N/A';
                         const missedPayments = schedule.missed_payments || 0;
+                        const collectionLocation = schedule.collection_location || 'Not Specified';
 
                         // Fetch borrower name and update the card
                         fetchBorrowerName(schedule.loan_id).then(borrowerName => {
                             const scheduleHtml = `
-                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-lg shadow-lg overflow-hidden mb-4 border border-blue-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-200">
+                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 rounded-lg shadow-lg overflow-hidden mb-4 border border-blue-100 dark:border-gray-600 hover:shadow-xl transition-shadow duration-200">
                                 <!-- Card Header -->
                                 <div class="px-4 py-3 bg-gradient-to-r from-blue-100 to-blue-50 dark:from-gray-700 dark:to-gray-800 border-b border-blue-200 dark:border-gray-600">
                                         <div class="flex items-center justify-between mb-2">
@@ -635,16 +645,13 @@ function initializeClientSelect(selector, isModal) {
                                                 ` : ''}
                                             </div>
                                             <div class="flex items-center gap-2">
-                                                ${schedule.assigned_id === currentUser.id ? `
-                                                    <button class="update-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                ${currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name ? `
+                                                    <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : ''}
                                                 <button class="submit-schedule-btn bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
                                                     <i class="fas fa-paper-plane"></i>
-                                                </button>
-                                                <button class="edit-schedule-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
-                                                    <i class="fas fa-pencil-alt"></i>
                                                 </button>
                                                 <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
                                                     <i class="fas fa-trash"></i>
@@ -671,7 +678,8 @@ function initializeClientSelect(selector, isModal) {
                                                     <div><span class="font-medium text-blue-700 dark:text-blue-300">Outstanding:</span> ${outstandingAmount}</div>
                                                     <div><span class="font-medium text-blue-700 dark:text-blue-300">Missed Payments:</span> ${missedPayments}</div>
                                                     <div><span class="font-medium text-blue-700 dark:text-blue-300">Method:</span> ${method}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Promised Payment:</span> ${formatDate(schedule.promised_payment_date) || 'Not Set'}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Promised Payment:</span> ${formatDateTime(schedule.promised_payment_date) || 'Not Set'}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Location:</span> ${collectionLocation}</div>
                                                 </div>
                                             </div>
                                             <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
@@ -687,7 +695,7 @@ function initializeClientSelect(selector, isModal) {
                                             <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
                                                 <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Follow-up Schedule</div>
                                                 <div class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDate(schedule.next_follow_up_date) || 'Not Set'}</div>
+                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDateTime(schedule.next_follow_up_date) || 'Not Set'}</div>
                                                     <div><span class="font-medium text-blue-700 dark:text-blue-300">Frequency:</span> ${schedule.follow_up_frequency || 'Not Set'}</div>
                                                     <div><span class="font-medium text-blue-700 dark:text-blue-300">Best Time:</span> ${schedule.best_contact_time || 'Not Specified'}</div>
                                                 </div>
@@ -748,7 +756,7 @@ function initializeClientSelect(selector, isModal) {
         });
     }
 
-    // Create new collection schedule
+    // Create or update collection schedule
 $('#newCollectionScheduleForm').submit(function(event) {
     event.preventDefault();
     
@@ -769,7 +777,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
         'frequency': 'Follow-up Frequency',
         'nextFollowUp': 'Next Follow-up Date',
         'promisedPaymentDate': 'Expected Payment Date',
-        'description': 'Collection Notes'
+        'task_description': 'Collection Notes'
     };
     
     let missingFields = [];
@@ -795,6 +803,9 @@ $('#newCollectionScheduleForm').submit(function(event) {
     const collectionLocation = $('#collectionLocation').val();
     const alternativeContact = $('#alternativeContact').val();
     
+    // Get form mode
+    const formMode = $(this).data('mode');
+    
     // Log form values for debugging
     console.log('Contact time:', bestContactTime);
     console.log('Location:', collectionLocation);
@@ -813,7 +824,8 @@ $('#newCollectionScheduleForm').submit(function(event) {
         promised_payment_date: $('#promisedPaymentDate').val(),
         attempts: parseInt($('#attemptsAllowed').val()) || 3,
         preferred_collection_method: $('#method').val() || 'Phone Call',
-        task_description: $('#description').val(),
+        task_description: $('#task_description').val(),
+        csrf_token: $('input[name="csrf_token"]').val(),
         special_instructions: $('#instructions').val() || '',
         branch_id: $('#branchInput').val(),  // API expects branch_id which maps to assigned_branch
 
@@ -843,18 +855,33 @@ $('#newCollectionScheduleForm').submit(function(event) {
     console.log('Final manager_id:', formData.manager_id);
     console.log('Complete form data:', formData);
 
+    // Determine URL and method based on form mode
+    const isEditMode = formMode === 'edit';
+    const targetScheduleId = $(this).data('schedule-id');
+    const url = isEditMode ? `/api/collection-schedules/${targetScheduleId}` : '/api/collection-schedules';
+    const method = isEditMode ? 'PUT' : 'POST';
+
     $.ajax({
-        url: '/api/new-collection-schedules',
-        method: 'POST',
+        url: url,
+        method: method,
         contentType: 'application/json',
+        headers: {
+            'X-CSRFToken': $('input[name="csrf_token"]').val()
+        },
         data: JSON.stringify(formData),
         success: function(response) {
-            modal.classList.add('hidden');
-            showNotification('Success', 'Collection schedule created successfully');
+            document.getElementById('newCollectionScheduleModal').classList.add('hidden');
             loadCollectionSchedules();
+            
+            // Reset form mode
+            $('#newCollectionScheduleForm').data('mode', 'create');
+            $('#newCollectionScheduleForm').data('schedule-id', '');
+            $('#createScheduleModalTitle').text('Create Collection Schedule');
+            $('#createScheduleModalSubmit').text('Create Schedule');
         },
         error: function(xhr) {
-            showNotification('Error', xhr.responseJSON?.error || 'Failed to create schedule');
+            showNotification('Error', xhr.responseJSON?.error || `Failed to ${isEditMode ? 'update' : 'create'} schedule`);
+            console.error(`Error ${isEditMode ? 'updating' : 'creating'} schedule:`, xhr);
         }
     });
 });
@@ -890,8 +917,22 @@ $('#newCollectionScheduleForm').submit(function(event) {
     $(document).on('click', '#closeCollectionScheduleModal', function() {
         const modal = document.getElementById('newCollectionScheduleModal');
         modal.classList.add('hidden');
-        // Reset form
-        document.getElementById('newCollectionScheduleForm').reset();
+        
+        // Reset form and mode
+        const form = document.getElementById('newCollectionScheduleForm');
+        form.reset();
+        $(form).data('mode', 'create');
+        $(form).data('schedule-id', '');
+        $('#createScheduleModalTitle').text('Create Collection Schedule');
+        $('#createScheduleModalSubmit').text('Create Schedule');
+        
+        // Reset select2 fields
+        $('#collectionClientSelect').val('').trigger('change');
+        $('#loanSelect').val('').trigger('change');
+        $('#staffSelect').val('').trigger('change');
+        $('#supervisorSelect').val('').trigger('change');
+        $('#managerSelect').val('').trigger('change');
+        
         // Re-enable selects
         document.getElementById('collectionClientSelect').disabled = false;
         document.getElementById('loanSelect').disabled = false;
@@ -917,7 +958,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
                             
                         tableBody.append(`
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(payment.payment_date)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(payment.payment_date)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(payment.amount)}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">${payment.description}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${attachmentLink}</td>
@@ -1052,7 +1093,20 @@ $('#newCollectionScheduleForm').submit(function(event) {
         if (!dateString) return 'Not Set';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return 'Invalid Date';
-        return date.toLocaleDateString('en-US', {
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function formatDateTime(dateString) {
+        if (!dateString) return 'Not Set';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -1680,51 +1734,154 @@ function updateOverduePaginationButtons() {
         $('#completed-schedules').text(data?.completed || 0);
     }
 
-    // Comment modal for submit action
-    const commentModal = `
-        <div id="commentModal" class="modal fade" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add Comment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="commentForm">
-                            <input type="hidden" id="commentScheduleId">
-                            <input type="hidden" id="commentAction">
-                            <div class="mb-3">
-                                <label for="comment" class="form-label">Comment</label>
-                                <textarea class="form-control" id="comment" rows="3" required></textarea>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" id="submitComment">Submit</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    $(document.body).append(commentModal);
-
-    // Event handler for update button (only shown to assigned staff)
-    $(document).on('click', '.update-schedule-btn', function() {
-        const scheduleId = $(this).data('schedule-id');
-        $('#commentScheduleId').val(scheduleId);
-        $('#commentAction').val('update');
-        const modal = new bootstrap.Modal(document.getElementById('commentModal'));
-        modal.show();
+    // Event handler for new collection schedule button
+    $('#newCollectionScheduleBtn').on('click', function() {
+        // Reset form to create mode
+        $('#newCollectionScheduleForm').data('mode', 'create');
+        $('#newCollectionScheduleForm').data('schedule-id', '');
+        $('#createScheduleModalTitle').text('Create Collection Schedule');
+        $('#createScheduleModalSubmit').text('Create Schedule');
+        
+        // Reset form fields
+        $('#newCollectionScheduleForm')[0].reset();
+        $('#collectionClientSelect').val('').trigger('change');
+        $('#loanSelect').val('').trigger('change');
+        $('#staffSelect').val('').trigger('change');
+        $('#supervisorSelect').val('').trigger('change');
+        $('#managerSelect').val('').trigger('change');
+        
+        // Show the modal
+        document.getElementById('newCollectionScheduleModal').classList.remove('hidden');
     });
 
-    // Event handler for submit button
+    // Event handler for update button (only shown to assigned staff)
+    $(document).on('click', '.edit-schedule-btn', function() {
+        const scheduleId = $(this).data('schedule-id');
+        
+        // Fetch schedule details
+        $.ajax({
+            url: `/api/collection-schedules/${scheduleId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'success') {
+                    const schedule = response.data;
+                    
+                    console.log('API Response:', response);
+                    console.log('Collection Location:', schedule.collection_location);
+                    
+                    // Update form to edit mode
+                    $('#newCollectionScheduleForm').data('mode', 'edit');
+                    // Set form to edit mode and update UI
+                    $('#newCollectionScheduleForm').data('schedule-id', scheduleId);
+                    $('#createScheduleModalTitle').text('Update Collection Schedule');
+                    $('button[type="submit"]', '#newCollectionScheduleForm').text('Update Schedule');
+                    
+                    // Populate client and loan information with proper data
+                    if (schedule.client_id && schedule.borrower_name) {
+                        // Create client option with loans data
+                        const clientOption = {
+                            id: schedule.client_id,
+                            text: schedule.borrower_name,
+                            loans: [{
+                                LoanAppID: schedule.loan_id,
+                                AccountNo: schedule.loan_account,
+                                OutstandingBalance: schedule.outstanding_balance,
+                                DaysInArrears: schedule.missed_payments * 30 // Approximate based on missed payments
+                            }]
+                        };
+                        
+                        // Set client select with the option and data
+                        const $clientSelect = $('#collectionClientSelect');
+                        $clientSelect.empty()
+                            .append(new Option(clientOption.text, clientOption.id, true, true))
+                            .trigger('change');
+                        
+                        // Manually set the client data for loan select to use
+                        $clientSelect.data('data', clientOption);
+                        
+                        // After client is set, populate loan select
+                        if (schedule.loan_id && schedule.loan_account) {
+                            const $loanSelect = $('#loanSelect');
+                            $loanSelect.empty()
+                                .append(new Option(schedule.loan_account, schedule.loan_id, true, true))
+                                .trigger('change');
+                        }
+                    }
+                    
+                    // Update display fields and form inputs
+                    $('#loanAccountDisplay').text(schedule.loan_account || 'N/A');
+                    $('#memberNameDisplay').text(schedule.borrower_name || 'N/A');
+                    
+                    // Set Outstanding Balance
+                    const outstandingBalance = schedule.outstanding_balance || 0;
+                    $('#outstandingBalanceDisplay').text(formatCurrency(outstandingBalance));
+                    $('#outstandingBalance').val(formatCurrency(outstandingBalance));
+                    
+                    // Set Missed Payments
+                    const missedPayments = schedule.missed_payments || 0;
+                    $('#missedPaymentsDisplay').text(missedPayments);
+                    $('#missedPayments').val(missedPayments);
+                    
+                    // Set Collection Notes and Special Instructions
+                    $('#task_description').val(schedule.task_description || '');
+                    $('#instructions').val(schedule.special_instructions || '');
+                    
+                    // Populate staff assignments with proper data
+                    if (schedule.assigned_id && schedule.staff_name) {
+                        const staffOption = new Option(schedule.staff_name, schedule.assigned_id, true, true);
+                        $('#staffSelect').empty().append(staffOption).trigger('change');
+                    }
+                    
+                    if (schedule.supervisor_id && schedule.supervisor_name) {
+                        const supervisorOption = new Option(schedule.supervisor_name, schedule.supervisor_id, true, true);
+                        $('#supervisorSelect').empty().append(supervisorOption).trigger('change');
+                    }
+                    
+                    if (schedule.manager_id && schedule.manager_name) {
+                        const managerOption = new Option(schedule.manager_name, schedule.manager_id, true, true);
+                        $('#managerSelect').empty().append(managerOption).trigger('change');
+                    }
+                    
+                    // Update display fields for staff
+                    $('#assignedOfficerDisplay').text(schedule.staff_name || 'Not Assigned');
+                    $('#supervisorDisplay').text(schedule.supervisor_name || 'Not Assigned');
+                    
+                    // Populate collection strategy
+                    $('#priority').val(schedule.collection_priority);
+                    $('#method').val(schedule.preferred_collection_method);
+                    $('#frequency').val(schedule.follow_up_frequency);
+                    
+                    // Populate schedule details
+                    $('#nextFollowUp').val(schedule.next_follow_up_date || '');
+                    $('#promisedPaymentDate').val(schedule.promised_payment_date || '');
+                    
+                    // Populate additional information
+                    $('#collectionLocation').val(schedule.collection_location || '');
+                    $('#bestContactTime').val(schedule.best_contact_time || '');
+                    $('#alternativeContact').val(schedule.alternative_contact || '');
+                    $('#task_description').val(schedule.task_description || '');
+                    $('#instructions').val(schedule.special_instructions || '');
+                    
+                    // Show the modal
+                    document.getElementById('newCollectionScheduleModal').classList.remove('hidden');
+                } else {
+                    showNotification('Error', response.message || 'Failed to fetch schedule details');
+                }
+            },
+            error: function(xhr) {
+                showNotification('Error', 'Failed to fetch schedule details');
+                console.error('Error fetching schedule:', xhr);
+            }
+        });
+    });
+
+    // Event handler for submit button (only shown to assigned staff)
     $(document).on('click', '.submit-schedule-btn', function() {
         const scheduleId = $(this).data('schedule-id');
         $('#commentScheduleId').val(scheduleId);
         $('#commentAction').val('submit');
-        const modal = new bootstrap.Modal(document.getElementById('commentModal'));
-        modal.show();
+        $('#comment').val(''); // Clear any previous comments
+        document.getElementById('commentModal').classList.remove('hidden');
     });
 
     // Event handler for edit button
@@ -1742,7 +1899,7 @@ function updateOverduePaginationButtons() {
                 url: `/api/collection-schedules/${scheduleId}`,
                 method: 'DELETE',
                 success: function() {
-                    showNotification('Success', 'Collection schedule deleted successfully');
+                    showNotification('Success', 'Schedule deleted successfully');
                     loadCollectionSchedules(); // Refresh the list
                 },
                 error: function(xhr) {

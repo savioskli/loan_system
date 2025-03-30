@@ -206,14 +206,60 @@ class CollectionScheduleService:
         """Get a specific collection schedule."""
         try:
             current_app.logger.info(f"Getting schedule with ID: {schedule_id}")
-            return CollectionSchedule.query.get_or_404(schedule_id)
+            schedule = CollectionSchedule.query.get_or_404(schedule_id)
+            
+            # Get staff name
+            staff_name = f"{schedule.staff.first_name} {schedule.staff.last_name}" if schedule.staff else None
+            
+            # Get supervisor name
+            supervisor_name = f"{schedule.supervisor.first_name} {schedule.supervisor.last_name}" if schedule.supervisor else None
+            
+            # Get manager name
+            manager_name = f"{schedule.manager.first_name} {schedule.manager.last_name}" if schedule.manager else None
+            
+            # Get loan details
+            loan_account = schedule.loan.account_no if schedule.loan else None
+            borrower_name = schedule.loan.client.full_name if schedule.loan and schedule.loan.client else None
+            client_id = schedule.loan.client.id if schedule.loan and schedule.loan.client else None
+            
+            return {
+                'id': schedule.id,
+                'assigned_id': schedule.assigned_id,
+                'staff_name': staff_name,
+                'supervisor_id': schedule.supervisor_id,
+                'supervisor_name': supervisor_name,
+                'manager_id': schedule.manager_id,
+                'manager_name': manager_name,
+                'loan_id': schedule.loan_id,
+                'loan_account': loan_account,
+                'borrower_name': borrower_name,
+                'client_id': client_id,
+                'assigned_branch': schedule.assigned_branch,
+                'collection_priority': schedule.collection_priority,
+                'follow_up_frequency': schedule.follow_up_frequency,
+                'next_follow_up_date': schedule.next_follow_up_date.isoformat() if schedule.next_follow_up_date else None,
+                'preferred_collection_method': schedule.preferred_collection_method,
+                'promised_payment_date': schedule.promised_payment_date.isoformat() if schedule.promised_payment_date else None,
+                'attempts_made': schedule.attempts_made,
+                'attempts_allowed': schedule.attempts_allowed,
+                'progress_status': schedule.progress_status,
+                'escalation_level': schedule.escalation_level,
+                'task_description': schedule.task_description,
+                'special_instructions': schedule.special_instructions,
+                'outstanding_balance': schedule.outstanding_balance,
+                'missed_payments': schedule.missed_payments,
+                'best_contact_time': schedule.best_contact_time,
+                'alternative_contact': schedule.alternative_contact,
+                'collection_location': schedule.collection_location
+            }
+            
         except SQLAlchemyError as e:
             current_app.logger.error(f"Database error in get_schedule: {str(e)}")
             raise
         except Exception as e:
             current_app.logger.error(f"Error in get_schedule: {str(e)}")
             raise
-            
+
     @staticmethod
     def get_schedule_by_id(schedule_id):
         """Get a collection schedule by ID without raising 404."""

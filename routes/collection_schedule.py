@@ -109,25 +109,8 @@ def get_collection_schedule(schedule_id):
             return jsonify({'error': 'Schedule not found'}), 404
             
         return jsonify({
-            'id': schedule.id,
-            'assigned_id': schedule.assigned_id,
-            'assigned_name': schedule.staff.name if schedule.staff else None,
-            'staff_name': schedule.staff.full_name if schedule.staff else None,
-            'loan_id': schedule.loan_id,
-            'loan_account': schedule.loan.account_no if schedule.loan else None,
-            'borrower_name': schedule.loan.client.full_name if schedule.loan and schedule.loan.client else None,
-            'assigned_branch': schedule.assigned_branch,
-            'collection_priority': schedule.collection_priority,
-            'follow_up_frequency': schedule.follow_up_frequency,
-            'next_follow_up_date': schedule.next_follow_up_date.isoformat() if schedule.next_follow_up_date else None,
-            'preferred_collection_method': schedule.preferred_collection_method,
-            'promised_payment_date': schedule.promised_payment_date.isoformat() if schedule.promised_payment_date else None,
-            'attempts_made': schedule.attempts_made,
-            'attempts_allowed': schedule.attempts_allowed,
-            'progress_status': schedule.progress_status,
-            'escalation_level': schedule.escalation_level,
-            'task_description': schedule.task_description,
-            'special_instructions': schedule.special_instructions
+            'status': 'success',
+            'data': schedule
         }), 200
     except Exception as e:
         current_app.logger.error(f"Error getting schedule {schedule_id}: {str(e)}\n{traceback.format_exc()}")

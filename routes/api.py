@@ -1200,7 +1200,7 @@ def get_loan_details(loan_id):
                 FROM {ll["actual_table_name"]} l
                 JOIN (
                     SELECT {ll["columns"]["LoanID"]} AS LoanID,
-                        MAX({ll["columns"]["LedgerID"]} ) AS latest_id
+                        MAX({ll["columns"]["LedgerID"]}) AS latest_id
                     FROM {ll["actual_table_name"]}
                     GROUP BY {ll["columns"]["LoanID"]}
                 ) latest ON l.{ll["columns"]["LoanID"]} = latest.LoanID AND l.{ll["columns"]["LedgerID"]} = latest.latest_id
@@ -1579,6 +1579,33 @@ def get_overdue_loans():
             cursor.close()
         if 'conn' in locals():
             conn.close()
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/progress', methods=['GET'])
+@login_required
+def get_progress_updates(schedule_id):
+    try:
+        # Get progress updates using the service
+        updates = ProgressUpdateService.get_progress_updates(schedule_id)
+        
+        # Convert to list of dictionaries for JSON serialization
+        updates_list = []
+        if updates is not None:  # Check if query result is not None
+            for update in updates:
+                updates_list.append({
+                    'id': update.id,
+                    'status': update.status,
+                    'amount': float(update.amount) if update.amount is not None else None,
+                    'collection_method': update.collection_method,
+                    'notes': update.notes,
+                    'attachment_url': update.attachment_url,  # Changed from 'attachment' to 'attachment_url'
+                    'created_at': update.created_at.isoformat()
+                })
+        
+        return jsonify({'updates': updates_list})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting progress updates: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""

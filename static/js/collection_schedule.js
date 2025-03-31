@@ -13,6 +13,16 @@ document.addEventListener('DOMContentLoaded', function() {
             maximumFractionDigits: 2
         });
     }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
     
     // Initialize tabs and filters
     initializeTabs();
@@ -394,7 +404,7 @@ $(document).ready(function() {
                     // Force conversion to number to ensure proper calculation
                     let daysInArrears = 0;
                     if (selectedLoan.DaysInArrears !== undefined) {
-                        daysInArrears = Number(selectedLoan.DaysInArrears) || 0;
+                        daysInArrears = Number(selectedLoan.DaysInArrears);
                     }
                     
                     const repaymentPeriod = selectedLoan.RepaymentPeriod || 12; // Default to monthly (12 per year)
@@ -651,6 +661,9 @@ function initializeClientSelect(selector, isModal) {
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : ''}
+                                                <button class="view-progress-btn bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" title="View Progress">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
                                                 <button class="update-progress-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Update Progress">
                                                     <i class="fas fa-tasks"></i>
                                                 </button>
@@ -1272,47 +1285,15 @@ window.viewLoanDetails = function(loanId) {
                         if (selectedOption.loans.length === 1) {
                             loanSelect.selectedIndex = 0;
                             const loan = selectedOption.loans[0];
-                            // Update form fields
-                            document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || 0);
-                            
-                            // Calculate missed payments based on days in arrears
-                            console.log('Days in arrears raw value:', loan.DaysInArrears);
-                            console.log('Type of DaysInArrears:', typeof loan.DaysInArrears);
-                            
-                            // Force conversion to number to ensure proper calculation
-                            let daysInArrears = 0;
-                            if (loan.DaysInArrears !== undefined) {
-                                daysInArrears = Number(loan.DaysInArrears) || 0;
-                            }
-                            
-                            console.log('Parsed days in arrears:', daysInArrears);
-                            const missedInstallments = Math.ceil(daysInArrears / 30);
-                            console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
-                            
-                            // Set the value and verify it was set correctly
-                            const missedPaymentsField = document.getElementById('missedPayments');
-                            missedPaymentsField.value = missedInstallments;
-                            console.log('Set missed payments field to:', missedPaymentsField.value);
-                            
-                            // Auto-select priority based on days in arrears
-                            const prioritySelect = document.getElementById('priority');
-                            if (prioritySelect) {
-                                if (daysInArrears >= 90) {
-                                    prioritySelect.value = 'Critical';
-                                } else if (daysInArrears >= 60) {
-                                    prioritySelect.value = 'High';
-                                } else if (daysInArrears >= 30) {
-                                    prioritySelect.value = 'Medium';
-                                } else {
-                                    prioritySelect.value = 'Low';
-                                }
-                            }
+                            console.log('Auto-selecting first loan:', loan);
+                            updateLoanDetailsInForm(loan);
                         }
                     }
                 });
 
                 // Add event listener for loan select change
                 document.getElementById('loanSelect').addEventListener('change', function() {
+                    console.log('Selected loan:', this.options[this.selectedIndex]);
                     const selectedOption = this.options[this.selectedIndex];
                     const clientSelect = document.getElementById('collectionClientSelect');
                     const selectedClient = clientSelect.options[clientSelect.selectedIndex];
@@ -1320,6 +1301,7 @@ window.viewLoanDetails = function(loanId) {
                     if (selectedClient && selectedClient.loans) {
                         const selectedLoan = selectedClient.loans.find(loan => loan.LoanAppID === selectedOption.value);
                         if (selectedLoan) {
+                            console.log('Found selected loan:', selectedLoan);
                             document.getElementById('outstandingBalance').value = formatCurrency(selectedLoan.OutstandingBalance || 0);
                             
                             // Calculate missed payments based on days in arrears
@@ -1562,8 +1544,8 @@ function displayOverduePage(page) {
     if (overdueLoansData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="px-4 py-4 text-center">
-                    <p class="text-gray-500 dark:text-gray-400">No overdue loans found</p>
+                <td colspan="6" class="text-center py-4 text-gray-500">
+                    No overdue loans found
                 </td>
             </tr>
         `;
@@ -1595,7 +1577,9 @@ function displayOverduePage(page) {
             <td class="px-4 py-3 text-center whitespace-nowrap">
                 <button class="px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" onclick="viewLoanDetails('${loan.loan_id}')">
                     <span class="flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                         Details
                     </span>
                 </button>
@@ -1907,7 +1891,7 @@ function updateOverduePaginationButtons() {
 
     // Event handler for delete button
     $(document).on('click', '.delete-schedule-btn', function() {
-        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
+        const scheduleId = $(this).data('id');
         if (confirm('Are you sure you want to delete this collection schedule?')) {
             $.ajax({
                 url: `/api/collection-schedules/${scheduleId}`,
@@ -1917,8 +1901,7 @@ function updateOverduePaginationButtons() {
                     loadCollectionSchedules(); // Refresh the list
                 },
                 error: function(xhr) {
-                    showNotification('Error', 'Failed to delete collection schedule');
-                    console.error('Error deleting schedule:', xhr);
+                    showNotification('Error', xhr.responseJSON?.error || 'Failed to delete schedule');
                 }
             });
         }
@@ -1983,8 +1966,8 @@ function updateOverduePaginationButtons() {
                     <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}"
                         class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                         <span class="sr-only">Previous</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </button>`;
 
@@ -2020,8 +2003,8 @@ function updateOverduePaginationButtons() {
                     <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
                         class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                         <span class="sr-only">Next</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </button>
                 </nav>
@@ -2093,4 +2076,146 @@ async function loadOverdueLoans() {
         console.error('Error loading overdue loans:', error);
         showNotification('Error', 'Failed to load overdue loans');
     }
+}
+
+// Handle view progress button click
+$(document).on('click', '.view-progress-btn', function() {
+    const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
+    
+    // Load progress updates
+    loadProgressUpdates(scheduleId);
+});
+
+// Handle modal close button
+$(document).on('click', '[data-bs-dismiss="modal"]', function() {
+    const modal = document.getElementById('viewProgressModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+});
+
+// Function to load progress updates
+function loadProgressUpdates(scheduleId) {
+    console.log('Loading progress updates for schedule ID:', scheduleId);
+    
+    $.ajax({
+        url: `/api/collection-schedules/${scheduleId}/progress`,
+        method: 'GET',
+        success: function(response) {
+            console.log('Progress updates response:', response);
+            console.log('Response type:', typeof response);
+            console.log('Response keys:', Object.keys(response));
+            
+            if (response.error) {
+                console.error('Error loading progress updates:', response.error);
+                showNotification('Error', 'Failed to load progress updates. Please try again.');
+                return;
+            }
+
+            const updatesList = $('#progressUpdatesList');
+            updatesList.empty();
+
+            // Get the updates array from the response
+            const updates = response.updates || [];
+            console.log('Updates array:', updates);
+            console.log('Updates array length:', updates.length);
+
+            if (!Array.isArray(updates)) {
+                console.error('Invalid response format:', response);
+                updatesList.append(`
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-gray-500">
+                            No progress updates yet
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            if (updates.length === 0) {
+                updatesList.append(`
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-gray-500">
+                            No progress updates yet
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            updates.forEach(update => {
+                console.log('Processing update:', update);
+                
+                // Format date directly
+                const date = new Date(update.created_at);
+                const formattedDate = date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                
+                // Format amount directly
+                const amount = update.amount || 0;
+                const cleanAmount = parseFloat(String(amount).replace(/[^0-9.-]+/g, ''));
+                const formattedAmount = isNaN(cleanAmount) ? 'N/A' : cleanAmount.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+
+                // Format method with better styling
+                const method = update.collection_method || 'Not specified';
+                const formattedMethod = `
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        ${method}
+                    </span>
+                `;
+
+                // Format status with color coding
+                const status = update.status || 'Not specified';
+                let statusClass = 'bg-gray-100 text-gray-800';
+                if (status.toLowerCase() === 'in_progress') {
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                } else if (status.toLowerCase() === 'completed') {
+                    statusClass = 'bg-green-100 text-green-800';
+                } else if (status.toLowerCase() === 'failed') {
+                    statusClass = 'bg-red-100 text-red-800';
+                }
+                const formattedStatus = `
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
+                        ${status}
+                    </span>
+                `;
+
+                updatesList.append(`
+                    <tr>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${formattedDate}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${formattedAmount}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${formattedMethod}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${formattedStatus}</td>
+                        <td class="px-4 py-3 whitespace-normal text-sm">${update.notes || 'No notes provided'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            ${update.attachment_url ? `
+                                <a href="${update.attachment_url}" class="text-sm text-blue-600 hover:text-blue-800 flex items-center" target="_blank">
+                                    <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    View attachment
+                                </a>
+                            ` : 'N/A'}
+                        </td>
+                    </tr>
+                `);
+            });
+
+            // Show the modal after data is loaded
+            const modal = document.getElementById('viewProgressModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        },
+        error: function(xhr) {
+            console.error('Error loading progress updates:', xhr.responseText);
+            showNotification('Error', 'Failed to load progress updates. Please try again.');
+        }
+    });
 }

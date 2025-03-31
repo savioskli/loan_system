@@ -140,8 +140,8 @@ class CollectionScheduleService:
             total_count = query.count()
             
             # Apply pagination if specified in filters
-            page = int(filters.get('page', 1))
-            per_page = int(filters.get('per_page', 10))
+            page = int(filters.get('page', 1) if filters else 1)
+            per_page = int(filters.get('per_page', 10) if filters else 10)
             offset = (page - 1) * per_page
             
             current_app.logger.info("Executing paginated query...")
@@ -207,7 +207,6 @@ class CollectionScheduleService:
                     current_app.logger.error(f"Error processing schedule {schedule.id}: {str(e)}\n{traceback.format_exc()}")
                     continue
             
-            # Return with pagination info
             return {
                 'items': schedules_list,
                 'pagination': {

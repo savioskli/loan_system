@@ -584,6 +584,7 @@ function initializeClientSelect(selector, isModal) {
                             <p class="text-center text-gray-600 dark:text-gray-400">No collection schedules found.</p>
                         </div>
                     `);
+                    // Update pagination even when no results
                     updatePagination(response.pagination);
                     return;
                 }
@@ -745,7 +746,7 @@ function initializeClientSelect(selector, isModal) {
                     }
                 });
                 
-                // Add pagination controls
+                // Update pagination controls
                 updatePagination(response.pagination);
             },
             error: function(xhr, status, error) {
@@ -759,96 +760,6 @@ function initializeClientSelect(selector, isModal) {
                 // Clear pagination on error
                 updatePagination(null);
             }
-        });
-    }
-
-    // Function to update pagination controls
-    function updatePagination(pagination) {
-        const paginationContainer = $('#paginationContainer');
-        if (!pagination || pagination.total === 0) {
-            paginationContainer.empty();
-            return;
-        }
-
-        const { page, pages, total } = pagination;
-        
-        // Create pagination HTML
-        let paginationHtml = `
-            <div class="flex-1 flex justify-between sm:hidden">
-                <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}" 
-                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Previous
-                </button>
-                <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
-                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Next
-                </button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        Showing <span class="font-medium">${Math.min((page - 1) * pagination.per_page + 1, total)}</span> to 
-                        <span class="font-medium">${Math.min(page * pagination.per_page, total)}</span> of 
-                        <span class="font-medium">${total}</span> results
-                    </p>
-                </div>
-                <div>
-                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        <!-- Previous button -->
-                        <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}"
-                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="sr-only">Previous</span>
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </button>`;
-
-        // Add page numbers
-        for (let i = 1; i <= pages; i++) {
-            if (
-                i === 1 || // First page
-                i === pages || // Last page
-                (i >= page - 1 && i <= page + 1) // Pages around current page
-            ) {
-                paginationHtml += `
-                    <button data-page="${i}" 
-                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium 
-                        ${page === i ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}"
-                        ${page === i ? 'aria-current="page"' : ''}>
-                        ${i}
-                    </button>`;
-            } else if (
-                i === 2 || // Ellipsis after first page
-                i === pages - 1 // Ellipsis before last page
-            ) {
-                paginationHtml += `
-                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                        ...
-                    </span>`;
-            }
-        }
-
-        paginationHtml += `
-                        <!-- Next button -->
-                        <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
-                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="sr-only">Next</span>
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </nav>
-                </div>
-            </div>`;
-
-        paginationContainer.html(paginationHtml);
-
-        // Add click handlers for pagination buttons
-        paginationContainer.find('button[data-page]').on('click', function() {
-            const newPage = $(this).data('page');
-            const currentFilters = new URLSearchParams(window.location.search);
-            currentFilters.set('page', newPage);
-            loadCollectionSchedules(Object.fromEntries(currentFilters));
         });
     }
 
@@ -2040,6 +1951,85 @@ function updateOverduePaginationButtons() {
 
     // Store current user info
     let currentUser = null;
+
+    // Function to update pagination controls
+    function updatePagination(pagination) {
+        const paginationContainer = $('#paginationContainer');
+        if (!pagination || pagination.total === 0) {
+            paginationContainer.empty();
+            return;
+        }
+
+        const { page, pages, total, per_page } = pagination;
+        
+        let paginationHtml = `
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        Showing <span class="font-medium">${Math.min((page - 1) * per_page + 1, total)}</span> to 
+                        <span class="font-medium">${Math.min(page * per_page, total)}</span> of 
+                        <span class="font-medium">${total}</span> schedules
+                    </p>
+                </div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <!-- Previous button -->
+                    <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}"
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="sr-only">Previous</span>
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </button>`;
+
+        // Add page numbers
+        for (let i = 1; i <= pages; i++) {
+            if (
+                i === 1 || // First page
+                i === pages || // Last page
+                (i >= page - 1 && i <= page + 1) // Pages around current page
+            ) {
+                paginationHtml += `
+                    <button data-page="${i}" 
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium 
+                        ${page === i 
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900 dark:border-blue-500 dark:text-blue-300' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:border-gray-600'}"
+                        ${page === i ? 'aria-current="page"' : ''}>
+                        ${i}
+                    </button>`;
+            } else if (
+                i === 2 || // Ellipsis after first page
+                i === pages - 1 // Ellipsis before last page
+            ) {
+                paginationHtml += `
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400">
+                        ...
+                    </span>`;
+            }
+        }
+
+        paginationHtml += `
+                    <!-- Next button -->
+                    <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="sr-only">Next</span>
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </nav>
+            </div>`;
+
+        paginationContainer.html(paginationHtml);
+
+        // Add click handlers for pagination buttons
+        paginationContainer.find('button[data-page]').on('click', function() {
+            const newPage = $(this).data('page');
+            const currentFilters = new URLSearchParams(window.location.search);
+            currentFilters.set('page', newPage);
+            loadCollectionSchedules(Object.fromEntries(currentFilters));
+        });
+    }
 
     // Function to fetch current user info
     function fetchCurrentUser() {

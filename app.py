@@ -49,6 +49,7 @@ from routes.products import products_bp
 from routes.section_routes import sections_bp
 from routes.post_disbursement_modules import post_disbursement_modules_bp
 from routes.post_disbursement_workflows import post_disbursement_workflows_bp
+from routes.progress_update import progress_update_bp
 from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
@@ -128,6 +129,7 @@ def create_app():
     app.register_blueprint(core_banking_bp)
     app.register_blueprint(post_disbursement_modules_bp)
     app.register_blueprint(post_disbursement_workflows_bp)
+    app.register_blueprint(progress_update_bp)
     app.register_blueprint(api_bp)  # Register the API blueprint
 
     # Import and register SMS templates blueprint after all models are loaded

@@ -1147,6 +1147,7 @@ def get_loan_details(loan_id):
 
         try:
             mapping = get_mapping_for_module(module_id)
+            current_app.logger.info(f"Mapping Data: {mapping}")
         except Exception as e:
             return jsonify({'error': f'Error retrieving mapping data: {str(e)}'}), 500
 
@@ -1361,7 +1362,7 @@ def get_borrower_name(loan_id):
                 ld = mapping.get("LoanDisbursements", {})
                 la = mapping.get("LoanApplications", {})
                 m = mapping.get("Members", {})
-
+                
                 # Ensure that the necessary columns are present in the mapping
                 required_ll_columns = ["LoanID"]
                 required_ld_columns = ["LoanAppID"]
@@ -1429,7 +1430,7 @@ def get_borrower_name(loan_id):
         current_app.logger.error(f"Error getting borrower name: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/overdue_loans', methods=['GET'])
+@api_bp.route('/overdue-loans', methods=['GET'])
 @login_required
 def get_overdue_loans():
     """Get overdue loans from core banking system."""

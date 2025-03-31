@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Set priority based on days in arrears
-        const daysInArrears = loan.DaysInArrears || loan.days_in_arrears || 0;
         const prioritySelect = document.getElementById(formPrefix + 'priority');
         if (prioritySelect) {
             let priorityValue = 'Low';
@@ -648,14 +647,17 @@ function initializeClientSelect(selector, isModal) {
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 ${currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name ? `
-                                                    <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                    <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : ''}
-                                                <button class="submit-schedule-btn bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                <button class="update-progress-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Update Progress">
+                                                    <i class="fas fa-tasks"></i>
+                                                </button>
+                                                <button class="submit-schedule-btn bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Submit Schedule">
                                                     <i class="fas fa-paper-plane"></i>
                                                 </button>
-                                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}">
+                                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Delete Schedule">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -895,29 +897,90 @@ $('#newCollectionScheduleForm').submit(function(event) {
 
     // Update progress and show payment history modal
     $(document).on('click', '.update-progress-btn', function() {
-        const scheduleId = $(this).data('id');
-        const loanId = $(this).data('loan-id');
-        const borrowerName = $(this).data('borrower-name');
+        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
+        const loanId = $(this).attr('data-loan-id'); // Use attr instead of data
+        const borrowerName = $(this).attr('data-borrower-name'); // Use attr instead of data
+        
+        console.log('Opening modal with schedule ID:', scheduleId);
         
         // Set the schedule ID and loan ID in the payment form
         $('#paymentScheduleId').val(scheduleId);
         $('#paymentLoanId').val(loanId);
+        $('#scheduleId').val(scheduleId);
+        
+        // Ensure the form has the correct schedule ID
+        const formScheduleId = $('#scheduleId').val();
+        if (formScheduleId !== scheduleId) {
+            console.error('Schedule ID mismatch:', formScheduleId, '!=', scheduleId);
+            $('#scheduleId').val(scheduleId);
+        }
         
         // Set default payment date to current date and time
         const now = new Date();
         const formattedDate = now.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
         $('#paymentDate').val(formattedDate);
         
-        // Load payment history for this schedule
-        loadPaymentHistory(scheduleId);
-        
         // Show the payment history modal
         $('#paymentHistoryModal').removeClass('hidden');
     });
     
-    // Close payment history modal
-    $('#closePaymentHistoryModal, #cancelPaymentBtn').on('click', function() {
+    // Handle modal close button
+    $(document).on('click', '#closeCollectionScheduleModal, #closePaymentHistoryModal', function() {
+        // Reset form
+        $('#newPaymentForm')[0].reset();
+        // Clear hidden fields
+        $('#paymentScheduleId').val('');
+        $('#paymentLoanId').val('');
+        $('#scheduleId').val('');
+        // Close modal
         $('#paymentHistoryModal').addClass('hidden');
+    });
+
+    // Handle form submission
+    $('#newPaymentForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const scheduleId = $('#scheduleId').val();
+        
+        if (!scheduleId) {
+            console.error('Schedule ID is required');
+            return;
+        }
+
+        // Add schedule ID to form data
+        formData.set('schedule_id', scheduleId);
+
+        $.ajax({
+            url: `/api/collection-schedules/${scheduleId}/progress`,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                console.log('Progress update created:', response);
+                // Reload schedules
+                loadCollectionSchedules();
+                // Close modal
+                $('#paymentHistoryModal').addClass('hidden');
+                // Show success notification
+                showNotification('Success', 'Progress update saved successfully');
+            },
+            error: function(xhr) {
+                console.error('Error creating progress update:', xhr.responseText);
+                showNotification('Error', 'Failed to save progress update');
+            }
+        });
+    });
+
+    // Handle modal close button
+    $('#updateProgressModal button[data-bs-dismiss="modal"]').click(function() {
+        $('#updateProgressModal').addClass('hidden');
+    });
+
+    // Handle cancel button
+    $('#cancelPaymentBtn').click(function() {
+        $('#updateProgressModal').addClass('hidden');
     });
     
     // Close new collection schedule modal - using event delegation
@@ -947,98 +1010,8 @@ $('#newCollectionScheduleForm').submit(function(event) {
     
     // Load payment history for a schedule
     function loadPaymentHistory(scheduleId) {
-        $.ajax({
-            url: `/api/collection-schedules/${scheduleId}/payments`,
-            method: 'GET',
-            success: function(data) {
-                // Clear existing table rows
-                const tableBody = $('#paymentHistoryTableBody');
-                tableBody.empty();
-                
-                // Check if there are payments
-                if (data && data.length > 0) {
-                    // Add each payment to the table
-                    data.forEach(payment => {
-                        const attachmentLink = payment.attachment_url ? 
-                            `<a href="${payment.attachment_url}" target="_blank" class="text-indigo-600 hover:text-indigo-900">View</a>` : 
-                            'None';
-                            
-                        tableBody.append(`
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(payment.payment_date)}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(payment.amount)}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500">${payment.description}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${attachmentLink}</td>
-                            </tr>
-                        `);
-                    });
-                } else {
-                    // Show no payments message
-                    tableBody.append(`
-                        <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">No payment records found</td>
-                        </tr>
-                    `);
-                }
-            },
-            error: function(xhr) {
-                showNotification('Error', xhr.responseJSON?.error || 'Failed to load payment history');
-                // Show error message in table
-                $('#paymentHistoryTableBody').html(`
-                    <tr>
-                        <td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">Failed to load payment history</td>
-                    </tr>
-                `);
-            }
-        });
+        // No longer needed since we removed the table
     }
-    
-    // Handle new payment form submission
-    $('#newPaymentForm').submit(function(event) {
-        event.preventDefault();
-        
-        const scheduleId = $('#paymentScheduleId').val();
-        const formData = new FormData(this);
-        
-        $.ajax({
-            url: `/api/collection-schedules/${scheduleId}/payments`,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                showNotification('Success', 'Payment recorded successfully');
-                
-                // Reload payment history
-                loadPaymentHistory(scheduleId);
-                
-                // Clear form
-                $('#paymentDescription').val('');
-                $('#paymentAmount').val('');
-                $('#paymentAttachment').val('');
-                
-                // If payment was successful and marked as completed, update the collection schedule status
-                if (response.update_status) {
-                    $.ajax({
-                        url: `/api/collection-schedules/${scheduleId}/progress`,
-                        method: 'PUT',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            status: 'Completed',
-                            resolution_date: new Date().toISOString()
-                        }),
-                        success: function() {
-                            // Reload collection schedules in the background
-                            loadCollectionSchedules();
-                        }
-                    });
-                }
-            },
-            error: function(xhr) {
-                showNotification('Error', xhr.responseJSON?.error || 'Failed to record payment');
-            }
-        });
-    });
 
     // Escalate schedule
     $(document).on('click', '.escalate-btn', function() {
@@ -1253,16 +1226,18 @@ window.viewLoanDetails = function(loanId) {
                             console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
                             document.getElementById('missedPayments').value = missedInstallments;
                             
-                            // Auto-select priority based on days in arrears
+                            // Set priority based on days in arrears
                             const prioritySelect = document.getElementById('priority');
-                            if (daysInArrears >= 90) {
-                                prioritySelect.value = 'Critical';
-                            } else if (daysInArrears >= 60) {
-                                prioritySelect.value = 'High';
-                            } else if (daysInArrears >= 30) {
-                                prioritySelect.value = 'Medium';
-                            } else {
-                                prioritySelect.value = 'Low';
+                            if (prioritySelect) {
+                                if (daysInArrears >= 90) {
+                                    prioritySelect.value = 'Critical';
+                                } else if (daysInArrears >= 60) {
+                                    prioritySelect.value = 'High';
+                                } else if (daysInArrears >= 30) {
+                                    prioritySelect.value = 'Medium';
+                                } else {
+                                    prioritySelect.value = 'Low';
+                                }
                             }
                         })
                         .catch(error => {
@@ -1301,10 +1276,37 @@ window.viewLoanDetails = function(loanId) {
                             document.getElementById('outstandingBalance').value = formatCurrency(loan.OutstandingBalance || 0);
                             
                             // Calculate missed payments based on days in arrears
-                            const daysInArrears = loan.DaysInArrears || 0;
+                            console.log('Days in arrears raw value:', loan.DaysInArrears);
+                            console.log('Type of DaysInArrears:', typeof loan.DaysInArrears);
+                            
+                            // Force conversion to number to ensure proper calculation
+                            let daysInArrears = 0;
+                            if (loan.DaysInArrears !== undefined) {
+                                daysInArrears = Number(loan.DaysInArrears) || 0;
+                            }
+                            
+                            console.log('Parsed days in arrears:', daysInArrears);
                             const missedInstallments = Math.ceil(daysInArrears / 30);
                             console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
-                            document.getElementById('missedPayments').value = missedInstallments;
+                            
+                            // Set the value and verify it was set correctly
+                            const missedPaymentsField = document.getElementById('missedPayments');
+                            missedPaymentsField.value = missedInstallments;
+                            console.log('Set missed payments field to:', missedPaymentsField.value);
+                            
+                            // Auto-select priority based on days in arrears
+                            const prioritySelect = document.getElementById('priority');
+                            if (prioritySelect) {
+                                if (daysInArrears >= 90) {
+                                    prioritySelect.value = 'Critical';
+                                } else if (daysInArrears >= 60) {
+                                    prioritySelect.value = 'High';
+                                } else if (daysInArrears >= 30) {
+                                    prioritySelect.value = 'Medium';
+                                } else {
+                                    prioritySelect.value = 'Low';
+                                }
+                            }
                         }
                     }
                 });
@@ -1328,14 +1330,16 @@ window.viewLoanDetails = function(loanId) {
                             
                             // Set priority based on days in arrears
                             const prioritySelect = document.getElementById('priority');
-                            if (daysInArrears >= 90) {
-                                prioritySelect.value = 'Critical';
-                            } else if (daysInArrears >= 60) {
-                                prioritySelect.value = 'High';
-                            } else if (daysInArrears >= 30) {
-                                prioritySelect.value = 'Medium';
-                            } else {
-                                prioritySelect.value = 'Low';
+                            if (prioritySelect) {
+                                if (daysInArrears >= 90) {
+                                    prioritySelect.value = 'Critical';
+                                } else if (daysInArrears >= 60) {
+                                    prioritySelect.value = 'High';
+                                } else if (daysInArrears >= 30) {
+                                    prioritySelect.value = 'Medium';
+                                } else {
+                                    prioritySelect.value = 'Low';
+                                }
                             }
                         } else {
                             // Clear fields if no loan selected
@@ -1376,14 +1380,16 @@ window.viewLoanDetails = function(loanId) {
                     
                     // Auto-select priority based on days in arrears
                     const prioritySelect = document.getElementById('priority');
-                    if (daysInArrears >= 90) {
-                        prioritySelect.value = 'Critical';
-                    } else if (daysInArrears >= 60) {
-                        prioritySelect.value = 'High';
-                    } else if (daysInArrears >= 30) {
-                        prioritySelect.value = 'Medium';
-                    } else {
-                        prioritySelect.value = 'Low';
+                    if (prioritySelect) {
+                        if (daysInArrears >= 90) {
+                            prioritySelect.value = 'Critical';
+                        } else if (daysInArrears >= 60) {
+                            prioritySelect.value = 'High';
+                        } else if (daysInArrears >= 30) {
+                            prioritySelect.value = 'Medium';
+                        } else {
+                            prioritySelect.value = 'Low';
+                        }
                     }
                 }
 
@@ -1452,14 +1458,16 @@ window.viewLoanDetails = function(loanId) {
 
                     // Set priority based on days in arrears
                     const prioritySelect = document.getElementById('priority');
-                    if (daysInArrears >= 90) {
-                        prioritySelect.value = 'Critical';
-                    } else if (daysInArrears >= 60) {
-                        prioritySelect.value = 'High';
-                    } else if (daysInArrears >= 30) {
-                        prioritySelect.value = 'Medium';
-                    } else {
-                        prioritySelect.value = 'Low';
+                    if (prioritySelect) {
+                        if (daysInArrears >= 90) {
+                            prioritySelect.value = 'Critical';
+                        } else if (daysInArrears >= 60) {
+                            prioritySelect.value = 'High';
+                        } else if (daysInArrears >= 30) {
+                            prioritySelect.value = 'Medium';
+                        } else {
+                            prioritySelect.value = 'Low';
+                        }
                     }
                 });
                 
@@ -1483,7 +1491,7 @@ const overdueItemsPerPage = 10;
 
 async function loadOverdueLoans() {
     try {
-        const response = await fetch('/api/overdue_loans');
+        const response = await fetch('/api/overdue-loans');
         const data = await response.json();
         
         if (data.error) {
@@ -1763,8 +1771,7 @@ function updateOverduePaginationButtons() {
 
     // Event handler for update button (only shown to assigned staff)
     $(document).on('click', '.edit-schedule-btn', function() {
-        const scheduleId = $(this).data('schedule-id');
-        
+        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
         // Fetch schedule details
         $.ajax({
             url: `/api/collection-schedules/${scheduleId}`,
@@ -1884,7 +1891,7 @@ function updateOverduePaginationButtons() {
 
     // Event handler for submit button (only shown to assigned staff)
     $(document).on('click', '.submit-schedule-btn', function() {
-        const scheduleId = $(this).data('schedule-id');
+        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
         $('#commentScheduleId').val(scheduleId);
         $('#commentAction').val('submit');
         $('#comment').val(''); // Clear any previous comments
@@ -1893,14 +1900,14 @@ function updateOverduePaginationButtons() {
 
     // Event handler for edit button
     $(document).on('click', '.edit-schedule-btn', function() {
-        const scheduleId = $(this).data('schedule-id');
+        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
         // TODO: Implement edit functionality
         console.log('Edit schedule:', scheduleId);
     });
 
     // Event handler for delete button
     $(document).on('click', '.delete-schedule-btn', function() {
-        const scheduleId = $(this).data('schedule-id');
+        const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
         if (confirm('Are you sure you want to delete this collection schedule?')) {
             $.ajax({
                 url: `/api/collection-schedules/${scheduleId}`,
@@ -2066,3 +2073,24 @@ function updateOverduePaginationButtons() {
     // Refresh overdue loans every 5 minutes
     setInterval(loadOverdueLoans, 5 * 60 * 1000);
 });
+
+// Update overdue loans endpoint to use the correct API path
+async function loadOverdueLoans() {
+    try {
+        const response = await fetch('/api/overdue-loans');
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('Error loading overdue loans:', data.error);
+            showNotification('Error', 'Failed to load overdue loans');
+            return;
+        }
+        
+        overdueLoansData = data.data;
+        updateOverduePagination();
+        displayOverduePage(1);
+    } catch (error) {
+        console.error('Error loading overdue loans:', error);
+        showNotification('Error', 'Failed to load overdue loans');
+    }
+}

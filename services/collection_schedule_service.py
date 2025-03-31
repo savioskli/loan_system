@@ -98,7 +98,7 @@ class CollectionScheduleService:
 
     @staticmethod
     def get_schedules(filters=None):
-        """Get collection schedules with optional filters."""
+        """Get collection schedules with optional filters and pagination."""
         try:
             current_app.logger.info("Starting get_schedules service method")
             current_app.logger.debug(f"Filters: {filters}")
@@ -136,9 +136,20 @@ class CollectionScheduleService:
                 if filters.get('escalation_level'):
                     query = query.filter(CollectionSchedule.escalation_level == filters['escalation_level'])
 
-            current_app.logger.info("Executing query...")
-            results = query.order_by(CollectionSchedule.next_follow_up_date.asc()).all()
-            current_app.logger.info(f"Found {len(results)} schedules")
+            # Get total count before pagination
+            total_count = query.count()
+            
+            # Apply pagination if specified in filters
+            page = int(filters.get('page', 1))
+            per_page = int(filters.get('per_page', 10))
+            offset = (page - 1) * per_page
+            
+            current_app.logger.info("Executing paginated query...")
+            results = query.order_by(CollectionSchedule.next_follow_up_date.asc())\
+                          .offset(offset)\
+                          .limit(per_page)\
+                          .all()
+            current_app.logger.info(f"Found {len(results)} schedules for page {page}")
             
             schedules_list = []
             for result in results:
@@ -196,7 +207,16 @@ class CollectionScheduleService:
                     current_app.logger.error(f"Error processing schedule {schedule.id}: {str(e)}\n{traceback.format_exc()}")
                     continue
             
-            return schedules_list
+            # Return with pagination info
+            return {
+                'items': schedules_list,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'pages': (total_count + per_page - 1) // per_page
+                }
+            }
         except Exception as e:
             current_app.logger.error(f"Error in get_schedules: {str(e)}\n{traceback.format_exc()}")
             raise

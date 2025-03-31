@@ -573,21 +573,22 @@ function initializeClientSelect(selector, isModal) {
         $.ajax({
             url: `/api/collection-schedules?${queryParams}`,
             method: 'GET',
-            success: function(schedules) {
-                console.log('Received schedules:', schedules);
+            success: function(response) {
+                console.log('Received response:', response);
                 const scheduleList = $('#collectionSchedulesList');
                 scheduleList.empty();
                 
-                if (!schedules || schedules.length === 0) {
+                if (!response.items || response.items.length === 0) {
                     scheduleList.append(`
                         <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
                             <p class="text-center text-gray-600 dark:text-gray-400">No collection schedules found.</p>
                         </div>
                     `);
+                    updatePagination(response.pagination);
                     return;
                 }
                 
-                schedules.forEach(schedule => {
+                response.items.forEach(schedule => {
                     try {
                         const borrowerInfo = schedule.borrower_name ? 
                             `${schedule.loan_account} - ${schedule.borrower_name}` : 
@@ -743,16 +744,111 @@ function initializeClientSelect(selector, isModal) {
                         console.error('Error rendering schedule:', error, schedule);
                     }
                 });
+                
+                // Add pagination controls
+                updatePagination(response.pagination);
             },
             error: function(xhr, status, error) {
-                console.error('Error loading schedules:', error);
+                console.error('Error loading collection schedules:', error);
                 const scheduleList = $('#collectionSchedulesList');
                 scheduleList.empty().append(`
                     <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
-                        <p class="text-center text-red-600">Error loading collection schedules. Please try again.</p>
+                        <p class="text-center text-red-600 dark:text-red-400">Error loading collection schedules.</p>
                     </div>
                 `);
+                // Clear pagination on error
+                updatePagination(null);
             }
+        });
+    }
+
+    // Function to update pagination controls
+    function updatePagination(pagination) {
+        const paginationContainer = $('#paginationContainer');
+        if (!pagination || pagination.total === 0) {
+            paginationContainer.empty();
+            return;
+        }
+
+        const { page, pages, total } = pagination;
+        
+        // Create pagination HTML
+        let paginationHtml = `
+            <div class="flex-1 flex justify-between sm:hidden">
+                <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}" 
+                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Previous
+                </button>
+                <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
+                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Next
+                </button>
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        Showing <span class="font-medium">${Math.min((page - 1) * pagination.per_page + 1, total)}</span> to 
+                        <span class="font-medium">${Math.min(page * pagination.per_page, total)}</span> of 
+                        <span class="font-medium">${total}</span> results
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <!-- Previous button -->
+                        <button ${page > 1 ? '' : 'disabled'} data-page="${page - 1}"
+                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="sr-only">Previous</span>
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </button>`;
+
+        // Add page numbers
+        for (let i = 1; i <= pages; i++) {
+            if (
+                i === 1 || // First page
+                i === pages || // Last page
+                (i >= page - 1 && i <= page + 1) // Pages around current page
+            ) {
+                paginationHtml += `
+                    <button data-page="${i}" 
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium 
+                        ${page === i ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}"
+                        ${page === i ? 'aria-current="page"' : ''}>
+                        ${i}
+                    </button>`;
+            } else if (
+                i === 2 || // Ellipsis after first page
+                i === pages - 1 // Ellipsis before last page
+            ) {
+                paginationHtml += `
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        ...
+                    </span>`;
+            }
+        }
+
+        paginationHtml += `
+                        <!-- Next button -->
+                        <button ${page < pages ? '' : 'disabled'} data-page="${page + 1}"
+                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="sr-only">Next</span>
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </nav>
+                </div>
+            </div>`;
+
+        paginationContainer.html(paginationHtml);
+
+        // Add click handlers for pagination buttons
+        paginationContainer.find('button[data-page]').on('click', function() {
+            const newPage = $(this).data('page');
+            const currentFilters = new URLSearchParams(window.location.search);
+            currentFilters.set('page', newPage);
+            loadCollectionSchedules(Object.fromEntries(currentFilters));
         });
     }
 

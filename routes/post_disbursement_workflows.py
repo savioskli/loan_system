@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from models.post_disbursement_workflows import WorkflowDefinition, WorkflowStep, WorkflowTransition
 from models.role import Role
+from models.post_disbursement_modules import PostDisbursementModule
 from extensions import db
 from datetime import datetime
 import json
@@ -22,14 +23,20 @@ def create_workflow():
     if request.method == 'POST':
         name = request.form.get('name')
         description = request.form.get('description')
+        module_id = request.form.get('module_id')
         
         if not name:
             flash('Workflow name is required', 'error')
             return redirect(url_for('post_disbursement_workflows.create_workflow'))
         
+        if not module_id:
+            flash('Module selection is required', 'error')
+            return redirect(url_for('post_disbursement_workflows.create_workflow'))
+        
         workflow = WorkflowDefinition(
             name=name,
             description=description,
+            module_id=module_id,
             created_by=current_user.id,
             updated_by=current_user.id
         )
@@ -40,7 +47,9 @@ def create_workflow():
         flash('Workflow created successfully', 'success')
         return redirect(url_for('post_disbursement_workflows.edit_workflow', workflow_id=workflow.id))
     
-    return render_template('admin/post_disbursement_workflows/create_workflow.html')
+    # Get all modules for the dropdown
+    modules = PostDisbursementModule.query.all()
+    return render_template('admin/post_disbursement_workflows/create_workflow.html', modules=modules)
 
 @post_disbursement_workflows_bp.route('/admin/workflows/<int:workflow_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -49,27 +58,26 @@ def edit_workflow(workflow_id):
     workflow = WorkflowDefinition.query.get_or_404(workflow_id)
     roles = Role.query.filter_by(is_active=True).all()
     steps = WorkflowStep.query.filter_by(workflow_id=workflow_id).order_by(WorkflowStep.step_order).all()
-    
+    modules = PostDisbursementModule.query.all()
+
     if request.method == 'POST':
-        name = request.form.get('name')
-        description = request.form.get('description')
-        is_active = request.form.get('is_active') == 'on'
-        
-        if not name:
-            flash('Workflow name is required', 'error')
-            return redirect(url_for('post_disbursement_workflows.edit_workflow', workflow_id=workflow_id))
-        
-        workflow.name = name
-        workflow.description = description
-        workflow.is_active = is_active
+        workflow.name = request.form.get('name')
+        workflow.description = request.form.get('description')
+        workflow.module_id = request.form.get('module_id')
+        workflow.is_active = request.form.get('is_active') == 'on'
         workflow.updated_by = current_user.id
-        workflow.updated_at = datetime.now()
         
         db.session.commit()
         flash('Workflow updated successfully', 'success')
-    
-    return render_template('admin/post_disbursement_workflows/edit_workflow.html', 
-                          workflow=workflow, roles=roles, steps=steps)
+        return redirect(url_for('post_disbursement_workflows.edit_workflow', workflow_id=workflow_id))
+
+    return render_template(
+        'admin/post_disbursement_workflows/edit_workflow.html',
+        workflow=workflow,
+        roles=roles,
+        steps=steps,
+        modules=modules
+    )
 
 @post_disbursement_workflows_bp.route('/admin/workflows/<int:workflow_id>/steps/create', methods=['POST'])
 @login_required

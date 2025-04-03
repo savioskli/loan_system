@@ -51,8 +51,9 @@ class CollectionScheduleService:
             
             new_schedule = CollectionSchedule(
                 # Staff Assignment
-                staff_id=data.get('assigned_id'),  # Changed from staff_id to assigned_id
+                assigned_id=data.get('assigned_id'),
                 loan_id=data.get('loan_id'),
+                client_id=data.get('client_id'),
                 supervisor_id=data.get('supervisor_id'),
                 manager_id=data.get('manager_id'),
                 assigned_branch=data.get('branch_id'),  # Changed from assigned_branch to branch_id

@@ -26,7 +26,15 @@
                         <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Workflow Name</label>
                         <input type="text" name="name" id="name" value="{{ workflow.name }}" required class="mt-1 px-3 py-2 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">
                     </div>
-
+                    <div>
+                        <label for="module_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Module</label>
+                        <select name="module_id" id="module_id" required class="mt-1 px-3 py-2 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">
+                            <option value="">Select a module...</option>
+                            {% for module in modules %}
+                            <option value="{{ module.id }}" {% if module.id == workflow.module_id %}selected{% endif %}>{{ module.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div>
                         <label for="is_active" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                         <div class="mt-2">

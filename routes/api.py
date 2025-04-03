@@ -1607,7 +1607,166 @@ def get_progress_updates(schedule_id):
         current_app.logger.error(f"Error getting progress updates: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/collection-schedules/total', methods=['GET'])
+@login_required
+def get_total_schedules():
+    """Get detailed statistics and list of all collection schedules."""
+    try:
+        # Get all schedules with their details
+        schedules = CollectionSchedule.query.all()
+        
+        # Calculate statistics
+        total_schedules = len(schedules)
+        # Output total schedules to the console
+        print(f"Total schedules: {total_schedules}")
+        
+        completed_schedules = CollectionSchedule.query.filter_by(progress_status='completed').count()
+        pending_schedules = CollectionSchedule.query.filter_by(progress_status='Not Started').count()
+        
+        # Prepare schedule data with missed payments calculation
+        schedule_data = []
+        for schedule in schedules:
+            # Calculate missed payments based on days in arrears
+            days_in_arrears = schedule.DaysInArrears if hasattr(schedule, 'DaysInArrears') else 0
+            missed_payments = days_in_arrears // 30  # Assuming monthly installments
+            
+            schedule_data.append({
+                'id': schedule.id,
+                'loan_id': schedule.loan_id,
+                'status': schedule.progress_status,
+                'due_date': schedule.follow_up_deadline.isoformat() if schedule.follow_up_deadline else None,
+                'amount': schedule.InstallmentAmount if hasattr(schedule, 'InstallmentAmount') else schedule.outstanding_balance,
+                'days_in_arrears': days_in_arrears,
+                'missed_payments': missed_payments,
+                'created_at': schedule.created_at.isoformat() if schedule.created_at else None,
+                'updated_at': schedule.updated_at.isoformat() if schedule.updated_at else None
+            })
+        
+        # Log the response data for debugging
+        current_app.logger.info(f"Total schedules: {total_schedules}")
+        current_app.logger.info(f"Completed schedules: {completed_schedules}")
+        current_app.logger.info(f"Pending schedules: {pending_schedules}")
+        current_app.logger.info(f"Completion rate: {(completed_schedules / total_schedules * 100) if total_schedules > 0 else 0}")
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'total_schedules': total_schedules,
+                'completed_schedules': completed_schedules,
+                'pending_schedules': pending_schedules,
+                'completion_rate': (completed_schedules / total_schedules * 100) if total_schedules > 0 else 0
+            }
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting total schedules: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to get schedule statistics'
+        }), 500
+
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/supervisor-update', methods=['POST'])
+@login_required
+@csrf.exempt
+def submit_supervisor_update(schedule_id):
+    try:
+        # Get the collection schedule
+        schedule = CollectionSchedule.query.get_or_404(schedule_id)
+        
+        # Validate that the user is allowed to submit updates
+        if not current_user.is_supervisor:
+            return jsonify({'error': 'You are not authorized to submit updates for this schedule'}), 403
+
+        # Get form data
+        action = request.form.get('action')
+        comment = request.form.get('comment')
+        attachment = request.files.get('attachment')
+
+        # Validate required fields
+        if not action or not comment:
+            return jsonify({'error': 'Action and comment are required'}), 400
+
+        # Validate action
+        valid_actions = ['submit', 'defer', 'approve']
+        if action not in valid_actions:
+            return jsonify({'error': 'Invalid action'}), 400
+
+        # Create progress update
+        progress_update = ProgressUpdate(
+            collection_schedule_id=schedule_id,
+            status=action,  # Store action as status for tracking
+            notes=comment
+        )
+
+        # Handle attachment if provided
+        if attachment:
+            if attachment.content_type not in ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                             'image/jpeg', 'image/png']:
+                return jsonify({'error': 'Invalid file type. Allowed types: PDF, DOC, DOCX, JPG, PNG'}), 400
+            
+            if attachment.content_length > 10 * 1024 * 1024:  # 10MB limit
+                return jsonify({'error': 'File size exceeds 10MB limit'}), 400
+
+            # Save attachment
+            filename = f"supervisor_update_{schedule_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(attachment.filename)}"
+            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'supervisor_updates')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            attachment_path = os.path.join(upload_dir, filename)
+            attachment.save(attachment_path)
+            
+            progress_update.attachment_url = f"/static/uploads/supervisor_updates/{filename}"
+
+        # Update workflow step based on action
+        if action == 'submit':
+            # Move to next step in workflow
+            current_step = WorkflowStep.query.filter_by(
+                workflow_id=schedule.workflow_id,
+                step_order=schedule.current_step
+            ).first()
+            
+            if current_step:
+                next_step = WorkflowStep.query.filter_by(
+                    workflow_id=schedule.workflow_id,
+                    step_order=schedule.current_step + 1
+                ).first()
+                
+                if next_step:
+                    schedule.current_step = next_step.step_order
+                else:
+                    # If no next step, mark as completed
+                    schedule.status = 'completed'
+        elif action == 'defer':
+            # Return to previous step
+            current_step = WorkflowStep.query.filter_by(
+                workflow_id=schedule.workflow_id,
+                step_order=schedule.current_step
+            ).first()
+            
+            if current_step and schedule.current_step > 1:
+                prev_step = WorkflowStep.query.filter_by(
+                    workflow_id=schedule.workflow_id,
+                    step_order=schedule.current_step - 1
+                ).first()
+                
+                if prev_step:
+                    schedule.current_step = prev_step.step_order
+        elif action == 'approve':
+            # Complete the workflow
+            schedule.status = 'completed'
+
+        # Save changes
+        db.session.add(progress_update)
+        db.session.commit()
+
+        return jsonify({'message': 'Action submitted successfully'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error submitting supervisor update: {str(e)}")
+        return jsonify({'error': 'Failed to submit action'}), 500

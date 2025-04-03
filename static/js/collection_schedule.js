@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    updateSummaryCardsPeriodically();
+    
+    
     // Helper functions
     function formatCurrency(amount) {
         if (amount === undefined || amount === null) return 'N/A';
@@ -635,124 +638,122 @@ function initializeClientSelect(selector, isModal) {
 
                         // Fetch borrower name and update the card
                         fetchBorrowerName(schedule.loan_id).then(borrowerName => {
-                            const scheduleHtml = `
-                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 rounded-lg shadow-lg overflow-hidden mb-4 border border-blue-100 dark:border-gray-600 hover:shadow-xl transition-shadow duration-200">
-                                <!-- Card Header -->
-                                <div class="px-4 py-3 bg-gradient-to-r from-blue-100 to-blue-50 dark:from-gray-700 dark:to-gray-800 border-b border-blue-200 dark:border-gray-600">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <div class="flex items-center space-x-2">
-                                                <h3 class="text-md font-semibold text-blue-900 dark:text-blue-100">
+                            const scheduleHtml = `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 mb-4">
+                                    <!-- Card Header -->
+                                    <div class="px-6 py-4 bg-gradient-to-r from-blue-200 to-blue-100 dark:from-gray-600 dark:to-gray-500 border-b border-gray-300 dark:border-gray-600">
+                                        <div class="flex justify-between items-center">
+                                            <div class="flex items-center space-x-3">
+                                                <h3 class="text-xl font-semibold text-blue-900 dark:text-white">
                                                     ${borrowerName}
                                                 </h3>
                                                 ${schedule.collection_priority ? `
-                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getPriorityClass(schedule.collection_priority)}">
+                                                <span class="px-2 py-0.5 text-xs font-bold rounded-full ${getPriorityClass(schedule.collection_priority)}">
                                                     ${schedule.collection_priority}
                                                 </span>
                                                 ` : ''}
                                                 ${schedule.progress_status ? `
-                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full ${getStatusClass(schedule.progress_status)}">
+                                                <span class="px-2 py-0.5 text-xs font-bold rounded-full ${getStatusClass(schedule.progress_status)}">
                                                     ${schedule.progress_status}
                                                 </span>
                                                 ` : ''}
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 ${currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name ? `
-                                                    <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}">
+                                                    <button class="edit-schedule-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : ''}
-                                                <button class="view-progress-btn bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" title="View Progress">
+                                                <button class="view-progress-btn bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" title="View Progress">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
-                                                <button class="update-progress-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Update Progress">
+                                                <button class="update-progress-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Update Progress">
                                                     <i class="fas fa-tasks"></i>
                                                 </button>
-                                                <button class="submit-schedule-btn bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Submit Schedule">
+                                                <button class="submit-schedule-btn bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Submit Schedule">
                                                     <i class="fas fa-paper-plane"></i>
                                                 </button>
-                                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Delete Schedule">
+                                                <button class="delete-schedule-btn bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Delete Schedule">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
                                         </div>
-                                        <div class="flex justify-between text-sm">
-                                            <div class="text-sm text-gray-600 dark:text-gray-400">
-                                                Attempts: ${schedule.attempts_made}/${schedule.attempts_allowed}
+                                        <div class="mt-3 flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                                            <div>
+                                                Attempts: <span class="font-medium">${schedule.attempts_made}/${schedule.attempts_allowed}</span><br>
+                                                Loan Account: <span class="font-medium">${schedule.loan_account || 'N/A'}</span>
                                             </div>
-                                            <div class="text-gray-600 dark:text-gray-400">
-                                                Loan Account: ${schedule.loan_account || 'N/A'}
-                                            </div>
-                                            <div class="text-gray-600 dark:text-gray-400">
-                                                Branch: ${schedule.branch_name || 'N/A'}
+                                            <div>
+                                                Branch: <span class="font-medium">${schedule.branch_name || 'N/A'}</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="px-4 py-2">
-                                        <div class="grid grid-cols-2 gap-4 text-sm">
-                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
-                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Collection Details</div>
-                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Outstanding:</span> ${outstandingAmount}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Missed Payments:</span> ${missedPayments}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Method:</span> ${method}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Promised Payment:</span> ${formatDateTime(schedule.promised_payment_date) || 'Not Set'}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Location:</span> ${collectionLocation}</div>
-                                                </div>
+                                    <!-- Card Body -->
+                                    <div class="px-6 py-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Collection Details</h4>
+                                                <ul class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Outstanding:</span> ${outstandingAmount}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Missed Payments:</span> ${missedPayments}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Method:</span> ${method}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Promised Payment:</span> ${formatDateTime(schedule.promised_payment_date) || 'Not Set'}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Location:</span> ${collectionLocation}</li>
+                                                </ul>
                                             </div>
-                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
-                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Staff Assignment</div>
-                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Officer:</span> ${staffName}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Supervisor:</span> ${schedule.supervisor_name || 'Not Assigned'}</div>
-                                                </div>
+                                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Staff Assignment</h4>
+                                                <ul class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Officer:</span> ${staffName}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Supervisor:</span> ${schedule.supervisor_name || 'Not Assigned'}</li>
+                                                </ul>
                                             </div>
                                         </div>
-
-                                        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
-                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Follow-up Schedule</div>
-                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDateTime(schedule.next_follow_up_date) || 'Not Set'}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Frequency:</span> ${schedule.follow_up_frequency || 'Not Set'}</div>
-                                                    <div><span class="font-medium text-blue-700 dark:text-blue-300">Best Time:</span> ${schedule.best_contact_time || 'Not Specified'}</div>
-                                                </div>
+                                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Follow-up Schedule</h4>
+                                                <ul class="space-y-1 text-gray-700 dark:text-gray-300">
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDateTime(schedule.next_follow_up_date) || 'Not Set'}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Frequency:</span> ${schedule.follow_up_frequency || 'Not Set'}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Best Time:</span> ${schedule.best_contact_time || 'Not Specified'}</li>
+                                                </ul>
                                             </div>
-                                            <div class="bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600">
-                                                <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Contact Information</div>
-                                                <div class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <div class="break-words"><span class="font-medium text-blue-700 dark:text-blue-300">Alternative:</span> ${schedule.alternative_contact || 'None'}</div>
-                                                </div>
+                                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Contact Information</h4>
+                                                <p class="break-words text-gray-700 dark:text-gray-300">
+                                                    <span class="font-medium text-blue-700 dark:text-blue-300">Alternative:</span> ${schedule.alternative_contact || 'None'}
+                                                </p>
                                             </div>
                                         </div>
                                         ${(schedule.task_description || schedule.special_instructions) ? `
-                                        <div class="mt-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-700 dark:to-gray-800 p-3 rounded border border-blue-100 dark:border-gray-600 text-sm">
-                                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">Task Information</div>
-                                            <div class="space-y-2 text-gray-700 dark:text-gray-300">
+                                        <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 text-sm">
+                                            <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Task Information</h4>
+                                            <div class="space-y-3 text-gray-700 dark:text-gray-300">
                                                 ${schedule.task_description ? `
                                                 <div>
-                                                    <div class="font-medium text-blue-700 dark:text-blue-300 mb-1">Description</div>
-                                                    <div class="text-sm">${schedule.task_description}</div>
+                                                    <p class="font-medium text-blue-700 dark:text-blue-300">Description</p>
+                                                    <p class="text-sm">${schedule.task_description}</p>
                                                 </div>
                                                 ` : ''}
                                                 ${schedule.special_instructions ? `
                                                 <div>
-                                                    <div class="font-medium text-blue-700 dark:text-blue-300 mb-1">Special Instructions</div>
-                                                    <div class="text-sm">${schedule.special_instructions}</div>
+                                                    <p class="font-medium text-blue-700 dark:text-blue-300">Special Instructions</p>
+                                                    <p class="text-sm">${schedule.special_instructions}</p>
                                                 </div>
                                                 ` : ''}
                                             </div>
                                         </div>
                                         ` : ''}
                                     </div>
+                                    <!-- Card Footer -->
                                     ${schedule.escalation_level ? `
-                                    <div class="mt-2 px-4 pb-2">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                    <div class="px-6 pb-4">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                             Escalated Level ${schedule.escalation_level}
                                         </span>
                                     </div>` : ''}
                                 </div>
-                            </div>
-                        `;
+                                `;
+
                             // Create a new div for the schedule
                             scheduleList.append(scheduleHtml);
                         });
@@ -919,14 +920,6 @@ $('#newCollectionScheduleForm').submit(function(event) {
         // Set the schedule ID and loan ID in the payment form
         $('#paymentScheduleId').val(scheduleId);
         $('#paymentLoanId').val(loanId);
-        $('#scheduleId').val(scheduleId);
-        
-        // Ensure the form has the correct schedule ID
-        const formScheduleId = $('#scheduleId').val();
-        if (formScheduleId !== scheduleId) {
-            console.error('Schedule ID mismatch:', formScheduleId, '!=', scheduleId);
-            $('#scheduleId').val(scheduleId);
-        }
         
         // Set default payment date to current date and time
         const now = new Date();
@@ -944,7 +937,6 @@ $('#newCollectionScheduleForm').submit(function(event) {
         // Clear hidden fields
         $('#paymentScheduleId').val('');
         $('#paymentLoanId').val('');
-        $('#scheduleId').val('');
         // Close modal
         $('#paymentHistoryModal').addClass('hidden');
     });
@@ -954,7 +946,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
         e.preventDefault();
         
         const formData = new FormData(this);
-        const scheduleId = $('#scheduleId').val();
+        const scheduleId = $('#paymentScheduleId').val();
         
         if (!scheduleId) {
             console.error('Schedule ID is required');
@@ -1073,7 +1065,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
     // Filter handling
     $('#filterStaff, #filterPriority, #filterStatus, #filterMethod').on('change', function() {
         const filters = {
-            staff_id: $('#filterStaff').val(),
+            assigned_id: $('#filterStaff').val(),
             priority: $('#filterPriority').val(),
             status: $('#filterStatus').val(),
             method: $('#filterMethod').val()
@@ -1395,25 +1387,34 @@ window.viewLoanDetails = function(loanId) {
                     const loanSelect = document.getElementById('loanSelect');
                     
                     // Create and select the client option
-                    const clientOption = new Option(loan.customer_name, loan.loan_id, true, true);
-                    clientOption.loans = [{
-                        LoanNo: loan.loan_no,
-                        LoanAppID: loan.loan_id,
-                        LoanAmount: loan.loan_amount,
-                        OutstandingBalance: loan.outstanding_balance,
-                        DaysInArrears: loan.days_in_arrears || 0
-                    }];
-                    clientSelect.innerHTML = '';
-                    clientSelect.appendChild(clientOption);
-                    clientSelect.disabled = true; // Disable changes since we're creating from loan details
+                    const clientOption = {
+                        id: loan.loan_id,
+                        text: loan.customer_name,
+                        loans: [{
+                            LoanAppID: loan.loan_id,
+                            AccountNo: loan.loan_no,
+                            OutstandingBalance: loan.outstanding_balance,
+                            DaysInArrears: loan.days_in_arrears || 0
+                        }]
+                    };
                     
-                    // Create and select the loan option
-                    const loanOption = new Option(`Loan #${loan.loan_no}`, loan.loan_id, true, true);
-                    loanOption.dataset.loanDetails = JSON.stringify(clientOption.loans[0]);
-                    loanSelect.innerHTML = '';
-                    loanSelect.appendChild(loanOption);
-                    loanSelect.disabled = true; // Disable changes since we're creating from loan details
-
+                    // Set client select with the option and data
+                    const $clientSelect = $('#collectionClientSelect');
+                    $clientSelect.empty()
+                        .append(new Option(clientOption.text, clientOption.id, true, true))
+                        .trigger('change');
+                    
+                    // Manually set the client data for loan select to use
+                    $clientSelect.data('data', clientOption);
+                    
+                    // After client is set, populate loan select
+                    if (loan.loan_id && loan.loan_no) {
+                        const $loanSelect = $('#loanSelect');
+                        $loanSelect.empty()
+                            .append(new Option(`Loan #${loan.loan_no}`, loan.loan_id, true, true))
+                            .trigger('change');
+                    }
+                    
                     // Update the outstanding balance and other fields
                     document.getElementById('outstandingBalance').value = formatCurrency(loan.outstanding_balance);
                     
@@ -1574,7 +1575,7 @@ function displayOverduePage(page) {
             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 text-right whitespace-nowrap">
                 <span class="${loan.arrears_days > 30 ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${loan.arrears_days || 0}</span>
             </td>
-            <td class="px-4 py-3 text-center whitespace-nowrap">
+            <td class="px-4 py-3 whitespace-nowrap text-sm">
                 <button class="px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" onclick="viewLoanDetails('${loan.loan_id}')">
                     <span class="flex items-center">
                         <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1725,13 +1726,80 @@ function updateOverduePaginationButtons() {
         }
     }
     
-    // Update summary cards
-    function updateSummaryCards(data) {
-        $('#total-schedules').text(data?.total || 0);
-        $('#pending-followups').text(data?.pending || 0);
-        $('#overdue-count').text(data?.overdue || 0);
-        $('#completed-schedules').text(data?.completed || 0);
+// Update summary cards with improved error handling
+function updateSummaryCards() {
+    console.log('Updating summary cards...');
+    fetch('/api/collection-schedules/total')
+        .then(response => {
+            if (!response.ok) {
+                console.error(`HTTP error: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('API response:', data);
+            // Ensure that the API returned success and the expected data exists
+            if (data.status === 'success' && data.data) {
+                const stats = data.data;
+                console.log('Statistics:', stats);
+                
+                // Update total schedules element
+                const totalSchedulesEl = document.getElementById('total-schedules');
+                if (totalSchedulesEl) {
+                    totalSchedulesEl.textContent = stats.total_schedules;
+                } else {
+                    console.error('Element with id "total-schedules" not found.');
+                }
+                
+                // Update pending followups element
+                const pendingFollowupsEl = document.getElementById('pending-followups');
+                if (pendingFollowupsEl) {
+                    pendingFollowupsEl.textContent = stats.pending_schedules;
+                } else {
+                    console.error('Element with id "pending-followups" not found.');
+                }
+                
+                // Update completion rate element
+                const completionRateEl = document.getElementById('completion-rate');
+                if (completionRateEl) {
+                    if (typeof stats.completion_rate === 'number') {
+                        completionRateEl.textContent = stats.completion_rate.toFixed(1) + '%';
+                    } else {
+                        console.error('Completion rate is not a number:', stats.completion_rate);
+                        completionRateEl.textContent = '--';
+                    }
+                } else {
+                    console.error('Element with id "completion-rate" not found.');
+                }
+            } else {
+                console.error('API returned error or unexpected data format:', data);
+                // Set default values in case of error
+                document.getElementById('total-schedules').textContent = '--';
+                document.getElementById('pending-followups').textContent = '--';
+                document.getElementById('completion-rate').textContent = '--';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching schedule statistics:', error);
+            // Show error message or default values for each card
+            const totalSchedulesEl = document.getElementById('total-schedules');
+            const pendingFollowupsEl = document.getElementById('pending-followups');
+            const completionRateEl = document.getElementById('completion-rate');
+            if (totalSchedulesEl) totalSchedulesEl.textContent = '--';
+            if (pendingFollowupsEl) pendingFollowupsEl.textContent = '--';
+            if (completionRateEl) completionRateEl.textContent = '--';
+        });
+}
+
+    // Add a function to update summary cards periodically
+    function updateSummaryCardsPeriodically() {
+        console.log('Starting periodic updates...');
+        updateSummaryCards();
+        // Update every 5 minutes
+        setInterval(updateSummaryCards, 300000);
     }
+
 
     // Event handler for new collection schedule button
     $('#newCollectionScheduleBtn').on('click', function() {
@@ -1756,6 +1824,7 @@ function updateOverduePaginationButtons() {
     // Event handler for update button (only shown to assigned staff)
     $(document).on('click', '.edit-schedule-btn', function() {
         const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
+        
         // Fetch schedule details
         $.ajax({
             url: `/api/collection-schedules/${scheduleId}`,
@@ -1892,7 +1961,7 @@ function updateOverduePaginationButtons() {
     // Event handler for delete button
     $(document).on('click', '.delete-schedule-btn', function() {
         const scheduleId = $(this).data('id');
-        if (confirm('Are you sure you want to delete this collection schedule?')) {
+        if (confirm('Are you sure you want to delete this schedule?')) {
             $.ajax({
                 url: `/api/collection-schedules/${scheduleId}`,
                 method: 'DELETE',
@@ -2064,17 +2133,54 @@ async function loadOverdueLoans() {
         const data = await response.json();
         
         if (data.error) {
-            console.error('Error loading overdue loans:', data.error);
-            showNotification('Error', 'Failed to load overdue loans');
-            return;
+            throw new Error(data.error);
+        }
+
+        const tbody = document.getElementById('overdue-loans-body');
+        if (!tbody) {
+            throw new Error('Could not find the overdue loans table body element');
         }
         
+        if (!Array.isArray(data.data)) {
+            throw new Error('Data is not an array');
+        }
+        
+        // Store the data globally for pagination
         overdueLoansData = data.data;
-        updateOverduePagination();
+        
+        // Update the overdue count in the summary cards
+        $('#overdue-count').text(overdueLoansData.length);
+        
+        // Initialize pagination
+        initializeOverduePagination();
+        
+        // Display the first page
         displayOverduePage(1);
+        
+        // Update last updated timestamp
+        const lastUpdatedEl = document.getElementById('overdue-loans-last-updated');
+        if (lastUpdatedEl) {
+            lastUpdatedEl.textContent = new Date().toLocaleString();
+        }
     } catch (error) {
         console.error('Error loading overdue loans:', error);
-        showNotification('Error', 'Failed to load overdue loans');
+        const tbody = document.getElementById('overdue-loans-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-4 py-4 text-center">
+                        <div class="flex flex-col items-center justify-center text-sm">
+                            <svg class="w-8 h-8 text-red-500 dark:text-red-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-red-500 dark:text-red-400">Error loading overdue loans</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">${error.message}</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            
+            // Hide pagination when there's an error
+            document.getElementById('overdue-pagination').classList.add('hidden');
+        }
     }
 }
 
@@ -2219,3 +2325,85 @@ function loadProgressUpdates(scheduleId) {
         }
     });
 }
+
+
+$(document).on('click', '.submit-schedule-btn', function() {
+    const scheduleId = $(this).attr('data-schedule-id');
+    
+    console.log("Button Clicked, Schedule ID:", scheduleId);
+    
+    // Set the schedule ID in the form
+    $('#supervisorUpdateScheduleId').val(scheduleId);
+    
+    // Reset the form
+    $('#supervisorUpdateForm')[0].reset();
+    
+    // Hide other modals if any
+    $('.modal').addClass('hidden');
+
+    // Show the modal
+    const modal = document.getElementById('submitSupervisorUpdateModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'block'; // Ensure visibility
+    } else {
+        console.error("Modal not found!");
+    }
+});
+
+
+// Handle supervisor update form submission
+$(document).on('submit', '#supervisorUpdateForm', function(e) {
+    e.preventDefault();
+    
+    const form = $(this);
+    const scheduleId = form.find('#supervisorUpdateScheduleId').val();
+    const action = form.find('#workflowAction').val();
+    const comment = form.find('#supervisorComment').val();
+    const attachment = form.find('#supervisorAttachment')[0].files[0];
+
+    // Validate required fields
+    if (!action || !comment) {
+        showError('Please select an action and provide a comment.');
+        return;
+    }
+
+    // Create FormData object
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('comment', comment);
+    
+    if (attachment) {
+        formData.append('attachment', attachment);
+    }
+
+    // Show loading state
+    showLoading();
+
+    // Submit the form
+    $.ajax({
+        url: `/api/collection-schedules/${scheduleId}/supervisor-update`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            hideLoading();
+            if (response.message) {
+                showSuccess(response.message);
+                // Close the modal after successful submission
+                $('#submitSupervisorUpdateModal').modal('hide');
+                // Refresh the collection schedule details
+                loadCollectionScheduleDetails(scheduleId);
+            }
+        },
+        error: function(xhr) {
+            hideLoading();
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                showError(xhr.responseJSON.error);
+            } else {
+                showError('An error occurred while submitting the update.');
+            }
+        }
+    });
+});

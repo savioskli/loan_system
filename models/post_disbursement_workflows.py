@@ -8,6 +8,7 @@ class WorkflowDefinition(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(80), nullable=False)
     description = db.Column(db.String(200))
+    module_id = db.Column(db.Integer, db.ForeignKey('post_disbursement_modules.id'))
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
@@ -15,6 +16,7 @@ class WorkflowDefinition(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     
     # Relationships
+    module = db.relationship('PostDisbursementModule', backref='workflows')
     steps = db.relationship('WorkflowStep', backref='workflow', cascade='all, delete-orphan')
     creator = db.relationship('Staff', foreign_keys=[created_by], backref='created_workflows')
     updater = db.relationship('Staff', foreign_keys=[updated_by], backref='updated_workflows')

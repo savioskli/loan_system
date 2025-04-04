@@ -11,6 +11,12 @@
     {% include 'user/post_disbursement_sidebar.html' %}
 
     <div class="p-4 sm:ml-64">
+        <!-- Loading Overlay -->
+        <div class="loading-overlay fixed inset-0 bg-gray-500 bg-opacity-75 z-50 hidden"></div>
+        <div class="loading-spinner fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+
         <div class="p-6 bg-white rounded-lg shadow-sm dark:bg-gray-800">
             <!-- Header Section -->
             <div class="flex flex-col md:flex-row justify-between items-center mb-6">
@@ -823,7 +829,7 @@
                                     <h3 class="text-lg font-semibold text-gray-900">Submit Supervisor Update</h3>
                                     <p class="text-xs text-gray-600">Submit an update for supervisor review</p>
                                 </div>
-                                <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeSupervisorUpdateModal()">
                                     <span class="sr-only">Close</span>
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

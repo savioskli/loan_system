@@ -42,3 +42,6 @@ class Config:
     THEME_MODE = "light"  # or "dark"
     THEME_PRIMARY_COLOR = "#4f46e5"    # Indigo-600
     THEME_SECONDARY_COLOR = "#7c3aed"  # Violet-600
+    
+    # Encryption
+    ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY') or 'u8BtMHHQNtisWw1uqKPHu6jCRzk_20csT0zhvXCBJrg='  # Default key if not set in env

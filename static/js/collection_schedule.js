@@ -16,6 +16,24 @@ document.addEventListener('DOMContentLoaded', function() {
             maximumFractionDigits: 2
         });
     }
+       // Utility functions
+       function showLoading() {
+        $('.loading-overlay').show();
+        $('.loading-spinner').show();
+    }
+    
+    function hideLoading() {
+        $('.loading-overlay').hide();
+        $('.loading-spinner').hide();
+    }
+    
+    function showSuccess(message) {
+        showNotification('Success', message);
+    }
+    
+    function showError(message) {
+        showNotification('Error', message);
+    }
 
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
@@ -26,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
             day: '2-digit'
         });
     }
-    
+
     // Initialize tabs and filters
     initializeTabs();
     initializeFilterToggle();
@@ -2377,8 +2395,6 @@ $(document).on('submit', '#supervisorUpdateForm', function(e) {
         formData.append('attachment', attachment);
     }
 
-    // Show loading state
-    showLoading();
 
     // Submit the form
     $.ajax({
@@ -2407,3 +2423,13 @@ $(document).on('submit', '#supervisorUpdateForm', function(e) {
         }
     });
 });
+
+function closeSupervisorUpdateModal() {
+    const modal = document.getElementById('submitSupervisorUpdateModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none'; // Optional: reset display
+    } else {
+        console.warn("Modal not found!");
+    }
+}

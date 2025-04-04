@@ -13,6 +13,7 @@ class CollectionSchedule(db.Model):
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     supervisor_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
     manager_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=True)
+    workflow_id = db.Column(db.Integer, db.ForeignKey('workflows.id'), nullable=True)
     
     # Collection Staff Assignment
     assigned_branch = db.Column(db.String(100), nullable=False)
@@ -48,26 +49,31 @@ class CollectionSchedule(db.Model):
     approval_date = db.Column(db.DateTime, nullable=True)
     special_instructions = db.Column(db.Text, nullable=True)
     
+    # Workflow
+    workflow_id = db.Column(db.Integer, db.ForeignKey('workflows.id'), nullable=True)
+    progress_status = db.Column(db.String(20), nullable=False, default='Not Started')
+    
+    # Relationships
+    loan = db.relationship('Loan', backref=db.backref('collection_schedules', lazy=True))
+    assigned_staff = db.relationship('Staff', foreign_keys=[assigned_id], backref=db.backref('assigned_schedules', lazy=True))
+    supervisor = db.relationship('Staff', foreign_keys=[supervisor_id], backref=db.backref('supervised_schedules', lazy=True))
+    manager = db.relationship('Staff', foreign_keys=[manager_id], backref=db.backref('managed_schedules', lazy=True))
+    reviewer = db.relationship('Staff', foreign_keys=[reviewed_by], backref=db.backref('reviewed_schedules', lazy=True))
+    workflow = db.relationship('Workflow', backref='workflow_schedules', lazy=True)
+    
     # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    staff = db.relationship('Staff', foreign_keys=[assigned_id], backref=db.backref('assigned_schedules', lazy=True))
-    loan = db.relationship('Loan', backref=db.backref('collection_schedules', lazy=True))
-    supervisor = db.relationship('Staff', foreign_keys=[supervisor_id], backref=db.backref('supervised_schedules', lazy=True))
-    manager = db.relationship('Staff', foreign_keys=[manager_id], backref=db.backref('managed_schedules', lazy=True))
-    reviewer = db.relationship('Staff', foreign_keys=[reviewed_by], backref=db.backref('reviewed_schedules', lazy=True))
-
     def __repr__(self):
-        return f'<CollectionSchedule {self.id}: {self.progress_status}>'
+        return f'<CollectionSchedule {self.id}>'
 
     def to_dict(self):
         """Convert the collection schedule to a dictionary for JSON serialization."""
         return {
             'id': self.id,
             'assigned_id': self.assigned_id,
-            'staff_name': f"{self.staff.first_name} {self.staff.last_name}" if self.staff else None,
+            'staff_name': f"{self.assigned_staff.first_name} {self.assigned_staff.last_name}" if self.assigned_staff else None,
             'loan_id': self.loan_id,
             'loan_account': self.loan.account_no if self.loan else None,
             'borrower_name': self.loan.client.full_name if self.loan and self.loan.client else None,
@@ -94,3 +100,15 @@ class CollectionSchedule(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+class CollectionScheduleProgress(db.Model):
+    __tablename__ = 'collection_schedule_progress'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    collection_schedule_id = db.Column(db.Integer, db.ForeignKey('collection_schedules.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    notes = db.Column(db.Text, nullable=False)
+    attachment_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    collection_schedule = db.relationship('CollectionSchedule', backref=db.backref('supervisor_updates', lazy=True))

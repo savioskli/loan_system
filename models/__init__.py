@@ -13,6 +13,8 @@ from .client import Client
 from .product import Product
 from .calendar_event import CalendarEvent
 from .guarantor import Guarantor
+from .collection_schedule import CollectionSchedule, CollectionScheduleProgress
+from .workflow import Workflow, CollectionWorkflowStep
 
 __all__ = [
     'db',
@@ -26,5 +28,9 @@ __all__ = [
     'Client', 
     'Product',
     'CalendarEvent',
-    'Guarantor'
+    'Guarantor',
+    'CollectionSchedule',
+    'CollectionScheduleProgress',
+    'Workflow',
+    'CollectionWorkflowStep'
 ]

@@ -49,14 +49,12 @@ class WorkflowStep(db.Model):
 
 class WorkflowTransition(db.Model):
     __tablename__ = 'workflow_transitions'
-
+    
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_definitions.id'), nullable=False)
     from_step_id = db.Column(db.Integer, db.ForeignKey('workflow_steps.id'), nullable=False)
     to_step_id = db.Column(db.Integer, db.ForeignKey('workflow_steps.id'), nullable=False)
-    transition_name = db.Column(db.String(80), nullable=False)  # e.g., 'Approve', 'Reject', 'Request More Info'
-    # Temporarily comment out conditions column to avoid errors with existing database
-    # conditions = db.Column(JSON, default={})  # JSON field to store conditions for this transition
+    transition_name = db.Column(db.String(80), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     
     # Relationships
@@ -64,17 +62,17 @@ class WorkflowTransition(db.Model):
     to_step = db.relationship('WorkflowStep', foreign_keys=[to_step_id], backref='incoming_transitions')
 
     def __repr__(self):
-        return f'<WorkflowTransition from {self.from_step_id} to {self.to_step_id}>'
+        return f'<WorkflowTransition {self.transition_name} from {self.from_step_id} to {self.to_step_id}>'
 
 class WorkflowInstance(db.Model):
     __tablename__ = 'workflow_instances'
-
+    
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_definitions.id'), nullable=False)
     current_step_id = db.Column(db.Integer, db.ForeignKey('workflow_steps.id'), nullable=False)
-    entity_type = db.Column(db.String(50), nullable=False)  # e.g., 'loan', 'client', etc.
-    entity_id = db.Column(db.Integer, nullable=False)  # ID of the entity this workflow instance is for
-    status = db.Column(db.String(20), default='active')  # active, completed, cancelled
+    entity_type = db.Column(db.String(50), nullable=False)
+    entity_id = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), default='active')
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
@@ -86,16 +84,16 @@ class WorkflowInstance(db.Model):
     history = db.relationship('WorkflowHistory', backref='instance', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f'<WorkflowInstance {self.id} for {self.entity_type} {self.entity_id}>'
+        return f'<WorkflowInstance {self.id} for Workflow {self.workflow_id}>'
 
 class WorkflowHistory(db.Model):
     __tablename__ = 'workflow_history'
-
+    
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     instance_id = db.Column(db.Integer, db.ForeignKey('workflow_instances.id'), nullable=False)
     step_id = db.Column(db.Integer, db.ForeignKey('workflow_steps.id'), nullable=False)
     transition_id = db.Column(db.Integer, db.ForeignKey('workflow_transitions.id'))
-    action = db.Column(db.String(50), nullable=False)  # e.g., 'started', 'transitioned', 'completed'
+    action = db.Column(db.String(50), nullable=False)
     comments = db.Column(db.Text)
     performed_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
     performed_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -106,4 +104,4 @@ class WorkflowHistory(db.Model):
     performer = db.relationship('Staff', backref='workflow_actions')
 
     def __repr__(self):
-        return f'<WorkflowHistory {self.action} on Instance {self.instance_id}>'
+        return f'<WorkflowHistory {self.id} for Instance {self.instance_id}>'

@@ -1671,54 +1671,57 @@ def get_total_schedules():
             'message': 'Failed to get schedule statistics'
         }), 500
 
-@api_bp.route('/collection-schedules/<int:schedule_id>/submission-status', methods=['GET'])
+@api_bp.route('/collection-schedules/submission-status', methods=['GET'])
 @login_required
-def get_submission_status(schedule_id):
+def get_all_submission_status():
     try:
-        # First get the schedule with workflow data
-        schedule = CollectionSchedule.query.get_or_404(schedule_id)
+        # Get all active collection schedules
+        schedules = CollectionSchedule.query.all()
         
-        submitted = False
-        current_step = None
-        
-        # Check workflow history using instance_id
-        if hasattr(schedule, 'workflow_id') and schedule.workflow_id:
-            # Check if there's any submission
-            submission_exists = db.session.query(
-                WorkflowHistory.query.filter(
-                    WorkflowHistory.instance_id == schedule.workflow_id,
-                    WorkflowHistory.action == 'submit'
-                ).exists()
-            ).scalar()
+        # Process each schedule
+        schedules_status = []
+        for schedule in schedules:
+            current_app.logger.debug(f"Checking submission status for schedule_id: {schedule.id}")
             
-            submitted = bool(submission_exists)
+            # Check workflow history using schedule_id as instance_id
+            workflow_records = WorkflowHistory.query.filter(
+                WorkflowHistory.instance_id == str(schedule.id)
+            ).order_by(WorkflowHistory.performed_at.desc()).all()
+
+            current_app.logger.debug(f"Found {len(workflow_records)} workflow records for schedule {schedule.id}")
             
-            # Get current step from the most recent history entry
-            if submitted:
-                history = db.session.query(WorkflowHistory) \
-                    .filter(WorkflowHistory.instance_id == schedule.workflow_id) \
-                    .order_by(WorkflowHistory.performed_at.desc()) \
-                    .first()
-                
-                if history:
-                    current_step = history.step_id
-        
-        return jsonify({
+            if workflow_records:
+                workflow_record = workflow_records[0]  # Get the most recent record
+                submitted = True
+                current_step = workflow_record.step_id
+                current_app.logger.debug(f"Schedule {schedule.id} - submitted: True, current_step: {current_step}")
+            else:
+                submitted = False
+                current_step = None
+                current_app.logger.debug(f"Schedule {schedule.id} - submitted: False")
+
+            schedules_status.append({
+                'schedule_id': schedule.id,
+                'submitted': submitted,
+                'current_step': current_step
+            })
+
+        response = {
             'status': 'success',
-            'submitted': submitted,
-            'current_step': current_step
-        })
+            'data': {
+                'schedules': schedules_status
+            }
+        }
+        
+        current_app.logger.debug(f"=== Final response: {response} ===")
+        return jsonify(response), 200
+
     except Exception as e:
-        current_app.logger.error(f'Error checking submission status: {str(e)}')
+        current_app.logger.error(f"Error getting submission status: {str(e)}", exc_info=True)
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': 'Failed to get submission status'
         }), 500
-
-def allowed_file(filename):
-    """Check if the uploaded file has an allowed extension."""
-    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @api_bp.route('/collection-schedules/<int:schedule_id>/supervisor-update', methods=['POST'])
 @login_required
@@ -1876,3 +1879,8 @@ def _initialize_default_workflow(schedule_id):
     db.session.add_all(transitions)
     db.session.commit()  # Commit the changes
     return workflow
+
+def allowed_file(filename):
+    """Check if the uploaded file has an allowed extension."""
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

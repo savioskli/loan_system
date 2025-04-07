@@ -2450,29 +2450,28 @@ function closeSupervisorUpdateModal() {
 
 // Function to fetch and display submission status for a schedule
 function loadSubmissionStatus(scheduleId) {
-    fetch(`/api/collection-schedules/${scheduleId}/submission-status`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'error') {
-                console.error('Error loading submission status:', data.message);
+    $.ajax({
+        url: '/api/collection-schedules/submission-status',
+        method: 'GET',
+        success: function(response) {
+            if (response.status === 'error') {
+                console.error('Error loading submission status:', response.message);
                 return;
             }
-
-            // Update the status display
-            const statusElement = document.getElementById(`submission-status-${scheduleId}`);
-            const stepElement = document.getElementById(`current-step-${scheduleId}`);
             
-            if (data.submitted) {
-                statusElement.textContent = 'Submitted';
-                statusElement.className = 'text-sm font-medium text-green-600';
-                stepElement.textContent = data.current_step;
+            // Find the status for this specific schedule
+            const status = response.data.schedules.find(s => s.schedule_id == scheduleId);
+            
+            if (status) {
+                $(`#submission-status-${scheduleId}`).text(status.submitted ? 'Submitted' : 'Not Submitted');
+                $(`#current-step-${scheduleId}`).text(status.current_step || '--');
             } else {
-                statusElement.textContent = 'Not Submitted';
-                statusElement.className = 'text-sm font-medium text-gray-500';
-                stepElement.textContent = '--';
+                $(`#submission-status-${scheduleId}`).text('Not Submitted');
+                $(`#current-step-${scheduleId}`).text('--');
             }
-        })
-        .catch(error => {
+        },
+        error: function(xhr, status, error) {
             console.error('Error fetching submission status:', error);
-        });
+        }
+    });
 }

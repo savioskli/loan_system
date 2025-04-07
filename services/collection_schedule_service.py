@@ -229,7 +229,8 @@ class CollectionScheduleService:
             schedule = CollectionSchedule.query.get_or_404(schedule_id)
             
             # Get staff name
-            staff_name = f"{schedule.staff.first_name} {schedule.staff.last_name}" if schedule.staff else None
+            assigned_staff = db.session.query(Staff).get(schedule.assigned_id)
+            staff_name = f"{assigned_staff.first_name} {assigned_staff.last_name}" if assigned_staff else None
             
             # Get supervisor name
             supervisor_name = f"{schedule.supervisor.first_name} {schedule.supervisor.last_name}" if schedule.supervisor else None

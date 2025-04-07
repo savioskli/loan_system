@@ -16,7 +16,7 @@ from werkzeug.datastructures import FileStorage
 from models.letter_template import LetterTemplate  # Import LetterTemplate model
 from models.core_banking import CoreBankingSystem  # Import CoreBankingSystem model
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure  # Import mapping models
-from models.post_disbursement_workflows import WorkflowHistory, WorkflowStep, WorkflowTransition
+from models.post_disbursement_workflows import WorkflowHistory, WorkflowStep, WorkflowTransition, WorkflowInstance
 from models.workflow import CollectionWorkflowStep
 from sqlalchemy import text, select  # Import text function for raw SQL queries
 
@@ -717,6 +717,16 @@ def add_schedule_comment(schedule_id):
 def update_collection_schedule(schedule_id):
     """Update a collection schedule progress."""
     try:
+        schedule = CollectionSchedule.query.get_or_404(schedule_id)
+        
+        # Prevent updates during supervisor review
+        if schedule.workflow_instance and \
+           schedule.workflow_instance.current_step.name == 'Supervisor Review':
+            return jsonify({
+                'success': False,
+                'message': 'Cannot update schedule while under supervisor review'
+            }), 403
+        
         data = request.get_json()
         comment = data.get('comment')
         status = data.get('status', 'in_progress')
@@ -726,13 +736,6 @@ def update_collection_schedule(schedule_id):
                 'status': 'error',
                 'message': 'Update notes are required'
             }), 400
-
-        schedule = CollectionSchedule.query.get(schedule_id)
-        if not schedule:
-            return jsonify({
-                'status': 'error',
-                'message': 'Schedule not found'
-            }), 404
 
         # Only assigned staff can update the schedule
         if schedule.assigned_id != current_user.id:
@@ -1668,6 +1671,50 @@ def get_total_schedules():
             'message': 'Failed to get schedule statistics'
         }), 500
 
+@api_bp.route('/collection-schedules/<int:schedule_id>/submission-status', methods=['GET'])
+@login_required
+def get_submission_status(schedule_id):
+    try:
+        # First get the schedule with workflow data
+        schedule = CollectionSchedule.query.get_or_404(schedule_id)
+        
+        submitted = False
+        current_step = None
+        
+        # Check workflow history using instance_id
+        if hasattr(schedule, 'workflow_id') and schedule.workflow_id:
+            # Check if there's any submission
+            submission_exists = db.session.query(
+                WorkflowHistory.query.filter(
+                    WorkflowHistory.instance_id == schedule.workflow_id,
+                    WorkflowHistory.action == 'submit'
+                ).exists()
+            ).scalar()
+            
+            submitted = bool(submission_exists)
+            
+            # Get current step from the most recent history entry
+            if submitted:
+                history = db.session.query(WorkflowHistory) \
+                    .filter(WorkflowHistory.instance_id == schedule.workflow_id) \
+                    .order_by(WorkflowHistory.performed_at.desc()) \
+                    .first()
+                
+                if history:
+                    current_step = history.step_id
+        
+        return jsonify({
+            'status': 'success',
+            'submitted': submitted,
+            'current_step': current_step
+        })
+    except Exception as e:
+        current_app.logger.error(f'Error checking submission status: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
@@ -1694,6 +1741,28 @@ def submit_supervisor_update(schedule_id):
         if not action or not comment:
             return jsonify({'error': 'Action and comment are required'}), 400
 
+        # Process file upload if present
+        attachment_url = None
+        if attachment:
+            # Validate file type
+            allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'png', 'jpeg'}
+            filename = secure_filename(attachment.filename)
+            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            
+            if file_ext not in allowed_extensions:
+                return jsonify({'error': 'File type not allowed. Please upload PDF, DOC, DOCX, JPG, or PNG files.'}), 400
+            
+            # Validate file size (max 10MB)
+            if attachment.content_length > 10 * 1024 * 1024:
+                return jsonify({'error': 'File size exceeds 10MB limit'}), 400
+            
+            # Save file
+            upload_folder = current_app.config['UPLOAD_FOLDER']
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, f"supervisor_update_{schedule_id}_{filename}")
+            attachment.save(file_path)
+            attachment_url = f"/uploads/{os.path.basename(file_path)}"
+
         # Get current workflow step from history or first step
         last_history = WorkflowHistory.query.filter_by(
             instance_id=schedule.id
@@ -1706,53 +1775,10 @@ def submit_supervisor_update(schedule_id):
         else:
             # If no workflow_id exists, create a default workflow
             if not schedule.workflow_id:
-                # Create a default workflow for this schedule
-                workflow = Workflow(name=f"Default Workflow for Schedule {schedule.id}")
-                db.session.add(workflow)
-                db.session.flush()  # Get the workflow ID
-                
-                # Create default workflow steps
-                step1 = WorkflowStep(
-                    workflow_id=workflow.id,
-                    name="Initial Review",
-                    step_order=1
-                )
-                step2 = WorkflowStep(
-                    workflow_id=workflow.id,
-                    name="Supervisor Review",
-                    step_order=2
-                )
-                step3 = WorkflowStep(
-                    workflow_id=workflow.id,
-                    name="Manager Approval",
-                    step_order=3
-                )
-                
-                db.session.add_all([step1, step2, step3])
-                db.session.flush()
-                
-                # Create default transitions
-                transition1 = WorkflowTransition(
-                    workflow_id=workflow.id,
-                    from_step_id=step1.id,
-                    to_step_id=step2.id,
-                    transition_name="Send to Supervisor"
-                )
-                transition2 = WorkflowTransition(
-                    workflow_id=workflow.id,
-                    from_step_id=step2.id,
-                    to_step_id=step3.id,
-                    transition_name="Send to Manager"
-                )
-                
-                db.session.add_all([transition1, transition2])
-                
-                # Update schedule with workflow
-                schedule.workflow_id = workflow.id
-                db.session.add(schedule)
-                
-                # Set current step to the first step
-                current_step = step1
+                workflow = _initialize_default_workflow(schedule.id)
+                current_step = WorkflowStep.query.filter_by(
+                    workflow_id=workflow.id
+                ).order_by(WorkflowStep.step_order).first()
             else:
                 # Get first step by lowest step_order
                 current_step = WorkflowStep.query.filter_by(
@@ -1760,6 +1786,23 @@ def submit_supervisor_update(schedule_id):
                 ).order_by(WorkflowStep.step_order).first()
                 if not current_step:
                     return jsonify({'error': 'No workflow steps found'}), 400
+
+        # Ensure workflow instance exists
+        workflow_instance = db.session.query(WorkflowInstance).get(schedule.id)
+        if not workflow_instance:
+            workflow_instance = WorkflowInstance(
+                id=schedule.id,
+                workflow_id=schedule.workflow_id,
+                current_step_id=current_step.id,
+                entity_type='collection_schedule',
+                entity_id=schedule.id,
+                status='active',
+                created_by=current_user.id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.session.add(workflow_instance)
+            db.session.commit()
 
         # Get available transitions with validation
         transitions = WorkflowTransition.query.filter_by(
@@ -1774,59 +1817,62 @@ def submit_supervisor_update(schedule_id):
             }), 400
 
         # Validate action against available transitions
-        valid_actions = {t.transition_name: t.to_step_id for t in transitions}
-        if action not in valid_actions:
+        valid_actions = {t.transition_name.lower(): t for t in transitions}
+        if action.lower() not in valid_actions:
             return jsonify({
-                'error': f'Invalid action. Valid actions: {", ".join(valid_actions.keys())}',
-                'available_actions': list(valid_actions.keys()),
-                'current_step_id': current_step.id
+                'error': f'Invalid action. Valid actions: {", ".join(t.transition_name for t in transitions)}',
+                'available_actions': [t.transition_name for t in transitions]
             }), 400
-
-        # Find the selected transition
-        selected_transition = next(
-            (t for t in transitions if t.transition_name == action),
-            None
-        )
+            
+        selected_transition = valid_actions[action.lower()]
 
         # Create workflow history entry
         workflow_history = WorkflowHistory(
             instance_id=schedule.id,
             step_id=current_step.id,
-            transition_id=selected_transition.id if selected_transition else None,
+            transition_id=selected_transition.id,
             action=action,
             comments=comment,
+            attachment_url=attachment_url,
             performed_by=current_user.id,
-            performed_at=datetime.now()
+            performed_at=datetime.utcnow()
         )
         db.session.add(workflow_history)
-
-        # Handle attachment if provided
-        if attachment:
-            if attachment.content_type not in ['application/pdf', 'application/msword', 
-                                             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                             'image/jpeg', 'image/png']:
-                return jsonify({'error': 'Invalid file type. Allowed types: PDF, DOC, DOCX, JPG, PNG'}), 400
-            
-            if attachment.content_length > 10 * 1024 * 1024:  # 10MB limit
-                return jsonify({'error': 'File size exceeds 10MB limit'}), 400
-
-            filename = f"supervisor_update_{schedule_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(attachment.filename)}"
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'supervisor_updates')
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            attachment_path = os.path.join(upload_dir, filename)
-            attachment.save(attachment_path)
-            
-            workflow_history.attachment_url = f"/static/uploads/supervisor_updates/{filename}"
-
         db.session.commit()
 
         return jsonify({
-            'message': 'Action submitted successfully',
-            'next_step_id': selected_transition.to_step_id if selected_transition else None
-        })
+            'status': 'success',
+            'message': 'Supervisor update submitted successfully',
+            'next_step_id': selected_transition.to_step_id,
+            'attachment_url': attachment_url
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error submitting supervisor update: {str(e)}")
-        return jsonify({'error': 'Failed to submit action'}), 500
+        current_app.logger.error(f'Error submitting supervisor update: {str(e)}')
+        return jsonify({'error': 'Failed to submit update'}), 500
+
+def _initialize_default_workflow(schedule_id):
+    """Create a default workflow for new schedules"""
+    workflow = Workflow(name=f"Default Workflow for Schedule {schedule_id}")
+    db.session.add(workflow)
+    db.session.flush()
+    
+    # Create standard workflow steps
+    steps = [
+        WorkflowStep(workflow_id=workflow.id, name="Initial Review", step_order=1),
+        WorkflowStep(workflow_id=workflow.id, name="Supervisor Review", step_order=2),
+        WorkflowStep(workflow_id=workflow.id, name="Manager Approval", step_order=3)
+    ]
+    db.session.add_all(steps)
+    db.session.flush()
+    
+    # Create standard transitions
+    transitions = [
+        WorkflowTransition(workflow_id=workflow.id, from_step_id=steps[0].id, to_step_id=steps[1].id, transition_name="Assign"),
+        WorkflowTransition(workflow_id=workflow.id, from_step_id=steps[1].id, to_step_id=steps[2].id, transition_name="Approve"),
+        WorkflowTransition(workflow_id=workflow.id, from_step_id=steps[1].id, to_step_id=steps[0].id, transition_name="Return")
+    ]
+    db.session.add_all(transitions)
+    db.session.commit()  # Commit the changes
+    return workflow

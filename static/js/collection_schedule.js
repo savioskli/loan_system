@@ -761,6 +761,18 @@ function initializeClientSelect(selector, isModal) {
                                             </div>
                                         </div>
                                         ` : ''}
+                                        <!-- Workflow Status Section -->
+                                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Workflow Status</h4>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm text-gray-500 dark:text-gray-400">Submission Status:</span>
+                                                <span id="submission-status-${schedule.id}" class="text-sm font-medium">Loading...</span>
+                                            </div>
+                                            <div class="flex items-center justify-between mt-1">
+                                                <span class="text-sm text-gray-500 dark:text-gray-400">Current Step:</span>
+                                                <span id="current-step-${schedule.id}" class="text-sm font-medium">Loading...</span>
+                                            </div>
+                                        </div>
                                     </div>
                                     <!-- Card Footer -->
                                     ${schedule.escalation_level ? `
@@ -774,6 +786,7 @@ function initializeClientSelect(selector, isModal) {
 
                             // Create a new div for the schedule
                             scheduleList.append(scheduleHtml);
+                            loadSubmissionStatus(schedule.id);
                         });
                     } catch (error) {
                         console.error('Error rendering schedule:', error, schedule);
@@ -2404,17 +2417,16 @@ $(document).on('submit', '#supervisorUpdateForm', function(e) {
         processData: false,
         contentType: false,
         success: function(response) {
-            hideLoading();
             if (response.message) {
-                showSuccess(response.message);
-                // Close the modal after successful submission
-                $('#submitSupervisorUpdateModal').modal('hide');
-                // Refresh the collection schedule details
-                loadCollectionScheduleDetails(scheduleId);
+                // Close modal and reset form
+                closeSupervisorUpdateModal();
+                $('#supervisorUpdateForm')[0].reset();
+                
+                // Refresh schedule details
+                //loadCollectionScheduleDetails(scheduleId);
             }
         },
         error: function(xhr) {
-            hideLoading();
             if (xhr.responseJSON && xhr.responseJSON.error) {
                 showError(xhr.responseJSON.error);
             } else {
@@ -2428,8 +2440,39 @@ function closeSupervisorUpdateModal() {
     const modal = document.getElementById('submitSupervisorUpdateModal');
     if (modal) {
         modal.classList.add('hidden');
-        modal.style.display = 'none'; // Optional: reset display
+        modal.classList.remove('block'); // optional depending on how you show it
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
     } else {
         console.warn("Modal not found!");
     }
+}
+
+// Function to fetch and display submission status for a schedule
+function loadSubmissionStatus(scheduleId) {
+    fetch(`/api/collection-schedules/${scheduleId}/submission-status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'error') {
+                console.error('Error loading submission status:', data.message);
+                return;
+            }
+
+            // Update the status display
+            const statusElement = document.getElementById(`submission-status-${scheduleId}`);
+            const stepElement = document.getElementById(`current-step-${scheduleId}`);
+            
+            if (data.submitted) {
+                statusElement.textContent = 'Submitted';
+                statusElement.className = 'text-sm font-medium text-green-600';
+                stepElement.textContent = data.current_step;
+            } else {
+                statusElement.textContent = 'Not Submitted';
+                statusElement.className = 'text-sm font-medium text-gray-500';
+                stepElement.textContent = '--';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching submission status:', error);
+        });
 }

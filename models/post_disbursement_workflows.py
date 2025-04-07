@@ -95,6 +95,7 @@ class WorkflowHistory(db.Model):
     transition_id = db.Column(db.Integer, db.ForeignKey('workflow_transitions.id'))
     action = db.Column(db.String(50), nullable=False)
     comments = db.Column(db.Text)
+    attachment_url = db.Column(db.String(255))  # New field for storing file paths
     performed_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
     performed_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     

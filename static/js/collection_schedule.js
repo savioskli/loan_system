@@ -35,15 +35,16 @@ document.addEventListener('DOMContentLoaded', function() {
         showNotification('Error', message);
     }
 
-    function formatDate(dateString) {
-        if (!dateString) return 'N/A';
+    // Make formatDate globally accessible
+    window.formatDate = function(dateString) {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
+            month: 'long',
+            day: 'numeric'
         });
-    }
+    };
 
     // Initialize tabs and filters
     initializeTabs();
@@ -656,7 +657,8 @@ function initializeClientSelect(selector, isModal) {
 
                         // Fetch borrower name and update the card
                         fetchBorrowerName(schedule.loan_id).then(borrowerName => {
-                            const scheduleHtml = `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 mb-4">
+                            const scheduleHtml = `
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 mb-4">
                                     <!-- Card Header -->
                                     <div class="px-6 py-4 bg-gradient-to-r from-blue-200 to-blue-100 dark:from-gray-600 dark:to-gray-500 border-b border-gray-300 dark:border-gray-600">
                                         <div class="flex justify-between items-center">
@@ -676,7 +678,7 @@ function initializeClientSelect(selector, isModal) {
                                                 ` : ''}
                                             </div>
                                             <div class="flex items-center gap-2">
-                                                ${currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name ? `
+                                                ${(currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name) && schedule.progress_status !== 'Submitted' ? `
                                                     <button class="edit-schedule-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
@@ -684,15 +686,21 @@ function initializeClientSelect(selector, isModal) {
                                                 <button class="view-progress-btn bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" title="View Progress">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
+                                                ${(currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name) && schedule.progress_status !== 'Submitted' ? `
                                                 <button class="update-progress-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Update Progress">
                                                     <i class="fas fa-tasks"></i>
                                                 </button>
+                                                ` : ''}
+                                                ${(currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name) && schedule.progress_status !== 'Submitted' ? `
                                                 <button class="submit-schedule-btn bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Submit Schedule">
                                                     <i class="fas fa-paper-plane"></i>
                                                 </button>
+                                                ` : ''}
+                                                ${(currentUser.role === 'admin' || currentUser.role === 'supervisor' || schedule.staff_name === currentUser.name) && schedule.progress_status !== 'Submitted' ? `
                                                 <button class="delete-schedule-btn bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-xs transition" data-schedule-id="${schedule.id}" data-loan-id="${schedule.loan_id}" data-borrower-name="${schedule.borrower_name || ''}" title="Delete Schedule">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
+                                                ` : ''}
                                             </div>
                                         </div>
                                         <div class="mt-3 flex justify-between text-sm text-gray-700 dark:text-gray-300">
@@ -730,7 +738,7 @@ function initializeClientSelect(selector, isModal) {
                                             <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                                                 <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">Follow-up Schedule</h4>
                                                 <ul class="space-y-1 text-gray-700 dark:text-gray-300">
-                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDateTime(schedule.next_follow_up_date) || 'Not Set'}</li>
+                                                    <li><span class="font-medium text-blue-700 dark:text-blue-300">Next Follow-up:</span> ${formatDate(schedule.next_follow_up_date) || 'Not Set'}</li>
                                                     <li><span class="font-medium text-blue-700 dark:text-blue-300">Frequency:</span> ${schedule.follow_up_frequency || 'Not Set'}</li>
                                                     <li><span class="font-medium text-blue-700 dark:text-blue-300">Best Time:</span> ${schedule.best_contact_time || 'Not Specified'}</li>
                                                 </ul>
@@ -761,6 +769,38 @@ function initializeClientSelect(selector, isModal) {
                                             </div>
                                         </div>
                                         ` : ''}
+                                        
+                                        <!-- Workflow History Accordion -->
+                                        <div class="mt-4">
+                                            <button 
+                                                type="button" 
+                                                class="w-full flex items-center justify-between p-4 text-left text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 workflow-history-btn"
+                                                data-accordion-target="#workflowAccordion-${schedule.id}"
+                                                aria-expanded="false"
+                                                aria-controls="workflowAccordion-${schedule.id}"
+                                                data-schedule-id="${schedule.id}"
+                                            >
+                                                <div class="flex items-center">
+                                                    <div class="p-2 rounded-full bg-blue-100 dark:bg-blue-900 mr-3">
+                                                        <i class="fas fa-history text-blue-600 dark:text-blue-300"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                                                            Workflow History
+                                                        </h4>
+                                                    </div>
+                                                </div>
+                                                <svg data-accordion-icon class="w-3 h-3 rotate-180 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5 5 1 1 5"/>
+                                                </svg>
+                                            </button>
+                                            <div id="workflowAccordion-${schedule.id}" class="hidden" data-accordion-item>
+                                                <div id="workflowHistory-${schedule.id}" class="space-y-4 p-4">
+                                                    <!-- Workflow history will be loaded here -->
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <!-- Workflow Status Section -->
                                         <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Workflow Status</h4>
@@ -786,6 +826,7 @@ function initializeClientSelect(selector, isModal) {
 
                             // Create a new div for the schedule
                             scheduleList.append(scheduleHtml);
+                            loadWorkflowHistory(schedule.id);
                             loadSubmissionStatus(schedule.id);
                         });
                     } catch (error) {
@@ -1106,10 +1147,10 @@ $('#newCollectionScheduleForm').submit(function(event) {
 
     // Utility functions
     function formatDate(dateString) {
-        if (!dateString) return 'Not Set';
+        if (!dateString) return '';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return 'Invalid Date';
-        return date.toLocaleString('en-US', {
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -1119,7 +1160,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
     }
 
     function formatDateTime(dateString) {
-        if (!dateString) return 'Not Set';
+        if (!dateString) return '';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return 'Invalid Date';
         return date.toLocaleString('en-US', {
@@ -1210,7 +1251,7 @@ window.viewLoanDetails = function(loanId) {
                             <td class="px-4 py-2 text-sm text-gray-500">${guarantor.name}</td>
                             <td class="px-4 py-2 text-sm text-gray-500">${formatCurrency(guarantor.guaranteed_amount)}</td>
                             <td class="px-4 py-2 text-sm text-gray-500">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     ${guarantor.status}
                                 </span>
                             </td>
@@ -1301,7 +1342,7 @@ window.viewLoanDetails = function(loanId) {
                                 `${loan.LoanNo} - ${formatCurrency(loan.LoanAmount)}`,
                                 loan.LoanAppID
                             );
-                            loanSelect.add(option);
+                            loanSelect.append(option);
                         });
                         
                         // If there's only one loan, select it automatically
@@ -1324,14 +1365,14 @@ window.viewLoanDetails = function(loanId) {
                     if (selectedClient && selectedClient.loans) {
                         const selectedLoan = selectedClient.loans.find(loan => loan.LoanAppID === selectedOption.value);
                         if (selectedLoan) {
-                            console.log('Found selected loan:', selectedLoan);
-                            document.getElementById('outstandingBalance').value = formatCurrency(selectedLoan.OutstandingBalance || 0);
+                            console.log('Found loan with OutstandingBalance:', selectedLoan.OutstandingBalance);
+                            $('#outstandingBalance').val(formatCurrency(selectedLoan.OutstandingBalance || 0));
                             
                             // Calculate missed payments based on days in arrears
                             const daysInArrears = selectedLoan.DaysInArrears || 0;
                             const missedInstallments = Math.ceil(daysInArrears / 30);
                             console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
-                            document.getElementById('missedPayments').value = missedInstallments;
+                            $('#missedPayments').val(missedInstallments);
                             
                             // Set priority based on days in arrears
                             const prioritySelect = document.getElementById('priority');
@@ -2287,8 +2328,8 @@ function loadProgressUpdates(scheduleId) {
                 const date = new Date(update.created_at);
                 const formattedDate = date.toLocaleDateString('en-US', {
                     year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
+                    month: 'long',
+                    day: 'numeric'
                 });
                 
                 // Format amount directly
@@ -2359,7 +2400,7 @@ function loadProgressUpdates(scheduleId) {
 
 
 $(document).on('click', '.submit-schedule-btn', function() {
-    const scheduleId = $(this).attr('data-schedule-id');
+    const scheduleId = $(this).attr('data-schedule-id'); // Use attr instead of data
     
     console.log("Button Clicked, Schedule ID:", scheduleId);
     
@@ -2475,3 +2516,126 @@ function loadSubmissionStatus(scheduleId) {
         }
     });
 }
+
+// Function to load workflow history
+function loadWorkflowHistory(scheduleId) {
+    console.log('Loading workflow history for schedule ID:', scheduleId);
+    
+    $.ajax({
+        url: `/api/collection-schedules/${scheduleId}/workflow-history`,
+        method: 'GET',
+        success: function(response) {
+            console.log('Workflow history response:', response);
+            const historyContainer = $(`#workflowHistory-${scheduleId}`);
+            historyContainer.empty();
+            
+            if (response.history && response.history.length > 0) {
+                response.history.forEach(history => {
+                    const historyItem = $(`
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <div class="bg-blue-100 dark:bg-blue-900 p-2 rounded-full mr-3">
+                                        <i class="fas fa-history text-blue-600 dark:text-blue-300"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                                            ${history.action}
+                                        </h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            ${formatDate(history.performed_at)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">
+                                    ${history.performed_by}
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-600 dark:text-gray-300">
+                                    ${history.comments || 'No comments'}
+                                </p>
+                            </div>
+                        </div>
+                    `);
+                    historyContainer.append(historyItem);
+                });
+            } else {
+                historyContainer.html(`
+                    <div class="text-center py-6 text-gray-500 dark:text-gray-400">
+                        No workflow history available
+                    </div>
+                `);
+            }
+        },
+        error: function(xhr) {
+            console.error('Error loading workflow history:', xhr.responseText);
+            showError('Failed to load workflow history');
+        }
+    });
+}
+
+// Initialize accordion functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add smooth transitions
+    const accordionItems = document.querySelectorAll('[data-accordion-item]');
+    accordionItems.forEach(item => {
+        item.style.transition = 'max-height 0.3s ease-in-out';
+    });
+
+    // Initialize existing accordions
+    const accordionButtons = document.querySelectorAll('[data-accordion-target]');
+    accordionButtons.forEach(button => {
+        // Add keyboard support
+        button.setAttribute('tabindex', '0');
+        button.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.click();
+            }
+        });
+
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const $button = button;
+            const target = document.querySelector($button.getAttribute('data-accordion-target'));
+            const expanded = $button.getAttribute('aria-expanded') === 'true';
+            
+            // Toggle the expanded state
+            $button.setAttribute('aria-expanded', !expanded);
+            
+            // Toggle the icon rotation
+            const $icon = $button.querySelector('[data-accordion-icon]');
+            if ($icon) {
+                $icon.classList.toggle('rotate-180');
+            }
+            
+            // Toggle the content visibility
+            if (expanded) {
+                const $target = target;
+                $target.style.maxHeight = '0';
+                $target.style.overflow = 'hidden';
+                setTimeout(() => {
+                    $target.classList.add('hidden');
+                }, 300);
+            } else {
+                const $target = target;
+                $target.classList.remove('hidden');
+                $target.style.maxHeight = $target.scrollHeight + 'px';
+                $target.style.overflow = 'hidden';
+                setTimeout(() => {
+                    $target.style.maxHeight = 'none';
+                    $target.style.overflow = 'visible';
+                }, 300);
+            }
+            
+            // If this is a workflow history accordion, load the history
+            if ($button.classList.contains('workflow-history-btn')) {
+                const scheduleId = $button.getAttribute('data-schedule-id');
+                if (scheduleId) {
+                    loadWorkflowHistory(scheduleId);
+                }
+            }
+        });
+    });
+});

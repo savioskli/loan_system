@@ -1884,3 +1884,39 @@ def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/workflow-history', methods=['GET'])
+@login_required
+def get_workflow_history(schedule_id):
+    """Get workflow history for a specific collection schedule."""
+    try:
+        # Get the collection schedule
+        schedule = CollectionSchedule.query.get_or_404(schedule_id)
+        
+        # Get workflow history
+        history = WorkflowHistory.query.filter_by(
+            instance_id=schedule_id
+        ).order_by(WorkflowHistory.performed_at.desc()).all()
+        
+        # Convert to list of dictionaries for JSON serialization
+        history_list = []
+        for item in history:
+            history_list.append({
+                'id': item.id,
+                'action': item.action,
+                'comments': item.comments,
+                'performed_by': f"{item.performer.first_name} {item.performer.last_name}" if item.performer else 'Unknown',
+                'performed_at': item.performed_at.isoformat()
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'history': history_list
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting workflow history: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to get workflow history'
+        }), 500

@@ -596,8 +596,15 @@ function initializeClientSelect(selector, isModal) {
 }
 
 
+
+
 // Initialize workflow history buttons
 function initializeWorkflowHistoryButtons() {
+    // Call when table is loaded
+    $(document).on('scheduleTableLoaded', function() {
+        checkAllHistoryButtons();
+    });
+
     $(document).on('click', '.view-workflow-history', function() {
         const scheduleId = $(this).data('schedule-id');
         if (scheduleId) {
@@ -847,49 +854,8 @@ function loadCollectionSchedules(filters = {}) {
                                     </div>
                                     ` : ''}
 
-                                    <!-- Workflow History Accordion -->
-                                    <div class="mt-4">
-                                        <button
-                                            type="button"
-                                            class="w-full flex items-center justify-between p-4 text-left text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 workflow-history-btn"
-                                            data-accordion-target="#workflowAccordion-${schedule.id}"
-                                            aria-expanded="false"
-                                            aria-controls="workflowAccordion-${schedule.id}"
-                                            data-schedule-id="${schedule.id}"
-                                        >
-                                            <div class="flex items-center">
-                                                <div class="p-2 rounded-full bg-blue-100 dark:bg-blue-900 mr-3">
-                                                    <i class="fas fa-history text-blue-600 dark:text-blue-300"></i>
-                                                </div>
-                                                <div>
-                                                    <h4 class="text-sm font-medium text-gray-900 dark:text-white">
-                                                        Workflow History
-                                                    </h4>
-                                                </div>
-                                            </div>
-                                            <svg data-accordion-icon class="w-3 h-3 rotate-180 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
-                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5 5 1 1 5"/>
-                                            </svg>
-                                        </button>
-                                        <div id="workflowAccordion-${schedule.id}" class="hidden" data-accordion-item>
-                                            <div id="workflowHistory-${schedule.id}" class="space-y-4 p-4">
-                                                <!-- Workflow history will be loaded here -->
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    <!-- Workflow Status Section -->
-                                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Workflow Status</h4>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm text-gray-500 dark:text-gray-400">Submission Status:</span>
-                                            <span id="submission-status-${schedule.id}" class="text-sm font-medium">Loading...</span>
-                                        </div>
-                                        <div class="flex items-center justify-between mt-1">
-                                            <span class="text-sm text-gray-500 dark:text-gray-400">Current Step:</span>
-                                            <span id="current-step-${schedule.id}" class="text-sm font-medium">Loading...</span>
-                                        </div>
-                                    </div>
+
                                 </div>
                                 <!-- Card Footer -->
                                 ${schedule.escalation_level ? `
@@ -903,7 +869,7 @@ function loadCollectionSchedules(filters = {}) {
 
                         // Create a new div for the schedule
                         scheduleList.append(scheduleHtml);
-                        loadSubmissionStatus(schedule.id);
+
                     });
                 } catch (error) {
                     console.error('Error rendering schedule:', error, schedule);
@@ -1184,6 +1150,7 @@ $('#newCollectionScheduleForm').submit(function(event) {
                 success: function() {
                     showNotification('Success', 'Schedule escalated successfully');
                     loadCollectionSchedules();
+                    $(document).trigger('scheduleTableLoaded');
                 },
                 error: function(xhr) {
                     showNotification('Error', xhr.responseJSON?.error || 'Failed to escalate schedule');
@@ -2568,32 +2535,7 @@ function closeSupervisorUpdateModal() {
 }
 
 // Function to fetch and display submission status for a schedule
-function loadSubmissionStatus(scheduleId) {
-    $.ajax({
-        url: '/api/collection-schedules/submission-status',
-        method: 'GET',
-        success: function(response) {
-            if (response.status === 'error') {
-                console.error('Error loading submission status:', response.message);
-                return;
-            }
-            
-            // Find the status for this specific schedule
-            const status = response.data.schedules.find(s => s.schedule_id == scheduleId);
-            
-            if (status) {
-                $(`#submission-status-${scheduleId}`).text(status.submitted ? 'Submitted' : 'Not Submitted');
-                $(`#current-step-${scheduleId}`).text(status.current_step || '--');
-            } else {
-                $(`#submission-status-${scheduleId}`).text('Not Submitted');
-                $(`#current-step-${scheduleId}`).text('--');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching submission status:', error);
-        }
-    });
-}
+
 
 // Function to show workflow history modal
 function showWorkflowHistoryModal(scheduleId) {
@@ -2605,13 +2547,28 @@ function showWorkflowHistoryModal(scheduleId) {
     $.ajax({
         url: `/api/collection-schedules/${scheduleId}/workflow-history`,
         method: 'GET',
-        success: function(response) {
+        success: async function(response) {
             console.log('Workflow history response:', response);
             const modalBody = document.querySelector('#workflowHistoryModal .p-6');
             
             if (response.history && response.history.length > 0) {
                 let historyHtml = '<div class="space-y-6">';
-                response.history.forEach(history => {
+                
+                // Process each history item
+                for (const history of response.history) {
+                    // Check for attachments
+                    let attachmentHtml = '';
+                    if (history.attachment_url) {
+                        attachmentHtml = `
+                            <div class="mt-3">
+                                <button onclick="downloadAttachment('${history.attachment_url}')" 
+                                    class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+                                    <i class="fas fa-download mr-2"></i>
+                                    Download Attachment
+                                </button>
+                            </div>`;
+                    }
+
                     historyHtml += `
                         <div class="relative pl-8 border-l-2 border-blue-500">
                             <div class="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
@@ -2632,12 +2589,23 @@ function showWorkflowHistoryModal(scheduleId) {
                                 <div class="text-sm text-gray-500 dark:text-gray-400 italic">
                                     By: ${history.performed_by}
                                 </div>
+                                ${attachmentHtml}
                             </div>
                         </div>
                     `;
-                });
+                }
                 historyHtml += '</div>';
                 modalBody.innerHTML = historyHtml;
+
+                // Add download function
+                window.downloadAttachment = function(url) {
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', '');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
             } else {
                 modalBody.innerHTML = `
                     <div class="flex items-center justify-center p-4 text-gray-500 dark:text-gray-400">

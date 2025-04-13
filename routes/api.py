@@ -16,7 +16,7 @@ from werkzeug.datastructures import FileStorage
 from models.letter_template import LetterTemplate  # Import LetterTemplate model
 from models.core_banking import CoreBankingSystem  # Import CoreBankingSystem model
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure  # Import mapping models
-from models.post_disbursement_workflows import WorkflowHistory, WorkflowStep, WorkflowTransition, WorkflowInstance
+from models.post_disbursement_workflows import WorkflowHistory, WorkflowInstance, WorkflowStep, WorkflowTransition, WorkflowInstance
 from models.workflow import CollectionWorkflowStep
 from sqlalchemy import text, select  # Import text function for raw SQL queries
 
@@ -1894,9 +1894,9 @@ def get_workflow_history(schedule_id):
         schedule = CollectionSchedule.query.get_or_404(schedule_id)
         
         # Get workflow history
-        history = WorkflowHistory.query.filter_by(
-            instance_id=schedule_id
-        ).order_by(WorkflowHistory.performed_at.desc()).all()
+        history = WorkflowHistory.query\
+            .filter_by(instance_id=schedule_id)\
+            .order_by(WorkflowHistory.performed_at.desc()).all()
         
         # Convert to list of dictionaries for JSON serialization
         history_list = []
@@ -1906,7 +1906,8 @@ def get_workflow_history(schedule_id):
                 'action': item.action,
                 'comments': item.comments,
                 'performed_by': f"{item.performer.first_name} {item.performer.last_name}" if item.performer else 'Unknown',
-                'performed_at': item.performed_at.isoformat()
+                'performed_at': item.performed_at.isoformat(),
+                'attachment_url': item.attachment_url
             })
         
         return jsonify({
@@ -1919,4 +1920,30 @@ def get_workflow_history(schedule_id):
         return jsonify({
             'status': 'error',
             'message': 'Failed to get workflow history'
+        }), 500
+
+@api_bp.route('/collection-schedules/<int:schedule_id>/has-workflow-history', methods=['GET'])
+@login_required
+def has_workflow_history(schedule_id):
+    """Check if a collection schedule has any workflow history."""
+    try:
+        # Get workflow history count
+        query = WorkflowHistory.query.filter_by(instance_id=schedule_id)
+            
+        # Debug log the query
+        current_app.logger.debug(f"Checking history for schedule {schedule_id}")
+        current_app.logger.debug(f"Query: {query}")
+        
+        history_count = query.count()
+        
+        return jsonify({
+            'status': 'success',
+            'has_history': history_count > 0
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error checking workflow history: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to check workflow history'
         }), 500

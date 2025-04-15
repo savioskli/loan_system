@@ -2,7 +2,7 @@
 """
 Robust Zimbra .msg to .eml Converter
 This script converts Zimbra .msg files to .eml format with special handling for binary data.
-It specifically filters emails related to ckiburu@agrifinance.org.
+It specifically filters emails related to bkorir@agrifinance.org.
 """
 
 import os
@@ -20,9 +20,9 @@ from email.message import EmailMessage
 
 # Default source and output directories
 DEFAULT_SOURCE_DIR = "/Users/user/Documents/Zimbra/004/msg/5/"
-DEFAULT_OUTPUT_DIR = os.path.expanduser("~/Documents/Zimbra/kiburu/0")
+DEFAULT_OUTPUT_DIR = os.path.expanduser("~/Documents/Zimbra/boaz/")
 # Define the target email address
-TARGET_EMAIL = "ckkiburu@agrifinance.org"
+TARGET_EMAIL = "bkorir@agrifinance.org"
 
 def detect_encoding(file_path):
     """

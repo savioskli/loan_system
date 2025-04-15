@@ -1,230 +1,648 @@
 <style>
-    /* iOS-style chat UI */
-    .chat-widget {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-    }
-    .chat-button {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background-color: #007AFF;
-        color: white;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-    }
-    .chat-button:hover {
-        background-color: #005ecb;
-        transform: scale(1.1);
-    }
-    .chat-container {
-        position: fixed;
-        bottom: 80px;
-        right: 20px;
-        width: 320px;
-        height: 480px;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        display: none;
-        flex-direction: column;
-        overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .chat-header {
-        background-color: #007AFF;
-        color: white;
-        padding: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
-        font-size: 14px;
-    }
-    .chat-messages {
-        flex-grow: 1;
-        padding: 10px;
-        overflow-y: auto;
-        background: #F5F5F7;
-        display: flex;
-        flex-direction: column;
-    }
-    .message {
-        max-width: 75%;
-        padding: 8px 12px;
-        border-radius: 18px;
-        font-size: 13px;
-        margin-bottom: 8px;
-        word-wrap: break-word;
-    }
-    .user-message {
-        background-color: #007AFF;
-        color: white;
-        align-self: flex-end;
-        border-bottom-right-radius: 6px;
-    }
-    .bot-message {
-        background-color: #E5E5EA;
-        color: black;
-        align-self: flex-start;
-        border-bottom-left-radius: 6px;
-    }
-    .chat-input {
-        padding: 10px;
-        display: flex;
-        gap: 6px;
-        background: white;
-        border-top: 1px solid #E5E5EA;
-    }
-    .chat-input input {
-        flex-grow: 1;
-        padding: 8px;
-        border: 1px solid #E5E5EA;
-        border-radius: 18px;
-        font-size: 13px;
-        outline: none;
-    }
-    .chat-input button {
-        padding: 8px 12px;
-        background-color: #007AFF;
-        color: white;
-        border: none;
-        border-radius: 18px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-    .chat-input button:hover {
-        background-color: #005ecb;
-    }
-    .close-button {
-        background: none;
-        border: none;
-        color: white;
-        cursor: pointer;
-        font-size: 16px;
-    }
+   /* iOS-style chat UI with enhanced features */
+.chat-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+#chatButton {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  z-index: 999;
+  font-size: 24px;
+}
+
+#chatButton:hover {
+  background-color: #005ecb;
+  transform: scale(1.1);
+}
+
+#chatContainer {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 320px;
+  height: 480px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  z-index: 1000;
+}
+
+.chat-header {
+  background-color: #007AFF;
+  color: white;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  font-size: 14px;
+}
+
+#closeChat {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#chatMessages {
+  flex-grow: 1;
+  padding: 10px;
+  overflow-y: auto;
+  background: #F5F5F7;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 18px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  word-wrap: break-word;
+}
+
+.user-message {
+  background-color: #007AFF;
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 6px;
+}
+
+.bot-message {
+  background-color: #E5E5EA;
+  color: black;
+  align-self: flex-start;
+  border-bottom-left-radius: 6px;
+}
+
+/* Message type variations */
+.error-message {
+  background-color: #FFD2D2;
+  color: #D00000;
+  border-bottom-left-radius: 6px;
+}
+
+.warning-message {
+  background-color: #FFF4D2;
+  color: #B86E00;
+  border-bottom-left-radius: 6px;
+}
+
+.info-message {
+  background-color: #D2F1FF;
+  color: #0055B8;
+  border-bottom-left-radius: 6px;
+}
+
+.chat-input {
+  padding: 10px;
+  display: flex;
+  gap: 6px;
+  background: white;
+  border-top: 1px solid #E5E5EA;
+}
+
+#messageInput {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #E5E5EA;
+  border-radius: 18px;
+  font-size: 13px;
+  outline: none;
+}
+
+#sendMessage {
+  padding: 8px 12px;
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#sendMessage:hover {
+  background-color: #005ecb;
+}
+
+/* Loading animation */
+.loading {
+  color: #666;
+  background-color: #E5E5EA;
+}
+
+.dot-animation {
+  display: inline-block;
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* SQL message styling - with iOS flair */
+.sql-message {
+  width: 90%;
+  padding: 0;
+  overflow: hidden;
+  background-color: transparent;
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
+
+.sql-header {
+  padding: 8px 12px;
+  background-color: #D2D2D7;
+  font-weight: 500;
+  font-size: 12px;
+  color: #333;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.sql-code {
+  margin: 0;
+  padding: 10px;
+  background-color: #F2F2F7;
+  color: #007AFF;
+  font-family: "SF Mono", "Menlo", monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border: 1px solid #D2D2D7;
+  border-top: none;
+}
+
+/* Table styling with iOS design */
+.table-message {
+  width: 90%;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: transparent;
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.data-table th {
+  background-color: #007AFF;
+  color: white;
+  padding: 8px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.data-table td {
+  padding: 8px;
+  border-bottom: 1px solid #E5E5EA;
+  color: #333;
+}
+
+.data-table tr:nth-child(even) {
+  background-color: #F9F9FB;
+}
+
+.data-table tr:hover {
+  background-color: #F2F2F7;
+}
+
+/* Advanced mode toggle with iOS style */
+.advanced-toggle {
+  font-size: 12px;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.advanced-toggle label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.advanced-toggle input {
+  margin-right: 5px;
+}
 </style>
 <!-- templates/chatbot.html -->
+<!-- Enhanced chat UI with database selector -->
 <div class="chat-widget">
-    <button class="chat-button" id="chatButton"><i class="fas fa-comment-dots"></i></button>
-    <div class="chat-container" id="chatContainer">
-        <div class="chat-header">
-            <span>AI Chat</span>
-            <button class="close-button" id="closeChat">&times;</button>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-            <div class="message bot-message">Hello! How can I help you today?</div>
-        </div>
-        <div class="chat-input">
-            <input type="text" id="messageInput" placeholder="Type a message...">
-            <button id="sendMessage">Send</button>
-        </div>
-    </div>
+  <button class="chat-button" id="chatButton"><i class="fas fa-comment-dots"></i></button>
+  <div class="chat-container" id="chatContainer">
+      <div class="chat-header">
+          <span>AI Chat</span>
+          <div class="advanced-toggle">
+              <label><input type="checkbox" id="advancedMode"> Advanced</label>
+          </div>
+          <button class="close-button" id="closeChat">&times;</button>
+      </div>
+      
+      <!-- Add database selector -->
+      <div class="database-selector">
+          <label for="databaseSelect">Database focus:</label>
+          <select id="databaseSelect">
+              <option value="">All Databases</option>
+              <option value="sacco_db">Sacco DB</option>
+              <option value="loan_system">Loan System</option>
+          </select>
+          <span class="selector-info" id="selectorInfo">?</span>
+      </div>
+      
+      <div class="chat-messages" id="chatMessages">
+          <div class="message bot-message">Hello! How can I help you with your database queries today? You can select a specific database to focus on using the dropdown above.</div>
+      </div>
+      <div class="chat-input">
+          <input type="text" id="messageInput" placeholder="Ask a question about your data...">
+          <button id="sendMessage">Send</button>
+      </div>
+  </div>
 </div>
+
+<style>
+/* Add styles for database selector */
+.database-selector {
+  padding: 8px 12px;
+  background-color: #F2F2F7;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.database-selector label {
+  margin-right: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.database-selector select {
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid #D1D1D6;
+  background-color: white;
+  font-size: 12px;
+  flex-grow: 1;
+  max-width: 180px;
+  outline: none;
+}
+
+.database-selector select:focus {
+  border-color: #007AFF;
+}
+
+.selector-info {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: #007AFF;
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 16px;
+  margin-left: 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+/* Database badge for responses */
+.database-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #007AFF;
+  color: white;
+  font-size: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Existing styles remain the same */
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const chatButton = document.getElementById('chatButton');
-    const chatContainer = document.getElementById('chatContainer');
-    const closeChat = document.getElementById('closeChat');
-    const messageInput = document.getElementById('messageInput');
-    const sendMessage = document.getElementById('sendMessage');
-    const chatMessages = document.getElementById('chatMessages');
+  const chatButton = document.getElementById('chatButton');
+  const chatContainer = document.getElementById('chatContainer');
+  const closeChat = document.getElementById('closeChat');
+  const messageInput = document.getElementById('messageInput');
+  const sendMessage = document.getElementById('sendMessage');
+  const chatMessages = document.getElementById('chatMessages');
+  const databaseSelect = document.getElementById('databaseSelect');
+  const selectorInfo = document.getElementById('selectorInfo');
+  
+  // Initialize from localStorage
+  if (localStorage.getItem('preferred_database')) {
+      databaseSelect.value = localStorage.getItem('preferred_database');
+  }
+  
+  // Database selector info tooltip
+  selectorInfo.addEventListener('click', () => {
+      addMessage("Database Focus Help: Select 'All Databases' to query across all data, or choose a specific database to focus your queries on that database only.", 'bot', 'info');
+  });
+  
+  // Save database preference
+  databaseSelect.addEventListener('change', (e) => {
+      localStorage.setItem('preferred_database', e.target.value);
+  });
 
-    // Toggle chat window visibility
-    chatButton.addEventListener('click', () => {
-        chatContainer.style.display = chatContainer.style.display === 'none' || chatContainer.style.display === '' ? 'flex' : 'none';
-    });
+  // Toggle chat window visibility
+  chatButton.addEventListener('click', () => {
+      chatContainer.style.display = chatContainer.style.display === 'none' || chatContainer.style.display === '' ? 'flex' : 'none';
+  });
 
-    // Close chat window
-    closeChat.addEventListener('click', () => {
-        chatContainer.style.display = 'none';
-    });
+  // Close chat window
+  closeChat.addEventListener('click', () => {
+      chatContainer.style.display = 'none';
+  });
 
-    // Function to send user message
-    function sendUserMessage() {
-        const message = messageInput.value.trim();
-        if (message) {
-            addMessage(message, 'user');
-            messageInput.value = '';
-            
-            fetch('/user/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ message: message })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('API Response:', data);
-                
-                if (data.error) {
-                    // Handle server-side errors with interpretation
-                    const errorMsg = data.interpretedQuery 
-                        ? `I understood your question about "${data.interpretedQuery}" but encountered an error: ${data.error}`
-                        : `Error processing "${message}": ${data.error}`;
-                    addMessage(errorMsg, 'bot');
-                } else if (Array.isArray(data.content)) {
-                    // Handle array responses
-                    data.content.forEach(row => {
-                        const formattedMessage = Object.entries(row)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join('\n');
-                        addMessage(formattedMessage, 'bot');
-                    });
-                } else if (data.type === 'message') {
-                    // Handle single message responses
-                    addMessage(data.content, 'bot');
-                } else if (data.type === 'data') {
-                    // Handle structured data responses
-                    data.content.forEach(row => {
-                        const formattedMessage = Object.entries(row)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join('\n');
-                        addMessage(formattedMessage, 'bot');
-                    });
-                } else {
-                    // Handle unexpected response formats
-                    addMessage('Received an unexpected response format.', 'bot');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                // Handle network errors with original message
-                addMessage(`Failed to process: "${message}". Please check your connection and try again.`, 'bot');
-            });
-        }
-    }
+  // Function to send user message
+  function sendUserMessage() {
+      const message = messageInput.value.trim();
+      if (message) {
+          // Get the selected database focus
+          const dbFocus = databaseSelect.value;
+          let enhancedMessage = message;
+          
+          // Append database focus note if a specific database is selected
+          if (dbFocus) {
+              // Don't modify the message visibly to the user, but include a note
+              // about database preference in API call
+              addMessage(message, 'user');
+              messageInput.value = '';
+          } else {
+              addMessage(message, 'user');
+              messageInput.value = '';
+          }
+          
+          // Show loading indicator
+          const loadingId = showLoadingMessage();
+          
+          // Create the request payload
+          let requestPayload = { message: message };
+          if (dbFocus) {
+              // Add a hint about database preference
+              requestPayload.database_hint = dbFocus;
+          }
+          
+          fetch('/user/chat', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': '{{ csrf_token() }}'
+              },
+              body: JSON.stringify(requestPayload)
+          })
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+          })
+          .then(data => {
+              console.log('API Response:', data);
+              
+              // Remove loading message
+              removeLoadingMessage(loadingId);
+              
+              // Handle different response types
+              if (data.error) {
+                  // Handle explicit error field
+                  const errorMsg = `Error: ${data.error}`;
+                  addMessage(errorMsg, 'bot', 'error');
+                  
+              } else if (data.type === 'error') {
+                  // Handle error type responses
+                  addMessage(data.content, 'bot', 'error');
+                  
+              } else if (data.type === 'message') {
+                  // Handle simple message responses
+                  addMessage(data.content, 'bot');
+                  
+              } else if (data.type === 'data_response') {
+                  // Handle new data_response format with database info
+                  
+                  // Add database badge to response if available
+                  let responseContent = data.content;
+                  if (data.database) {
+                      responseContent += ` <span class="database-badge">${data.database}</span>`;
+                  }
+                  
+                  // First show the natural language response
+                  addMessage(responseContent, 'bot', 'normal', true);
+                  
+                  // If advanced mode is on, show additional details
+                  if (isAdvancedUser()) {
+                      // Show SQL query
+                      if (data.sql) {
+                          addSqlMessage(data.sql);
+                      }
+                      
+                      // Show data preview for large result sets
+                      if (data.data && data.data.length > 0) {
+                          const rowCount = data.row_count || data.data.length;
+                          if (rowCount > 3) {
+                              addMessage(`Showing ${Math.min(3, data.data.length)} of ${rowCount} results:`, 'bot', 'info');
+                              addDataTable(data.data.slice(0, 3));
+                          } else {
+                              addDataTable(data.data);
+                          }
+                      } else if (data.data && data.data.length === 0) {
+                          addMessage("No records found in the database.", 'bot', 'info');
+                      }
+                  }
+                  
+              } else if (data.type === 'data') {
+                  // Handle legacy data format
+                  if (Array.isArray(data.content)) {
+                      addDataTable(data.content);
+                  } else {
+                      addMessage(data.content || 'No results found', 'bot');
+                  }
+                  
+              } else if (Array.isArray(data.content)) {
+                  // Handle direct array responses
+                  addDataTable(data.content);
+                  
+              } else if (data.content) {
+                  // Fallback for any response with content field
+                  addMessage(data.content, 'bot');
+                  
+              } else {
+                  // Ultimate fallback for unexpected formats
+                  addMessage('I processed your request but received an unexpected response format.', 'bot', 'warning');
+              }
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              // Remove loading message
+              removeLoadingMessage(loadingId);
+              // Handle network errors
+              addMessage(`Failed to process: "${message}". Please check your connection and try again.`, 'bot', 'error');
+          });
+      }
+  }
 
-    // Function to add messages to the chat window
-    function addMessage(text, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
-        messageDiv.innerHTML = text.replace(/\n/g, '<br>');
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+  // Function to show loading indicator
+  function showLoadingMessage() {
+      const loadingId = 'loading-' + Date.now();
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = loadingId;
+      loadingDiv.classList.add('message', 'bot-message', 'loading');
+      loadingDiv.innerHTML = 'Thinking<span class="dot-animation">...</span>';
+      chatMessages.appendChild(loadingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return loadingId;
+  }
 
-    // Event listeners for sending messages
-    sendMessage.addEventListener('click', sendUserMessage);
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendUserMessage();
-    });
+  // Function to remove loading indicator
+  function removeLoadingMessage(loadingId) {
+      const loadingElement = document.getElementById(loadingId);
+      if (loadingElement) {
+          loadingElement.remove();
+      }
+  }
+
+  // Check if user has enabled advanced mode
+  function isAdvancedUser() {
+      return localStorage.getItem('advanced_mode') === 'true';
+  }
+
+  // Function to add normal text messages to the chat window
+  function addMessage(text, sender, style = 'normal', allowHTML = false) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+      
+      // Add style class if provided
+      if (style !== 'normal') {
+          messageDiv.classList.add(`${style}-message`);
+      }
+      
+      if (allowHTML) {
+          messageDiv.innerHTML = text;
+      } else {
+          messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+      }
+      
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Function to add SQL code in a special format
+  function addSqlMessage(sql) {
+      const sqlDiv = document.createElement('div');
+      sqlDiv.classList.add('sql-message');
+      
+      const header = document.createElement('div');
+      header.classList.add('sql-header');
+      header.innerHTML = 'SQL Query:';
+      
+      const code = document.createElement('pre');
+      code.classList.add('sql-code');
+      code.innerHTML = sql;
+      
+      sqlDiv.appendChild(header);
+      sqlDiv.appendChild(code);
+      chatMessages.appendChild(sqlDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Function to display data in a table format
+  function addDataTable(data) {
+      if (!data || data.length === 0) return;
+      
+      const tableDiv = document.createElement('div');
+      tableDiv.classList.add('table-message');
+      
+      const table = document.createElement('table');
+      table.classList.add('data-table');
+      
+      // Create table header
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      
+      // Get columns from first row
+      const columns = Object.keys(data[0]);
+      columns.forEach(column => {
+          const th = document.createElement('th');
+          th.textContent = column;
+          headerRow.appendChild(th);
+      });
+      
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      
+      // Create table body
+      const tbody = document.createElement('tbody');
+      data.forEach(row => {
+          const tr = document.createElement('tr');
+          columns.forEach(column => {
+              const td = document.createElement('td');
+              td.textContent = row[column] !== null ? row[column] : '';
+              tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+      });
+      
+      table.appendChild(tbody);
+      tableDiv.appendChild(table);
+      chatMessages.appendChild(tableDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Event listeners for sending messages
+  sendMessage.addEventListener('click', sendUserMessage);
+  messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendUserMessage();
+  });
+  
+  // Add toggle for advanced mode in chat header
+  const advancedModeCheckbox = document.getElementById('advancedMode');
+  if (advancedModeCheckbox) {
+      // Set initial state from localStorage
+      advancedModeCheckbox.checked = localStorage.getItem('advanced_mode') === 'true';
+      
+      advancedModeCheckbox.addEventListener('change', (e) => {
+          localStorage.setItem('advanced_mode', e.target.checked);
+      });
+  }
 });
 </script>

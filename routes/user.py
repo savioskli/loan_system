@@ -45,6 +45,7 @@ from models.auction import Auction
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
+from functools import lru_cache
 
 # Global helper function to add visible_modules to template parameters
 def render_with_modules(template, **kwargs):
@@ -4210,11 +4211,12 @@ def create_refinance_application():
 
 
 
+
+
 # Mistral API configuration
 MISTRAL_API_KEY = 'W2DXJoMj9Sbjj9jFEBFVvr5x6CaMH8sM'
 MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions'
 MODEL_NAME = 'mistral-small-latest'
-
 
 # Database configuration
 databases = {
@@ -4236,8 +4238,39 @@ databases = {
     }
 }
 
+# Schema cache with expiration (4 hours)
+SCHEMA_CACHE_TTL = 14400  # seconds
+_schema_cache = {
+    'table_schema': None,
+    'relationships': None,
+    'last_updated': 0
+}
 
-# Initialize SQLAlchemy engine
+def extract_database_preference(user_input):
+    """Extract database preference from user input."""
+    user_input_lower = user_input.lower()
+    
+    # Check for explicit database mentions
+    if "sacco_db" in user_input_lower or "sacco database" in user_input_lower:
+        return "primary"
+    elif "loan_system" in user_input_lower or "loan database" in user_input_lower:
+        return "secondary"
+    
+    # More generalized pattern matching
+    db_patterns = {
+        'primary': ['sacco', 'member', 'members'],
+        'secondary': ['loan', 'loans', 'loan system']
+    }
+    
+    for db_name, patterns in db_patterns.items():
+        for pattern in patterns:
+            if pattern in user_input_lower:
+                return db_name
+    
+    # Default to primary if no preference detected
+    return None
+
+
 def get_db_engine(database='primary'):
     """Get SQLAlchemy engine for specified database."""
     config = databases.get(database)
@@ -4247,144 +4280,409 @@ def get_db_engine(database='primary'):
         f"{config['dialect']}+{config['driver']}://{config['user']}:{config['password']}@{config['host']}/{config['database']}"
     )
 
+def is_cache_valid():
+    """Check if schema cache is still valid."""
+    return (time.time() - _schema_cache['last_updated']) < SCHEMA_CACHE_TTL and \
+           _schema_cache['table_schema'] is not None and \
+           _schema_cache['relationships'] is not None
 
-def get_table_schema():
-    """Fetch schema from all configured databases."""
+def get_table_schema(force_refresh=False):
+    """Fetch schema from all configured databases with caching."""
+    if not force_refresh and is_cache_valid():
+        return _schema_cache['table_schema']
+    
     table_schema = {}
+    max_retries = 3
+    
     for db_name in databases:
         engine = get_db_engine(db_name)
-        try:
-            inspector = inspect(engine)
-            db_label = databases[db_name]['database']
-            for table in inspector.get_table_names():
-                columns = inspector.get_columns(table)
-                full_table_name = f"{db_label}.{table}"
-                table_schema[full_table_name] = {
-                    col['name']: str(col['type']) for col in columns
-                }
-        except SQLAlchemyError as e:
-            current_app.logger.error(f"Schema error ({db_name}): {str(e)}")
-        finally:
-            engine.dispose()
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                inspector = inspect(engine)
+                db_label = databases[db_name]['database']
+                for table in inspector.get_table_names():
+                    columns = inspector.get_columns(table)
+                    full_table_name = f"{db_label}.{table}"
+                    table_schema[full_table_name] = {
+                        col['name']: str(col['type']) for col in columns
+                    }
+                # Success, exit retry loop
+                break
+            except SQLAlchemyError as e:
+                retry_count += 1
+                wait_time = 2 ** retry_count  # Exponential backoff
+                current_app.logger.warning(
+                    f"Schema error ({db_name}), attempt {retry_count}/{max_retries}: {str(e)}. "
+                    f"Retrying in {wait_time}s."
+                )
+                time.sleep(wait_time)
+            finally:
+                engine.dispose()
+    
+    # Only update cache if we found tables
+    if table_schema:
+        _schema_cache['table_schema'] = table_schema
+        _schema_cache['last_updated'] = time.time()
+    
     return table_schema
 
-def get_table_relationships():
-    """Fetch relationships across all databases."""
+def get_table_relationships(force_refresh=False):
+    """Fetch relationships across all databases with caching."""
+    if not force_refresh and is_cache_valid():
+        return _schema_cache['relationships']
+    
     relationships = []
+    max_retries = 3
+    
     for db_name in databases:
         engine = get_db_engine(db_name)
-        try:
-            inspector = inspect(engine)
-            db_label = databases[db_name]['database']
-            for table in inspector.get_table_names():
-                for fk in inspector.get_foreign_keys(table):
-                    relationships.append({
-                        'source_table': f"{db_label}.{table}",
-                        'source_column': fk['constrained_columns'][0],
-                        'target_table': f"{db_label}.{fk['referred_table']}",
-                        'target_column': fk['referred_columns'][0]
-                    })
-        except SQLAlchemyError as e:
-            current_app.logger.error(f"Relationships error ({db_name}): {str(e)}")
-        finally:
-            engine.dispose()
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                inspector = inspect(engine)
+                db_label = databases[db_name]['database']
+                for table in inspector.get_table_names():
+                    for fk in inspector.get_foreign_keys(table):
+                        if fk['referred_columns']:  # Check if not empty
+                            relationships.append({
+                                'source_table': f"{db_label}.{table}",
+                                'source_column': fk['constrained_columns'][0] if fk['constrained_columns'] else '',
+                                'target_table': f"{db_label}.{fk['referred_table']}",
+                                'target_column': fk['referred_columns'][0] if fk['referred_columns'] else ''
+                            })
+                # Success, exit retry loop
+                break
+            except SQLAlchemyError as e:
+                retry_count += 1
+                wait_time = 2 ** retry_count  # Exponential backoff
+                current_app.logger.warning(
+                    f"Relationships error ({db_name}), attempt {retry_count}/{max_retries}: {str(e)}. "
+                    f"Retrying in {wait_time}s."
+                )
+                time.sleep(wait_time)
+            finally:
+                engine.dispose()
+    
+    # Only update cache if we found relationships
+    if relationships:
+        _schema_cache['relationships'] = relationships
+        _schema_cache['last_updated'] = time.time()
+    
     return relationships
 
+def validate_schema_completeness():
+    """Check if schema discovery found a reasonable number of tables."""
+    schema = get_table_schema()
+    if not schema or len(schema) < 1:
+        current_app.logger.error("Schema discovery failed: No tables found")
+        return False
+    
+    # Check each configured database
+    for db_name, config in databases.items():
+        db_label = config['database']
+        db_tables = [t for t in schema.keys() if t.startswith(f"{db_label}.")]
+        if not db_tables:
+            current_app.logger.error(f"Schema discovery issue: No tables found for {db_label}")
+            return False
+    
+    return True
 
-def generate_system_prompt():
-    """Generate prompt with multi-database schema."""
+def generate_system_prompt(preferred_db=None):
+    """Generate prompt with multi-database schema, optionally focusing on a specific database."""
+    # Ensure schema is valid
+    if not validate_schema_completeness():
+        # Force refresh schema if validation fails
+        get_table_schema(force_refresh=True)
+        get_table_relationships(force_refresh=True)
+        
+        # Check again after refresh
+        if not validate_schema_completeness():
+            current_app.logger.error("Critical error: Schema discovery failed even after refresh")
+            # Return a minimal prompt
+            return """
+            You are a SQL assistant. The database schema couldn't be fully loaded.
+            Please respond with general guidance but note that specific column details
+            may be unavailable. If the user asks for SQL, explain that schema information
+            is currently limited.
+            """
+    
     schema = get_table_schema()
     relationships = get_table_relationships()
 
-    # Format tables with database prefixes
+    # Format tables with optional focus on preferred database
     table_info = []
+    
     for table, cols in schema.items():
+        # Extract the database name from the table's full name
+        db_name = table.split('.')[0]
+        
+        # If there's a preferred database, prioritize those tables
+        db_config = next((config for name, config in databases.items() 
+                          if config['database'] == db_name), None)
+        
+        if preferred_db and db_config:
+            db_key = next((key for key, val in databases.items() 
+                          if val['database'] == db_name), None)
+            
+            # Skip tables not in preferred database
+            if db_key != preferred_db:
+                continue
+                
         col_list = "\n    ".join([f"- {name} ({dtype})" for name, dtype in cols.items()])
         table_info.append(f"Table {table}:\n    {col_list}")
 
-    # Format relationships with database prefixes
-    rel_info = [
-        f"- {r['source_table']}.{r['source_column']} → {r['target_table']}.{r['target_column']}"
-        for r in relationships
-    ]
+    # Format relationships, focusing on preferred database if specified
+    rel_info = []
+    for r in relationships:
+        source_db = r['source_table'].split('.')[0]
+        target_db = r['target_table'].split('.')[0]
+        
+        # Skip relationships not involving preferred database
+        if preferred_db:
+            db_name = databases[preferred_db]['database']
+            if db_name not in [source_db, target_db]:
+                continue
+                
+        rel_info.append(
+            f"- {r['source_table']}.{r['source_column']} → {r['target_table']}.{r['target_column']}"
+        )
 
-    # Pre-format sections to avoid backslashes in f-string expressions
+    # Pre-format sections
     formatted_table_section = "\n\n".join(table_info)
-    formatted_rel_section = '\n'.join(rel_info) if rel_info else '- No cross-database relationships'
+    formatted_rel_section = '\n'.join(rel_info) if rel_info else '- No relationships found'
 
-    # Properly formatted multi-line f-string
+    # Database focus note
+    focus_note = ""
+    if preferred_db:
+        db_name = databases[preferred_db]['database']
+        focus_note = f"\n\nFOCUS ON DATABASE: {db_name}\nThe user wants to query the {db_name} database specifically. Prioritize tables from this database."
+
+    # Enhanced prompt
     system_prompt = f"""
-You are a multi-database SQL assistant. Follow these rules:
+You are a multi-database SQL assistant. Follow these rules precisely:
 
-1. Use EXACT table names with database prefixes:
+1. Database Schema (ALWAYS include database prefix with tables):
 {formatted_table_section}
 
-2. JOIN Rules:
-{formatted_rel_section}
+2. Database Relationships:
+{formatted_rel_section}{focus_note}
 
 3. Critical Requirements:
-   - ALWAYS prefix tables with their database name
-   - Use database1.table1 JOIN database2.table2 syntax
-   - Verify database prefixes match configured names
-   - Cross-database queries must use fully qualified names
+   - ALWAYS prefix tables with their database name (e.g., sacco_db.members)
+   - Use database1.table1 JOIN database2.table2 syntax for cross-database queries
+   - Always verify database prefixes match configured names
+   - For every query, double-check that all tables referenced exist in the schema
+   - Always use SELECT queries only, never modification queries
+
+4. Response Format:
+   - Always put SQL queries inside ```sql and ``` tags
+   - Make SQL the PRIMARY content of your response
+   - After the SQL, provide a brief explanation (no more than 2 sentences)
+   - NEVER say "Here's a SQL query that..." - just provide the SQL directly
+
+5. Error Prevention:
+   - Always include all necessary JOINs
+   - Always check column names against the schema
+   - Use aliases for clarity when joining tables
+   - Verify that tables exist before referencing them
+
+Example good response:
+```sql
+SELECT sacco_db.members.name, loan_system.loans.amount 
+FROM sacco_db.members 
+JOIN loan_system.loans ON sacco_db.members.id = loan_system.loans.member_id
+WHERE sacco_db.members.status = 'active'
+```
+This query retrieves active members with their loan amounts.
 """
     return system_prompt
 
-
-def call_mistral_api(user_input):
-    """Call Mistral API and return a response."""
+def call_mistral_api(user_input, preferred_db=None):
+    """Call Mistral API with improved error handling and retries."""
     headers = {
         'Authorization': f'Bearer {MISTRAL_API_KEY}',
         'Content-Type': 'application/json'
     }
 
-    # Generate dynamic system prompt with table schema
-    SYSTEM_PROMPT = generate_system_prompt()
+    # Generate dynamic system prompt with table schema, considering preferred database
+    system_prompt = generate_system_prompt(preferred_db)
+
+    # Modify user input to clarify the database focus if preferred_db is specified
+    enhanced_input = user_input
+    if preferred_db:
+        db_name = databases[preferred_db]['database']
+        enhanced_input = f"For the {db_name} database: {user_input}"
+        
+    # Add a note about table naming conventions based on actual schema
+    schema = get_table_schema()
+    table_examples = []
+    
+    # Extract actual table names to use as examples
+    for table_name in schema.keys():
+        # Get just the table part without the database prefix
+        table_only = table_name.split('.')[-1] if '.' in table_name else table_name
+        table_examples.append(table_only)
+    
+    # Take up to 5 examples
+    example_tables = ', '.join([f"'{table}'" for table in table_examples[:5]])
+    
+    # Add naming convention guidance to the prompt
+    enhanced_input = f"{enhanced_input}\n\nIMPORTANT: Use the EXACT table and column names as they appear in the schema. Examples of actual table names: {example_tables}."
 
     data = {
         'model': MODEL_NAME,
         'messages': [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_input}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Convert this to SQL (respond with SQL code only): {enhanced_input}"}
         ],
-        'max_tokens': 400,  # Increased to accommodate longer queries
-        'temperature': 0.3
+        'max_tokens': 600,
+        'temperature': 0.2
     }
 
-    response = requests.post(MISTRAL_API_URL, headers=headers, json=data)
-    if response.status_code == 200:
-        api_response = response.json()
-        if 'choices' in api_response and api_response['choices']:
-            return api_response['choices'][0]['message']['content'].strip()
-        else:
-            current_app.logger.error("Mistral API returned an empty response")
-            return None
-    else:
-        current_app.logger.error(f"Mistral API error: {response.status_code} - {response.text}")
-        return None
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=10)
+            if response.status_code == 200:
+                api_response = response.json()
+                if 'choices' in api_response and api_response['choices']:
+                    return api_response['choices'][0]['message']['content'].strip()
+                else:
+                    current_app.logger.error("Mistral API returned an empty response")
+            else:
+                current_app.logger.error(f"Mistral API error: {response.status_code} - {response.text}")
+            
+            # If we get here, something went wrong
+            retry_count += 1
+            wait_time = 2 ** retry_count  # Exponential backoff
+            if retry_count < max_retries:
+                current_app.logger.warning(f"Retrying API call ({retry_count}/{max_retries}) in {wait_time}s")
+                time.sleep(wait_time)
+            
+        except Exception as e:
+            current_app.logger.error(f"API request error: {str(e)}")
+            retry_count += 1
+            if retry_count < max_retries:
+                time.sleep(2 ** retry_count)  # Exponential backoff
+    
+    return None
 
 
 def clean_sql_response(response):
-    """Extract the first SQL code block from the AI response."""
-    # Match SQL code blocks with optional whitespace/newlines
-    match = re.search(r"```sql\s+(.*?)\s+```", response, re.DOTALL)
-    if match:
-        return match.group(1).strip()  # Return only the SQL query
-    return ""  # Return empty if no SQL found
+    """Extract SQL code block from the AI response with improved pattern matching."""
+    if not response:
+        return ""
+        
+    # Try to match SQL code blocks with multiple patterns
+    patterns = [
+        r"```sql\s+(.*?)\s+```",  # Standard SQL code block
+        r"```\s+(SELECT.*?)\s+```",  # Generic code block with SELECT
+        r"```(SELECT.*?)```",  # No whitespace
+        r"SELECT\s+.*?FROM.*?(?:WHERE.*?)?(?:GROUP BY.*?)?(?:HAVING.*?)?(?:ORDER BY.*?)?(?:LIMIT\s+\d+)?(?:;|\n|$)"  # Raw SQL pattern
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
+        if match:
+            sql = match.group(1).strip()
+            # Ensure it's a SELECT query
+            if sql.upper().startswith("SELECT"):
+                return sql
+    
+    # If no SQL found, check if it's a raw SQL query
+    if response.strip().upper().startswith("SELECT"):
+        # Extract the SQL query up to a natural boundary
+        lines = response.strip().split('\n')
+        sql_lines = []
+        for line in lines:
+            sql_lines.append(line)
+            if ";" in line:
+                break
+            if not line.strip() and sql_lines:  # Empty line after content
+                break
+        
+        sql = " ".join(sql_lines).strip()
+        # Basic validation to ensure it looks like SQL
+        if " FROM " in sql.upper():
+            return sql
+    
+    return ""
 
+def normalize_table_name(table_name):
+    """Convert table name to different common formats for fallback attempts."""
+    # Original name
+    formats = [table_name]
+    
+    # CamelCase to snake_case (LoanLedgerEntries -> loan_ledger_entries)
+    snake_case = re.sub(r'(?<!^)(?=[A-Z])', '_', table_name).lower()
+    if snake_case != table_name.lower():
+        formats.append(snake_case)
+    
+    # snake_case to CamelCase (loan_ledger_entries -> LoanLedgerEntries)
+    if '_' in table_name:
+        camel_case = ''.join(word.capitalize() for word in table_name.split('_'))
+        formats.append(camel_case)
+    
+    # Lowercase version
+    formats.append(table_name.lower())
+    
+    # Uppercase first letter
+    formats.append(table_name[0].upper() + table_name[1:] if table_name else '')
+    
+    # Return unique formats
+    return list(set(formats))
 
-def is_valid_sql(query):
-    """Validate SQL using database PREPARE statement."""
+def is_valid_sql(query, preferred_db=None):
+    """Validate SQL with enhanced security checks."""
+    if not query:
+        return False
+        
     query = query.strip().rstrip(';')
+    # Remove all known database prefixes from table references
+    original_query = query
+    for db in databases.values():
+        db_name = db['database']
+        # Use regex to replace all instances of 'db_name.' with empty string
+        query = re.sub(r'\b' + re.escape(db_name) + r'\.', '', query)
+    
+    if original_query != query:
+        current_app.logger.debug(f"SQL before prefix stripping: {original_query}")
+        current_app.logger.debug(f"SQL after prefix stripping (validation): {query}")
     q_upper = query.upper()
     
-    # Basic security checks
-    forbidden = {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "--"}
-    if any(kw in q_upper for kw in forbidden) or not q_upper.startswith("SELECT"):
+    # Expanded security checks
+    forbidden_keywords = {
+        "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", 
+        "RENAME", "GRANT", "REVOKE", "--", "/*", "*/", "EXEC", "EXECUTE",
+        "UNION", "INTO OUTFILE", "LOAD_FILE"
+    }
+    
+    if not q_upper.startswith("SELECT"):
+        return False
+        
+    if any(kw in q_upper for kw in forbidden_keywords):
+        current_app.logger.warning(f"SQL validation failed: Forbidden keyword detected in: {query}")
         return False
 
-    # Database validation
-    engine = get_db_engine()
+    # Get schema to find actual table names
+    schema = get_table_schema()
+    actual_tables = {}
+    
+    # Create a mapping of possible table name variations to actual table names
+    for full_table_name in schema.keys():
+        table_name = full_table_name.split('.')[-1]  # Remove DB prefix
+        for variant in normalize_table_name(table_name):
+            actual_tables[variant.lower()] = table_name
+    
+    # Use the correct database for validation
+    engine = get_db_engine(preferred_db if preferred_db else 'primary')
+    
+    # First try with the original query
     try:
         with engine.connect() as conn:
             conn.execute(text("SET @sql = :query"), {"query": query})
@@ -4392,46 +4690,141 @@ def is_valid_sql(query):
             conn.execute(text("DEALLOCATE PREPARE stmt"))
         return True
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Query validation failed: {str(e)}")
+        error_msg = str(e)
+        current_app.logger.debug(f"First validation attempt failed: {error_msg}")
+        # If the error is about a table not existing, try to identify and fix the table name
+        if "doesn't exist" in error_msg.lower() and "table" in error_msg.lower():
+            # Try to extract the problematic table name from the error message
+            table_match = re.search(r"Table '.*?\.(.*?)' doesn't exist", error_msg)
+            if table_match:
+                problem_table = table_match.group(1)
+                current_app.logger.debug(f"Problem table identified: {problem_table}")
+                
+                # Check if we have a mapping for this table name
+                if problem_table.lower() in actual_tables:
+                    correct_table = actual_tables[problem_table.lower()]
+                    current_app.logger.debug(f"Found correct table name: {correct_table}")
+                    
+                    # Replace the incorrect table name with the correct one
+                    fixed_query = re.sub(r'\b' + re.escape(problem_table) + r'\b', correct_table, query)
+                    current_app.logger.debug(f"Attempting with fixed query: {fixed_query}")
+                    
+                    # Try again with the fixed query
+                    try:
+                        with engine.connect() as conn:
+                            conn.execute(text("SET @sql = :query"), {"query": fixed_query})
+                            conn.execute(text("PREPARE stmt FROM @sql"))
+                            conn.execute(text("DEALLOCATE PREPARE stmt"))
+                        return True
+                    except SQLAlchemyError as retry_error:
+                        current_app.logger.error(f"Retry validation error: {str(retry_error)}")
+        
+        # Log detailed diagnostics for the final error
+        current_app.logger.error(f"Query validation error: {error_msg}")
+        
+        # More detailed error diagnostics
+        if "syntax error" in error_msg.lower():
+            current_app.logger.error("SQL syntax error detected")
+        elif "unknown column" in error_msg.lower():
+            current_app.logger.error("Unknown column referenced in query")
+        elif "doesn't exist" in error_msg.lower():
+            current_app.logger.error("Table or database doesn't exist")
+            
         return False
+    
+def execute_sql_query(query, params=None, preferred_db=None):
+    """Execute query with improved error handling and result processing."""
+    if not query:
+        return None
+        
+    # Remove all known database prefixes from table references
+    original_query = query
+    for db in databases.values():
+        db_name = db['database']
+        # Use regex to replace all instances of 'db_name.' with empty string
+        query = re.sub(r'\b' + re.escape(db_name) + r'\.', '', query)
+    
+    if original_query != query:
+        current_app.logger.debug(f"SQL before prefix stripping: {original_query}")
+        current_app.logger.debug(f"SQL after prefix stripping (execution): {query}")
 
-
-def execute_sql_query(query, params=None, format_result=False):
-    """Execute query using SQLAlchemy with enhanced safety."""
-    engine = get_db_engine()
+    # Use the preferred database if specified, otherwise use default
+    engine = get_db_engine(preferred_db if preferred_db else 'primary')
+    start_time = time.time()
+    
     try:
         with engine.connect() as conn:
-            result = conn.execute(text(query), params or {})
-            # CORRECTED: Use _asdict() for proper row conversion
-            formatted = [row._asdict() for row in result]
+            # Set a reasonable query timeout
+            conn.execute(text("SET SESSION MAX_EXECUTION_TIME=10000"))  # 10 seconds
             
-            if format_result:
-                return formatted[0] if formatted else None
-            return formatted
+            # Execute the query
+            result = conn.execute(text(query), params or {})
+            
+            # Process the results
+            column_names = result.keys()
+            rows = []
+            
+            for row in result:
+                row_dict = {}
+                for idx, col_name in enumerate(column_names):
+                    # Handle different data types appropriately
+                    value = row[idx]
+                    if value is not None:
+                        # Convert dates/timestamps to strings
+                        if hasattr(value, 'isoformat'):
+                            value = value.isoformat()
+                    row_dict[col_name] = value
+                rows.append(row_dict)
+            
+            # Log performance metrics
+            execution_time = time.time() - start_time
+            current_app.logger.info(f"Query executed in {execution_time:.3f}s with {len(rows)} rows returned")
+            
+            return rows
     except SQLAlchemyError as e:
         current_app.logger.error(f"Query execution failed: {str(e)}")
         return None
 
 
-def generate_natural_response(user_input, query_result):
-    """Generate a natural language response from SQL query results using Mistral."""
+def generate_natural_response(user_input, query_result, sql_query):
+    """Generate a natural language response with context about the query."""
     headers = {
         'Authorization': f'Bearer {MISTRAL_API_KEY}',
         'Content-Type': 'application/json'
     }
 
-    system_prompt = """You are a helpful assistant that explains database results in natural language. Follow these rules:
-1. Always respond in complete, friendly sentences
-2. Never mention SQL, column names, or technical details
-3. Use numbers directly from the data without formatting
-4. For counts, use phrases like "You currently have X..." or "There are X..."
-5. For financial amounts, add appropriate currency symbols
-6. For dates, use natural formatting (e.g., 'January 5th, 2024')
-7. Keep responses concise but informative"""
+    # Enhanced system prompt for better responses
+    system_prompt = """You are a helpful financial database assistant that explains results clearly. Follow these rules:
+1. Respond in complete, friendly sentences that directly answer the user's question
+2. NEVER mention SQL syntax or column names directly
+3. Translate technical database terms into user-friendly language
+4. For numerical results, format large numbers with commas (e.g., 1,234,567) but DO NOT include currency symbols
+5. For empty results, explain possible reasons why no data was found
+6. Keep responses concise but informative (2-3 sentences maximum)
+7. If there are multiple rows, summarize the overall pattern or highlight key findings
+8. Avoid technical jargon unless the user specifically asks for technical details
+9. ALWAYS be consistent in your response style and tone
+10. For financial data, explain what the numbers represent but WITHOUT using currency terms
+11. If the query is about a specific person, mention their name in the response
+12. NEVER say 'I found X results' - instead provide the actual information"""
 
-    user_content = f"""Original question: {user_input}
-Database results: {json.dumps(query_result, default=str)}
-Please provide a helpful response:"""
+    # Add context about the number of results
+    result_count = len(query_result) if query_result else 0
+    result_preview = str(query_result[:3]) if query_result else "[]"
+    
+    # Extract key entities from the user's question for better context
+    user_question = user_input.strip()
+    
+    user_content = f"""Original question: {user_question}
+SQL query executed: {sql_query}
+Number of results: {result_count}
+Database results preview: {result_preview}
+Full results: {json.dumps(query_result, default=str)}
+
+Please provide a helpful, natural language response to the user's question based on these results.
+Format large numbers with commas for readability (e.g., 1,234,567) but DO NOT include currency symbols.
+Be specific about what the numbers represent, but avoid currency terminology.
+Directly answer the user's question without saying 'I found X results'."""
 
     data = {
         'model': MODEL_NAME,
@@ -4439,21 +4832,70 @@ Please provide a helpful response:"""
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        'temperature': 0.2,
-        'max_tokens': 150
+        'temperature': 0.3,
+        'max_tokens': 200
     }
 
     try:
-        response = requests.post(MISTRAL_API_URL, headers=headers, json=data)
+        response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=10)
         if response.status_code == 200:
             api_response = response.json()
             if api_response.get('choices'):
                 return api_response['choices'][0]['message']['content'].strip()
-        return f"Here's your data: {query_result}"  # Fallback response
+        # More informative fallback responses
+        if query_result:
+            # Try to create a more helpful fallback response based on the data
+            if len(query_result) == 1 and query_result[0]:
+                # For a single result, try to extract meaningful information
+                row = query_result[0]
+                # Look for common financial fields
+                financial_fields = ['amount', 'balance', 'outstanding', 'total', 'sum', 'value']
+                name_fields = ['name', 'fullname', 'full_name', 'member', 'customer', 'client']
+                
+                # Try to find a name in the result
+                name_value = None
+                for key in row.keys():
+                    if any(name_field in key.lower() for name_field in name_fields) and row[key]:
+                        name_value = row[key]
+                        break
+                        
+                # Try to find a financial value in the result
+                financial_value = None
+                for key in row.keys():
+                    if any(field in key.lower() for field in financial_fields) and row[key]:
+                        financial_value = row[key]
+                        break
+                        
+                if name_value and financial_value:
+                    # Format large numbers with commas
+                    try:
+                        if isinstance(financial_value, (int, float, complex)) or str(financial_value).replace('.', '', 1).isdigit():
+                            formatted_value = '{:,}'.format(float(financial_value))
+                        else:
+                            formatted_value = financial_value
+                    except:
+                        formatted_value = financial_value
+                    return f"{name_value} has a value of {formatted_value}."
+                elif financial_value:
+                    # Format large numbers with commas
+                    try:
+                        if isinstance(financial_value, (int, float, complex)) or str(financial_value).replace('.', '', 1).isdigit():
+                            formatted_value = '{:,}'.format(float(financial_value))
+                        else:
+                            formatted_value = financial_value
+                    except:
+                        formatted_value = financial_value
+                    return f"The value is {formatted_value}."
+                else:
+                    # Generic single result response
+                    return f"Found information: {', '.join([f'{k}: {v}' for k, v in row.items() if v])}"
+            else:
+                # Multiple results fallback
+                return f"Found {len(query_result)} records with the requested information."
+        return "No data was found matching your criteria. Please check your query or try different search terms."
     except Exception as e:
         current_app.logger.error(f"Natural response error: {str(e)}")
-        return f"Here are your results: {query_result}"
-
+        return "Here are your results." if query_result else "No results found."
 
 @user_bp.route('/chat', methods=['POST'])
 def chat():
@@ -4464,39 +4906,101 @@ def chat():
     if not user_input:
         return jsonify({'error': 'No message provided'}), 400
 
+    # Get database preference from request
+    database_hint = request.json.get('database_hint')
+    preferred_db = None
+    
+    # Map the frontend database value to backend database key
+    if database_hint:
+        if database_hint == 'sacco_db':
+            preferred_db = 'primary'
+        elif database_hint == 'loan_system':
+            preferred_db = 'secondary'
+
     try:
-        # Step 1: Get raw AI response
-        raw_response = call_mistral_api(user_input)
+        # Start with healthcheck for database and schema
+        try:
+            if not validate_schema_completeness():
+                current_app.logger.warning("Schema validation failed, refreshing...")
+                get_table_schema(force_refresh=True)
+                get_table_relationships(force_refresh=True)
+        except Exception as schema_error:
+            current_app.logger.error(f"Schema healthcheck failed: {str(schema_error)}")
+            # Continue anyway - we'll handle schema issues in the prompt
+
+        # Step 1: Get raw AI response with database preference
+        raw_response = call_mistral_api(user_input, preferred_db)
         if not raw_response:
-            return jsonify({'error': 'Failed to get AI response'}), 500
+            return jsonify({
+                'type': 'error',
+                'content': "I'm having trouble connecting to the database. Please try again."
+            }), 500
 
         # Step 2: Extract SQL query from response
         cleaned_sql = clean_sql_response(raw_response)
         
-        # Log intermediate results for debugging
+        # Log intermediate results
         current_app.logger.debug(f"Raw AI Response: {raw_response}")
         current_app.logger.debug(f"Extracted SQL: {cleaned_sql}")
 
-        # Step 3: Validate and execute SQL
-        if cleaned_sql and cleaned_sql.upper().startswith("SELECT"):
-            if is_valid_sql(cleaned_sql):
-                db_response = execute_sql_query(cleaned_sql)
-                
-                if db_response:
-                    # Step 4: Generate natural language response
-                    natural_response = generate_natural_response(user_input, db_response)
-                    return jsonify({'type': 'message', 'content': natural_response})
-                else:
-                    return jsonify({'type': 'message', 'content': "No records found."})
-            else:
-                return jsonify({'error': 'Invalid SQL query'}), 400
+        # Step 3: Handle SQL extraction results
+        if not cleaned_sql:
+            # No SQL found - return the raw response with an explanation
+            current_app.logger.warning("No SQL query found in response")
+            return jsonify({
+                'type': 'message',
+                'content': raw_response,
+                'note': "No SQL query could be extracted from the response."
+            })
+
+        # Step 4: Validate and execute SQL with preferred database
+        if not is_valid_sql(cleaned_sql, preferred_db):
+            current_app.logger.warning(f"Invalid SQL query: {cleaned_sql}")
+            return jsonify({
+                'type': 'error',
+                'content': "The generated SQL query was invalid. Please try rephrasing your question.",
+                'debug_info': {
+                    'query': cleaned_sql,
+                    'raw_response': raw_response
+                }
+            }), 400
+            
+        # Execute the valid SQL with preferred database
+        db_response = execute_sql_query(cleaned_sql, None, preferred_db)
         
-        # Step 5: Fallback to raw response if no SQL detected
-        return jsonify({'type': 'message', 'content': raw_response})
+        # Step 5: Handle query execution results
+        if db_response is None:  # Execution error
+            # Get the actual table names for better error messages
+            schema = get_table_schema()
+            actual_tables = [table_name.split('.')[-1] for table_name in schema.keys()]
+            
+            return jsonify({
+                'type': 'error',
+                'content': "There was an error executing the database query. Please try again.",
+                'debug_info': {
+                    'query': cleaned_sql,
+                    'available_tables': actual_tables[:10]  # Show first 10 tables for reference
+                }
+            }), 500
+            
+        # Step 6: Generate natural language response
+        natural_response = generate_natural_response(user_input, db_response, cleaned_sql)
+        
+        # Step 7: Return comprehensive response
+        return jsonify({
+            'type': 'data_response',
+            'content': natural_response,
+            'sql': cleaned_sql,
+            'data': db_response,
+            'row_count': len(db_response) if db_response else 0
+        })
 
     except Exception as e:
-        current_app.logger.error(f"Chat error: {str(e)}")
-        return jsonify({'error': 'Processing failed'}), 500
+        current_app.logger.error(f"Chat processing error: {str(e)}", exc_info=True)
+        return jsonify({
+            'type': 'error',
+            'content': "An unexpected error occurred while processing your request."
+        }), 500
         
 @user_bp.route('/overdue_loans', methods=['GET'])
 @login_required

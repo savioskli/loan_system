@@ -270,8 +270,12 @@
   <div class="chat-container" id="chatContainer">
       <div class="chat-header">
           <span>AI Chat</span>
-          <div class="advanced-toggle">
-              <label><input type="checkbox" id="advancedMode"> Advanced</label>
+          <div class="chat-controls">
+              <button id="newConversationBtn" class="control-button">New Chat</button>
+              <button id="viewHistoryBtn" class="control-button">History</button>
+              <div class="advanced-toggle">
+                  <label><input type="checkbox" id="advancedMode"> Advanced</label>
+              </div>
           </div>
           <button class="close-button" id="closeChat">&times;</button>
       </div>
@@ -298,6 +302,115 @@
 </div>
 
 <style>
+/* Conversation history modal */
+.history-modal {
+  display: none;
+  position: fixed;
+  z-index: 1100;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background-color: white;
+  margin: 10% auto;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+  background-color: #007AFF;
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.conversation-item {
+  padding: 12px;
+  border-bottom: 1px solid #E5E5EA;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.conversation-item:hover {
+  background-color: #F2F2F7;
+}
+
+.current-conversation {
+  background-color: #E1F0FF;
+}
+
+.conv-info {
+  flex: 1;
+}
+
+.conv-date {
+  font-weight: 500;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.conv-count {
+  font-size: 12px;
+  color: #8E8E93;
+}
+
+.load-conv-btn {
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.load-conv-btn:hover {
+  background-color: #005ecb;
+}
+
+/* Chat controls */
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-button {
+  background-color: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.control-button:hover {
+  background-color: rgba(255,255,255,0.3);
+}
+
 /* Add styles for database selector */
 .database-selector {
   padding: 8px 12px;
@@ -394,30 +507,166 @@ document.addEventListener('DOMContentLoaded', function() {
       chatContainer.style.display = 'none';
   });
 
+  // Conversation management variables
+  let currentConversationId = localStorage.getItem('currentConversationId') || null;
+  let currentUserId = 1; // Default user ID - in a real app, get this from authentication
+  
+  // Initialize a new conversation if needed
+  function initializeConversation() {
+      if (!currentConversationId) {
+          currentConversationId = `conv_${Date.now()}_${Math.floor(Math.random() * 9000) + 1000}`;
+          localStorage.setItem('currentConversationId', currentConversationId);
+      }
+  }
+  
+  // Start a new conversation
+  function startNewConversation() {
+      currentConversationId = `conv_${Date.now()}_${Math.floor(Math.random() * 9000) + 1000}`;
+      localStorage.setItem('currentConversationId', currentConversationId);
+      chatMessages.innerHTML = ''; // Clear chat messages
+      addMessage('New conversation started. How can I help you?', 'bot');
+  }
+  
+  // Load conversation history
+  function loadConversationHistory(conversationId) {
+      fetch(`/user/chat_history?conversation_id=${conversationId}`)
+          .then(response => response.json())
+          .then(data => {
+              chatMessages.innerHTML = ''; // Clear current messages
+              
+              // Make sure we have an array of messages
+              const messages = Array.isArray(data) ? data : [];
+              
+              if (messages.length === 0) {
+                  // Welcome message for new conversations
+                  addMessage('Welcome to the Loan System Chat! How can I help you today?', 'bot');
+                  return;
+              }
+              
+              // Display each message in the conversation
+              messages.forEach(msg => {
+                  addMessage(msg.message, 'user');
+                  if (msg.sql_query && msg.sql_query !== 'null') {
+                      addSqlMessage(msg.sql_query);
+                  }
+                  addMessage(msg.response, 'bot');
+              });
+              
+              // Scroll to the bottom
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+          })
+          .catch(error => {
+              console.error('Error loading conversation history:', error);
+              // Show error message in chat
+              addMessage('Error loading conversation history. Please try again.', 'bot', 'error');
+          });
+  }
+  
+  // Show conversation history modal
+  function showConversationHistory() {
+      // Create modal if it doesn't exist
+      let historyModal = document.getElementById('historyModal');
+      if (!historyModal) {
+          historyModal = document.createElement('div');
+          historyModal.id = 'historyModal';
+          historyModal.className = 'history-modal';
+          historyModal.innerHTML = `
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>Conversation History</h3>
+                <button class="close-button">&times;</button>
+              </div>
+              <div class="modal-body">
+                <div id="conversationList"></div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(historyModal);
+          
+          // Add event listener to close button
+          const closeBtn = historyModal.querySelector('.close-button');
+          closeBtn.addEventListener('click', () => {
+              historyModal.style.display = 'none';
+          });
+      }
+      
+      // Show the modal
+      historyModal.style.display = 'block';
+      
+      // Fetch and display conversation list
+      fetch(`/user/chat_history?user_id=${currentUserId}`)
+          .then(response => response.json())
+          .then(conversations => {
+              const conversationList = document.getElementById('conversationList');
+              conversationList.innerHTML = '';
+              
+              if (conversations.length === 0) {
+                  conversationList.innerHTML = '<p>No previous conversations found.</p>';
+                  return;
+              }
+              
+              conversations.forEach(conv => {
+                  const convItem = document.createElement('div');
+                  convItem.className = 'conversation-item';
+                  
+                  // Format the date
+                  const startDate = new Date(conv.started_at);
+                  const formattedDate = startDate.toLocaleString();
+                  
+                  convItem.innerHTML = `
+                    <div class="conv-info">
+                      <div class="conv-date">${formattedDate}</div>
+                      <div class="conv-count">${conv.message_count} messages</div>
+                    </div>
+                    <button class="load-conv-btn">Load</button>
+                  `;
+                  
+                  // Highlight current conversation
+                  if (conv.conversation_id === currentConversationId) {
+                      convItem.classList.add('current-conversation');
+                  }
+                  
+                  conversationList.appendChild(convItem);
+                  
+                  // Add event listener to load button
+                  const loadBtn = convItem.querySelector('.load-conv-btn');
+                  loadBtn.addEventListener('click', () => {
+                      currentConversationId = conv.conversation_id;
+                      localStorage.setItem('currentConversationId', currentConversationId);
+                      loadConversationHistory(currentConversationId);
+                      historyModal.style.display = 'none';
+                  });
+              });
+          })
+          .catch(error => {
+              console.error('Error fetching conversation history:', error);
+          });
+  }
+
   // Function to send user message
   function sendUserMessage() {
       const message = messageInput.value.trim();
       if (message) {
+          // Ensure we have a conversation ID
+          initializeConversation();
+          
           // Get the selected database focus
           const dbFocus = databaseSelect.value;
-          let enhancedMessage = message;
           
-          // Append database focus note if a specific database is selected
-          if (dbFocus) {
-              // Don't modify the message visibly to the user, but include a note
-              // about database preference in API call
-              addMessage(message, 'user');
-              messageInput.value = '';
-          } else {
-              addMessage(message, 'user');
-              messageInput.value = '';
-          }
+          // Add user message to the chat
+          addMessage(message, 'user');
+          messageInput.value = '';
           
           // Show loading indicator
           const loadingId = showLoadingMessage();
           
           // Create the request payload
-          let requestPayload = { message: message };
+          let requestPayload = { 
+              message: message,
+              conversation_id: currentConversationId,
+              user_id: currentUserId
+          };
+          
           if (dbFocus) {
               // Add a hint about database preference
               requestPayload.database_hint = dbFocus;
@@ -643,6 +892,15 @@ document.addEventListener('DOMContentLoaded', function() {
       advancedModeCheckbox.addEventListener('change', (e) => {
           localStorage.setItem('advanced_mode', e.target.checked);
       });
+  }
+  
+  // Initialize conversation and load history when page loads
+  initializeConversation();
+  if (currentConversationId) {
+      loadConversationHistory(currentConversationId);
+  } else {
+      // Welcome message for new users
+      addMessage('Welcome to the Loan System Chat! How can I help you today?', 'bot');
   }
 });
 </script>

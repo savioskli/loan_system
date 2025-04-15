@@ -4500,7 +4500,7 @@ This query retrieves active members with their loan amounts.
 """
     return system_prompt
 
-def call_mistral_api(user_input, preferred_db=None):
+def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     """Call Mistral API with improved error handling and retries."""
     headers = {
         'Authorization': f'Bearer {MISTRAL_API_KEY}',
@@ -4531,13 +4531,25 @@ def call_mistral_api(user_input, preferred_db=None):
     
     # Add naming convention guidance to the prompt
     enhanced_input = f"{enhanced_input}\n\nIMPORTANT: Use the EXACT table and column names as they appear in the schema. Examples of actual table names: {example_tables}."
+    
+    # Include conversation history for context if available
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    if conversation_history and len(conversation_history) > 0:
+        # Add a note about conversation history
+        enhanced_input = f"{enhanced_input}\n\nPlease consider our previous conversation for context."
+        
+        # Add previous messages to the conversation
+        for exchange in conversation_history:
+            messages.append({"role": "user", "content": exchange['user_message']})
+            messages.append({"role": "assistant", "content": exchange['assistant_response']})
+    
+    # Add the current user message
+    messages.append({"role": "user", "content": f"Convert this to SQL (respond with SQL code only): {enhanced_input}"})
 
     data = {
         'model': MODEL_NAME,
-        'messages': [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Convert this to SQL (respond with SQL code only): {enhanced_input}"}
-        ],
+        'messages': messages,
         'max_tokens': 600,
         'temperature': 0.2
     }
@@ -4897,6 +4909,102 @@ Directly answer the user's question without saying 'I found X results'."""
         current_app.logger.error(f"Natural response error: {str(e)}")
         return "Here are your results." if query_result else "No results found."
 
+# Import the ChatMessage model
+from models.chat_message import ChatMessage
+
+# Chat history table creation
+def ensure_chat_tables_exist():
+    """Ensure that the chat_messages table exists in the database."""
+    try:
+        # Use SQLAlchemy to create the table
+        db.create_all()
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Error creating chat tables: {str(e)}")
+        return False
+
+# Note: Chat tables will be created when the app starts in app.py
+
+def save_chat_message(user_id, conversation_id, message, response, sql_query=None, database_used=None):
+    """Save a chat message and its response to the database using the ChatMessage model."""
+    try:
+        # Create a new ChatMessage instance
+        chat_message = ChatMessage(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            message=message,
+            response=response,
+            sql_query=sql_query,
+            database_used=database_used
+        )
+        
+        # Add to the database and commit
+        db.session.add(chat_message)
+        db.session.commit()
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Error saving chat message: {str(e)}")
+        db.session.rollback()
+        return False
+
+def get_conversation_history(conversation_id, limit=10):
+    """Get the conversation history for a specific conversation ID using the ChatMessage model."""
+    try:
+        # Query the database using SQLAlchemy
+        messages = ChatMessage.query.filter_by(conversation_id=conversation_id).order_by(ChatMessage.timestamp.asc()).limit(limit).all()
+        
+        # Convert to dictionaries for JSON serialization
+        return [message.to_dict() for message in messages]
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving conversation history: {str(e)}")
+        return []
+
+@user_bp.route('/chat_history', methods=['GET'])
+def get_chat_history():
+    """Get chat history for a user or conversation using the ChatMessage model."""
+    conversation_id = request.args.get('conversation_id')
+    user_id = request.args.get('user_id', type=int)
+    limit = request.args.get('limit', 50, type=int)
+    
+    try:
+        if conversation_id:
+            # Get messages for a specific conversation
+            messages = ChatMessage.query.filter_by(conversation_id=conversation_id).order_by(ChatMessage.timestamp.asc()).limit(limit).all()
+            results = [message.to_dict() for message in messages]
+        elif user_id:
+            # Get all conversations for a user
+            # Using SQLAlchemy to get distinct conversations with metadata
+            from sqlalchemy import func, desc
+            conversations = db.session.query(
+                ChatMessage.conversation_id,
+                func.min(ChatMessage.timestamp).label('started_at'),
+                func.max(ChatMessage.timestamp).label('last_message'),
+                func.count(ChatMessage.id).label('message_count')
+            ).filter(
+                ChatMessage.user_id == user_id
+            ).group_by(
+                ChatMessage.conversation_id
+            ).order_by(
+                desc('last_message')
+            ).limit(limit).all()
+            
+            # Convert to dictionary format
+            results = []
+            for conv in conversations:
+                results.append({
+                    'conversation_id': conv.conversation_id,
+                    'started_at': conv.started_at.isoformat() if conv.started_at else None,
+                    'last_message': conv.last_message.isoformat() if conv.last_message else None,
+                    'message_count': conv.message_count
+                })
+        else:
+            return jsonify({'error': 'Missing conversation_id or user_id parameter'}), 400
+        
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving chat history: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve chat history'}), 500
+
 @user_bp.route('/chat', methods=['POST'])
 def chat():
     if not request.is_json:
@@ -4905,6 +5013,14 @@ def chat():
     user_input = request.json.get('message')
     if not user_input:
         return jsonify({'error': 'No message provided'}), 400
+        
+    # Get conversation ID (create a new one if not provided)
+    conversation_id = request.json.get('conversation_id')
+    if not conversation_id:
+        conversation_id = f"conv_{int(time.time())}_{random.randint(1000, 9999)}"
+    
+    # Get user ID (default to 1 if not provided)
+    user_id = request.json.get('user_id', 1)
 
     # Get database preference from request
     database_hint = request.json.get('database_hint')
@@ -4928,8 +5044,19 @@ def chat():
             current_app.logger.error(f"Schema healthcheck failed: {str(schema_error)}")
             # Continue anyway - we'll handle schema issues in the prompt
 
-        # Step 1: Get raw AI response with database preference
-        raw_response = call_mistral_api(user_input, preferred_db)
+        # Get conversation history for context
+        conversation_history = get_conversation_history(conversation_id, limit=5)
+        
+        # Format conversation history for the API
+        chat_context = []
+        for msg in conversation_history:
+            chat_context.append({
+                'user_message': msg['message'],
+                'assistant_response': msg['response']
+            })
+            
+        # Step 1: Get raw AI response with database preference and conversation history
+        raw_response = call_mistral_api(user_input, preferred_db, chat_context)
         if not raw_response:
             return jsonify({
                 'type': 'error',
@@ -4992,8 +5119,19 @@ def chat():
             'content': natural_response,
             'sql': cleaned_sql,
             'data': db_response,
+            'conversation_id': conversation_id,
             'row_count': len(db_response) if db_response else 0
         })
+        
+        # Save the chat message and response to the database
+        save_chat_message(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            message=user_input,
+            response=natural_response,
+            sql_query=cleaned_sql,
+            database_used=database_hint
+        )
 
     except Exception as e:
         current_app.logger.error(f"Chat processing error: {str(e)}", exc_info=True)

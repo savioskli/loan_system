@@ -165,6 +165,10 @@ def create_app():
             from models.sms_log import SMSLog
             from models.post_disbursement_modules import PostDisbursementModule
             db.create_all()
+            
+        # Initialize chat tables
+        from routes.user import ensure_chat_tables_exist
+        ensure_chat_tables_exist()
 
     # Register template filters
     @app.template_filter('datetime')

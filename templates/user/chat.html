@@ -7,6 +7,121 @@
   z-index: 1000;
 }
 
+/* Conversation History Modal Styles */
+.history-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+}
+
+.history-modal[style*="display: block"] {
+  display: flex !important;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  background-color: #007AFF;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-body {
+  padding: 15px;
+  max-height: calc(80vh - 60px);
+  overflow-y: auto;
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conversation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  transition: background-color 0.2s ease;
+}
+
+.conversation-item:hover {
+  background-color: #e5e5e5;
+}
+
+.current-conversation {
+  border-left: 4px solid #007AFF;
+}
+
+.conv-info {
+  flex: 1;
+}
+
+.conv-date {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.conv-count {
+  font-size: 12px;
+  color: #666;
+}
+
+.load-conv-btn {
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.load-conv-btn:hover {
+  background-color: #0056b3;
+}
+
+/* Database badge styles */
+.database-badge {
+  display: inline-block;
+  background-color: #f0f0f0;
+  color: #666;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 5px;
+  font-weight: normal;
+  vertical-align: middle;
+  border: 1px solid #ddd;
+}
+
 #chatButton {
   width: 60px;
   height: 60px;
@@ -54,7 +169,32 @@
   align-items: center;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
-  font-size: 14px;
+}
+
+.chat-header span {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.control-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 #closeChat {
@@ -506,10 +646,23 @@ document.addEventListener('DOMContentLoaded', function() {
   closeChat.addEventListener('click', () => {
       chatContainer.style.display = 'none';
   });
-
+  
   // Conversation management variables
   let currentConversationId = localStorage.getItem('currentConversationId') || null;
   let currentUserId = 1; // Default user ID - in a real app, get this from authentication
+  
+  // Conversation management buttons
+  const newConversationBtn = document.getElementById('newConversationBtn');
+  const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+  
+  // Add event listeners for conversation management buttons
+  if (newConversationBtn) {
+      newConversationBtn.addEventListener('click', startNewConversation);
+  }
+  
+  if (viewHistoryBtn) {
+      viewHistoryBtn.addEventListener('click', showConversationHistory);
+  }
   
   // Initialize a new conversation if needed
   function initializeConversation() {
@@ -521,10 +674,17 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Start a new conversation
   function startNewConversation() {
+      // Generate a new conversation ID
       currentConversationId = `conv_${Date.now()}_${Math.floor(Math.random() * 9000) + 1000}`;
       localStorage.setItem('currentConversationId', currentConversationId);
-      chatMessages.innerHTML = ''; // Clear chat messages
+      
+      // Clear chat messages
+      chatMessages.innerHTML = '';
+      
+      // Add welcome message
       addMessage('New conversation started. How can I help you?', 'bot');
+      
+      console.log('New conversation started with ID:', currentConversationId);
   }
   
   // Load conversation history
@@ -564,6 +724,8 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Show conversation history modal
   function showConversationHistory() {
+      console.log('Showing conversation history for user ID:', currentUserId);
+      
       // Create modal if it doesn't exist
       let historyModal = document.getElementById('historyModal');
       if (!historyModal) {
@@ -577,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button class="close-button">&times;</button>
               </div>
               <div class="modal-body">
-                <div id="conversationList"></div>
+                <div id="conversationList" class="conversation-list"></div>
               </div>
             </div>
           `;
@@ -593,14 +755,23 @@ document.addEventListener('DOMContentLoaded', function() {
       // Show the modal
       historyModal.style.display = 'block';
       
+      // Show loading indicator
+      const conversationList = document.getElementById('conversationList');
+      conversationList.innerHTML = '<p>Loading conversations...</p>';
+      
       // Fetch and display conversation list
       fetch(`/user/chat_history?user_id=${currentUserId}`)
-          .then(response => response.json())
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+              return response.json();
+          })
           .then(conversations => {
-              const conversationList = document.getElementById('conversationList');
+              console.log('Fetched conversations:', conversations);
               conversationList.innerHTML = '';
               
-              if (conversations.length === 0) {
+              if (!Array.isArray(conversations) || conversations.length === 0) {
                   conversationList.innerHTML = '<p>No previous conversations found.</p>';
                   return;
               }
@@ -610,13 +781,20 @@ document.addEventListener('DOMContentLoaded', function() {
                   convItem.className = 'conversation-item';
                   
                   // Format the date
-                  const startDate = new Date(conv.started_at);
-                  const formattedDate = startDate.toLocaleString();
+                  let formattedDate = 'Unknown date';
+                  try {
+                      if (conv.started_at) {
+                          const startDate = new Date(conv.started_at);
+                          formattedDate = startDate.toLocaleString();
+                      }
+                  } catch (e) {
+                      console.error('Error formatting date:', e);
+                  }
                   
                   convItem.innerHTML = `
                     <div class="conv-info">
                       <div class="conv-date">${formattedDate}</div>
-                      <div class="conv-count">${conv.message_count} messages</div>
+                      <div class="conv-count">${conv.message_count || 0} messages</div>
                     </div>
                     <button class="load-conv-btn">Load</button>
                   `;
@@ -640,6 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
           })
           .catch(error => {
               console.error('Error fetching conversation history:', error);
+              conversationList.innerHTML = `<p class="error">Error loading conversations: ${error.message}</p>`;
           });
   }
 
@@ -712,7 +891,14 @@ document.addEventListener('DOMContentLoaded', function() {
                   // Add database badge to response if available
                   let responseContent = data.content;
                   if (data.database) {
-                      responseContent += ` <span class="database-badge">${data.database}</span>`;
+                      // Format database name for display
+                      let displayDbName = data.database;
+                      if (data.database === 'sacco_db') {
+                          displayDbName = 'SACCO DB';
+                      } else if (data.database === 'loan_system') {
+                          displayDbName = 'Loan System';
+                      }
+                      responseContent += ` <span class="database-badge">${displayDbName}</span>`;
                   }
                   
                   // First show the natural language response

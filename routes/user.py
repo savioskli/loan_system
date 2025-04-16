@@ -4941,6 +4941,12 @@ def save_chat_message(user_id, conversation_id, message, response, sql_query=Non
         # Add to the database and commit
         db.session.add(chat_message)
         db.session.commit()
+        
+        # Log successful save
+        current_app.logger.info(
+            f"Chat message saved successfully: ID={chat_message.id}, "
+            f"conversation_id={conversation_id}, user_id={user_id}"
+        )
         return True
     except Exception as e:
         current_app.logger.error(f"Error saving chat message: {str(e)}")
@@ -5113,18 +5119,8 @@ def chat():
         # Step 6: Generate natural language response
         natural_response = generate_natural_response(user_input, db_response, cleaned_sql)
         
-        # Step 7: Return comprehensive response
-        return jsonify({
-            'type': 'data_response',
-            'content': natural_response,
-            'sql': cleaned_sql,
-            'data': db_response,
-            'conversation_id': conversation_id,
-            'row_count': len(db_response) if db_response else 0
-        })
-        
-        # Save the chat message and response to the database
-        save_chat_message(
+        # Step 7: Save the chat message and response to the database
+        save_result = save_chat_message(
             user_id=user_id,
             conversation_id=conversation_id,
             message=user_input,
@@ -5132,6 +5128,23 @@ def chat():
             sql_query=cleaned_sql,
             database_used=database_hint
         )
+        
+        if not save_result:
+            current_app.logger.warning(
+                f"Failed to save chat message for conversation {conversation_id}. "
+                f"The response will still be returned to the user."
+            )
+        
+        # Step 8: Return comprehensive response
+        return jsonify({
+            'type': 'data_response',
+            'content': natural_response,
+            'sql': cleaned_sql,
+            'data': db_response,
+            'conversation_id': conversation_id,
+            'database': database_hint,
+            'row_count': len(db_response) if db_response else 0
+        })
 
     except Exception as e:
         current_app.logger.error(f"Chat processing error: {str(e)}", exc_info=True)

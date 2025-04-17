@@ -4460,7 +4460,7 @@ def generate_system_prompt(preferred_db=None):
         db_name = databases[preferred_db]['database']
         focus_note = f"\n\nFOCUS ON DATABASE: {db_name}\nThe user wants to query the {db_name} database specifically. Prioritize tables from this database."
 
-    # Enhanced prompt
+    # Enhanced prompt with support for complex multi-part queries and user preferences
     system_prompt = f"""
 You are a multi-database SQL assistant. Follow these rules precisely:
 
@@ -4476,10 +4476,14 @@ You are a multi-database SQL assistant. Follow these rules precisely:
    - Always verify database prefixes match configured names
    - For every query, double-check that all tables referenced exist in the schema
    - Always use SELECT queries only, never modification queries
+   - For complex multi-part queries, generate multiple separate SQL statements separated by semicolons
+   - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
+   - For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
 
 4. Response Format:
    - Always put SQL queries inside ```sql and ``` tags
    - Make SQL the PRIMARY content of your response
+   - For multiple queries, include all of them within a single code block, separated by semicolons
    - After the SQL, provide a brief explanation (no more than 2 sentences)
    - NEVER say "Here's a SQL query that..." - just provide the SQL directly
 
@@ -4489,14 +4493,31 @@ You are a multi-database SQL assistant. Follow these rules precisely:
    - Use aliases for clarity when joining tables
    - Verify that tables exist before referencing them
 
-Example good response:
+6. Complex Query Handling:
+   - For borrower history and character queries, provide multiple queries that cover:
+     a) Basic customer information
+     b) Loan summary data
+     c) Borrowing history details
+     d) Repayment patterns
+   - For queries about missed payments, focus on number of installments missed rather than days
+   - For loan data, when InstallmentAmount is not available, use OutstandingBalance instead
+
+Example good response for a complex query:
 ```sql
-SELECT sacco_db.members.name, loan_system.loans.amount 
+SELECT sacco_db.members.name, sacco_db.members.phone, sacco_db.members.email 
 FROM sacco_db.members 
-JOIN loan_system.loans ON sacco_db.members.id = loan_system.loans.member_id
-WHERE sacco_db.members.status = 'active'
+WHERE sacco_db.members.id = 123;
+
+SELECT loan_system.loans.loan_id, loan_system.loans.amount, loan_system.loans.status 
+FROM loan_system.loans 
+WHERE loan_system.loans.member_id = 123;
+
+SELECT loan_system.repayments.date, loan_system.repayments.amount 
+FROM loan_system.repayments 
+JOIN loan_system.loans ON loan_system.repayments.loan_id = loan_system.loans.loan_id 
+WHERE loan_system.loans.member_id = 123
 ```
-This query retrieves active members with their loan amounts.
+These queries retrieve the member's information, loan details, and repayment history.
 """
     return system_prompt
 
@@ -4529,8 +4550,37 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Take up to 5 examples
     example_tables = ', '.join([f"'{table}'" for table in table_examples[:5]])
     
+    # Check for specific query types that need special handling
+    is_complex_borrower_query = any(term in user_input.lower() for term in [
+        "borrowing history", "repayment history", "borrowing character", "credit history", "loan summary"
+    ])
+    
+    is_missed_payment_query = any(term in user_input.lower() for term in [
+        "missed payment", "late payment", "arrears", "overdue"
+    ])
+    
+    # Add special instructions based on query type
+    special_instructions = ""
+    
     # Add naming convention guidance to the prompt
     enhanced_input = f"{enhanced_input}\n\nIMPORTANT: Use the EXACT table and column names as they appear in the schema. Examples of actual table names: {example_tables}."
+    
+    # Add instructions for complex queries
+    if is_complex_borrower_query:
+        special_instructions += "\n\nThis appears to be a complex query about a borrower's history and character. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information\n2. Loan summary data\n3. Borrowing history details\n4. Repayment patterns\nEach query should be complete and executable on its own."
+    
+    # Add instructions for missed payment queries based on user preferences
+    if is_missed_payment_query:
+        special_instructions += "\n\nIMPORTANT: For missed payments, calculate based on the number of missed installments rather than using raw days in arrears. Do not directly use the DaysInArrears field."
+    
+    # Add general instruction about InstallmentAmount based on user preferences
+    special_instructions += "\n\nIMPORTANT: When InstallmentAmount is not available in the database schema, use OutstandingBalance as a substitute rather than PenaltyAmount."
+    
+    # Add instructions for multi-part queries
+    special_instructions += "\n\nFor complex queries that require multiple pieces of information, generate multiple SQL queries separated by semicolons. Each query should be complete and executable on its own."
+    
+    # Combine all instructions
+    enhanced_input = f"{enhanced_input}{special_instructions}"
     
     # Include conversation history for context if available
     messages = [{"role": "system", "content": system_prompt}]
@@ -4586,34 +4636,118 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
 
 
 def clean_sql_response(response):
-    """Extract SQL code block from the AI response with improved pattern matching."""
+    """Extract SQL code block from the AI response with improved pattern matching.
+    Now supports multiple SQL queries separated by semicolons."""
     if not response:
         return ""
-        
-    # Try to match SQL code blocks with multiple patterns
-    patterns = [
+    
+    # First, try to extract code blocks
+    code_block_patterns = [
         r"```sql\s+(.*?)\s+```",  # Standard SQL code block
-        r"```\s+(SELECT.*?)\s+```",  # Generic code block with SELECT
-        r"```(SELECT.*?)```",  # No whitespace
-        r"SELECT\s+.*?FROM.*?(?:WHERE.*?)?(?:GROUP BY.*?)?(?:HAVING.*?)?(?:ORDER BY.*?)?(?:LIMIT\s+\d+)?(?:;|\n|$)"  # Raw SQL pattern
+        r"```\s+(.*?)\s+```",  # Generic code block
+        r"```(.*?)```"  # No whitespace
     ]
     
-    for pattern in patterns:
-        match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
-        if match:
-            sql = match.group(1).strip()
-            # Ensure it's a SELECT query
-            if sql.upper().startswith("SELECT"):
-                return sql
+    for pattern in code_block_patterns:
+        matches = re.findall(pattern, response, re.DOTALL)
+        if matches:
+            # Join all matched code blocks
+            sql_code = '\n'.join(matches)
+            # Clean up any extra backticks that might have been captured
+            sql_code = re.sub(r'```.*?```', '', sql_code, flags=re.DOTALL)
+            return sql_code.strip()
     
-    # If no SQL found, check if it's a raw SQL query
+    # If no code blocks found, try to extract complete SQL queries from the response
+    # The best approach is to extract code between SQL markers if they exist
+    if '```sql' in response and '```' in response.split('```sql', 1)[1]:
+        # Extract everything between ```sql and the next ```
+        sql_block = response.split('```sql', 1)[1].split('```', 1)[0].strip()
+        
+        # Split the SQL block into individual queries by semicolons
+        queries = []
+        current_query = []
+        paren_count = 0  # To track nested parentheses for subqueries
+        
+        for line in sql_block.split('\n'):
+            # Count opening and closing parentheses to track nesting level
+            paren_count += line.count('(') - line.count(')')
+            current_query.append(line)
+            
+            # Only split on semicolons when we're at the top level (not in a subquery)
+            if ';' in line and paren_count <= 0:
+                queries.append('\n'.join(current_query))
+                current_query = []
+                paren_count = 0  # Reset for safety
+        
+        # Add the last query if there's anything left
+        if current_query:
+            queries.append('\n'.join(current_query))
+        
+        # Clean up the queries and ensure they end with semicolons
+        clean_queries = []
+        for query in queries:
+            query = query.strip()
+            if query and not query.isspace():
+                if not query.endswith(';'):
+                    query += ';'
+                clean_queries.append(query)
+        
+        if clean_queries:
+            return '\n'.join(clean_queries)
+    
+    # Fallback: try to extract complete SQL statements with regex
+    # This pattern needs to be more robust to handle nested subqueries
+    complete_sql_pattern = r"(SELECT[\s\S]*?FROM[\s\S]*?(?:WHERE[\s\S]*?)?(?:GROUP BY[\s\S]*?)?(?:HAVING[\s\S]*?)?(?:ORDER BY[\s\S]*?)?(?:LIMIT[\s\S]*?)?(?:;|$))"
+    
+    # Find all complete SQL statements in the response
+    all_queries = []
+    
+    # Try to extract complete SQL statements
+    matches = re.findall(complete_sql_pattern, response, re.IGNORECASE)
+    if matches:
+        for match in matches:
+            sql = match.strip()
+            if sql and not sql.isspace():
+                # Make sure the SQL statement ends with a semicolon
+                if not sql.rstrip().endswith(';'):
+                    sql = sql.rstrip() + ';'
+                all_queries.append(sql)
+    
+    # If we found complete queries, return them joined
+    if all_queries:
+        return '\n'.join(all_queries)
+        
+    # Fallback: try to extract SQL queries with more specific patterns
+    sql_patterns = [
+        r"(SELECT[\s\S]*?FROM[\s\S]*?)(?=SELECT|$)",  # Match SELECT queries up to the next SELECT or end
+        r"(SHOW[\s\S]*?)(?=SELECT|SHOW|DESCRIBE|$)",  # SHOW queries
+        r"(DESCRIBE[\s\S]*?)(?=SELECT|SHOW|DESCRIBE|$)"  # DESCRIBE queries
+    ]
+    
+    all_queries = []
+    for pattern in sql_patterns:
+        matches = re.findall(pattern, response, re.DOTALL | re.IGNORECASE)
+        if matches:
+            for match in matches:
+                sql = match.strip()
+                if sql and not sql.isspace():
+                    # Make sure the SQL statement ends with a semicolon
+                    if not sql.rstrip().endswith(';'):
+                        sql = sql.rstrip() + ';'
+                    all_queries.append(sql)
+    
+    # If we found queries with the fallback patterns, return them joined
+    if all_queries:
+        return '\n'.join(all_queries)
+    
+    # If no SQL found using patterns, check if it's a raw SQL query
     if response.strip().upper().startswith("SELECT"):
         # Extract the SQL query up to a natural boundary
         lines = response.strip().split('\n')
         sql_lines = []
         for line in lines:
             sql_lines.append(line)
-            if ";" in line:
+            if line.strip().endswith(';'):
                 break
             if not line.strip() and sql_lines:  # Empty line after content
                 break
@@ -4650,12 +4784,30 @@ def normalize_table_name(table_name):
     return list(set(formats))
 
 def is_valid_sql(query, preferred_db=None):
-    """Validate SQL with enhanced security checks."""
+    """Validate SQL with enhanced security checks and better handling of multi-line queries and subqueries."""
     if not query:
         return False
-        
-    query = query.strip().rstrip(';')
-    # Remove all known database prefixes from table references
+    
+    # Normalize query - remove trailing semicolon and extra whitespace
+    query = query.strip()
+    if query.endswith(';'):
+        query = query[:-1].strip()
+    
+    # Check if query is empty after normalization
+    if not query:
+        return False
+    
+    # Basic structure validation - must contain SELECT and FROM
+    if 'SELECT' not in query.upper() or 'FROM' not in query.upper():
+        current_app.logger.warning(f"SQL validation failed: Missing SELECT or FROM in query: {query}")
+        return False
+    
+    # Check for balanced parentheses to ensure complete subqueries
+    if query.count('(') != query.count(')'):
+        current_app.logger.warning(f"SQL validation failed: Unbalanced parentheses in query: {query}")
+        return False
+    
+    # Remove all known database prefixes from table references for validation
     original_query = query
     for db in databases.values():
         db_name = db['database']
@@ -4665,20 +4817,29 @@ def is_valid_sql(query, preferred_db=None):
     if original_query != query:
         current_app.logger.debug(f"SQL before prefix stripping: {original_query}")
         current_app.logger.debug(f"SQL after prefix stripping (validation): {query}")
+    
+    # Convert to uppercase for keyword checking, preserving the original for logging
     q_upper = query.upper()
     
-    # Expanded security checks
+    # Expanded security checks - comprehensive list of forbidden SQL keywords
     forbidden_keywords = {
         "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", 
         "RENAME", "GRANT", "REVOKE", "--", "/*", "*/", "EXEC", "EXECUTE",
         "UNION", "INTO OUTFILE", "LOAD_FILE"
     }
     
-    if not q_upper.startswith("SELECT"):
-        return False
-        
-    if any(kw in q_upper for kw in forbidden_keywords):
-        current_app.logger.warning(f"SQL validation failed: Forbidden keyword detected in: {query}")
+    # Check for forbidden keywords - using word boundary checks to avoid false positives
+    for kw in forbidden_keywords:
+        # Use word boundary regex to avoid matching substrings within column names
+        # For example, 'CREATE' shouldn't match 'CreatedBy' or 'CreatedAt'
+        pattern = r'\b' + re.escape(kw) + r'\b'
+        if re.search(pattern, q_upper):
+            current_app.logger.warning(f"SQL validation failed: Forbidden keyword '{kw}' detected in: {query}")
+            return False
+    
+    # Ensure query starts with SELECT (after normalization and whitespace removal)
+    if not re.match(r'^\s*SELECT\b', query, re.IGNORECASE):
+        current_app.logger.warning(f"SQL validation failed: Query does not start with SELECT: {query}")
         return False
 
     # Get schema to find actual table names
@@ -4745,9 +4906,74 @@ def is_valid_sql(query, preferred_db=None):
         return False
     
 def execute_sql_query(query, params=None, preferred_db=None):
-    """Execute query with improved error handling and result processing."""
+    """Execute query with improved error handling and result processing.
+    Now supports multiple SQL queries separated by semicolons."""
     if not query:
         return None
+    
+    # Check if we have multiple queries (separated by semicolons or newlines with SELECT)
+    # First, normalize the query by ensuring semicolons at the end of each statement
+    normalized_query = query.strip()
+    
+    # Add semicolons if missing at the end of statements
+    if not normalized_query.endswith(';'):
+        normalized_query += ';'
+    
+    # Split by semicolons but preserve complete SQL statements
+    queries = []
+    current_query = ''
+    
+    # Split the query more intelligently
+    lines = normalized_query.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue  # Skip empty lines
+            
+        # If this is a new SELECT statement after we've already collected some SQL
+        if line.upper().startswith('SELECT') and current_query.strip():
+            # Ensure the previous query ends with a semicolon
+            if not current_query.strip().endswith(';'):
+                current_query += ';'
+            queries.append(current_query.strip())
+            current_query = line
+        else:
+            # Continue building the current query
+            if current_query:
+                current_query += '\n' + line
+            else:
+                current_query = line
+    
+    # Add the last query if it exists
+    if current_query.strip():
+        if not current_query.strip().endswith(';'):
+            current_query += ';'
+        queries.append(current_query.strip())
+    
+    # Alternative approach: split by semicolons and clean up
+    if not queries:
+        queries = [q.strip() for q in normalized_query.split(';') if q.strip()]
+    
+    # Log the detected queries
+    if len(queries) > 1:
+        current_app.logger.info(f"Processing multiple SQL queries: {len(queries)} queries detected")
+        for i, q in enumerate(queries):
+            current_app.logger.debug(f"Query {i+1}: {q}")
+        
+        # Execute each query and combine results
+        all_results = []
+        for i, single_query in enumerate(queries):
+            current_app.logger.debug(f"Executing query {i+1}/{len(queries)}")
+            result = execute_sql_query(single_query, params, preferred_db)
+            if result:
+                all_results.append(result)  # Keep each result set separate
+        
+        return all_results
+    
+    # Single query processing
+    query = query.strip()
+    if query.endswith(';'):
+        query = query[:-1].strip()  # Remove trailing semicolon
         
     # Remove all known database prefixes from table references
     original_query = query
@@ -4799,11 +5025,20 @@ def execute_sql_query(query, params=None, preferred_db=None):
 
 
 def generate_natural_response(user_input, query_result, sql_query):
-    """Generate a natural language response with context about the query."""
+    """Generate a natural language response with context about the query.
+    Enhanced to handle complex multi-part queries and incorporate user preferences."""
     headers = {
         'Authorization': f'Bearer {MISTRAL_API_KEY}',
         'Content-Type': 'application/json'
     }
+
+    # Check if we have multiple result sets from multiple queries
+    is_multi_query = False
+    if isinstance(query_result, list) and len(query_result) > 0:
+        # Check if this is a list of result sets (each being a list)
+        if all(isinstance(item, list) for item in query_result):
+            is_multi_query = True
+            current_app.logger.info(f"Processing response for multiple query results: {len(query_result)} result sets")
 
     # Enhanced system prompt for better responses
     system_prompt = """You are a helpful financial database assistant that explains results clearly. Follow these rules:
@@ -4812,26 +5047,125 @@ def generate_natural_response(user_input, query_result, sql_query):
 3. Translate technical database terms into user-friendly language
 4. For numerical results, format large numbers with commas (e.g., 1,234,567) but DO NOT include currency symbols
 5. For empty results, explain possible reasons why no data was found
-6. Keep responses concise but informative (2-3 sentences maximum)
+6. For complex queries with multiple parts, address each part of the question systematically
 7. If there are multiple rows, summarize the overall pattern or highlight key findings
 8. Avoid technical jargon unless the user specifically asks for technical details
 9. ALWAYS be consistent in your response style and tone
 10. For financial data, explain what the numbers represent but WITHOUT using currency terms
 11. If the query is about a specific person, mention their name in the response
-12. NEVER say 'I found X results' - instead provide the actual information"""
+12. NEVER say 'I found X results' - instead provide the actual information
+13. For loan data, when InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
+14. When discussing missed payments, calculate based on the number of missed installments rather than using raw days in arrears
+15. For complex queries about borrowers, provide a comprehensive view including summary, history and character assessment when requested
+
+# ACCOUNT SUMMARY FORMATTING RULES
+When providing an account summary, use the following consistent format with clear section headers:
+
+Here is the account summary for [Full Name]:
+
+**Personal Information:**
+- **Full Name:** [Name]
+- **Phone Number:** [Phone]
+- **Email:** [Email]
+
+**Account Details:**
+- **Account Balance:** [Balance with commas]
+- **Shares:** [Shares with commas]
+
+**Loan Information:**
+- **Loan Amount:** [Amount with commas]
+- **Loan Status:** [Status]
+- **Application Date:** [Date]
+- **Repayment Period:** [Period] months
+- **Interest Rate:** [Rate]%
+
+**Loan Ledger:**
+- **Disbursed Amount:** [Amount with commas]
+- **Outstanding Balance:** [Balance with commas]
+- **Next Repayment Due Date:** [Date]
+- **Missed Installments:** [Number]
+
+Remember: When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount. For missed payments, calculate based on the number of missed installments rather than using raw days in arrears."""
 
     # Add context about the number of results
-    result_count = len(query_result) if query_result else 0
-    result_preview = str(query_result[:3]) if query_result else "[]"
+    if is_multi_query:
+        # For multiple result sets, provide context for each
+        result_counts = [len(result_set) if result_set else 0 for result_set in query_result]
+        result_preview = str([result_set[:2] if result_set else [] for result_set in query_result])
+        result_count_str = f"Multiple result sets with counts: {result_counts}"
+        full_results = json.dumps(query_result, default=str)
+    else:
+        # Single result set
+        result_count = len(query_result) if query_result else 0
+        result_preview = str(query_result[:3]) if query_result else "[]"
+        result_count_str = f"Number of results: {result_count}"
+        full_results = json.dumps(query_result, default=str)
     
     # Extract key entities from the user's question for better context
     user_question = user_input.strip()
     
+    # Check for specific query types that need special handling
+    is_complex_borrower_query = any(term in user_question.lower() for term in [
+        "borrowing history", "repayment history", "borrowing character", "credit history", "loan summary"
+    ])
+    
+    # Detect account summary requests
+    is_account_summary = any(pattern in user_question.lower() for pattern in [
+        "account summary", "customer summary", "member summary", 
+        "account details for", "summary for", "information about",
+        "tell me about", "show me details for", "give me account"
+    ])
+    
+    # Determine if this is a query about missed payments
+    is_missed_payment_query = any(term in user_question.lower() for term in [
+        "missed payment", "late payment", "arrears", "overdue"
+    ])
+    
+    # Add special instructions based on query type
+    special_instructions = ""
+    
+    # For account summaries
+    if is_account_summary:
+        special_instructions = """This appears to be a request for an account summary. 
+Please provide a comprehensive summary that includes:
+1. Personal information (name, contact details, etc.)
+2. Account details (balance, shares, etc.)
+3. Loan information (amount, status, terms, etc.)
+4. Loan ledger details (outstanding balance, next payment, etc.)
+
+IMPORTANT: 
+- When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
+- For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
+- Format the response as a structured account summary with clear sections"""
+    
+    # For complex borrower queries
+    elif is_complex_borrower_query:
+        special_instructions = """This appears to be a complex query about a borrower's history and character. 
+Please provide a comprehensive response that includes:
+1. A summary of their borrowing activity
+2. Their repayment behavior and any patterns
+3. An assessment of their borrowing character based on the data
+4. Any notable trends or concerns
+
+IMPORTANT: 
+- When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
+- For missed payments, calculate based on the number of missed installments rather than using raw days in arrears"""
+    
+    # For missed payment queries
+    elif is_missed_payment_query:
+        special_instructions = """This appears to be a query about missed payments or arrears.
+
+IMPORTANT: 
+- Calculate missed payments based on the number of missed installments rather than using raw days in arrears
+- Report the number of missed installments rather than the raw days count
+- When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount"""
+    
     user_content = f"""Original question: {user_question}
 SQL query executed: {sql_query}
-Number of results: {result_count}
+{result_count_str}
 Database results preview: {result_preview}
-Full results: {json.dumps(query_result, default=str)}
+Full results: {full_results}
+{special_instructions}
 
 Please provide a helpful, natural language response to the user's question based on these results.
 Format large numbers with commas for readability (e.g., 1,234,567) but DO NOT include currency symbols.
@@ -5087,16 +5421,37 @@ def chat():
             })
 
         # Step 4: Validate and execute SQL with preferred database
-        if not is_valid_sql(cleaned_sql, preferred_db):
-            current_app.logger.warning(f"Invalid SQL query: {cleaned_sql}")
-            return jsonify({
-                'type': 'error',
-                'content': "The generated SQL query was invalid. Please try rephrasing your question.",
-                'debug_info': {
-                    'query': cleaned_sql,
-                    'raw_response': raw_response
-                }
-            }), 400
+        # Check if we have multiple queries (separated by semicolons)
+        queries = [q.strip() for q in cleaned_sql.split(';') if q.strip()]
+        is_multi_query = len(queries) > 1
+        
+        if is_multi_query:
+            current_app.logger.info(f"Processing complex multi-part query with {len(queries)} sub-queries")
+            
+            # Validate each query individually
+            for i, single_query in enumerate(queries):
+                if not is_valid_sql(single_query, preferred_db):
+                    current_app.logger.warning(f"Invalid SQL sub-query {i+1}: {single_query}")
+                    return jsonify({
+                        'type': 'error',
+                        'content': f"Part {i+1} of your complex query was invalid. Please try rephrasing your question.",
+                        'debug_info': {
+                            'query': single_query,
+                            'raw_response': raw_response
+                        }
+                    }), 400
+        else:
+            # Single query validation
+            if not is_valid_sql(cleaned_sql, preferred_db):
+                current_app.logger.warning(f"Invalid SQL query: {cleaned_sql}")
+                return jsonify({
+                    'type': 'error',
+                    'content': "The generated SQL query was invalid. Please try rephrasing your question.",
+                    'debug_info': {
+                        'query': cleaned_sql,
+                        'raw_response': raw_response
+                    }
+                }), 400
             
         # Execute the valid SQL with preferred database
         db_response = execute_sql_query(cleaned_sql, None, preferred_db)
@@ -5115,8 +5470,9 @@ def chat():
                     'available_tables': actual_tables[:10]  # Show first 10 tables for reference
                 }
             }), 500
-            
-        # Step 6: Generate natural language response
+        
+        # Step 6: Generate natural language response based on query results
+        # For complex multi-part queries, we need a more comprehensive response
         natural_response = generate_natural_response(user_input, db_response, cleaned_sql)
         
         # Step 7: Save the chat message and response to the database
@@ -5135,7 +5491,41 @@ def chat():
                 f"The response will still be returned to the user."
             )
         
-        # Step 8: Return comprehensive response
+        # Step 8: Return comprehensive response with enhanced metadata
+        # Check if we have multiple result sets from multiple queries
+        is_multi_result = isinstance(db_response, list) and len(db_response) > 0 and all(isinstance(item, list) for item in db_response)
+        
+        # Calculate row count appropriately based on result type
+        if is_multi_result:
+            total_row_count = sum(len(result_set) if result_set else 0 for result_set in db_response)
+            individual_counts = [len(result_set) if result_set else 0 for result_set in db_response]
+            row_count_info = {
+                'total': total_row_count,
+                'individual': individual_counts
+            }
+        else:
+            row_count_info = {
+                'total': len(db_response) if db_response else 0,
+                'individual': [len(db_response) if db_response else 0]
+            }
+        
+        # Check for specific query types that need special frontend handling
+        is_complex_borrower_query = any(term in user_input.lower() for term in [
+            "borrowing history", "repayment history", "borrowing character", "credit history", "loan summary"
+        ])
+        
+        # Determine if this is a query about missed payments (for special handling)
+        is_missed_payment_query = any(term in user_input.lower() for term in [
+            "missed payment", "late payment", "arrears", "overdue"
+        ])
+        
+        # Detect account summary requests
+        is_account_summary = any(pattern in user_input.lower() for pattern in [
+            "account summary", "customer summary", "member summary", 
+            "account details for", "summary for", "information about",
+            "tell me about", "show me details for", "give me account"
+        ])
+        
         return jsonify({
             'type': 'data_response',
             'content': natural_response,
@@ -5143,7 +5533,14 @@ def chat():
             'data': db_response,
             'conversation_id': conversation_id,
             'database': database_hint,
-            'row_count': len(db_response) if db_response else 0
+            'row_count': row_count_info,
+            'metadata': {
+                'is_complex_query': is_multi_result,
+                'is_borrower_query': is_complex_borrower_query,
+                'is_missed_payment_query': is_missed_payment_query,
+                'is_account_summary': is_account_summary,
+                'query_count': len(queries) if 'queries' in locals() else 1
+            }
         })
 
     except Exception as e:

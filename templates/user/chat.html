@@ -206,12 +206,14 @@
 }
 
 #chatMessages {
-  flex-grow: 1;
-  padding: 10px;
+  flex: 1;
   overflow-y: auto;
-  background: #F5F5F7;
+  padding: 10px;
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 180px);
+  min-height: 300px;
+  height: 100%;
 }
 
 .message {
@@ -596,6 +598,96 @@
   cursor: pointer;
 }
 
+/* Account Summary Styles */
+.account-summary-container {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  font-size: 14px;
+  height: 250px;
+  max-height: 250px;
+  min-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.summary-header {
+  background-color: #007AFF;
+  color: white;
+  padding: 12px 16px;
+}
+
+.summary-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.summary-section {
+  border-bottom: 1px solid #e9ecef;
+  padding: 0;
+  margin: 0;
+  max-width: 100%;
+}
+
+.summary-section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: #f1f3f5;
+}
+
+.section-icon {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.section-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #343a40;
+}
+
+.section-content {
+  padding: 6px 12px;
+  overflow-y: visible;
+}
+
+.summary-field {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.field-label {
+  font-weight: 500;
+  color: #495057;
+  flex: 1;
+  min-width: 120px;
+  padding-right: 10px;
+}
+
+.field-value {
+  color: #212529;
+  font-weight: 400;
+  text-align: right;
+  flex: 1;
+  word-break: break-word;
+  max-width: 60%;
+}
+
 /* Database badge for responses */
 .database-badge {
   display: inline-block;
@@ -901,24 +993,90 @@ document.addEventListener('DOMContentLoaded', function() {
                       responseContent += ` <span class="database-badge">${displayDbName}</span>`;
                   }
                   
-                  // First show the natural language response
-                  addMessage(responseContent, 'bot', 'normal', true);
+                  // Check if this is an account summary response
+                  const isAccountSummary = 
+                      data.content.includes('Account Summary') || 
+                      data.content.includes('Personal Information') || 
+                      data.content.includes('account summary') || 
+                      data.content.includes('summary for') || 
+                      (data.content.includes('Loan Information') && data.content.includes('Account Details')) || 
+                      (data.metadata && data.metadata.is_account_summary) || 
+                      (message.toLowerCase().includes('account summary') || message.toLowerCase().includes('summary for'));
                   
-                  // If advanced mode is on, show additional details
-                  if (isAdvancedUser()) {
-                      // Show SQL query
-                      if (data.sql) {
-                          addSqlMessage(data.sql);
-                      }
-                      
-                      // Show data preview for large result sets
-                      if (data.data && data.data.length > 0) {
-                          const rowCount = data.row_count || data.data.length;
-                          if (rowCount > 3) {
-                              addMessage(`Showing ${Math.min(3, data.data.length)} of ${rowCount} results:`, 'bot', 'info');
-                              addDataTable(data.data.slice(0, 3));
+                  // Check if we need to parse the content for account summary data
+                  if (isAccountSummary) {
+                      // Try to extract account summary data from the response
+                      try {
+                          let summaryData = null;
+                          
+                          // First try to extract from database results if available
+                          if (data.data && data.data.length > 0) {
+                              summaryData = extractAccountSummaryData(data.data);
+                          }
+                          
+                          // If that fails, try to extract from the text content
+                          if (!summaryData && data.content) {
+                              summaryData = extractAccountSummaryData(data.content);
+                          }
+                          
+                          if (summaryData) {
+                              // Use the specialized account summary display
+                              addAccountSummary(summaryData);
+                              
+                              // If in advanced mode, still show the SQL and data
+                              if (isAdvancedUser()) {
+                                  // Show SQL query
+                                  if (data.sql) {
+                                      addSqlMessage(data.sql);
+                                  }
+                                  
+                                  // Show raw data if available
+                                  if (data.data && data.data.length > 0) {
+                                      addMessage("Raw data (advanced mode):", 'bot', 'info');
+                                      addDataTable(data.data);
+                                  }
+                              }
                           } else {
-                              addDataTable(data.data);
+                              // Fallback to normal display if extraction fails
+                              addMessage(responseContent, 'bot', 'normal', true);
+                              
+                              // Show data preview for large result sets
+                              if (data.data && data.data.length > 0) {
+                                  const rowCount = data.row_count.total || data.data.length;
+                                  if (rowCount > 3) {
+                                      addMessage(`Showing ${Math.min(3, data.data.length)} of ${rowCount} results:`, 'bot', 'info');
+                                      addDataTable(data.data.slice(0, 3));
+                                  } else {
+                                      addDataTable(data.data);
+                                  }
+                              }
+                          }
+                      } catch (error) {
+                          console.error('Error processing account summary:', error);
+                          // Fallback to normal display if extraction fails
+                          addMessage(responseContent, 'bot', 'normal', true);
+                      }
+                  } else {
+                      // Standard response handling
+                      addMessage(responseContent, 'bot', 'normal', true);
+                      
+                      // If advanced mode is on, show additional details
+                      if (isAdvancedUser()) {
+                          // Show SQL query
+                          if (data.sql) {
+                              addSqlMessage(data.sql);
+                          }
+                          
+                          // Show data preview for large result sets
+                          if (data.data && data.data.length > 0) {
+                              // Handle both old and new row_count format
+                              const rowCount = data.row_count.total || data.row_count || data.data.length;
+                              if (rowCount > 3) {
+                                  addMessage(`Showing ${Math.min(3, data.data.length)} of ${rowCount} results:`, 'bot', 'info');
+                                  addDataTable(data.data.slice(0, 3));
+                              } else {
+                                  addDataTable(data.data);
+                              }
                           }
                       } else if (data.data && data.data.length === 0) {
                           addMessage("No records found in the database.", 'bot', 'info');
@@ -976,9 +1134,210 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   }
 
-  // Check if user has enabled advanced mode
+  // Function to check if user has enabled advanced mode
   function isAdvancedUser() {
       return localStorage.getItem('advanced_mode') === 'true';
+  }
+
+  // Function to extract account summary data from database results or text content
+  function extractAccountSummaryData(data) {
+      // Handle both database result objects and text-based summaries
+      if (!data) return null;
+      
+      // Initialize summary object
+      const summary = {};
+      
+      // Helper function to normalize field names
+      function normalizeFieldName(name) {
+          if (!name) return '';
+          
+          // Convert to lowercase for consistent matching
+          const lowerName = name.toLowerCase();
+          
+          // Field mapping dictionary
+          const fieldMap = {
+              'memberid': 'memberId',
+              'fullname': 'fullName',
+              'phonenumber': 'phoneNumber',
+              'accountbalance': 'accountBalance',
+              'loanamount': 'loanAmount',
+              'applicationdate': 'applicationDate',
+              'applicationstatus': 'loanStatus',
+              'repaymentperiod': 'repaymentPeriod',
+              'interestrate': 'interestRate',
+              'disbursedamount': 'disbursedAmount',
+              'outstandingbalance': 'outstandingBalance',
+              'repaymentduedate': 'nextRepaymentDueDate',
+              'arrearsdays': 'daysInArrears'
+          };
+          
+          return fieldMap[lowerName] || lowerName;
+      }
+      
+      // Check if this might be a text-based summary instead of database results
+      if (typeof data === 'string' || (data.length === 1 && data[0].content && typeof data[0].content === 'string')) {
+          // Extract text content
+          const textContent = typeof data === 'string' ? data : data[0].content;
+          
+          // Parse text-based summary using regex patterns
+          // Extract name
+          const nameMatch = textContent.match(/(?:summary for|account summary for)\s+([\w\s]+)(?:\:|\*\*|\n)/i);
+          if (nameMatch && nameMatch[1]) {
+              summary.fullName = nameMatch[1].trim();
+          }
+          
+          // Extract phone number
+          const phoneMatch = textContent.match(/phone\s*(?:number)?\s*(?:\:|\-)?\s*([\+\d\s]+)/i);
+          if (phoneMatch && phoneMatch[1]) {
+              summary.phoneNumber = phoneMatch[1].trim();
+          }
+          
+          // Extract email
+          const emailMatch = textContent.match(/email\s*(?:\:|\-)?\s*([\w\.-]+@[\w\.-]+\.[\w]+)/i);
+          if (emailMatch && emailMatch[1]) {
+              summary.email = emailMatch[1].trim();
+          }
+          
+          // Extract account balance
+          const balanceMatch = textContent.match(/(?:account\s*balance|balance)\s*(?:\:|\-)?\s*(?:KES|Ksh)?\s*([\d\,\.]+)/i);
+          if (balanceMatch && balanceMatch[1]) {
+              summary.accountBalance = balanceMatch[1].trim().replace(/,/g, '');
+          }
+          
+          // Extract shares
+          const sharesMatch = textContent.match(/shares\s*(?:\:|\-)?\s*(?:KES|Ksh)?\s*([\d\,\.]+)/i);
+          if (sharesMatch && sharesMatch[1]) {
+              summary.shares = sharesMatch[1].trim().replace(/,/g, '');
+          }
+          
+          // Extract loan amount
+          const loanAmountMatch = textContent.match(/loan\s*amount\s*(?:\:|\-)?\s*(?:KES|Ksh)?\s*([\d\,\.]+)/i);
+          if (loanAmountMatch && loanAmountMatch[1]) {
+              summary.loanAmount = loanAmountMatch[1].trim().replace(/,/g, '');
+          }
+          
+          // Extract loan status
+          const statusMatch = textContent.match(/(?:application\s*status|loan\s*status)\s*(?:\:|\-)?\s*([\w]+)/i);
+          if (statusMatch && statusMatch[1]) {
+              summary.loanStatus = statusMatch[1].trim();
+          }
+          
+          // Extract application date
+          const dateMatch = textContent.match(/(?:application\s*date)\s*(?:\:|\-)?\s*([\w\s\,\.]+\d{4})/i);
+          if (dateMatch && dateMatch[1]) {
+              summary.applicationDate = dateMatch[1].trim();
+          }
+          
+          // Extract repayment period
+          const periodMatch = textContent.match(/repayment\s*period\s*(?:\:|\-)?\s*(\d+)\s*(?:months|month)/i);
+          if (periodMatch && periodMatch[1]) {
+              summary.repaymentPeriod = periodMatch[1].trim();
+          }
+          
+          // Extract interest rate
+          const rateMatch = textContent.match(/interest\s*rate\s*(?:\:|\-)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)?/i);
+          if (rateMatch && rateMatch[1]) {
+              summary.interestRate = rateMatch[1].trim();
+          }
+          
+          // Extract disbursed amount
+          const disbursedMatch = textContent.match(/disbursed\s*amount\s*(?:\:|\-)?\s*(?:KES|Ksh)?\s*([\d\,\.]+)/i);
+          if (disbursedMatch && disbursedMatch[1]) {
+              summary.disbursedAmount = disbursedMatch[1].trim().replace(/,/g, '');
+          }
+          
+          // Extract outstanding balance
+          const outstandingMatch = textContent.match(/outstanding\s*balance\s*(?:\:|\-)?\s*(?:KES|Ksh)?\s*([\d\,\.]+)/i);
+          if (outstandingMatch && outstandingMatch[1]) {
+              summary.outstandingBalance = outstandingMatch[1].trim().replace(/,/g, '');
+          }
+          
+          // Extract next payment due date
+          const nextPaymentMatch = textContent.match(/(?:next\s*(?:payment|repayment)\s*(?:due\s*)?date)\s*(?:\:|\-)?\s*([\w\s\,\.]+\d{4})/i);
+          if (nextPaymentMatch && nextPaymentMatch[1]) {
+              summary.nextRepaymentDueDate = nextPaymentMatch[1].trim();
+          }
+          
+          // Extract missed installments
+          const missedMatch = textContent.match(/missed\s*installments\s*(?:\:|\-)?\s*(\d+)/i);
+          if (missedMatch && missedMatch[1]) {
+              summary.missedInstallments = missedMatch[1].trim();
+          }
+          
+          // Return the extracted summary if we found any data
+          return Object.keys(summary).length > 0 ? summary : null;
+      }
+      
+      // Process database results
+      try {
+          // Handle API response format (array of arrays)
+          if (Array.isArray(data) && data.length > 0) {
+              // Process member data (first array)
+              if (data[0] && data[0].length > 0 && data[0][0]) {
+                  Object.entries(data[0][0]).forEach(([key, value]) => {
+                      if (value === null) return;
+                      const fieldName = normalizeFieldName(key);
+                      summary[fieldName] = value;
+                  });
+              }
+              
+              // Process loan application data (second array)
+              if (data[1] && data[1].length > 0 && data[1][0]) {
+                  Object.entries(data[1][0]).forEach(([key, value]) => {
+                      if (value === null) return;
+                      const fieldName = normalizeFieldName(key);
+                      summary[fieldName] = value;
+                  });
+              }
+              
+              // Process loan ledger data (fourth array)
+              if (data[3] && data[3].length > 0 && data[3][0]) {
+                  Object.entries(data[3][0]).forEach(([key, value]) => {
+                      if (value === null) return;
+                      const fieldName = normalizeFieldName(key);
+                      summary[fieldName] = value;
+                  });
+                  
+                  // Calculate missed installments based on days in arrears
+                  if (data[3][0].ArrearsDays && !summary.missedInstallments) {
+                      const daysInArrears = parseInt(data[3][0].ArrearsDays);
+                      if (!isNaN(daysInArrears)) {
+                          // As per user preference, calculate based on monthly installments
+                          const daysPerMonth = 30;
+                          const missedMonths = Math.ceil(daysInArrears / daysPerMonth);
+                          summary.missedInstallments = missedMonths > 0 ? missedMonths : 0;
+                      }
+                  }
+              }
+          }
+      } catch (error) {
+          console.error('Error processing account summary data:', error);
+      }
+      
+      // If we have a name in parts but not full name, construct it
+      if (!summary.fullName && (summary.firstName || summary.lastName)) {
+          const nameParts = [];
+          if (summary.firstName) nameParts.push(summary.firstName);
+          if (summary.middleName) nameParts.push(summary.middleName);
+          if (summary.lastName) nameParts.push(summary.lastName);
+          if (nameParts.length > 0) {
+              summary.fullName = nameParts.join(' ');
+          }
+      }
+      
+      // For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
+      if (summary.daysInArrears && !summary.missedInstallments) {
+          // Estimate missed installments based on days in arrears (assuming monthly installments)
+          summary.missedInstallments = Math.ceil(summary.daysInArrears / 30);
+      }
+      
+      // When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
+      if (!summary.installmentAmount && summary.outstandingBalance && summary.repaymentPeriod) {
+          // Rough estimate of installment amount
+          summary.installmentAmount = Math.round(summary.outstandingBalance / summary.repaymentPeriod);
+      }
+      
+      return Object.keys(summary).length > 0 ? summary : null;
   }
 
   // Function to add normal text messages to the chat window
@@ -1060,6 +1419,141 @@ document.addEventListener('DOMContentLoaded', function() {
       table.appendChild(tbody);
       tableDiv.appendChild(table);
       chatMessages.appendChild(tableDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Function to display account summary in a visually appealing way
+  function addAccountSummary(summaryData) {
+      if (!summaryData) return;
+      
+      const summaryDiv = document.createElement('div');
+      summaryDiv.classList.add('account-summary-container');
+      
+      // Create header with customer name
+      const header = document.createElement('div');
+      header.classList.add('summary-header');
+      if (summaryData.fullName) {
+          header.innerHTML = `<h3>Account Summary for ${summaryData.fullName}</h3><small style="color: rgba(255,255,255,0.7); display: block; font-size: 11px;">Scroll to see more details</small>`;
+      } else {
+          header.innerHTML = '<h3>Account Summary</h3><small style="color: rgba(255,255,255,0.7); display: block; font-size: 11px;">Scroll to see more details</small>';
+      }
+      summaryDiv.appendChild(header);
+      
+      // Create sections for different parts of the summary
+      const sections = [
+          {
+              title: 'Personal Information',
+              icon: '👤',
+              fields: ['fullName', 'phoneNumber', 'email', 'nationalId', 'membershipDate']
+          },
+          {
+              title: 'Account Details',
+              icon: '💰',
+              fields: ['accountBalance', 'shares', 'accountStatus']
+          },
+          {
+              title: 'Loan Information',
+              icon: '📝',
+              fields: ['loanAmount', 'loanStatus', 'applicationDate', 'repaymentPeriod', 'interestRate', 'purpose']
+          },
+          {
+              title: 'Loan Ledger',
+              icon: '📊',
+              fields: ['disbursedAmount', 'outstandingBalance', 'nextRepaymentDueDate', 'daysInArrears', 'missedInstallments']
+          }
+      ];
+      
+      // Field display names mapping (for better formatting)
+      const fieldLabels = {
+          fullName: 'Full Name',
+          phoneNumber: 'Phone Number',
+          email: 'Email',
+          nationalId: 'National ID',
+          membershipDate: 'Membership Date',
+          accountBalance: 'Account Balance',
+          shares: 'Shares',
+          accountStatus: 'Account Status',
+          loanAmount: 'Loan Amount',
+          loanStatus: 'Loan Status',
+          applicationDate: 'Application Date',
+          repaymentPeriod: 'Repayment Period',
+          interestRate: 'Interest Rate',
+          purpose: 'Purpose',
+          disbursedAmount: 'Disbursed Amount',
+          outstandingBalance: 'Outstanding Balance',
+          nextRepaymentDueDate: 'Next Repayment Due Date',
+          daysInArrears: 'Days in Arrears',
+          missedInstallments: 'Missed Installments'
+      };
+      
+      // Format numbers with commas
+      function formatNumber(value) {
+          if (typeof value === 'number') {
+              return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          }
+          return value;
+      }
+      
+      // Create each section if it has data
+      sections.forEach(section => {
+          // Check if this section has any data
+          const hasData = section.fields.some(field => summaryData[field] !== undefined);
+          if (!hasData) return;
+          
+          const sectionDiv = document.createElement('div');
+          sectionDiv.classList.add('summary-section');
+          
+          const sectionHeader = document.createElement('div');
+          sectionHeader.classList.add('section-header');
+          sectionHeader.innerHTML = `<span class="section-icon">${section.icon}</span> <h4>${section.title}</h4>`;
+          sectionDiv.appendChild(sectionHeader);
+          
+          const sectionContent = document.createElement('div');
+          sectionContent.classList.add('section-content');
+          
+          section.fields.forEach(field => {
+              if (summaryData[field] !== undefined) {
+                  const fieldDiv = document.createElement('div');
+                  fieldDiv.classList.add('summary-field');
+                  
+                  const label = document.createElement('span');
+                  label.classList.add('field-label');
+                  label.textContent = fieldLabels[field] || field;
+                  
+                  const value = document.createElement('span');
+                  value.classList.add('field-value');
+                  
+                  // Format value based on field type
+                  let displayValue = summaryData[field];
+                  
+                  // Format currency fields
+                  if (['accountBalance', 'shares', 'loanAmount', 'disbursedAmount', 'outstandingBalance'].includes(field)) {
+                      displayValue = formatNumber(displayValue);
+                  }
+                  
+                  // Add 'months' to repaymentPeriod if it's just a number
+                  if (field === 'repaymentPeriod' && !isNaN(displayValue)) {
+                      displayValue = `${displayValue} months`;
+                  }
+                  
+                  // Add '%' to interestRate if it's just a number
+                  if (field === 'interestRate' && !isNaN(displayValue)) {
+                      displayValue = `${displayValue}%`;
+                  }
+                  
+                  value.textContent = displayValue;
+                  
+                  fieldDiv.appendChild(label);
+                  fieldDiv.appendChild(value);
+                  sectionContent.appendChild(fieldDiv);
+              }
+          });
+          
+          sectionDiv.appendChild(sectionContent);
+          summaryDiv.appendChild(sectionDiv);
+      });
+      
+      chatMessages.appendChild(summaryDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 

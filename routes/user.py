@@ -3135,13 +3135,170 @@ def create_auction():
 @user_bp.route('/field-visits')
 @login_required
 def field_visits():
-    """Render the field visits page"""
+    """Render the field visits page with data from the database"""
     try:
-        return render_with_modules('user/field_visits.html')
+        # First, check if the FieldVisit table exists
+        try:
+            # Just try to query one record to see if the table exists
+            test_visit = FieldVisit.query.first()
+            current_app.logger.info(f"FieldVisit table exists, sample record: {test_visit}")
+        except Exception as table_error:
+            current_app.logger.error(f"Error accessing FieldVisit table: {str(table_error)}")
+            # If there's an error, render the template with empty data
+            return render_with_modules('user/field_visits.html',
+                                     field_visits=[],
+                                     stats={
+                                         'scheduled': 0,
+                                         'completed': 0,
+                                         'in_progress': 0,
+                                         'cancelled': 0,
+                                         'total': 0,
+                                         'pending_reports': 0
+                                     },
+                                     today=datetime.now().date(),
+                                     error_message=f"Database error: {str(table_error)}")
+        
+        # Fetch all field visits from the database
+        field_visits = FieldVisit.query.all()
+        current_app.logger.info(f"Found {len(field_visits)} field visits")
+        
+        # Get staff data for field officers and supervisors
+        staff_ids = set()
+        for visit in field_visits:
+            if hasattr(visit, 'field_officer_id') and visit.field_officer_id:
+                staff_ids.add(visit.field_officer_id)
+            if hasattr(visit, 'supervisor_id') and visit.supervisor_id:
+                staff_ids.add(visit.supervisor_id)
+        
+        # Fetch staff data in a single query
+        staff_dict = {}
+        if staff_ids:
+            try:
+                staff_records = Staff.query.filter(Staff.id.in_(list(staff_ids))).all()
+                for staff in staff_records:
+                    staff_dict[staff.id] = f"{staff.first_name} {staff.last_name}"
+                current_app.logger.info(f"Found {len(staff_records)} staff records")
+            except Exception as staff_error:
+                current_app.logger.error(f"Error fetching staff data: {str(staff_error)}")
+        
+        # Add staff names to field visits as dynamic attributes (not database columns)
+        for visit in field_visits:
+            # For field officer
+            if hasattr(visit, 'field_officer_id') and visit.field_officer_id:
+                # Add the field_officer_name as a dynamic attribute (not a database column)
+                setattr(visit, 'field_officer_name', staff_dict.get(visit.field_officer_id, 'Unknown'))
+            else:
+                setattr(visit, 'field_officer_name', 'Unknown')
+                
+            # For supervisor
+            if hasattr(visit, 'supervisor_id') and visit.supervisor_id:
+                # Add the supervisor_name as a dynamic attribute (not a database column)
+                setattr(visit, 'supervisor_name', staff_dict.get(visit.supervisor_id, 'N/A'))
+            else:
+                setattr(visit, 'supervisor_name', 'N/A')
+                
+            current_app.logger.info(f"Visit {visit.id}: field_officer_id={visit.field_officer_id}, field_officer_name={getattr(visit, 'field_officer_name', 'Unknown')}, supervisor_id={visit.supervisor_id}, supervisor_name={getattr(visit, 'supervisor_name', 'N/A')}")
+        
+        # Calculate statistics with error handling
+        try:
+            scheduled_count = FieldVisit.query.filter_by(status='scheduled').count()
+            completed_count = FieldVisit.query.filter_by(status='completed').count()
+            in_progress_count = FieldVisit.query.filter_by(status='in_progress').count()
+            cancelled_count = FieldVisit.query.filter_by(status='cancelled').count()
+            
+            # Calculate total visits
+            total_visits = len(field_visits)
+            
+            # Calculate pending reports (completed visits without reports)
+            pending_reports = 0  # This would need additional logic if you track reports
+            
+            current_app.logger.info(f"Statistics: scheduled={scheduled_count}, completed={completed_count}, in_progress={in_progress_count}, cancelled={cancelled_count}, total={total_visits}")
+        except Exception as stats_error:
+            current_app.logger.error(f"Error calculating statistics: {str(stats_error)}")
+            # Set default values if there's an error
+            scheduled_count = 0
+            completed_count = 0
+            in_progress_count = 0
+            cancelled_count = 0
+            total_visits = 0
+            pending_reports = 0
+        
+        # Get current date for highlighting today's visits
+        from datetime import date
+        today = date.today()
+        
+        # Pass data to the template
+        return render_with_modules('user/field_visits.html', 
+                                 field_visits=field_visits,
+                                 stats={
+                                     'scheduled': scheduled_count,
+                                     'completed': completed_count,
+                                     'in_progress': in_progress_count,
+                                     'cancelled': cancelled_count,
+                                     'total': total_visits,
+                                     'pending_reports': pending_reports
+                                 },
+                                 today=today)
     except Exception as e:
         current_app.logger.error(f"Error rendering field visits page: {str(e)}")
-        flash('An error occurred while loading the field visits page', 'error')
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        flash('An error occurred while loading the field visits page: ' + str(e), 'error')
         return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/api/field-visits/<int:visit_id>', methods=['GET'])
+@login_required
+def get_field_visit(visit_id):
+    """Get field visit details by ID"""
+    try:
+        # Fetch the field visit from the database
+        field_visit = FieldVisit.query.get(visit_id)
+        
+        if not field_visit:
+            return jsonify({
+                'success': False,
+                'message': 'Field visit not found'
+            }), 404
+        
+        # Convert field visit to dictionary
+        visit_data = {
+            'id': field_visit.id,
+            'customer_id': field_visit.customer_id,
+            'customer_name': field_visit.customer_name,
+            'loan_account_no': field_visit.loan_account_no,
+            'field_officer_id': field_visit.field_officer_id,
+            'field_officer_name': field_visit.field_officer_name,
+            'supervisor_id': field_visit.supervisor_id,
+            'supervisor_name': field_visit.supervisor_name,
+            'visit_date': field_visit.visit_date.strftime('%Y-%m-%d'),
+            'visit_time': field_visit.visit_time.strftime('%H:%M'),
+            'location': field_visit.location,
+            'purpose': field_visit.purpose,
+            'priority': field_visit.priority,
+            'alternative_contact': field_visit.alternative_contact,
+            'notes': field_visit.notes,
+            'special_instructions': field_visit.special_instructions,
+            'attachment': field_visit.attachment,
+            'status': field_visit.status,
+            'outstanding_balance': field_visit.outstanding_balance,
+            'days_in_arrears': field_visit.days_in_arrears,
+            'missed_payments': field_visit.missed_payments,
+            'installment_amount': field_visit.installment_amount,
+            'created_at': field_visit.created_at.strftime('%Y-%m-%d %H:%M:%S') if field_visit.created_at else None,
+            'updated_at': field_visit.updated_at.strftime('%Y-%m-%d %H:%M:%S') if field_visit.updated_at else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'visit': visit_data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching field visit: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred while fetching the field visit'
+        }), 500
 
 @user_bp.route('/api/field-visits/create', methods=['POST'])
 @login_required

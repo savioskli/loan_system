@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+{% block styles %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
     {% include 'user/post_disbursement_sidebar.html' %}
     
@@ -9,7 +14,7 @@
                 <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Schedule and track field visits to borrowers.</p>
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
+                <button type="button" id="openFieldVisitModal" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:w-auto">
                     Schedule New Visit
                 </button>
             </div>
@@ -161,4 +166,887 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal for adding new field visit -->
+    <div id="fieldVisitModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden z-50">
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                    <!-- Modal Header -->
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">Schedule New Field Visit</h3>
+                                <p class="text-sm text-gray-500">Create a new field visit for a customer</p>
+                            </div>
+                            <button type="button" id="closeFieldVisitModal" class="text-gray-400 hover:text-gray-500">
+                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Body -->
+                    <div class="px-6 py-4">
+                        <form id="fieldVisitForm" action="{{ url_for('user.create_field_visit') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="assigned_branch" id="branchInput" value="{{ branch_id }}">
+                            <!-- Hidden fields for raw values -->
+                            <input type="hidden" name="raw_outstanding_balance" id="raw_outstanding_balance">
+                            <input type="hidden" name="raw_days_in_arrears" id="raw_days_in_arrears">
+                            <input type="hidden" name="raw_installment_amount" id="raw_installment_amount">
+                            
+                            <!-- Hidden fields for customer and loan details -->
+                            <input type="hidden" name="customer_name" id="customer_name">
+                            <input type="hidden" name="loan_account_no" id="loan_account_no">
+                            
+                            <!-- Customer Information Section -->
+                            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-3">Customer Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Customer</label>
+                                        <select id="customer_id" name="customer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="">Select Customer</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Loan Account</label>
+                                        <select id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="">Select Loan</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Outstanding Balance</label>
+                                        <input type="text" id="outstanding_balance" name="outstanding_balance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Days in Arrears</label>
+                                        <input type="text" id="days_in_arrears" name="days_in_arrears" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
+                                    </div>
+                                </div>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Missed Payments</label>
+                                        <input type="text" id="missed_payments" name="missed_payments" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Installment Amount</label>
+                                        <input type="text" id="installment_amount" name="installment_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Visit Details Section -->
+                            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-3">Visit Details</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Purpose of Visit</label>
+                                        <select id="purpose" name="purpose" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="">Select Purpose</option>
+                                            <option value="collection">Collection</option>
+                                            <option value="verification">Address Verification</option>
+                                            <option value="follow_up">Follow-up</option>
+                                            <option value="legal">Legal Notice Delivery</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Priority Level</label>
+                                        <select id="priority" name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="Low">Low</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
+                                            <option value="Critical">Critical</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Visit Date</label>
+                                        <input type="date" id="visit_date" name="visit_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Visit Time</label>
+                                        <input type="time" id="visit_time" name="visit_time" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Assignment Section -->
+                            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-3">Staff Assignment</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Field Officer</label>
+                                        <select id="field_officer_id" name="field_officer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
+                                            <option value="">Select Field Officer</option>
+                                        </select>
+                                        <input type="hidden" id="field_officer_name" name="field_officer_name" value="">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Supervisor</label>
+                                        <select id="supervisor_id" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3">
+                                            <option value="">Select Supervisor</option>
+                                        </select>
+                                        <input type="hidden" id="supervisor_name" name="supervisor_name" value="">
+                                    </div>
+                                </div>
+
+                            </div>
+                            
+                            <!-- Additional Information -->
+                            <div class="bg-gray-50 p-6 rounded-lg mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-4">Additional Information</h4>
+                                <div class="space-y-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Visit Location</label>
+                                        <div class="mt-1">
+                                            <input type="text" id="visitLocation" name="location" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" placeholder="e.g., Customer's Home, Business Premises" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Alternative Contact Person</label>
+                                        <div class="mt-1">
+                                            <input type="text" id="alternativeContact" name="alternative_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" placeholder="Name and contact of alternative person">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Visit Notes</label>
+                                        <div class="mt-1">
+                                            <textarea id="notes" name="notes" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" placeholder="Important details about the visit" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
+                                        <div class="mt-1">
+                                            <textarea id="instructions" name="special_instructions" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" placeholder="Any special handling instructions or considerations"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Attachment -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Attachment</label>
+                                <div class="mt-1">
+                                    <input type="file" id="visitAttachment" name="attachment" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2">
+                                </div>
+                            </div>
+                            
+                            <!-- Modal Footer -->
+                            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                                <div class="flex justify-end space-x-3">
+                                    <button type="button" id="cancelFieldVisitBtn" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Schedule Visit
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for modal functionality -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Wait for jQuery to be fully loaded
+        $(document).ready(function() {
+            // Flag to track if Select2 has been initialized
+            let select2Initialized = false;
+            // Helper functions
+            function formatCurrency(amount) {
+                if (amount === undefined || amount === null) return 'N/A';
+                
+                // Remove any existing commas and convert to number
+                const cleanAmount = parseFloat(String(amount).replace(/,/g, ''));
+                if (isNaN(cleanAmount)) return 'N/A';
+                
+                // Format with commas and 2 decimal places
+                return cleanAmount.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+            
+            function showLoading() {
+                console.log('Loading...');
+                // Add loading indicator if needed
+            }
+            
+            function hideLoading() {
+                console.log('Loading complete');
+                // Remove loading indicator if needed
+            }
+            
+            function showSuccess(message) {
+                Swal.fire({
+                    title: 'Success!',
+                    text: message,
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+            }
+            
+            function showError(message) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: message,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+            
+            // Modal handling
+            const modal = document.getElementById('fieldVisitModal');
+            const openModalBtn = document.getElementById('openFieldVisitModal');
+            const closeModalBtn = document.getElementById('closeFieldVisitModal');
+            const cancelBtn = document.getElementById('cancelFieldVisitBtn');
+            
+            // Open modal
+            openModalBtn.addEventListener('click', function() {
+                modal.classList.remove('hidden');
+                // Reset the form
+                $('#fieldVisitForm')[0].reset();
+                
+                // Initialize Select2 only if not already initialized
+                if (!select2Initialized) {
+                    initializeSelect2Dropdowns();
+                    select2Initialized = true;
+                } else {
+                    // Just clear the selections
+                    $('#customer_id, #loan_id, #field_officer_id, #supervisor_id').val(null).trigger('change');
+                }
+            });
+            
+            // Close modal
+            function closeModal() {
+                modal.classList.add('hidden');
+            }
+            
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+            // Function to initialize all Select2 dropdowns
+            function initializeSelect2Dropdowns() {
+                console.log('Initializing Select2 dropdowns');
+                
+                // Remove any existing select2 containers first
+                $('.select2-container').remove();
+                
+                // Initialize customer select
+                $('#customer_id').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Search for a customer...',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#fieldVisitModal'),
+                    ajax: {
+                        url: '/api/customers/search',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1,
+                                per_page: 10
+                            };
+                        },
+                        processResults: function(data) {
+                            console.log('Customer data received:', data);
+                            
+                            if (!data || !Array.isArray(data.items)) {
+                                console.error('Invalid customer data format:', data);
+                                return { results: [] };
+                            }
+                            
+                            return {
+                                results: data.items.map(item => ({
+                                    id: item.id,
+                                    text: item.text,
+                                    loans: item.loans || []
+                                })),
+                                pagination: {
+                                    more: data.has_more || false
+                                }
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    templateResult: function(customer) {
+                        return customer.loading ? 'Loading...' : customer.text;
+                    },
+                    templateSelection: function(customer) {
+                        return customer.text;
+                    }
+                });
+                
+                // Initialize loan_id Select2 - this is handled differently as it's populated based on customer selection
+                $('#loan_id').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Select a loan',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#fieldVisitModal')
+                });
+                
+                // Define staff select configuration
+                const staffSelect2Config = {
+                    theme: 'bootstrap-5',
+                    placeholder: 'Select a field officer',
+                    allowClear: true,
+                    width: '100%',
+                    ajax: {
+                        url: '/api/collection-schedules/staff',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            console.log('Sending staff search:', params.term);
+                            return {
+                                term: params.term || '',
+                                page: params.page || 1,
+                                role_type: 'officer'  // Match collection schedule approach
+                            };
+                        },
+                        processResults: function(data) {
+                            console.log('Received staff data:', data);
+                            if (!data || !Array.isArray(data)) {
+                                console.error('Expected data to be an array:', data);
+                                return { results: [] };
+                            }
+                            // Format the results to match the collection schedule approach
+                            return {
+                                results: data.map(item => ({
+                                    id: item.id,
+                                    text: item.name,
+                                    role: item.role,
+                                    branchId: item.branch_id
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    templateResult: function(officer) {
+                        if (officer.loading) return 'Loading...';
+                        return officer.text || officer.name;
+                    },
+                    templateSelection: function(officer) {
+                        return officer.text || officer.name;
+                    }
+                };
+                
+                // Initialize field_officer_id Select2
+                $('#field_officer_id').select2({
+                    ...staffSelect2Config,
+                    dropdownParent: $('#fieldVisitModal')
+                });
+                
+                // Update hidden field_officer_name when selection changes
+                $('#field_officer_id').on('select2:select', function(e) {
+                    const selectedText = e.params.data.text || e.params.data.name || '';
+                    $('#field_officer_name').val(selectedText);
+                });
+                
+                // Clear field_officer_name when field officer is cleared
+                $('#field_officer_id').on('select2:clear', function() {
+                    $('#field_officer_name').val('');
+                });
+                
+                // Define supervisor select configuration
+                const supervisorSelect2Config = {
+                    theme: 'bootstrap-5',
+                    placeholder: 'Select a supervisor',
+                    allowClear: true,
+                    width: '100%',
+                    ajax: {
+                        url: '/api/collection-schedules/staff',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            console.log('Sending supervisor search:', params.term);
+                            return {
+                                term: params.term || '',
+                                page: params.page || 1,
+                                role_type: 'supervisor'  // Match collection schedule approach
+                            };
+                        },
+                        processResults: function(data) {
+                            console.log('Received supervisor data:', data);
+                            if (!data || !Array.isArray(data)) {
+                                console.error('Expected data to be an array:', data);
+                                return { results: [] };
+                            }
+                            // Format the results to match the collection schedule approach
+                            return {
+                                results: data.map(item => ({
+                                    id: item.id,
+                                    text: item.name,
+                                    role: item.role,
+                                    branchId: item.branch_id
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    templateResult: function(supervisor) {
+                        if (supervisor.loading) return 'Loading...';
+                        return supervisor.text || supervisor.name;
+                    },
+                    templateSelection: function(supervisor) {
+                        return supervisor.text || supervisor.name;
+                    }
+                };
+                
+                // Initialize supervisor_id Select2
+                $('#supervisor_id').select2({
+                    ...supervisorSelect2Config,
+                    dropdownParent: $('#fieldVisitModal')
+                });
+                
+                // Update hidden supervisor_name when selection changes
+                $('#supervisor_id').on('select2:select', function(e) {
+                    const selectedText = e.params.data.text || e.params.data.name || '';
+                    $('#supervisor_name').val(selectedText);
+                });
+                
+                // Clear supervisor_name when supervisor is cleared
+                $('#supervisor_id').on('select2:clear', function() {
+                    $('#supervisor_name').val('');
+                });
+            }
+            
+            // When customer is selected, populate loans dropdown
+            $('#customer_id').on('select2:select', function(e) {
+                const customerId = e.params.data.id;
+                const customerName = e.params.data.text || '';
+                const customerLoans = e.params.data.loans || [];
+                
+                console.log('Selected customer:', e.params.data);
+                console.log('Selected customer loans:', customerLoans);
+                
+                // Store customer name in hidden field
+                $('#customer_name').val(customerName);
+                
+                // Clear loan dropdown
+                $('#loan_id').empty();
+                
+                // Add default option
+                $('#loan_id').append(new Option('Select a loan', '', true, true));
+                
+                // Add loans to dropdown
+                if (customerLoans.length > 0) {
+                    customerLoans.forEach(loan => {
+                        // Format the loan balance with commas
+                        const formattedBalance = formatCurrency(loan.OutstandingBalance);
+                        
+                        const option = new Option(
+                            `${loan.LoanNo} - Balance: ${formattedBalance}`, 
+                            loan.LoanAppID, 
+                            false, 
+                            false
+                        );
+                        $(option).data('loan', loan);
+                        $('#loan_id').append(option);
+                    });
+                } else {
+                    // Fetch loans from API
+                    $.ajax({
+                        url: `/api/customers/${customerId}/loans`,
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.loans && data.loans.length > 0) {
+                                data.loans.forEach(loan => {
+                                    // Format the loan balance with commas
+                                    const formattedBalance = formatCurrency(loan.OutstandingBalance);
+                                    
+                                    const option = new Option(
+                                        `${loan.LoanNo} - Balance: ${formattedBalance}`, 
+                                        loan.LoanAppID, 
+                                        false, 
+                                        false
+                                    );
+                                    $(option).data('loan', loan);
+                                    $('#loan_id').append(option);
+                                });
+                            } else {
+                                $('#loan_id').append(new Option('No loans found', '', true, true));
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error fetching loans:', error);
+                            $('#loan_id').append(new Option('Error loading loans', '', true, true));
+                        }
+                    });
+                }
+                
+                // Trigger change to refresh Select2
+                $('#loan_id').trigger('change');
+            });
+            
+            // When loan is selected, populate loan details
+            $('#loan_id').on('select2:select', function(e) {
+                const loanId = e.params.data.id;
+                const loan = $(e.params.data.element).data('loan');
+                
+                console.log('Selected loan:', loan);
+                
+                if (loan) {
+                    // Store loan account number in hidden field
+                    $('#loan_account_no').val(loan.LoanNo);
+                    
+                    // Store raw values in hidden fields for form submission
+                    $('#raw_outstanding_balance').val(loan.OutstandingBalance);
+                    $('#raw_days_in_arrears').val(loan.DaysInArrears || 0);
+                    
+                    // Update form fields with loan details
+                    $('#outstanding_balance').val(formatCurrency(loan.OutstandingBalance));
+                    
+                    // Set days in arrears (if available, otherwise default to 0)
+                    const daysInArrears = loan.DaysInArrears || 0;
+                    $('#days_in_arrears').val(daysInArrears);
+                    
+                    // Calculate missed payments (1 per 30 days, minimum 1)
+                    const missedPayments = Math.max(1, Math.ceil(daysInArrears / 30));
+                    $('#missed_payments').val(missedPayments);
+                    
+                    // Set installment amount (use OutstandingBalance as fallback if InstallmentAmount is not available)
+                    const installmentAmount = loan.InstallmentAmount || (loan.OutstandingBalance / 12);
+                    $('#raw_installment_amount').val(installmentAmount);
+                    $('#installment_amount').val(formatCurrency(installmentAmount));
+                    
+                    // Set priority based on days in arrears
+                    let priorityValue = 'Low';
+                    if (daysInArrears >= 90) priorityValue = 'Critical';
+                    else if (daysInArrears >= 60) priorityValue = 'High';
+                    else if (daysInArrears >= 30) priorityValue = 'Medium';
+                    
+                    $('#priority').val(priorityValue);
+                } else {
+                    // If loan data is not available in the option, fetch it
+                    const customerId = $('#customer_id').val();
+                    if (customerId && loanId) {
+                        $.ajax({
+                            url: `/api/customers/${customerId}/loans`,
+                            type: 'GET',
+                            dataType: 'json',
+                            success: function(data) {
+                                if (data.loans && data.loans.length > 0) {
+                                    const selectedLoan = data.loans.find(l => l.id == loanId);
+                                    if (selectedLoan) {
+                                        updateLoanDetailsInForm(selectedLoan);
+                                    }
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error fetching loan details:', error);
+                            }
+                        });
+                    }
+                }
+            });
+            
+            // Helper function to format currency
+            function formatCurrency(amount) {
+                if (amount === undefined || amount === null) return 'N/A';
+                
+                // Remove any existing commas and convert to number
+                const cleanAmount = parseFloat(String(amount).replace(/,/g, ''));
+                if (isNaN(cleanAmount)) return 'N/A';
+                
+                // Format with commas and 2 decimal places
+                return cleanAmount.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+            
+            // Function to update loan details in the form
+            function updateLoanDetailsInForm(loan) {
+                console.log('Updating loan details in form:', loan);
+                
+                const outstandingBalance = loan.outstanding_balance || 0;
+                const daysInArrears = loan.days_in_arrears || 0;
+                
+                // Calculate missed payments based on days in arrears (1 per 30 days)
+                // Using Math.ceil to round up - if 31 days in arrears, that's 2 missed payments
+                const missedPayments = Math.max(1, Math.ceil(daysInArrears / 30));
+                
+                // Use installment_amount if available, otherwise use outstanding_balance
+                const installmentAmount = loan.installment_amount || outstandingBalance;
+                
+                console.log('Calculated values:', {
+                    outstandingBalance,
+                    daysInArrears,
+                    missedPayments,
+                    installmentAmount
+                });
+                
+                // Set priority based on days in arrears
+                let priorityValue = 'Low';
+                if (daysInArrears >= 90) priorityValue = 'Critical';
+                else if (daysInArrears >= 60) priorityValue = 'High';
+                else if (daysInArrears >= 30) priorityValue = 'Medium';
+                
+                // Update form fields - using the correct IDs that match the HTML
+                $('#outstanding_balance').val(formatCurrency(outstandingBalance));
+                $('#days_in_arrears').val(daysInArrears);
+                $('#missed_payments').val(missedPayments);
+                $('#installment_amount').val(formatCurrency(installmentAmount));
+                $('#priority').val(priorityValue);
+                
+                // Get customer name and loan account number
+                // Get customer name from Select2 data or dropdown
+                let customerName = $('#customer_name').val();
+                if (!customerName) {
+                    const customerData = $('#customer_id').select2('data')[0];
+                    customerName = customerData ? (customerData.text || customerData.name || 'Unknown Customer') : 'Unknown Customer';
+                    $('#customer_name').val(customerName);
+                }
+                
+                // Get loan account number from Select2 data or dropdown
+                let loanAccountNo = $('#loan_account_no').val();
+                if (!loanAccountNo) {
+                    const loanData = $('#loan_id').select2('data')[0];
+                    if (loanData) {
+                        const loanText = loanData.text || '';
+                        loanAccountNo = loanText.split(' - ')[0].trim(); // Extract loan number from the option text
+                    } else {
+                        loanAccountNo = 'Unknown Loan';
+                    }
+                    $('#loan_account_no').val(loanAccountNo);
+                }
+                
+                // Add hidden fields for form submission
+                if (!$('#hidden_fields').length) {
+                    const hiddenFields = `
+                        <div id="hidden_fields">
+                            <input type="hidden" name="raw_outstanding_balance" value="${outstandingBalance}">
+                            <input type="hidden" name="raw_days_in_arrears" value="${daysInArrears}">
+                            <input type="hidden" name="raw_installment_amount" value="${installmentAmount}">
+                            <input type="hidden" name="outstanding_balance" value="${formatCurrency(outstandingBalance)}">
+                            <input type="hidden" name="days_in_arrears" value="${daysInArrears}">
+                            <input type="hidden" name="missed_payments" value="${missedPayments}">
+                            <input type="hidden" name="installment_amount" value="${formatCurrency(installmentAmount)}">
+                            <input type="hidden" name="customer_name" value="${customerName}">
+                            <input type="hidden" name="loan_account_no" value="${loanAccountNo}">
+                        </div>
+                    `;
+                    $('#fieldVisitForm').append(hiddenFields);
+                } else {
+                    $('#hidden_fields input[name="raw_outstanding_balance"]').val(outstandingBalance);
+                    $('#hidden_fields input[name="raw_days_in_arrears"]').val(daysInArrears);
+                    $('#hidden_fields input[name="raw_installment_amount"]').val(installmentAmount);
+                    $('#hidden_fields input[name="outstanding_balance"]').val(formatCurrency(outstandingBalance));
+                    $('#hidden_fields input[name="days_in_arrears"]').val(daysInArrears);
+                    $('#hidden_fields input[name="missed_payments"]').val(missedPayments);
+                    $('#hidden_fields input[name="installment_amount"]').val(formatCurrency(installmentAmount));
+                    $('#hidden_fields input[name="customer_name"]').val(customerName);
+                    $('#hidden_fields input[name="loan_account_no"]').val(loanAccountNo);
+                }
+            }
+            
+            // Handle form submission
+            $('#fieldVisitForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                // Validate form
+                if (!validateForm()) {
+                    return false;
+                }
+                
+                // Show loading state
+                showLoading();
+                
+                // Create FormData object
+                const formData = new FormData(this);
+                
+                // Ensure staff IDs are properly handled
+                const fieldOfficerId = $('#field_officer_id').val();
+                const supervisorId = $('#supervisor_id').val();
+                
+                // Convert IDs to integers (if they exist)
+                if (fieldOfficerId) {
+                    formData.set('field_officer_id', parseInt(fieldOfficerId, 10));
+                }
+                
+                if (supervisorId) {
+                    formData.set('supervisor_id', parseInt(supervisorId, 10));
+                }
+                
+                // Set default branch ID
+                formData.set('assigned_branch_id', 1);
+                
+                // Ensure customer name and loan account number are included
+                const customerName = $('#customer_name').val() || 'Unknown Customer';
+                const loanAccountNo = $('#loan_account_no').val() || 'Unknown Loan';
+                
+                formData.set('customer_name', customerName);
+                formData.set('loan_account_no', loanAccountNo);
+                
+                console.log('Customer Name:', customerName);
+                console.log('Loan Account No:', loanAccountNo);
+                
+                // Log form data for debugging
+                console.log('Submitting form data...');
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+                
+                // Submit form via AJAX
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success message
+                            Swal.fire({
+                                title: 'Success!',
+                                text: 'Field visit scheduled successfully.',
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then((result) => {
+                                // Close modal
+                                closeModal();
+                                
+                                // Reload page to show updated data
+                                window.location.reload();
+                            });
+                        } else {
+                            // Show error message
+                            showError(response.message || 'An error occurred');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        hideLoading();
+                        console.error('Error submitting form:', error);
+                        
+                        // Parse error response
+                        let errorMessage = 'An error occurred while scheduling the field visit';
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.error) {
+                                errorMessage = response.error;
+                                
+                                // Highlight missing fields if provided
+                                if (response.missing_fields) {
+                                    response.missing_fields.forEach(field => {
+                                        $(`[name=${field}]`).addClass('border-red-500');
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing error response:', e);
+                        }
+                        
+                        // Show error message
+                        showError(errorMessage);
+                    }
+                });
+            });
+            
+            // Form validation function
+            function validateForm() {
+                // Reset validation errors
+                $('.border-red-500').removeClass('border-red-500');
+                $('.invalid-feedback').remove();
+                
+                // Check required fields
+                let isValid = true;
+                const requiredFields = ['customer_id', 'loan_id', 'field_officer_id', 'visit_date', 'visit_time', 'location', 'purpose', 'notes'];
+                
+                requiredFields.forEach(field => {
+                    const value = $(`[name=${field}]`).val();
+                    if (!value) {
+                        const element = $(`[name=${field}]`);
+                        element.addClass('border-red-500');
+                        // Add specific error message for ID fields
+                        if (['customer_id', 'loan_id', 'field_officer_id'].includes(field)) {
+                            element.after(`<div class="invalid-feedback d-block text-red-500">This field is required and must have a valid ID</div>`);
+                        }
+                        isValid = false;
+                    }
+                });
+                
+                if (!isValid) {
+                    showError('Please fill in all required fields');
+                }
+                
+                // Validate date format
+                const visitDate = $('#visit_date').val();
+                if (visitDate && !isValidDate(visitDate)) {
+                    isValid = false;
+                    $('#visit_date').addClass('border-red-500');
+                    $('#visit_date').after(`<div class="invalid-feedback">Please enter a valid date (YYYY-MM-DD).</div>`);
+                }
+                
+                // Validate time format
+                const visitTime = $('#visit_time').val();
+                if (visitTime && !isValidTime(visitTime)) {
+                    isValid = false;
+                    $('#visit_time').addClass('is-invalid');
+                    $('#visit_time').after(`<div class="invalid-feedback">Please enter a valid time (HH:MM).</div>`);
+                }
+                
+                return isValid;
+            }
+            
+            // Date validation helper
+            function isValidDate(dateString) {
+                const regex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!regex.test(dateString)) return false;
+                
+                const date = new Date(dateString);
+                return date instanceof Date && !isNaN(date);
+            }
+            
+            // Time validation helper
+            function isValidTime(timeString) {
+                const regex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                return regex.test(timeString);
+            }
+            
+            // Function to reset the form
+            function resetForm() {
+                $('#fieldVisitForm')[0].reset();
+                $('#customer_id').val(null).trigger('change');
+                $('#loan_id').val(null).trigger('change');
+                $('#field_officer_id').val(null).trigger('change');
+                $('#supervisor_id').val(null).trigger('change');
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+                $('#hidden_fields').remove();
+            }
+            
+            // Reset form when modal is closed
+            $('#fieldVisitModal').on('hidden.bs.modal', function() {
+                resetForm();
+            });
+        });
+    </script>
 {% endblock %}

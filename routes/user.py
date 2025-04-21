@@ -7,7 +7,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app, abort
 from flask_login import login_required, current_user
 from models.module import Module, FormField
 from models.form_section import FormSection
@@ -19,6 +19,7 @@ from models.calendar_event import CalendarEvent
 from models.client import Client
 from models.correspondence import Correspondence
 from models.guarantor import Guarantor
+from models.field_visit import FieldVisit
 from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
@@ -29,6 +30,13 @@ import traceback
 import os
 import json
 from werkzeug.utils import secure_filename
+
+# Import the collection schedule blueprint
+try:
+    from routes.collection_schedule import collection_schedule_bp
+except ImportError:
+    # Create a dummy blueprint if the import fails
+    collection_schedule_bp = Blueprint('collection_schedule', __name__, url_prefix='/collection-schedule')
 from sqlalchemy import and_, or_, text, MetaData, Table
 import time
 from flask import current_app
@@ -56,7 +64,10 @@ def render_with_modules(template, **kwargs):
 user_bp = Blueprint('user', __name__)
 
 # Register collection schedule blueprint without additional prefix
-user_bp.register_blueprint(collection_schedule_bp)
+try:
+    user_bp.register_blueprint(collection_schedule_bp)
+except Exception as e:
+    current_app.logger.error(f"Error registering collection_schedule_bp: {str(e)}")
 user_bp.register_blueprint(crb_bp)
 
 @user_bp.route('/dashboard')
@@ -3132,8 +3143,536 @@ def field_visits():
         flash('An error occurred while loading the field visits page', 'error')
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/api/guarantor/<int:guarantor_id>/communications', methods=['GET'])
+@user_bp.route('/api/field-visits/create', methods=['POST'])
 @login_required
+def create_field_visit():
+    """Create a new field visit"""
+    try:
+        # Get form data
+        customer_id = request.form.get('customer_id')
+        loan_id = request.form.get('loan_id')
+        field_officer_id = request.form.get('field_officer_id')
+        supervisor_id = request.form.get('supervisor_id')
+        visit_date = request.form.get('visit_date')
+        visit_time = request.form.get('visit_time')
+        location = request.form.get('location')
+        purpose = request.form.get('purpose')
+        priority = request.form.get('priority')
+        notes = request.form.get('notes')
+        
+        # Get additional form data
+        outstanding_balance = request.form.get('outstanding_balance')
+        days_in_arrears = request.form.get('days_in_arrears')
+        missed_payments = request.form.get('missed_payments')
+        installment_amount = request.form.get('installment_amount')
+        
+        # Log the received data for debugging
+        current_app.logger.info(f"Received field visit data: {request.form}")
+        
+        # Validate required fields
+        required_fields = [customer_id, loan_id, field_officer_id, visit_date, visit_time, location, purpose, priority, notes]
+        required_field_names = ['customer_id', 'loan_id', 'field_officer_id', 'visit_date', 'visit_time', 'location', 'purpose', 'priority', 'notes']
+        
+        if not all(required_fields):
+            missing_fields = [field_name for field_name, value in zip(required_field_names, required_fields) if not value]
+            current_app.logger.error(f"Missing required fields: {missing_fields}")
+            return jsonify({
+                "success": False,
+                "error": "Missing required fields", 
+                "missing_fields": missing_fields
+            }), 400
+            
+        # Validate ID fields specifically
+        id_fields = [
+            ('customer_id', customer_id),
+            ('loan_id', loan_id),
+            ('field_officer_id', field_officer_id)
+        ]
+        
+        invalid_ids = []
+        for field_name, field_value in id_fields:
+            if not field_value or not field_value.strip():
+                invalid_ids.append(field_name)
+                continue
+                
+            # Check if value can be converted to integer
+            try:
+                int(field_value)
+            except ValueError:
+                invalid_ids.append(field_name)
+                
+        if invalid_ids:
+            current_app.logger.error(f"Invalid ID fields: {invalid_ids}")
+            return jsonify({
+                "success": False,
+                "error": "Invalid ID values provided", 
+                "missing_fields": invalid_ids
+            }), 400
+        
+        # Process file attachment if provided
+        attachment = None
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename:
+                # Here you would save the file and get the file path
+                filename = secure_filename(file.filename)
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+                
+                # Create upload directory if it doesn't exist
+                if not os.path.exists(upload_folder):
+                    os.makedirs(upload_folder)
+                    
+                file_path = os.path.join(upload_folder, filename)
+                file.save(file_path)
+                attachment = f'/static/uploads/{filename}'  # Store relative path
+                current_app.logger.info(f"File saved to {file_path}")
+        
+        # Get customer name and loan account number from the form
+        customer_name = request.form.get('customer_name', 'Unknown Customer')
+        loan_account_no = request.form.get('loan_account_no', 'Unknown Loan')
+        alternative_contact = request.form.get('alternative_contact')
+        special_instructions = request.form.get('special_instructions')
+        
+        # Use raw numeric values instead of formatted ones with commas
+        raw_outstanding_balance = request.form.get('raw_outstanding_balance')
+        raw_installment_amount = request.form.get('raw_installment_amount')
+        
+        # Convert values to appropriate types
+        try:
+            outstanding_balance = float(raw_outstanding_balance) if raw_outstanding_balance else 0
+            days_in_arrears = int(days_in_arrears) if days_in_arrears else 0
+            missed_payments = int(missed_payments) if missed_payments else 0
+            installment_amount = float(raw_installment_amount) if raw_installment_amount else 0
+        except (ValueError, TypeError) as e:
+            current_app.logger.error(f"Error converting field visit values: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid numeric values provided'
+            }), 400
+            
+        # FieldVisit model is imported at the top of the file
+        
+        # Handle current user ID
+        current_user_id = 1  # Default value
+        if hasattr(current_user, 'id'):
+            current_user_id = current_user.id
+            
+        # Validate that IDs can be converted to integers
+        try:
+            # The frontend should now be sending these as integers already
+            field_officer_id_int = int(field_officer_id)
+            supervisor_id_int = int(supervisor_id) if supervisor_id and supervisor_id.strip() else None
+            
+            # These are still strings in the database
+            customer_id_str = customer_id
+            loan_id_str = loan_id
+            
+            # Use a default branch ID
+            branch_id_int = int(request.form.get('assigned_branch_id', 1))
+            
+            # Log the IDs for debugging
+            current_app.logger.info(f"Field visit data: field_officer_id={field_officer_id_int}, supervisor_id={supervisor_id_int}, branch_id={branch_id_int}")
+        except ValueError as e:
+            current_app.logger.error(f"Error converting ID to integer: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid ID format provided. All ID fields must contain valid numeric values.'
+            }), 400
+            
+        # Create new field visit record
+        field_visit = FieldVisit(
+            # External references - stored as strings
+            customer_id=customer_id_str,
+            customer_name=customer_name,
+            loan_account_no=loan_account_no,
+            
+            # Staff assignments - using integer IDs
+            field_officer_id=field_officer_id_int,
+            supervisor_id=supervisor_id_int,
+            assigned_branch_id=branch_id_int,
+            created_by=current_user.id if hasattr(current_user, 'id') else 1,
+            
+            # Visit details
+            visit_date=datetime.strptime(visit_date, '%Y-%m-%d').date(),
+            visit_time=datetime.strptime(visit_time, '%H:%M').time(),
+            location=location,
+            purpose=purpose,
+            priority=priority,
+            
+            # Loan details
+            outstanding_balance=outstanding_balance,
+            days_in_arrears=days_in_arrears,
+            missed_payments=missed_payments,
+            installment_amount=installment_amount,
+            
+            # Additional information
+            alternative_contact=alternative_contact,
+            notes=notes,
+            special_instructions=special_instructions,
+            attachment=attachment,
+            status='scheduled'
+        )
+        
+        # Save to database
+        try:
+            db.session.add(field_visit)
+            db.session.commit()
+            current_app.logger.info(f"Field visit saved to database with ID: {field_visit.id}")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Database error saving field visit: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+        
+        # Log the field visit creation
+        current_app.logger.info(f"Field visit scheduled for customer {customer_id}, loan {loan_id}, by officer {field_officer_id}")
+        
+        # For now, just return success
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': 'Field visit scheduled successfully'
+            })
+        else:
+            flash('Field visit scheduled successfully', 'success')
+            return redirect(url_for('user.field_visits'))
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating field visit: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': 'An error occurred while scheduling the field visit'
+            }), 500
+        else:
+            flash('An error occurred while scheduling the field visit', 'error')
+            return redirect(url_for('user.field_visits'))
+
+@user_bp.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers():
+    """Get all customers for field visit form"""
+    try:
+        # Get search term if provided
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        
+        # Log request parameters for debugging
+        current_app.logger.info(f"Customer search request: search='{search}', page={page}, limit={limit}")
+        
+        # This would be replaced with actual database query
+        # Example: 
+        # if search:
+        #     customers = Customer.query.filter(Customer.name.ilike(f'%{search}%')).paginate(page=page, per_page=limit)
+        # else:
+        #     customers = Customer.query.paginate(page=page, per_page=limit)
+        
+        # For now, return sample data with loans
+        customers = [
+            {
+                "id": 1, 
+                "name": "Alice Cooper",
+                "loans": [
+                    {"id": 101, "loan_number": "LN-2025-005", "amount": 50000, "days_in_arrears": 45, "outstanding_balance": 35000, "installment_amount": 1500},
+                    {"id": 102, "loan_number": "LN-2025-012", "amount": 75000, "days_in_arrears": 15, "outstanding_balance": 65000, "installment_amount": 2000}
+                ]
+            },
+            {
+                "id": 2, 
+                "name": "Bob Smith",
+                "loans": [
+                    {"id": 201, "loan_number": "LN-2025-018", "amount": 30000, "days_in_arrears": 60, "outstanding_balance": 28000, "installment_amount": 1000}
+                ]
+            },
+            {
+                "id": 3, 
+                "name": "Charlie Brown",
+                "loans": [
+                    {"id": 301, "loan_number": "LN-2025-023", "amount": 100000, "days_in_arrears": 90, "outstanding_balance": 95000, "installment_amount": 3000},
+                    {"id": 302, "loan_number": "LN-2025-024", "amount": 25000, "days_in_arrears": 0, "outstanding_balance": 20000, "installment_amount": 800}
+                ]
+            },
+            {
+                "id": 4, 
+                "name": "David Jones",
+                "loans": [
+                    {"id": 401, "loan_number": "LN-2025-030", "amount": 45000, "days_in_arrears": 30, "outstanding_balance": 40000, "installment_amount": 1200}
+                ]
+            }
+        ]
+        
+        # Filter by search term if provided
+        if search:
+            customers = [c for c in customers if search.lower() in c['name'].lower()]
+        
+        # Calculate missed payments based on days in arrears (1 per 30 days)
+        for customer in customers:
+            for loan in customer['loans']:
+                # Calculate missed installments based on days in arrears
+                loan['missed_payments'] = max(1, int((loan['days_in_arrears'] + 29) / 30))  # Round up division
+        
+        # Log the response for debugging
+        response_data = {"customers": customers}
+        current_app.logger.info(f"Customer search response: {len(customers)} customers found")
+        
+        return jsonify(response_data)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching customers: {str(e)}")
+        return jsonify({"error": "Failed to fetch customers"}), 500
+
+@user_bp.route('/api/customers/<int:customer_id>/loans', methods=['GET'])
+@login_required
+def get_customer_loans(customer_id):
+    """Get loans for a specific customer"""
+    try:
+        # This would be replaced with actual database query
+        # Example: loans = Loan.query.filter_by(customer_id=customer_id).all()
+        
+        # For now, return sample data
+        loans = []
+        if customer_id == 1:
+            loans = [
+                {"id": 101, "loan_number": "LN-2025-005", "amount": 50000, "days_in_arrears": 45, "outstanding_balance": 35000, "installment_amount": 1500},
+                {"id": 102, "loan_number": "LN-2025-012", "amount": 75000, "days_in_arrears": 15, "outstanding_balance": 65000, "installment_amount": 2000}
+            ]
+        elif customer_id == 2:
+            loans = [
+                {"id": 201, "loan_number": "LN-2025-018", "amount": 30000, "days_in_arrears": 60, "outstanding_balance": 28000, "installment_amount": 1000}
+            ]
+        elif customer_id == 3:
+            loans = [
+                {"id": 301, "loan_number": "LN-2025-023", "amount": 100000, "days_in_arrears": 90, "outstanding_balance": 95000, "installment_amount": 3000},
+                {"id": 302, "loan_number": "LN-2025-024", "amount": 25000, "days_in_arrears": 0, "outstanding_balance": 20000, "installment_amount": 800}
+            ]
+        elif customer_id == 4:
+            loans = [
+                {"id": 401, "loan_number": "LN-2025-030", "amount": 45000, "days_in_arrears": 30, "outstanding_balance": 40000, "installment_amount": 1200}
+            ]
+        
+        # Calculate missed payments based on days in arrears (1 per 30 days)
+        for loan in loans:
+            # Calculate missed installments based on days in arrears
+            loan['missed_payments'] = max(1, int((loan['days_in_arrears'] + 29) / 30))  # Round up division
+        
+        return jsonify({"loans": loans})
+    except Exception as e:
+        current_app.logger.error(f"Error fetching loans for customer {customer_id}: {str(e)}")
+        return jsonify({"error": "Failed to fetch loans"}), 500
+
+@user_bp.route('/api/field-officers', methods=['GET'])
+@login_required
+def get_field_officers():
+    """Get all field officers"""
+    try:
+        # Get search term if provided
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        
+        # Log request parameters for debugging
+        current_app.logger.info(f"Field officer search request: search='{search}', page={page}, limit={limit}")
+        
+        # This would be replaced with actual database query
+        # Example: 
+        # if search:
+        #     officers = User.query.filter(User.role=='field_officer', User.name.ilike(f'%{search}%')).paginate(page=page, per_page=limit)
+        # else:
+        #     officers = User.query.filter_by(role='field_officer').paginate(page=page, per_page=limit)
+        
+        # For now, return sample data
+        officers = [
+            {"id": 101, "name": "John Doe", "text": "John Doe"},
+            {"id": 102, "name": "Jane Smith", "text": "Jane Smith"},
+            {"id": 103, "name": "Mike Johnson", "text": "Mike Johnson"},
+            {"id": 104, "name": "Sarah Williams", "text": "Sarah Williams"}
+        ]
+        
+        # Filter by search term if provided
+        if search:
+            officers = [o for o in officers if search.lower() in o['name'].lower()]
+        
+        # Format response for Select2
+        results = {
+            "results": officers,
+            "pagination": {
+                "more": False  # No more pages
+            }
+        }
+        
+        # Log the response for debugging
+        current_app.logger.info(f"Field officer search response: {len(officers)} officers found")
+        current_app.logger.info(f"Response data: {results}")
+        
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching field officers: {str(e)}")
+        return jsonify({"error": "Failed to fetch field officers"}), 500
+
+@user_bp.route('/api/supervisors', methods=['GET'])
+@login_required
+def get_supervisors():
+    """Get all supervisors"""
+    try:
+        # Get search term if provided
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        
+        # Log request parameters for debugging
+        current_app.logger.info(f"Supervisor search request: search='{search}', page={page}, limit={limit}")
+        
+        # This would be replaced with actual database query
+        # Example: 
+        # if search:
+        #     supervisors = User.query.filter(User.role=='supervisor', User.name.ilike(f'%{search}%')).paginate(page=page, per_page=limit)
+        # else:
+        #     supervisors = User.query.filter_by(role='supervisor').paginate(page=page, per_page=limit)
+        
+        # For now, return sample data
+        supervisors = [
+            {"id": 201, "name": "Robert Chen", "text": "Robert Chen"},
+            {"id": 202, "name": "Emily Davis", "text": "Emily Davis"},
+            {"id": 203, "name": "James Wilson", "text": "James Wilson"},
+            {"id": 204, "name": "Patricia Moore", "text": "Patricia Moore"}
+        ]
+        
+        # Filter by search term if provided
+        if search:
+            supervisors = [s for s in supervisors if search.lower() in s['name'].lower()]
+        
+        # Format response for Select2
+        results = {
+            "results": supervisors,
+            "pagination": {
+                "more": False  # No more pages
+            }
+        }
+        
+        # Log the response for debugging
+        current_app.logger.info(f"Supervisor search response: {len(supervisors)} supervisors found")
+        current_app.logger.info(f"Response data: {results}")
+        
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching supervisors: {str(e)}")
+        return jsonify({"error": "Failed to fetch supervisors"}), 500
+
+# Add the new API routes that match the collection schedule implementation
+@user_bp.route('/api/customers/search', methods=['GET'])
+@login_required
+def search_customers():
+    """Search customers for Select2 dropdown"""
+    try:
+        # Get search term if provided
+        search = request.args.get('q', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        
+        # Log request parameters for debugging
+        current_app.logger.info(f"Customer search request: q='{search}', page={page}, per_page={per_page}")
+        
+        # Sample data with loans - formatted for Select2
+        customers = [
+            {
+                "id": 1, 
+                "text": "Alice Cooper",
+                "loans": [
+                    {"LoanAppID": 101, "LoanNo": "LN-2025-005", "LoanAmount": 50000, "DaysInArrears": 45, "OutstandingBalance": 35000, "InstallmentAmount": 1500},
+                    {"LoanAppID": 102, "LoanNo": "LN-2025-012", "LoanAmount": 75000, "DaysInArrears": 15, "OutstandingBalance": 65000, "InstallmentAmount": 2000}
+                ]
+            },
+            {
+                "id": 2, 
+                "text": "Bob Smith",
+                "loans": [
+                    {"LoanAppID": 201, "LoanNo": "LN-2025-018", "LoanAmount": 30000, "DaysInArrears": 60, "OutstandingBalance": 28000, "InstallmentAmount": 1000}
+                ]
+            },
+            {
+                "id": 3, 
+                "text": "Charlie Brown",
+                "loans": [
+                    {"LoanAppID": 301, "LoanNo": "LN-2025-023", "LoanAmount": 100000, "DaysInArrears": 90, "OutstandingBalance": 95000, "InstallmentAmount": 3000},
+                    {"LoanAppID": 302, "LoanNo": "LN-2025-024", "LoanAmount": 25000, "DaysInArrears": 0, "OutstandingBalance": 20000, "InstallmentAmount": 800}
+                ]
+            },
+            {
+                "id": 4, 
+                "text": "David Jones",
+                "loans": [
+                    {"LoanAppID": 401, "LoanNo": "LN-2025-030", "LoanAmount": 45000, "DaysInArrears": 30, "OutstandingBalance": 40000, "InstallmentAmount": 1200}
+                ]
+            },
+            {
+                "id": 5, 
+                "text": "James Anderson",
+                "loans": [
+                    {"LoanAppID": 501, "LoanNo": "LN-2025-040", "LoanAmount": 60000, "DaysInArrears": 20, "OutstandingBalance": 55000, "InstallmentAmount": 1800}
+                ]
+            }
+        ]
+        
+        # Filter by search term if provided
+        if search:
+            customers = [c for c in customers if search.lower() in c['text'].lower()]
+        
+        # Format response for Select2
+        response = {
+            "items": customers,
+            "has_more": False  # No more pages
+        }
+        
+        # Log the response for debugging
+        current_app.logger.info(f"Customer search response: {len(customers)} customers found")
+        
+        return jsonify(response)
+    except Exception as e:
+        current_app.logger.error(f"Error searching customers: {str(e)}")
+        return jsonify({"error": "Failed to search customers"}), 500
+
+@user_bp.route('/api/staff/search', methods=['GET'])
+def search_staff():
+    # Get actual staff from the database
+    query = request.args.get('q', '')
+    role = request.args.get('role', '')
+    page = int(request.args.get('page', 1))
+    
+    try:
+        # Query the database for actual staff members
+        staff_list = Staff.query.filter(Staff.is_active == True).all()
+        
+        # Format staff data for Select2
+        items = []
+        for staff in staff_list:
+            # Only include staff that match the role filter if specified
+            if not role or (hasattr(staff, 'role') and staff.role and role.lower() in staff.role.name.lower()):
+                items.append({
+                    'id': str(staff.id),  # Convert ID to string for Select2
+                    'text': f"{staff.first_name} {staff.last_name}"
+                })
+        
+        # Return formatted response for Select2
+        return jsonify({
+            'items': items,
+            'has_more': False  # No pagination for now
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error searching staff: {str(e)}")
+        # Fallback to sample data with valid staff IDs from the database
+        return jsonify({
+            'items': [
+                {'id': '1', 'text': 'Admin User'},
+                {'id': '2', 'text': 'John Doe'},
+                {'id': '3', 'text': 'Alice Johnson'},
+                {'id': '4', 'text': 'Emily Davis'},
+                {'id': '5', 'text': 'Michael Brown'},
+                {'id': '6', 'text': 'Sarah Wilson'}
+            ],
+            'has_more': False
+        })
 def get_guarantor_communications(guarantor_id):
     """Get communications for a guarantor"""
     try:

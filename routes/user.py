@@ -24,7 +24,9 @@ from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
 from services.scheduler import get_cached_tables
-from datetime import datetime, timedelta
+import time
+import math
+import json
 from decimal import Decimal
 import traceback
 import os
@@ -3135,6 +3137,7 @@ def create_auction():
 @user_bp.route('/field-visits')
 @login_required
 def field_visits():
+    
     """Render the field visits page with data from the database"""
     try:
         # First, check if the FieldVisit table exists
@@ -3260,6 +3263,28 @@ def get_field_visit(visit_id):
                 'message': 'Field visit not found'
             }), 404
         
+        # Get staff names
+        field_officer_name = 'Unknown'
+        supervisor_name = 'N/A'
+        
+        # Get field officer name
+        if field_visit.field_officer_id:
+            try:
+                field_officer = Staff.query.get(field_visit.field_officer_id)
+                if field_officer:
+                    field_officer_name = f"{field_officer.first_name} {field_officer.last_name}"
+            except Exception as e:
+                current_app.logger.error(f"Error fetching field officer: {str(e)}")
+        
+        # Get supervisor name
+        if field_visit.supervisor_id:
+            try:
+                supervisor = Staff.query.get(field_visit.supervisor_id)
+                if supervisor:
+                    supervisor_name = f"{supervisor.first_name} {supervisor.last_name}"
+            except Exception as e:
+                current_app.logger.error(f"Error fetching supervisor: {str(e)}")
+        
         # Convert field visit to dictionary
         visit_data = {
             'id': field_visit.id,
@@ -3267,9 +3292,9 @@ def get_field_visit(visit_id):
             'customer_name': field_visit.customer_name,
             'loan_account_no': field_visit.loan_account_no,
             'field_officer_id': field_visit.field_officer_id,
-            'field_officer_name': field_visit.field_officer_name,
+            'field_officer_name': field_officer_name,
             'supervisor_id': field_visit.supervisor_id,
-            'supervisor_name': field_visit.supervisor_name,
+            'supervisor_name': supervisor_name,
             'visit_date': field_visit.visit_date.strftime('%Y-%m-%d'),
             'visit_time': field_visit.visit_time.strftime('%H:%M'),
             'location': field_visit.location,
@@ -3298,6 +3323,148 @@ def get_field_visit(visit_id):
         return jsonify({
             'success': False,
             'message': 'An error occurred while fetching the field visit'
+        }), 500
+
+
+@user_bp.route('/api/field-visits/<int:visit_id>', methods=['PUT', 'POST'])
+@login_required
+def update_field_visit(visit_id):
+    """Update a field visit"""
+    try:
+        # Get the field visit
+        field_visit = FieldVisit.query.get(visit_id)
+        if not field_visit:
+            return jsonify({
+                'success': False,
+                'message': 'Field visit not found'
+            }), 404
+        
+        # Get form data
+        data = request.form
+        current_app.logger.info(f"Updating field visit {visit_id} with data: {data}")
+        
+        # Update customer and loan information
+        if 'customer_id' in data and data['customer_id']:
+            field_visit.customer_id = data['customer_id']
+        
+        if 'customer_name' in data and data['customer_name']:
+            field_visit.customer_name = data['customer_name']
+        
+        if 'loan_id' in data and data['loan_id']:
+            field_visit.loan_id = data['loan_id']
+        
+        if 'loan_account_no' in data and data['loan_account_no']:
+            field_visit.loan_account_no = data['loan_account_no']
+        
+        # Update loan details
+        if 'raw_outstanding_balance' in data and data['raw_outstanding_balance']:
+            try:
+                field_visit.outstanding_balance = float(data['raw_outstanding_balance'])
+            except (ValueError, TypeError):
+                current_app.logger.warning(f"Invalid outstanding balance value: {data.get('raw_outstanding_balance')}")
+        
+        if 'raw_days_in_arrears' in data and data['raw_days_in_arrears']:
+            try:
+                field_visit.days_in_arrears = int(data['raw_days_in_arrears'])
+            except (ValueError, TypeError):
+                current_app.logger.warning(f"Invalid days in arrears value: {data.get('raw_days_in_arrears')}")
+        
+        if 'missed_payments' in data and data['missed_payments']:
+            try:
+                field_visit.missed_payments = int(data['missed_payments'])
+            except (ValueError, TypeError):
+                # Calculate based on days in arrears per requirements
+                if field_visit.days_in_arrears:
+                    field_visit.missed_payments = math.ceil(field_visit.days_in_arrears / 30)
+        
+        if 'raw_installment_amount' in data and data['raw_installment_amount']:
+            try:
+                field_visit.installment_amount = float(data['raw_installment_amount'])
+            except (ValueError, TypeError):
+                # Use outstanding balance as fallback per requirements
+                if field_visit.outstanding_balance:
+                    field_visit.installment_amount = field_visit.outstanding_balance
+        
+        # Update visit details
+        if 'visit_date' in data and data['visit_date']:
+            field_visit.visit_date = datetime.strptime(data['visit_date'], '%Y-%m-%d').date()
+        
+        if 'visit_time' in data and data['visit_time']:
+            field_visit.visit_time = datetime.strptime(data['visit_time'], '%H:%M').time()
+        
+        if 'purpose' in data:
+            field_visit.purpose = data['purpose']
+        
+        if 'priority' in data:
+            field_visit.priority = data['priority']
+        
+        if 'location' in data:
+            field_visit.location = data['location']
+        
+        if 'alternative_contact' in data:
+            field_visit.alternative_contact = data['alternative_contact']
+        
+        if 'notes' in data:
+            field_visit.notes = data['notes']
+        
+        if 'special_instructions' in data:
+            field_visit.special_instructions = data['special_instructions']
+        
+        if 'status' in data:
+            field_visit.status = data['status']
+        
+        # Update staff assignments
+        if 'field_officer_id' in data and data['field_officer_id']:
+            try:
+                field_visit.field_officer_id = int(data['field_officer_id'])
+            except (ValueError, TypeError):
+                current_app.logger.warning(f"Invalid field officer ID: {data.get('field_officer_id')}")
+        
+        if 'field_officer_name' in data and data['field_officer_name']:
+            field_visit.field_officer_name = data['field_officer_name']
+        
+        if 'supervisor_id' in data and data['supervisor_id']:
+            try:
+                field_visit.supervisor_id = int(data['supervisor_id'])
+            except (ValueError, TypeError):
+                current_app.logger.warning(f"Invalid supervisor ID: {data.get('supervisor_id')}")
+        
+        if 'supervisor_name' in data and data['supervisor_name']:
+            field_visit.supervisor_name = data['supervisor_name']
+        
+        # Handle file upload if present
+        if 'attachment' in request.files and request.files['attachment'].filename:
+            file = request.files['attachment']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # Create a unique filename
+                unique_filename = f"visit_{visit_id}_{int(time.time())}_{filename}"
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+                file.save(file_path)
+                field_visit.attachment = f"/static/uploads/{unique_filename}"
+        
+        # Update timestamp
+        field_visit.updated_at = datetime.now()
+        
+        # Save changes
+        db.session.commit()
+        
+        # Log success
+        current_app.logger.info(f"Successfully updated field visit {visit_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Field visit updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating field visit: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'An error occurred while updating the field visit: {str(e)}'
         }), 500
 
 @user_bp.route('/api/field-visits/create', methods=['POST'])

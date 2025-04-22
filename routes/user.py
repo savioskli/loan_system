@@ -3453,8 +3453,14 @@ def get_field_visit_status_history(visit_id):
         # Get the field visit
         visit = FieldVisit.query.get_or_404(visit_id)
         
+        # Log debugging information
+        current_app.logger.info(f"Fetching status history for field visit {visit_id}")
+        
         # Get the status history
         history_records = FieldVisitStatusHistory.query.filter_by(field_visit_id=visit_id).order_by(FieldVisitStatusHistory.created_at.desc()).all()
+        
+        # Log the number of records found
+        current_app.logger.info(f"Found {len(history_records)} status history records for field visit {visit_id}")
         
         # Format the history records
         history_data = []
@@ -3490,6 +3496,54 @@ def get_field_visit_status_history(visit_id):
             'message': 'An error occurred while fetching the field visit status history'
         }), 500
 
+
+@user_bp.route('/api/field-visits/<int:visit_id>/test-data', methods=['GET'])
+@csrf.exempt
+def create_test_status_history(visit_id):
+    try:
+        # Get the field visit
+        visit = FieldVisit.query.get_or_404(visit_id)
+        
+        # Create some test status history records if none exist
+        history_count = FieldVisitStatusHistory.query.filter_by(field_visit_id=visit_id).count()
+        
+        if history_count == 0:
+            # Create sample status history records
+            statuses = ['scheduled', 'in-progress', 'completed']
+            current_status = 'new'
+            
+            for i, new_status in enumerate(statuses):
+                # Create a status history record
+                history = FieldVisitStatusHistory(
+                    field_visit_id=visit_id,
+                    previous_status=current_status,
+                    new_status=new_status,
+                    notes=f"Test status change to {new_status}",
+                    created_by=None,
+                    created_at=datetime.utcnow() - timedelta(days=3-i)
+                )
+                db.session.add(history)
+                current_status = new_status
+            
+            # Commit the changes
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f"Created {len(statuses)} test status history records for field visit {visit_id}"
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': f"Field visit {visit_id} already has {history_count} status history records"
+            })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating test status history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error creating test status history: {str(e)}"
+        }), 500
 
 @user_bp.route('/api/field-visits/<int:visit_id>/attachments', methods=['GET', 'POST'])
 @csrf.exempt

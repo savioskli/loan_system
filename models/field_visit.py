@@ -1,5 +1,58 @@
-from extensions import db
 from datetime import datetime
+from extensions import db
+
+class FieldVisitStatusHistory(db.Model):
+    __tablename__ = 'field_visit_status_history'
+    
+    # Primary Key
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Foreign Key to FieldVisit
+    field_visit_id = db.Column(db.Integer, db.ForeignKey('field_visits.id'), nullable=False)
+    
+    # Status Information
+    previous_status = db.Column(db.String(20), nullable=False)
+    new_status = db.Column(db.String(20), nullable=False)
+    notes = db.Column(db.Text)
+    
+    # Metadata
+    created_by = db.Column(db.Integer)  # User ID who made the change
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    field_visit = db.relationship('FieldVisit', backref=db.backref('status_history', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<FieldVisitStatusHistory {self.id}: {self.previous_status} -> {self.new_status}>'
+
+
+class FieldVisitAttachment(db.Model):
+    __tablename__ = 'field_visit_attachments'
+    
+    # Primary Key
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Foreign Key to FieldVisit
+    field_visit_id = db.Column(db.Integer, db.ForeignKey('field_visits.id'), nullable=False)
+    
+    # Attachment Information
+    file_name = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(512), nullable=False)
+    file_type = db.Column(db.String(50))  # MIME type
+    file_size = db.Column(db.Integer)  # Size in bytes
+    attachment_type = db.Column(db.String(50))  # e.g., 'report', 'photo', 'document'
+    description = db.Column(db.Text)
+    
+    # Metadata
+    uploaded_by = db.Column(db.Integer)  # User ID who uploaded the file
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    field_visit = db.relationship('FieldVisit', backref=db.backref('attachments', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<FieldVisitAttachment {self.id}: {self.file_name}>'
+
 
 class FieldVisit(db.Model):
     __tablename__ = 'field_visits'

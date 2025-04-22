@@ -2911,41 +2911,19 @@ def refinancing():
 @login_required
 def field_visits():
     try:
-        print("Entering field_visits route handler")
-        current_app.logger.info("Entering field_visits route handler")
+        # Fetch field visits
+        field_visits = FieldVisit.query.all()
         
-        # Fetch field visits from the database
-        try:
-            field_visits = FieldVisit.query.all()
-            print(f"Found {len(field_visits)} field visits")
-            current_app.logger.info(f"Found {len(field_visits)} field visits")
-        except Exception as db_error:
-            print(f"Error fetching field visits: {str(db_error)}")
-            current_app.logger.error(f"Error fetching field visits: {str(db_error)}")
-            import traceback
-            print(traceback.format_exc())
-            current_app.logger.error(traceback.format_exc())
-            field_visits = []  # Use empty list if query fails
-        
-        # Get staff names to display in the table
+        # Get staff names
         staff_ids = [visit.field_officer_id for visit in field_visits if visit.field_officer_id]
         staff_dict = {}
         
         if staff_ids:
-            try:
-                staff_records = Staff.query.filter(Staff.id.in_(staff_ids)).all()
-                for staff in staff_records:
-                    staff_dict[staff.id] = f"{staff.first_name} {staff.last_name}"
-                print(f"Found {len(staff_records)} staff records")
-                current_app.logger.info(f"Found {len(staff_records)} staff records")
-            except Exception as staff_error:
-                print(f"Error fetching staff data: {str(staff_error)}")
-                current_app.logger.error(f"Error fetching staff data: {str(staff_error)}")
-                import traceback
-                print(traceback.format_exc())
-                current_app.logger.error(traceback.format_exc())
+            staff_records = Staff.query.filter(Staff.id.in_(staff_ids)).all()
+            for staff in staff_records:
+                staff_dict[staff.id] = f"{staff.first_name} {staff.last_name}"
         
-        # Add staff names to visits and format dates
+        # Add staff names to visits
         for visit in field_visits:
             visit.field_officer_name = staff_dict.get(visit.field_officer_id, 'Unknown')
             # Format the date and time for display
@@ -2961,56 +2939,10 @@ def field_visits():
         # Get today's date for highlighting
         today = datetime.now().date()
         
-        # Try using render_template with the data
-        try:
-            # Get visible modules for the sidebar
-            try:
-                visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
-                print(f"Found {len(visible_modules)} visible modules")
-                current_app.logger.info(f"Found {len(visible_modules)} visible modules")
-            except Exception as module_error:
-                print(f"Error fetching modules: {str(module_error)}")
-                current_app.logger.info(f"Error fetching modules: {str(module_error)}")
-                visible_modules = []  # Use empty list if query fails
-            
-            # Create stats dictionary for the dashboard counters
-            stats = {
-                'scheduled': 0,
-                'in_progress': 0,
-                'completed': 0,
-                'cancelled': 0,
-                'total': 0
-            }
-            
-            # If we have field visits data, calculate the stats
-            if field_visits:
-                for visit in field_visits:
-                    stats['total'] += 1
-                    if visit.status == 'scheduled':
-                        stats['scheduled'] += 1
-                    elif visit.status == 'in-progress':
-                        stats['in_progress'] += 1
-                    elif visit.status == 'completed':
-                        stats['completed'] += 1
-                    elif visit.status == 'cancelled':
-                        stats['cancelled'] += 1
-            
-            # Render with direct template call including the stats
-            return render_template('user/field_visits.html', field_visits=field_visits, today=today, visible_modules=visible_modules, stats=stats)
-        except Exception as render_error:
-            print(f"Error with template render: {str(render_error)}")
-            current_app.logger.error(f"Error with template render: {str(render_error)}")
-            import traceback
-            print(traceback.format_exc())
-            current_app.logger.error(traceback.format_exc())
-            raise
+        return render_template('user/field_visits.html', field_visits=field_visits, today=today)
     except Exception as e:
-        print(f"Error in simplified field_visits route: {str(e)}")
-        current_app.logger.error(f"Error in simplified field_visits route: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        current_app.logger.error(traceback.format_exc())
-        flash('An error occurred while loading field visits: ' + str(e), 'error')
+        current_app.logger.error(f"Error rendering field visits page: {str(e)}")
+        flash('An error occurred while loading field visits.', 'error')
         return redirect(url_for('user.dashboard'))
 
 
@@ -3249,6 +3181,120 @@ def create_auction():
         db.session.rollback()
         current_app.logger.error(f"Error creating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while creating the auction'}), 500
+
+@user_bp.route('/field-visits')
+@login_required
+def field_visits():
+    
+    """Render the field visits page with data from the database"""
+    try:
+        # First, check if the FieldVisit table exists
+        try:
+            # Just try to query one record to see if the table exists
+            test_visit = FieldVisit.query.first()
+            current_app.logger.info(f"FieldVisit table exists, sample record: {test_visit}")
+        except Exception as table_error:
+            current_app.logger.error(f"Error accessing FieldVisit table: {str(table_error)}")
+            # If there's an error, render the template with empty data
+            return render_with_modules('user/field_visits.html',
+                                     field_visits=[],
+                                     stats={
+                                         'scheduled': 0,
+                                         'completed': 0,
+                                         'in_progress': 0,
+                                         'cancelled': 0,
+                                         'total': 0,
+                                         'pending_reports': 0
+                                     },
+                                     today=datetime.now().date(),
+                                     error_message=f"Database error: {str(table_error)}")
+        
+        # Fetch all field visits from the database
+        field_visits = FieldVisit.query.all()
+        current_app.logger.info(f"Found {len(field_visits)} field visits")
+        
+        # Get staff data for field officers and supervisors
+        staff_ids = set()
+        for visit in field_visits:
+            if hasattr(visit, 'field_officer_id') and visit.field_officer_id:
+                staff_ids.add(visit.field_officer_id)
+            if hasattr(visit, 'supervisor_id') and visit.supervisor_id:
+                staff_ids.add(visit.supervisor_id)
+        
+        # Fetch staff data in a single query
+        staff_dict = {}
+        if staff_ids:
+            try:
+                staff_records = Staff.query.filter(Staff.id.in_(list(staff_ids))).all()
+                for staff in staff_records:
+                    staff_dict[staff.id] = f"{staff.first_name} {staff.last_name}"
+                current_app.logger.info(f"Found {len(staff_records)} staff records")
+            except Exception as staff_error:
+                current_app.logger.error(f"Error fetching staff data: {str(staff_error)}")
+        
+        # Add staff names to field visits as dynamic attributes (not database columns)
+        for visit in field_visits:
+            # For field officer
+            if hasattr(visit, 'field_officer_id') and visit.field_officer_id:
+                # Add the field_officer_name as a dynamic attribute (not a database column)
+                setattr(visit, 'field_officer_name', staff_dict.get(visit.field_officer_id, 'Unknown'))
+            else:
+                setattr(visit, 'field_officer_name', 'Unknown')
+                
+            # For supervisor
+            if hasattr(visit, 'supervisor_id') and visit.supervisor_id:
+                # Add the supervisor_name as a dynamic attribute (not a database column)
+                setattr(visit, 'supervisor_name', staff_dict.get(visit.supervisor_id, 'N/A'))
+            else:
+                setattr(visit, 'supervisor_name', 'N/A')
+                
+            current_app.logger.info(f"Visit {visit.id}: field_officer_id={visit.field_officer_id}, field_officer_name={getattr(visit, 'field_officer_name', 'Unknown')}, supervisor_id={visit.supervisor_id}, supervisor_name={getattr(visit, 'supervisor_name', 'N/A')}")
+        
+        # Calculate statistics with error handling
+        try:
+            scheduled_count = FieldVisit.query.filter_by(status='scheduled').count()
+            completed_count = FieldVisit.query.filter_by(status='completed').count()
+            in_progress_count = FieldVisit.query.filter_by(status='in_progress').count()
+            cancelled_count = FieldVisit.query.filter_by(status='cancelled').count()
+            
+            # Calculate total visits
+            total_visits = len(field_visits)
+            
+            # Calculate pending reports (completed visits without reports)
+            pending_reports = 0  # This would need additional logic if you track reports
+            
+            current_app.logger.info(f"Statistics: scheduled={scheduled_count}, completed={completed_count}, in_progress={in_progress_count}, cancelled={cancelled_count}, total={total_visits}")
+        except Exception as stats_error:
+            current_app.logger.error(f"Error calculating statistics: {str(stats_error)}")
+            # Set default values if there's an error
+            scheduled_count = 0
+            completed_count = 0
+            in_progress_count = 0
+            cancelled_count = 0
+            total_visits = 0
+            pending_reports = 0
+        
+        # Get current date for highlighting today's visits
+        from datetime import date
+        today = date.today()
+        
+        # Pass data to the template
+        return render_with_modules('user/field_visits.html', 
+                                 field_visits=field_visits,
+                                 stats={
+                                     'scheduled': scheduled_count,
+                                     'completed': completed_count,
+                                     'in_progress': in_progress_count,
+                                     'cancelled': cancelled_count,
+                                     'total': total_visits,
+                                     'pending_reports': pending_reports
+                                 },
+                                 today=today)
+    except Exception as e:
+        current_app.logger.error(f"Error rendering field visits page: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        flash('An error occurred while loading the field visits page: ' + str(e), 'error')
         return redirect(url_for('user.dashboard'))
 
 @user_bp.route('/api/field-visits/<int:visit_id>', methods=['GET'])
@@ -3339,7 +3385,7 @@ def update_field_visit_status(visit_id):
         data = request.form
         
         # Get the new status
-        new_status = data.get('new_status')
+        new_status = data.get('status')
         if not new_status:
             return jsonify({'success': False, 'message': 'New status is required'}), 400
         
@@ -3408,7 +3454,7 @@ def update_field_visit_status(visit_id):
                 file_type=file_type,
                 file_size=file_size,
                 attachment_type=data.get('attachment_type', 'status_update'),
-                description=data.get('description', f"Status update attachment: {new_status}"),
+                description=f"Status update attachment: {new_status}",
                 uploaded_by=current_user_id,
                 uploaded_at=datetime.utcnow()  # Explicitly set upload time
             )
@@ -3491,88 +3537,9 @@ def get_field_visit_status_history(visit_id):
         }), 500
 
 
-@user_bp.route('/api/field-visits/<int:visit_id>/attachments', methods=['GET', 'POST'])
+@user_bp.route('/api/field-visits/<int:visit_id>/attachments', methods=['GET'])
 @csrf.exempt
-def field_visit_attachments(visit_id):
-    # Handle POST request for uploading attachments
-    if request.method == 'POST':
-        try:
-            # Get the field visit
-            visit = FieldVisit.query.get_or_404(visit_id)
-            
-            # Get form data
-            attachment_type = request.form.get('attachment_type')
-            description = request.form.get('description')
-            
-            # Check if file was uploaded
-            if 'attachment' not in request.files:
-                return jsonify({
-                    'success': False,
-                    'message': 'No file uploaded'
-                }), 400
-            
-            file = request.files['attachment']
-            if not file or not file.filename:
-                return jsonify({
-                    'success': False,
-                    'message': 'No file selected'
-                }), 400
-            
-            # Generate a unique filename
-            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-            filename = secure_filename(f"{attachment_type or 'document'}_{visit_id}_{timestamp}_{file.filename}")
-            
-            # Create the directory if it doesn't exist
-            upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'field_visit_attachments')
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            # Save the file
-            file_path = os.path.join(upload_dir, filename)
-            file.save(file_path)
-            
-            # Get file metadata
-            file_size = os.path.getsize(file_path)
-            file_type = file.content_type if hasattr(file, 'content_type') else ''
-            
-            # Get the current user ID if available
-            current_user_id = current_user.id if current_user.is_authenticated else None
-            
-            # Create a new attachment record
-            attachment = FieldVisitAttachment(
-                field_visit_id=visit_id,
-                file_name=file.filename,  # Store the original filename
-                file_path=file_path,
-                file_type=file_type,
-                file_size=file_size,
-                attachment_type=attachment_type or 'document',
-                description=description or f"Attachment for field visit {visit_id}",
-                uploaded_by=current_user_id,
-                uploaded_at=datetime.utcnow()
-            )
-            
-            # Add the attachment to the database
-            db.session.add(attachment)
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Attachment uploaded successfully',
-                'attachment': {
-                    'id': attachment.id,
-                    'file_name': attachment.file_name,
-                    'attachment_type': attachment.attachment_type,
-                    'description': attachment.description
-                }
-            })
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error uploading attachment: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f"Error uploading attachment: {str(e)}"
-            }), 500
-    
-    # Handle GET request for fetching attachments
+def get_field_visit_attachments(visit_id):
     try:
         # Get the field visit
         visit = FieldVisit.query.get_or_404(visit_id)
@@ -3667,15 +3634,13 @@ def submit_field_visit_report(visit_id):
         outcome = request.form.get('outcome')
         amount_collected = request.form.get('amount_collected', 0)
         next_action = request.form.get('next_action')
-        notes = request.form.get('notes')
-        attachment_type = request.form.get('attachment_type')
-        attachment_description = request.form.get('attachment_description')
+        report_notes = request.form.get('report_notes')
         
         # Validate required fields
-        if not outcome or not next_action or not notes:
+        if not outcome or not next_action or not report_notes:
             return jsonify({
                 'success': False, 
-                'message': 'Outcome, next action, and notes are required'
+                'message': 'Outcome, next action, and report details are required'
             }), 400
         
         # Convert amount_collected to float if provided
@@ -3694,7 +3659,7 @@ def submit_field_visit_report(visit_id):
         report_content += f"Outcome: {outcome}\n"
         report_content += f"Amount Collected: ${amount_collected:.2f}\n"
         report_content += f"Next Action: {next_action}\n"
-        report_content += f"Details:\n{notes}\n"
+        report_content += f"Details:\n{report_notes}\n"
         
         # Update the visit notes with the report content
         if visit.notes:
@@ -3703,15 +3668,15 @@ def submit_field_visit_report(visit_id):
             visit.notes = report_content
         
         # Handle report attachment if any
-        if 'attachment' in request.files:
-            file = request.files['attachment']
+        if 'report_attachment' in request.files:
+            file = request.files['report_attachment']
             if file and file.filename:
                 # Generate a unique filename
                 timestamp_str = timestamp.replace(' ', '_').replace(':', '-')
-                filename = secure_filename(f"{attachment_type}_{visit_id}_{timestamp_str}_{file.filename}")
+                filename = secure_filename(f"report_{visit_id}_{timestamp_str}_{file.filename}")
                 
                 # Create the directory if it doesn't exist
-                upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'field_visit_attachments')
+                upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'field_visit_reports')
                 os.makedirs(upload_dir, exist_ok=True)
                 
                 # Save the file
@@ -3725,12 +3690,12 @@ def submit_field_visit_report(visit_id):
                 # Create a new attachment record
                 attachment = FieldVisitAttachment(
                     field_visit_id=visit.id,
-                    file_name=file.filename,  # Store the original filename
+                    file_name=filename,
                     file_path=file_path,
                     file_type=file_type,
                     file_size=file_size,
-                    attachment_type=attachment_type or 'report',
-                    description=attachment_description or f"Report attachment for {outcome} outcome",
+                    attachment_type='report',
+                    description=f"Report attachment for {outcome} outcome",
                     uploaded_by=current_user_id
                 )
                 

@@ -1658,6 +1658,16 @@
                 }
             }
             
+            // Function to generate HTML for status badges
+            function getStatusBadgeHtml(status) {
+                if (!status) return '<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">-</span>';
+                
+                const badgeClass = getStatusBadgeClass(status);
+                const formattedStatus = status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1);
+                
+                return `<span class="px-2 py-1 text-xs font-medium rounded-full ${badgeClass}">${formattedStatus}</span>`;
+            }
+            
             // Handle status change to show description
             $('#new_status').on('change', function() {
                 const selectedStatus = $(this).val();

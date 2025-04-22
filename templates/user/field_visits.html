@@ -2532,24 +2532,25 @@
                                         <p class="text-xs text-gray-500 mt-2">Upload a new file to replace the current attachment</p>
                                         <input type="hidden" id="current_attachment_path" name="current_attachment_path" value="">
                                         
-                                        <div>
-                                            <label for="attachment_type" class="block text-sm font-medium text-gray-700">Attachment Type</label>
-                                            <select id="attachment_type" name="attachment_type" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                                <option value="">Select attachment type</option>
-                                                <option value="report">Visit Report</option>
-                                                <option value="photo">Photo Evidence</option>
-                                                <option value="receipt">Payment Receipt</option>
-                                                <option value="document">Legal Document</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div>
-                                            <label for="attachment_description" class="block text-sm font-medium text-gray-700">Attachment Description</label>
-                                            <input type="text" id="attachment_description" name="description" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Brief description of the attachment">
-                                        </div>
-                                        
-                                        <div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="attachment_type" class="block text-sm font-medium text-gray-700">Attachment Type</label>
+                                                <select id="attachment_type" name="attachment_type" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                    <option value="">Select attachment type</option>
+                                                    <option value="report">Visit Report</option>
+                                                    <option value="photo">Photo Evidence</option>
+                                                    <option value="receipt">Payment Receipt</option>
+                                                    <option value="document">Legal Document</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label for="attachment_description" class="block text-sm font-medium text-gray-700">Attachment Description</label>
+                                                <input type="text" id="attachment_description" name="description" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Brief description of the attachment">
+                                            </div>
+                                            
+                                            <div>
                                             <label for="report_attachment" class="block text-sm font-medium text-gray-700">Attachment File</label>
                                             <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                                                 <div class="space-y-1 text-center">

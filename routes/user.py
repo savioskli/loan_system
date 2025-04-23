@@ -5492,7 +5492,10 @@ def mark_communication_read(communication_id):
 @user_bp.route('/reports/guarantor-claims')
 @login_required
 def guarantor_claims_report():
-    return render_with_modules('user/reports/guarantor_claims.html')
+    # Get any status updates from the session
+    claim_status_updates = session.get('claim_status_updates', {})
+    
+    return render_with_modules('user/reports/guarantor_claims.html', claim_status_updates=claim_status_updates)
 
 @user_bp.route('/api/reports/guarantor-claims/data', methods=['POST'])
 @login_required
@@ -5709,6 +5712,55 @@ def create_guarantor_claim():
     except Exception as e:
         current_app.logger.error(f"Error creating guarantor claim: {str(e)}")
         return jsonify({'error': 'Failed to create claim'}), 500
+
+
+@user_bp.route('/api/guarantor-claims/<claim_id>/status', methods=['POST'])
+@login_required
+def update_guarantor_claim_status(claim_id):
+    """API endpoint to update the status of a guarantor claim"""
+    try:
+        # Get the data from the request
+        new_status = request.form.get('new_status')
+        notes = request.form.get('notes', '')
+        previous_status = request.form.get('previous_status', '')
+        
+        if not new_status:
+            return jsonify({"error": "New status is required"}), 400
+            
+        # Validate the status
+        valid_statuses = ['Pending', 'In Progress', 'Approved', 'Rejected', 'Settled']
+        if new_status not in valid_statuses:
+            return jsonify({"error": "Invalid status"}), 400
+        
+        # Log the status change
+        current_app.logger.info(f"Guarantor claim {claim_id} status updated from {previous_status} to {new_status} by {current_user.username}")
+        
+        # For demonstration purposes, we'll simulate a successful update
+        # In a real implementation with proper database models, you would update the database
+        current_app.logger.info(f"Simulating database update: Claim {claim_id} status changed from {previous_status} to {new_status}")
+        
+        # Store the status update in the session so it persists between requests
+        # This is just for demonstration - in a real app, you'd use the database
+        if 'claim_status_updates' not in session:
+            session['claim_status_updates'] = {}
+        
+        session['claim_status_updates'][claim_id] = {
+            'status': new_status,
+            'updated_at': datetime.now().isoformat(),
+            'updated_by': current_user.username,
+            'notes': notes
+        }
+        
+        # Make sure to save the session
+        session.modified = True
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Claim status updated successfully to {new_status}"
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error updating guarantor claim status: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @user_bp.route('/create_demand_letter', methods=['POST'])
 @login_required

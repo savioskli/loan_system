@@ -1702,6 +1702,212 @@ def guarantors():
         if 'conn' in locals() and conn:
             conn.close()
 
+@user_bp.route('/guarantor/<int:guarantor_id>')
+@login_required
+def view_guarantor(guarantor_id):
+    """Display details for a specific guarantor"""
+    current_app.logger.info(f"Starting view_guarantor route for guarantor_id: {guarantor_id}")
+    
+    # Define module ID for guarantors
+    module_id = 11
+    
+    try:
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            flash('No active core banking system configured', 'error')
+            return render_with_modules('user/guarantor_details.html', 
+                                   guarantor=None, 
+                                   error='No active core banking system configured')
+
+        # Connect to core banking database
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+        
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        current_app.logger.info(f"Connecting to database: {core_system.database_name}")
+
+        try:
+            conn = mysql.connector.connect(**core_banking_config)
+            cursor = conn.cursor(dictionary=True)
+        except mysql.connector.Error as e:
+            current_app.logger.error(f"Error connecting to database: {str(e)}")
+            flash(f'Error connecting to database: {str(e)}', 'error')
+            return render_with_modules('user/guarantor_details.html', 
+                                   guarantor=None, 
+                                   error=f'Error connecting to database: {str(e)}')
+
+        # Retrieve the mapping data
+        def get_mapping_for_module(module_id):
+            try:
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    
+                    # Retrieve expected and actual columns as lists
+                    expected_columns = expected.columns  # e.g., ['GuarantorID', 'LoanAppID', ...]
+                    actual_columns = actual.columns     # e.g., ['guarantor_id', 'loan_app_id', ...]
+                    
+                    # Create a dictionary mapping expected to actual columns
+                    columns_dict = dict(zip(expected_columns, actual_columns))
+                    
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": columns_dict  # Now a dictionary
+                    }
+                    current_app.logger.info(f"Retrieved mapping: {mapping}")
+                return mapping
+            except Exception as e:
+                current_app.logger.error(f"Error retrieving mapping data: {str(e)}")
+                raise
+
+        try:
+            mapping = get_mapping_for_module(module_id)
+            current_app.logger.info(f"Mapping Data: {mapping}")
+        except Exception as e:
+            flash(f'Error retrieving mapping data: {str(e)}', 'error')
+            return render_with_modules('user/guarantor_details.html', 
+                                   guarantor=None, 
+                                   error=f'Error retrieving mapping data: {str(e)}')
+
+        def build_dynamic_query(mapping, guarantor_id):
+            try:
+                # Access the mapping correctly using string keys
+                g = mapping.get("Guarantors", {})
+                m = mapping.get("Members", {})
+                la = mapping.get("LoanApplications", {})
+
+                # Ensure that the necessary columns are present in the mapping
+                if not all(key in g["columns"] for key in ["GuarantorID", "LoanAppID", "GuarantorMemberID", "GuaranteedAmount", "DateAdded", "Status"]):
+                    raise KeyError("Missing columns in Guarantors mapping")
+
+                if not all(key in m["columns"] for key in ["MemberID", "MemberNo", "FirstName", "MiddleName", "LastName", "NationalID"]):
+                    raise KeyError("Missing columns in Members mapping")
+
+                if not all(key in la["columns"] for key in ["LoanAppID", "LoanNo", "MemberID"]):
+                    raise KeyError("Missing columns in LoanApplications mapping")
+
+                # Build the dynamic SQL query using the mapped column and table names
+                query = f"""
+                    SELECT 
+                        g.{g["columns"]["GuarantorID"]} as GuarantorID,
+                        g.{g["columns"]["LoanAppID"]} as LoanAppID,
+                        g.{g["columns"]["GuarantorMemberID"]} as GuarantorMemberID,
+                        g.{g["columns"]["GuaranteedAmount"]} as GuaranteedAmount,
+                        g.{g["columns"]["DateAdded"]} as DateAdded,
+                        g.{g["columns"]["Status"]} as Status,
+                        m.{m["columns"]["NationalID"]} as NationalID,
+                        m.{m["columns"]["FirstName"]} as FirstName,
+                        m.{m["columns"]["MiddleName"]} as MiddleName,
+                        m.{m["columns"]["LastName"]} as LastName,
+                        m.{m["columns"]["MemberNo"]} as MemberNo,
+                        m.{m["columns"]["MemberID"]} as MemberID,
+                        la.{la["columns"]["LoanNo"]} as LoanNo,
+                        la.{la["columns"]["MemberID"]} as BorrowerID,
+                        bm.{m["columns"]["MemberNo"]} as BorrowerMemberNo,
+                        bm.{m["columns"]["FirstName"]} as BorrowerFirstName,
+                        bm.{m["columns"]["MiddleName"]} as BorrowerMiddleName,
+                        bm.{m["columns"]["LastName"]} as BorrowerLastName
+                    FROM {g["actual_table_name"]} g
+                    JOIN {m["actual_table_name"]} m ON g.{g["columns"]["GuarantorMemberID"]} = m.{m["columns"]["MemberID"]}
+                    JOIN {la["actual_table_name"]} la ON g.{g["columns"]["LoanAppID"]} = la.{la["columns"]["LoanAppID"]}
+                    JOIN {m["actual_table_name"]} bm ON la.{la["columns"]["MemberID"]} = bm.{m["columns"]["MemberID"]}
+                    WHERE g.{g["columns"]["GuarantorID"]} = %s
+                """
+                return query
+            except KeyError as e:
+                current_app.logger.error(f"Missing key in mapping: {str(e)}")
+                raise
+            except Exception as e:
+                current_app.logger.error(f"Error building dynamic query: {str(e)}")
+                raise
+
+        try:
+            # Build and execute the query
+            query = build_dynamic_query(mapping, guarantor_id)
+            current_app.logger.info(f"Executing query: {query}")
+            cursor.execute(query, (guarantor_id,))
+            guarantor = cursor.fetchone()
+            
+            if not guarantor:
+                flash(f'Guarantor with ID {guarantor_id} not found', 'error')
+                return render_with_modules('user/guarantor_details.html', 
+                                      guarantor=None, 
+                                      error=f'Guarantor with ID {guarantor_id} not found')
+            
+            current_app.logger.info(f"Retrieved guarantor data: {guarantor}")
+            
+            # Process the data for display
+            # Format dates
+            if 'DateAdded' in guarantor and guarantor['DateAdded']:
+                if isinstance(guarantor['DateAdded'], datetime):
+                    guarantor['DateAdded'] = guarantor['DateAdded'].strftime('%Y-%m-%d')
+            
+            # Format names
+            guarantor['GuarantorName'] = f"{guarantor['FirstName']} {guarantor['MiddleName'] or ''} {guarantor['LastName']}".strip()
+            guarantor['BorrowerName'] = f"{guarantor['BorrowerFirstName']} {guarantor['BorrowerMiddleName'] or ''} {guarantor['BorrowerLastName']}".strip()
+            
+            # Format amounts
+            if 'GuaranteedAmount' in guarantor and guarantor['GuaranteedAmount']:
+                guarantor['FormattedAmount'] = f"{float(guarantor['GuaranteedAmount']):,.2f}"
+            
+            # Get guarantor communication history if available
+            try:
+                # Query for communication history
+                comm_query = f"""
+                    SELECT * FROM GuarantorCommunications 
+                    WHERE GuarantorID = %s
+                    ORDER BY CommunicationDate DESC
+                """
+                cursor.execute(comm_query, (guarantor_id,))
+                communications = cursor.fetchall()
+                
+                # Format communication dates
+                for comm in communications:
+                    if 'CommunicationDate' in comm and comm['CommunicationDate']:
+                        if isinstance(comm['CommunicationDate'], datetime):
+                            comm['FormattedDate'] = comm['CommunicationDate'].strftime('%Y-%m-%d %H:%M')
+                
+                guarantor['communications'] = communications
+            except Exception as e:
+                current_app.logger.warning(f"Could not retrieve communication history: {str(e)}")
+                guarantor['communications'] = []
+            
+            return render_with_modules('user/guarantor_details.html', guarantor=guarantor)
+            
+        except Exception as e:
+            current_app.logger.error(f"Error executing query: {str(e)}")
+            flash(f'Error retrieving guarantor details: {str(e)}', 'error')
+            return render_with_modules('user/guarantor_details.html', 
+                                   guarantor=None, 
+                                   error=f'Error retrieving guarantor details: {str(e)}')
+            
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error in view_guarantor route: {str(e)}")
+        flash(f'Unexpected error: {str(e)}', 'error')
+        return render_with_modules('user/guarantor_details.html', 
+                               guarantor=None, 
+                               error=f'Unexpected error: {str(e)}')
+    finally:
+        # Close database connections
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+
 @user_bp.route('/api/guarantors/sync/<customer_no>', methods=['POST'])
 @login_required
 def sync_guarantors(customer_no):

@@ -208,16 +208,28 @@
                                         </td>
                                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                             <div class="flex justify-end space-x-2">
+                                                {% if visit.status == 'completed' %}
+                                                <button class="bg-gray-400 text-white px-3 py-1 rounded-full text-xs cursor-not-allowed" disabled title="Cannot update completed visits">
+                                                    <i class="fas fa-sync-alt"></i> Update
+                                                </button>
+                                                {% else %}
                                                 <button class="update-status-btn bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full text-xs transition" data-visit-id="{{ visit.id }}" title="Update Status">
                                                     <i class="fas fa-sync-alt"></i> Update
                                                 </button>
+                                                {% endif %}
                                                 <button class="view-status-history-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-xs transition" data-visit-id="{{ visit.id }}" title="View Status History">
                                                     <i class="fas fa-history"></i> History
                                                 </button>
 
+                                                {% if visit.status == 'completed' %}
+                                                <button class="bg-gray-400 text-white px-3 py-1 rounded-full text-xs cursor-not-allowed" disabled title="Cannot edit completed visits">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                {% else %}
                                                 <button class="update-visit-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-xs transition" data-visit-id="{{ visit.id }}" data-customer-id="{{ visit.customer_id }}" data-customer-name="{{ visit.customer_name }}" title="Edit Field Visit">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>

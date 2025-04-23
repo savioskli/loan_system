@@ -305,14 +305,78 @@
         });
 
         document.getElementById('syncGuarantorsBtn').addEventListener('click', () => {
-            fetch('/user/sync-all-guarantors', { method: 'POST' })
+            // Show loading state on button
+            const syncBtn = document.getElementById('syncGuarantorsBtn');
+            const originalText = syncBtn.innerHTML;
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Syncing...';
+            syncBtn.disabled = true;
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch('/user/sync-guarantors-list', { 
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // Show success notification
+                        const notification = document.createElement('div');
+                        notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md z-50';
+                        notification.innerHTML = `
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
+                        document.body.appendChild(notification);
+                        
+                        // Remove notification after 3 seconds
+                        setTimeout(() => {
+                            notification.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+                            setTimeout(() => {
+                                document.body.removeChild(notification);
+                            }, 500);
+                        }, 3000);
+                        
+                        // Reload guarantors data
                         loadGuarantors();
                     }
+                    
+                    // Reset button state
+                    syncBtn.innerHTML = originalText;
+                    syncBtn.disabled = false;
                 })
-                .catch(error => console.error('Error syncing guarantors:', error));
+                .catch(error => {
+                    console.error('Error syncing guarantors:', error);
+                    
+                    // Show error notification
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-50';
+                    notification.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            <p>Error syncing guarantors</p>
+                        </div>
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remove notification after 3 seconds
+                    setTimeout(() => {
+                        notification.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+                        setTimeout(() => {
+                            document.body.removeChild(notification);
+                        }, 500);
+                    }, 3000);
+                    
+                    // Reset button state
+                    syncBtn.innerHTML = originalText;
+                    syncBtn.disabled = false;
+                });
         });
 
         // Debounce function for search input

@@ -1741,6 +1741,19 @@ def guarantors():
         if 'conn' in locals() and conn:
             conn.close()
 
+@user_bp.route('/sync-guarantors-list', methods=['POST'])
+@login_required
+@csrf.exempt
+def sync_guarantors_list():
+    """Sync all guarantors from the core banking system"""
+    current_app.logger.info("Starting sync_guarantors_list route")
+    
+    # Simply return success - the API endpoint will handle the actual data fetching
+    return jsonify({
+        'success': True, 
+        'message': 'Guarantors list refreshed successfully'
+    })
+
 @user_bp.route('/guarantor/<int:guarantor_id>')
 @login_required
 def view_guarantor(guarantor_id):

@@ -2979,8 +2979,13 @@ def field_visits():
                 'in_progress': 0,
                 'completed': 0,
                 'cancelled': 0,
+                'submitted_reports': 0,
                 'total': 0
             }
+            
+            # Get all completed visits that need reports
+            completed_visit_ids = []
+            visits_with_reports = []
             
             # If we have field visits data, calculate the stats
             if field_visits:
@@ -2992,8 +2997,34 @@ def field_visits():
                         stats['in_progress'] += 1
                     elif visit.status == 'completed':
                         stats['completed'] += 1
+                        completed_visit_ids.append(visit.id)
                     elif visit.status == 'cancelled':
                         stats['cancelled'] += 1
+                
+                # Query the status history table to find visits with report submissions
+                if completed_visit_ids:
+                    try:
+                        # Find visits with report submissions in the status history
+                        # Look for any status history entry for completed visits
+                        # This indicates a report has been submitted
+                        report_submissions = db.session.query(FieldVisitStatusHistory.field_visit_id)\
+                            .filter(FieldVisitStatusHistory.field_visit_id.in_(completed_visit_ids))\
+                            .distinct().all()
+                        
+                        # Debug information
+                        print(f"Completed visits: {completed_visit_ids}")
+                        print(f"Found report submissions: {report_submissions}")
+                        
+                        # Extract the visit IDs that have report submissions
+                        visits_with_reports = [r[0] for r in report_submissions]
+                        
+                        # Count submitted reports
+                        stats['submitted_reports'] = len(visits_with_reports)
+                    except Exception as e:
+                        print(f"Error querying status history for reports: {str(e)}")
+                        current_app.logger.error(f"Error querying status history for reports: {str(e)}")
+                        # Fallback: assume no reports have been submitted
+                        stats['submitted_reports'] = 0
             
             # Render with direct template call including the stats
             return render_template('user/field_visits.html', field_visits=field_visits, today=today, visible_modules=visible_modules, stats=stats)

@@ -56,6 +56,7 @@ from models.auction import Auction
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
+from models import Client
 from functools import lru_cache
 
 # Global helper function to add visible_modules to template parameters
@@ -4837,46 +4838,212 @@ def search_customers():
         # Log request parameters for debugging
         current_app.logger.info(f"Customer search request: q='{search}', page={page}, per_page={per_page}")
         
-        # Sample data with loans - formatted for Select2
-        customers = [
-            {
-                "id": 1, 
-                "text": "Alice Cooper",
-                "loans": [
-                    {"LoanAppID": 101, "LoanNo": "LN-2025-005", "LoanAmount": 50000, "DaysInArrears": 45, "OutstandingBalance": 35000, "InstallmentAmount": 1500},
-                    {"LoanAppID": 102, "LoanNo": "LN-2025-012", "LoanAmount": 75000, "DaysInArrears": 15, "OutstandingBalance": 65000, "InstallmentAmount": 2000}
-                ]
-            },
-            {
-                "id": 2, 
-                "text": "Bob Smith",
-                "loans": [
-                    {"LoanAppID": 201, "LoanNo": "LN-2025-018", "LoanAmount": 30000, "DaysInArrears": 60, "OutstandingBalance": 28000, "InstallmentAmount": 1000}
-                ]
-            },
-            {
-                "id": 3, 
-                "text": "Charlie Brown",
-                "loans": [
-                    {"LoanAppID": 301, "LoanNo": "LN-2025-023", "LoanAmount": 100000, "DaysInArrears": 90, "OutstandingBalance": 95000, "InstallmentAmount": 3000},
-                    {"LoanAppID": 302, "LoanNo": "LN-2025-024", "LoanAmount": 25000, "DaysInArrears": 0, "OutstandingBalance": 20000, "InstallmentAmount": 800}
-                ]
-            },
-            {
-                "id": 4, 
-                "text": "David Jones",
-                "loans": [
-                    {"LoanAppID": 401, "LoanNo": "LN-2025-030", "LoanAmount": 45000, "DaysInArrears": 30, "OutstandingBalance": 40000, "InstallmentAmount": 1200}
-                ]
-            },
-            {
-                "id": 5, 
-                "text": "James Anderson",
-                "loans": [
-                    {"LoanAppID": 501, "LoanNo": "LN-2025-040", "LoanAmount": 60000, "DaysInArrears": 20, "OutstandingBalance": 55000, "InstallmentAmount": 1800}
-                ]
+        # Get customers with loans and guarantors from core banking system
+        customers = []
+        
+        # Define module IDs
+        loans_module_id = 1  # Module ID for loans
+        guarantors_module_id = 11  # Module ID for guarantors
+        
+        try:
+            # Get the active core banking system
+            core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+            if not core_system:
+                current_app.logger.error("No active core banking system configured")
+                return jsonify({"items": [], "has_more": False})
+            
+            # Get authentication credentials
+            try:
+                auth_credentials = core_system.auth_credentials_dict
+            except (json.JSONDecodeError, TypeError) as e:
+                current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+                auth_credentials = {'username': 'root', 'password': ''}
+            
+            # Set up database connection configuration
+            core_banking_config = {
+                'host': core_system.base_url,
+                'port': core_system.port or 3306,
+                'user': auth_credentials.get('username', 'root'),
+                'password': auth_credentials.get('password', ''),
+                'database': core_system.database_name,
+                'auth_plugin': 'mysql_native_password'
             }
-        ]
+            
+            # Connect to the core banking system database
+            conn = mysql.connector.connect(**core_banking_config)
+            cursor = conn.cursor(dictionary=True)
+            
+            # Function to get mapping for a module
+            def get_mapping_for_module(module_id):
+                expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+                mapping = {}
+                for expected in expected_mappings:
+                    actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+                    if not actual:
+                        raise Exception(f"No mapping found for expected table {expected.table_name}")
+                    
+                    # Retrieve expected and actual columns as lists
+                    expected_columns = expected.columns
+                    actual_columns = actual.columns
+                    
+                    # Create a dictionary mapping expected to actual columns
+                    columns_dict = dict(zip(expected_columns, actual_columns))
+                    
+                    mapping[expected.table_name] = {
+                        "actual_table_name": actual.table_name,
+                        "columns": columns_dict
+                    }
+                return mapping
+            
+            # Get loans mapping
+            loans_mapping = get_mapping_for_module(loans_module_id)
+            loans_table = loans_mapping.get('Loans', {}).get('actual_table_name')
+            loans_columns = loans_mapping.get('Loans', {}).get('columns', {})
+            
+            # Get guarantors mapping
+            guarantors_mapping = get_mapping_for_module(guarantors_module_id)
+            guarantors_table = guarantors_mapping.get('Guarantors', {}).get('actual_table_name')
+            guarantors_columns = guarantors_mapping.get('Guarantors', {}).get('columns', {})
+            
+            # Build query to get customers with loans
+            if loans_table and loans_columns:
+                # Build SELECT clause for loans
+                select_clause = []
+                for expected_col, actual_col in loans_columns.items():
+                    select_clause.append(f"{actual_col} AS {expected_col}")
+                
+                select_sql = ", ".join(select_clause)
+                
+                # Add search condition if provided
+                where_clause = ""
+                if search:
+                    # Assuming there are FirstName and LastName columns
+                    first_name_col = loans_columns.get('FirstName', 'first_name')
+                    last_name_col = loans_columns.get('LastName', 'last_name')
+                    where_clause = f"WHERE {first_name_col} LIKE '%{search}%' OR {last_name_col} LIKE '%{search}%'"
+                
+                # Build the complete query with limit for pagination
+                offset = (page - 1) * per_page
+                query = f"SELECT {select_sql} FROM {loans_table} {where_clause} LIMIT {per_page} OFFSET {offset}"
+                
+                # Execute the query
+                cursor.execute(query)
+                loans_data = cursor.fetchall()
+                
+                # Process loans data to group by customer
+                customer_loans = {}
+                for loan in loans_data:
+                    # Create a unique customer ID (using MemberID or similar)
+                    customer_id = loan.get('MemberID', loan.get('BorrowerID'))
+                    if not customer_id:
+                        continue
+                    
+                    # Create customer name from FirstName and LastName
+                    first_name = loan.get('FirstName', '')
+                    last_name = loan.get('LastName', '')
+                    customer_name = f"{first_name} {last_name}".strip()
+                    
+                    # Add customer if not already in the dictionary
+                    if customer_id not in customer_loans:
+                        customer_loans[customer_id] = {
+                            'id': customer_id,
+                            'text': customer_name,
+                            'loans': []
+                        }
+                    
+                    # Add loan to customer's loans
+                    loan_data = {
+                        'LoanAppID': loan.get('LoanAppID'),
+                        'LoanNo': loan.get('LoanNo', ''),
+                        'LoanAmount': float(loan.get('LoanAmount', 0)),
+                        'DaysInArrears': int(loan.get('DaysInArrears', 0)),
+                        'OutstandingBalance': float(loan.get('OutstandingBalance', 0)),
+                        'InstallmentAmount': float(loan.get('InstallmentAmount', 0))
+                    }
+                    customer_loans[customer_id]['loans'].append(loan_data)
+                
+                # Now get guarantors for these loans
+                if guarantors_table and guarantors_columns:
+                    # Build SELECT clause for guarantors
+                    guarantor_select_clause = []
+                    for expected_col, actual_col in guarantors_columns.items():
+                        guarantor_select_clause.append(f"{actual_col} AS {expected_col}")
+                    
+                    guarantor_select_sql = ", ".join(guarantor_select_clause)
+                    
+                    # Get loan IDs to filter guarantors
+                    loan_ids = []
+                    for customer in customer_loans.values():
+                        for loan in customer['loans']:
+                            if loan.get('LoanAppID'):
+                                loan_ids.append(str(loan['LoanAppID']))
+                    
+                    if loan_ids:
+                        # Build query to get guarantors for these loans
+                        loan_app_id_col = guarantors_columns.get('LoanAppID', 'loan_app_id')
+                        guarantor_query = f"SELECT {guarantor_select_sql} FROM {guarantors_table} WHERE {loan_app_id_col} IN ({','.join(loan_ids)})"
+                        
+                        # Execute the query
+                        cursor.execute(guarantor_query)
+                        guarantors_data = cursor.fetchall()
+                        
+                        # Add guarantors to respective customers
+                        for guarantor in guarantors_data:
+                            loan_app_id = guarantor.get('LoanAppID')
+                            if not loan_app_id:
+                                continue
+                            
+                            # Format guarantor name
+                            guarantor_first_name = guarantor.get('FirstName', '')
+                            guarantor_middle_name = guarantor.get('MiddleName', '')
+                            guarantor_last_name = guarantor.get('LastName', '')
+                            guarantor['GuarantorName'] = f"{guarantor_first_name} {guarantor_middle_name or ''} {guarantor_last_name}".strip()
+                            
+                            # Add guarantor to each customer that has this loan
+                            for customer in customer_loans.values():
+                                for loan in customer['loans']:
+                                    if loan.get('LoanAppID') == loan_app_id:
+                                        if 'guarantors' not in customer:
+                                            customer['guarantors'] = []
+                                        customer['guarantors'].append(guarantor)
+                
+                # Convert dictionary to list for the response
+                customers = list(customer_loans.values())
+            
+            # Close database connections
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            current_app.logger.error(f"Error fetching customers with loans and guarantors: {str(e)}")
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+            if 'conn' in locals() and conn:
+                conn.close()
+                
+            # Fallback to sample data if there's an error
+            customers = [
+                {
+                    "id": 1, 
+                    "text": "Alice Cooper",
+                    "loans": [
+                        {"LoanAppID": 101, "LoanNo": "LN-2025-005", "LoanAmount": 50000, "DaysInArrears": 45, "OutstandingBalance": 35000, "InstallmentAmount": 1500}
+                    ],
+                    "guarantors": [
+                        {"GuarantorID": 1001, "GuarantorName": "John Doe", "LoanAppID": 101, "GuaranteedAmount": 25000, "Status": "Active"}
+                    ]
+                },
+                {
+                    "id": 2, 
+                    "text": "Bob Smith",
+                    "loans": [
+                        {"LoanAppID": 201, "LoanNo": "LN-2025-018", "LoanAmount": 30000, "DaysInArrears": 60, "OutstandingBalance": 28000, "InstallmentAmount": 1000}
+                    ],
+                    "guarantors": [
+                        {"GuarantorID": 2001, "GuarantorName": "Jane Smith", "LoanAppID": 201, "GuaranteedAmount": 15000, "Status": "Active"}
+                    ]
+                }
+            ]
         
         # Filter by search term if provided
         if search:
@@ -4895,6 +5062,174 @@ def search_customers():
     except Exception as e:
         current_app.logger.error(f"Error searching customers: {str(e)}")
         return jsonify({"error": "Failed to search customers"}), 500
+
+@user_bp.route('/api/guarantors/by-loan', methods=['GET'])
+@login_required
+def get_guarantors_by_loan():
+    """Get guarantors for a specific loan"""
+    try:
+        # Get loan ID from request
+        loan_id = request.args.get('loan_id')
+        if not loan_id:
+            return jsonify({"error": "Loan ID is required"}), 400
+            
+        current_app.logger.info(f"Fetching guarantors for loan ID: {loan_id}")
+        
+        # Define module ID for guarantors
+        module_id = 11
+        
+        # Get the active core banking system
+        core_system = CoreBankingSystem.query.filter_by(is_active=True).first()
+        if not core_system:
+            return jsonify({"error": "No active core banking system configured"}), 500
+            
+        # Get authentication credentials
+        try:
+            auth_credentials = core_system.auth_credentials_dict
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"Error decoding auth credentials: {str(e)}")
+            auth_credentials = {'username': 'root', 'password': ''}
+            
+        # Set up database connection configuration
+        core_banking_config = {
+            'host': core_system.base_url,
+            'port': core_system.port or 3306,
+            'user': auth_credentials.get('username', 'root'),
+            'password': auth_credentials.get('password', ''),
+            'database': core_system.database_name,
+            'auth_plugin': 'mysql_native_password'
+        }
+        
+        # Connect to the core banking system database
+        conn = mysql.connector.connect(**core_banking_config)
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get the mapping data for guarantors
+        expected_mappings = ExpectedStructure.query.filter_by(module_id=module_id).all()
+        mapping = {}
+        for expected in expected_mappings:
+            actual = ActualStructure.query.filter_by(expected_structure_id=expected.id).first()
+            if not actual:
+                continue
+                
+            # Retrieve expected and actual columns as lists
+            expected_columns = expected.columns
+            actual_columns = actual.columns
+                
+            # Create a dictionary mapping expected to actual columns
+            columns_dict = dict(zip(expected_columns, actual_columns))
+                
+            mapping[expected.table_name] = {
+                "actual_table_name": actual.table_name,
+                "columns": columns_dict
+            }
+            
+        # Get guarantors table mapping
+        guarantors_mapping = mapping.get('Guarantors', {})
+        if not guarantors_mapping:
+            return jsonify({"error": "Guarantors table mapping not found"}), 500
+            
+        guarantors_table = guarantors_mapping.get('actual_table_name')
+        columns_mapping = guarantors_mapping.get('columns', {})
+        
+        # Check if we have Members table mapping
+        members_mapping = mapping.get('Members', {})
+        members_table = members_mapping.get('actual_table_name') if members_mapping else None
+        members_columns = members_mapping.get('columns', {}) if members_mapping else {}
+        
+        # Build SELECT clause for guarantors
+        select_clause = []
+        for expected_col, actual_col in columns_mapping.items():
+            select_clause.append(f"{guarantors_table}.{actual_col} AS {expected_col}")
+        
+        # Add member name fields if available
+        if members_table and members_columns:
+            # Add member name fields to select clause
+            member_name_fields = ['FirstName', 'MiddleName', 'LastName', 'MemberName', 'Name']
+            for field in member_name_fields:
+                if field in members_columns:
+                    select_clause.append(f"{members_table}.{members_columns[field]} AS Member{field}")
+        
+        select_sql = ", ".join(select_clause)
+        
+        # Get loan app ID column and member ID columns
+        loan_app_id_col = columns_mapping.get('LoanAppID', 'loan_app_id')
+        guarantor_member_id_col = columns_mapping.get('GuarantorMemberID', 'guarantor_member_id')
+        member_id_col = members_columns.get('MemberID', 'member_id') if members_columns else None
+        
+        # Build the query with JOIN if members table is available
+        if members_table and member_id_col and guarantor_member_id_col:
+            query = f"SELECT {select_sql} FROM {guarantors_table} "
+            query += f"LEFT JOIN {members_table} ON {guarantors_table}.{guarantor_member_id_col} = {members_table}.{member_id_col} "
+            query += f"WHERE {guarantors_table}.{loan_app_id_col} = %s"
+        else:
+            # Fallback to simple query without join
+            query = f"SELECT {select_sql} FROM {guarantors_table} WHERE {loan_app_id_col} = %s"
+        
+        # Execute the query
+        cursor.execute(query, (loan_id,))
+        guarantors = cursor.fetchall()
+        
+        # Format guarantor names
+        for guarantor in guarantors:
+            # First try to use Member name fields from the join
+            if 'MemberFirstName' in guarantor or 'MemberLastName' in guarantor:
+                # Format guarantor name from member components
+                first_name = guarantor.get('MemberFirstName', '')
+                middle_name = guarantor.get('MemberMiddleName', '')
+                last_name = guarantor.get('MemberLastName', '')
+                guarantor['GuarantorName'] = f"{first_name} {middle_name or ''} {last_name}".strip()
+            # Then try MemberName field
+            elif 'MemberName' in guarantor and guarantor['MemberName']:
+                guarantor['GuarantorName'] = guarantor['MemberName']
+            # Then try guarantor name components
+            elif 'FirstName' in guarantor or 'LastName' in guarantor:
+                # Format guarantor name from components
+                first_name = guarantor.get('FirstName', '')
+                middle_name = guarantor.get('MiddleName', '')
+                last_name = guarantor.get('LastName', '')
+                guarantor['GuarantorName'] = f"{first_name} {middle_name or ''} {last_name}".strip()
+            else:
+                # Try to get name from other fields
+                for name_field in ['GuarantorName', 'Name']:
+                    if name_field in guarantor and guarantor[name_field]:
+                        guarantor['GuarantorName'] = guarantor[name_field]
+                        break
+            
+            # If still no name, fetch from database using member ID
+            if not guarantor.get('GuarantorName') or not guarantor['GuarantorName'].strip():
+                member_id = guarantor.get('GuarantorMemberID')
+                if member_id:
+                    try:
+                        # Try to get member from local database
+                        member = Client.query.filter_by(member_no=str(member_id)).first()
+                        if member:
+                            guarantor['GuarantorName'] = f"{member.first_name or ''} {member.middle_name or ''} {member.last_name or ''}".strip()
+                            current_app.logger.info(f"Found member name from database: {guarantor['GuarantorName']}")
+                    except Exception as e:
+                        current_app.logger.error(f"Error fetching member data: {str(e)}")
+                        
+            # Last resort fallback - use Member ID
+            if not guarantor.get('GuarantorName') or not guarantor['GuarantorName'].strip():
+                member_id = guarantor.get('GuarantorMemberID', guarantor.get('MemberID', ''))
+                guarantor['GuarantorName'] = f"Member {member_id}" if member_id else "Unknown Guarantor"
+            
+            # Format amounts
+            if 'GuaranteedAmount' in guarantor and guarantor['GuaranteedAmount']:
+                guarantor['FormattedAmount'] = f"{float(guarantor['GuaranteedAmount']):,.2f}"
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"guarantors": guarantors})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching guarantors for loan: {str(e)}")
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({"error": f"Failed to fetch guarantors: {str(e)}"}), 500
 
 @user_bp.route('/api/staff/search', methods=['GET'])
 def search_staff():

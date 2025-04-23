@@ -44,17 +44,17 @@
                                 <select id="customerSelect" name="customerName" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required></select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loan Account</label>
-                                <select id="loanSelect" name="loanId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required></select>
-                            </div>
-                        </div>
-
-                        <!-- Guarantor Details -->
-                        <div class="space-y-4">
-                            <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guarantor</label>
                                 <select id="guarantorSelect" name="guarantorId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required></select>
                                 <input type="hidden" name="guarantorMemberId" id="guarantorMemberId">
+                            </div>
+                        </div>
+
+                        <!-- Loan Details -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loan Account</label>
+                                <select id="loanSelect" name="loanId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required></select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Claim Amount</label>
@@ -277,6 +277,11 @@ $(document).ready(function() {
         currentCustomerData = null;
         currentLoanData = null;
     }
+    
+    function resetLoanFields() {
+        $('#loanSelect').empty().append(new Option('Select a loan', '', true, true)).trigger('change');
+        currentLoanData = null;
+    }
 
     closeModalBtn.addEventListener('click', hideModal);
     cancelClaimBtn.addEventListener('click', hideModal);
@@ -332,9 +337,17 @@ $(document).ready(function() {
         }).on('select2:select', function(e) {
             console.log('Selected customer data:', e.params.data);
             currentCustomerData = e.params.data;
-            const loanSelect = $('#loanSelect');
-            loanSelect.empty().append(new Option('Select a loan', '', true, true));
             
+            // Reset both loan and guarantor fields when customer changes
+            resetLoanFields();
+            resetGuarantorFields();
+            
+            // Reset guarantor and loan fields when customer changes
+            resetGuarantorFields();
+            resetLoanFields();
+            
+            // Populate loan select with customer's loans
+            const loanSelect = $('#loanSelect');
             if (currentCustomerData.loans && Array.isArray(currentCustomerData.loans)) {
                 currentCustomerData.loans.forEach(loan => {
                     const option = new Option(
@@ -347,8 +360,6 @@ $(document).ready(function() {
                     loanSelect.append(option);
                 });
             }
-            loanSelect.trigger('change');
-            resetGuarantorFields();
         }).on('select2:clear', function() {
             currentCustomerData = null;
             $('#loanSelect').empty().trigger('change');
@@ -358,40 +369,75 @@ $(document).ready(function() {
         // Initialize loan select
         $('#loanSelect').select2({
             theme: 'bootstrap-5',
-            placeholder: 'Select a Loan Account',
+            placeholder: 'Select a Loan',
             allowClear: true,
             width: '100%',
             dropdownParent: $('#newClaimModal')
         }).on('select2:select', function(e) {
-            console.log('Selected loan:', e.target.value);
-            const selectedLoanId = e.target.value;
-            const loan = $(e.target.selectedOptions[0]).data('loan');
-            currentLoanData = loan;
+            const selectedOption = $(e.target.selectedOptions[0]);
+            const selectedLoan = selectedOption.data('loan');
+            currentLoanData = selectedLoan;
+            console.log('Selected loan:', selectedLoan);
             
-            // Find active guarantors for this loan
+            // Find active guarantors for this loan using the API
             const guarantorSelect = $('#guarantorSelect');
-            guarantorSelect.empty().append(new Option('Select a guarantor', '', true, true));
+            guarantorSelect.empty().append(new Option('Loading guarantors...', '', true, true)).prop('disabled', true);
             
-            if (currentCustomerData && currentCustomerData.guarantors) {
-                console.log('All guarantors:', currentCustomerData.guarantors);
-                const loanGuarantors = currentCustomerData.guarantors.filter(
-                    g => g.LoanAppID === selectedLoanId && g.Status === 'Active'
-                );
-                console.log('Filtered guarantors for loan:', loanGuarantors);
-                
-                loanGuarantors.forEach(guarantor => {
-                    console.log('Adding guarantor:', guarantor);
-                    const option = new Option(
-                        `${guarantor.GuarantorName} (Guaranteed: ${formatCurrency(guarantor.GuaranteedAmount)})`,
-                        guarantor.GuarantorID,
-                        false,
-                        false
-                    );
-                    $(option).data('guarantor', guarantor);
-                    guarantorSelect.append(option);
+            const selectedLoanId = e.target.value;
+            console.log('Fetching guarantors for loan ID:', selectedLoanId);
+            
+            fetch(`/user/api/guarantors/by-loan?loan_id=${selectedLoanId}`)
+                .then(response => response.json())
+                .then(data => {
+                    guarantorSelect.empty().append(new Option('Select a guarantor', '', true, true)).prop('disabled', false);
+                    console.log('Guarantors data:', data);
+                    
+                    // Store guarantors data for later use
+                    guarantorsData = data.guarantors || [];
+                    
+                    if (guarantorsData && guarantorsData.length > 0) {
+                        guarantorsData.forEach(guarantor => {
+                            if (guarantor.Status === 'Active') {
+                                console.log('Adding guarantor:', guarantor);
+                                const guaranteedAmount = guarantor.GuaranteedAmount || 0;
+                                const memberID = guarantor.GuarantorMemberID || guarantor.MemberID || '';
+                                
+                                // Create a descriptive label with member ID and amount
+                                let optionText = '';
+                                if (guarantor.GuarantorName) {
+                                    optionText = `${guarantor.GuarantorName}`;
+                                } else {
+                                    optionText = memberID ? `Member ${memberID}` : 'Unknown Guarantor';
+                                }
+                                
+                                // Add member ID if not already in the name
+                                if (memberID && !optionText.includes(memberID)) {
+                                    optionText += ` (ID: ${memberID})`;
+                                }
+                                
+                                // Add guaranteed amount
+                                optionText += ` - Guaranteed: ${formatCurrency(guaranteedAmount)}`;
+                                
+                                const option = new Option(
+                                    optionText,
+                                    guarantor.GuarantorID,
+                                    false,
+                                    false
+                                );
+                                $(option).data('guarantor', guarantor);
+                                guarantorSelect.append(option);
+                            }
+                        });
+                    } else {
+                        // No guarantors found
+                        console.log('No guarantors found for loan:', selectedLoanId);
+                        guarantorSelect.append(new Option('No guarantors found for this loan', 'none', false, false)).prop('disabled', true);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching guarantors:', error);
+                    guarantorSelect.empty().append(new Option('Error loading guarantors', '', true, true)).prop('disabled', true);
                 });
-            }
-            guarantorSelect.trigger('change');
         }).on('select2:clear', function() {
             currentLoanData = null;
             resetGuarantorFields();
@@ -406,16 +452,39 @@ $(document).ready(function() {
             dropdownParent: $('#newClaimModal')
         }).on('select2:select', function(e) {
             const guarantor = $(e.target.selectedOptions[0]).data('guarantor');
-            console.log('Selected guarantor:', guarantor);
+            
+            // Format guarantor info for better console display
             if (guarantor) {
+                // Create a formatted display object for console
+                const displayInfo = {
+                    ...guarantor,
+                    DisplayName: guarantor.GuarantorName || `Member ${guarantor.GuarantorMemberID}`,
+                    FormattedAmount: formatCurrency(guarantor.GuaranteedAmount)
+                };
+                console.log('Selected guarantor:', displayInfo);
+                
+                // Populate form fields
                 $('#guarantorMemberId').val(guarantor.GuarantorMemberID);
-                $('#guaranteedAmountInfo').text(
-                    `Guaranteed Amount: ${formatCurrency(guarantor.GuaranteedAmount)}`
+                
+                // Show guarantor name and amount in the info text
+                const guarantorName = guarantor.GuarantorName || `Member ${guarantor.GuarantorMemberID}`;
+                $('#guaranteedAmountInfo').html(
+                    `<strong>${guarantorName}</strong><br>Guaranteed Amount: ${formatCurrency(guarantor.GuaranteedAmount)}`
                 );
                 $('#claimAmount').attr({
                     'max': guarantor.GuaranteedAmount,
                     'step': '0.01'
                 });
+                
+                // Update the loan field if we know which loan this guarantor belongs to
+                if (guarantor.LoanAppID && currentCustomerData && currentCustomerData.loans) {
+                    const matchingLoan = currentCustomerData.loans.find(loan => loan.LoanAppID === guarantor.LoanAppID);
+                    if (matchingLoan) {
+                        // Select this loan in the dropdown
+                        const loanSelect = $('#loanSelect');
+                        loanSelect.val(matchingLoan.LoanAppID).trigger('change');
+                    }
+                }
             }
         }).on('select2:clear', function() {
             resetGuarantorFields();

@@ -1680,7 +1680,46 @@ def guarantors():
                 if 'GuaranteedAmount' in guarantor and guarantor['GuaranteedAmount']:
                     guarantor['FormattedAmount'] = f"{float(guarantor['GuaranteedAmount']):,.2f}"
             
-            return render_with_modules('user/guarantors_list.html', guarantors=guarantors)
+            # Calculate statistics
+            stats = {
+                'total': len(guarantors),
+                'active': 0,
+                'released': 0,
+                'total_guaranteed_amount': 0.0,
+                'avg_guaranteed_amount': 0.0,
+                'unique_guarantors': set(),
+                'unique_borrowers': set()
+            }
+            
+            for guarantor in guarantors:
+                # Count by status
+                if guarantor.get('Status') == 'Active':
+                    stats['active'] += 1
+                elif guarantor.get('Status') == 'Released':
+                    stats['released'] += 1
+                
+                # Sum guaranteed amounts
+                if 'GuaranteedAmount' in guarantor and guarantor['GuaranteedAmount']:
+                    stats['total_guaranteed_amount'] += float(guarantor['GuaranteedAmount'])
+                
+                # Count unique guarantors and borrowers
+                if 'GuarantorMemberID' in guarantor:
+                    stats['unique_guarantors'].add(guarantor['GuarantorMemberID'])
+                if 'BorrowerID' in guarantor:
+                    stats['unique_borrowers'].add(guarantor['BorrowerID'])
+            
+            # Calculate averages and convert sets to counts
+            if stats['total'] > 0:
+                stats['avg_guaranteed_amount'] = stats['total_guaranteed_amount'] / stats['total']
+            
+            stats['unique_guarantors'] = len(stats['unique_guarantors'])
+            stats['unique_borrowers'] = len(stats['unique_borrowers'])
+            
+            # Format currency values
+            stats['total_guaranteed_amount_formatted'] = f"{stats['total_guaranteed_amount']:,.2f}"
+            stats['avg_guaranteed_amount_formatted'] = f"{stats['avg_guaranteed_amount']:,.2f}"
+            
+            return render_with_modules('user/guarantors_list.html', guarantors=guarantors, stats=stats)
             
         except Exception as e:
             current_app.logger.error(f"Error executing query: {str(e)}")

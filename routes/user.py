@@ -7,7 +7,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, current_app, send_file, abort
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -5861,6 +5861,47 @@ def calculate_claim_statistics(claims):
         'pending_amount': pending_amount,
         'approved_amount': approved_amount
     }
+
+@user_bp.route('/api/guarantor-claims/<claim_id>', methods=['GET'])
+@login_required
+def get_guarantor_claim(claim_id):
+    """Get details of a specific guarantor claim"""
+    try:
+        # Import the necessary models
+        from models.guarantor_claim import GuarantorClaim
+        
+        # Get the claim
+        claim = GuarantorClaim.query.get_or_404(claim_id)
+        
+        # Return the claim data
+        return jsonify({
+            'success': True,
+            'claim': {
+                'id': claim.id,
+                'loan_no': claim.loan_no,
+                'borrower_name': claim.borrower_name,
+                'guarantor_name': claim.guarantor_name,
+                'claim_amount': float(claim.claim_amount),
+                'claim_date': claim.claim_date.isoformat() if claim.claim_date else None,
+                'status': claim.status,
+                'notes': claim.notes
+            }
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching guarantor claim: {str(e)}")
+        return jsonify({"error": f"Failed to fetch claim: {str(e)}"}), 500
+
+@user_bp.route('/reports/uploads/claims/<path:filename>')
+@login_required
+def serve_claim_document(filename):
+    """Serve claim documents from the uploads directory"""
+    try:
+        uploads_dir = os.path.join(current_app.static_folder, 'uploads', 'claims')
+        return send_from_directory(uploads_dir, filename, as_attachment=False)
+    except Exception as e:
+        current_app.logger.error(f"Error serving claim document: {str(e)}")
+        abort(404)
 
 @user_bp.route('/api/guarantor-claims/<claim_id>/status', methods=['POST'])
 @login_required

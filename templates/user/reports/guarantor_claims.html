@@ -1044,10 +1044,25 @@ function updateClaimStatus(claimId, newStatus) {
         contentType: false,
         success: function(response) {
             toastr.success(`Claim marked as ${newStatus}`);
-            // Reload the page after a short delay
-            setTimeout(function() {
-                window.location.reload();
-            }, 1000);
+            // Instead of reloading the page, let's manually update the statistics
+            // and then refresh the table
+            $.ajax({
+                url: '/api/reports/guarantor-claims/statistics',
+                type: 'GET',
+                success: function(statsData) {
+                    // Update the statistics display
+                    updateStatistics(statsData);
+                    
+                    // Then reload the data table
+                    loadReportData(currentPage);
+                },
+                error: function() {
+                    // If stats update fails, just reload the page
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1000);
+                }
+            });
         },
         error: function(xhr) {
             let errorMessage = 'Failed to update claim status';
@@ -1139,10 +1154,25 @@ $(document).ready(function() {
                 // Close the modal
                 $('#statusUpdateModal').addClass('hidden');
                 
-                // Reload the page after a short delay
-                setTimeout(function() {
-                    window.location.reload();
-                }, 1000);
+                // Instead of reloading the page, let's manually update the statistics
+                // and then refresh the table
+                $.ajax({
+                    url: '/api/reports/guarantor-claims/statistics',
+                    type: 'GET',
+                    success: function(statsData) {
+                        // Update the statistics display
+                        updateStatistics(statsData);
+                        
+                        // Then reload the data table
+                        loadReportData(currentPage);
+                    },
+                    error: function() {
+                        // If stats update fails, just reload the page
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                });
             },
             error: function(xhr) {
                 // Show error message

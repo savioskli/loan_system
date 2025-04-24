@@ -5501,36 +5501,129 @@ def guarantor_claims_report():
 @login_required
 def get_guarantor_claims_data():
     filters = request.get_json()
-    # TODO: Implement data fetching logic
-    # This is sample data for demonstration
-    data = {
-        'dashboard': {
-            'totalClaims': 150,
-            'totalAmount': 750000,
-            'settledClaims': 85,
-            'successRate': 56.67
+    
+    # Sample data based on the actual database structure
+    claims = [
+        {
+            'id': '1',
+            'loan_id': '5',
+            'loan_no': 'L005/2023',
+            'borrower_id': '5',
+            'borrower_name': 'Michael Kiprop',
+            'guarantor_id': '6',
+            'guarantor_name': 'Samuel Kimani',
+            'claim_amount': 200000,
+            'claim_date': '2025-01-16 15:33:25',
+            'status': 'Pending',
+            'notes': '',
+            'document_path': 'uploads/claims/AccountOpeningForm_801033.pdf',
+            'created_by': '1',
+            'created_at': '2025-01-16 15:33:25'
         },
-        'items': [
-            {
-                'claimId': 'GC001',
-                'customerName': 'John Doe',
-                'guarantorName': 'Jane Smith',
-                'claimAmount': 5000,
-                'filingDate': '2025-01-15',
-                'status': 'pending',
-                'settlementAmount': 0
-            }
-            # Add more sample items as needed
-        ],
+        {
+            'id': '2',
+            'loan_id': '1',
+            'loan_no': 'L001/2023',
+            'borrower_id': '1',
+            'borrower_name': 'Samuel Kimani',
+            'guarantor_id': '1',
+            'guarantor_name': 'Elizabeth Njeri',
+            'claim_amount': 100000,
+            'claim_date': '2025-04-23 12:59:48',
+            'status': 'Pending',
+            'notes': '',
+            'document_path': 'uploads/claims/sample_1.pdf',
+            'created_by': '1',
+            'created_at': '2025-04-23 12:59:48'
+        }
+    ]
+    
+    # Apply status updates from session if available
+    status_updates = session.get('claim_status_updates', {})
+    for claim in claims:
+        claim_id = claim['id']
+        if claim_id in status_updates:
+            claim['status'] = status_updates[claim_id]['status']
+    
+    # Calculate statistics based on current data (including session updates)
+    statistics = calculate_claim_statistics(claims)
+    
+    # Pagination logic
+    page = int(filters.get('page', 1))
+    items_per_page = 10
+    start_idx = (page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    paginated_claims = claims[start_idx:end_idx]
+    
+    data = {
+        'items': paginated_claims,
+        'statistics': statistics,
         'pagination': {
-            'page': 1,
-            'start': 1,
-            'end': 10,
-            'total': 150,
-            'totalPages': 15
+            'page': page,
+            'start': start_idx + 1 if paginated_claims else 0,
+            'end': start_idx + len(paginated_claims),
+            'total': len(claims),
+            'totalPages': (len(claims) + items_per_page - 1) // items_per_page
         }
     }
+    
     return jsonify(data)
+
+@user_bp.route('/api/reports/guarantor-claims/statistics', methods=['GET'])
+@login_required
+def get_guarantor_claims_statistics():
+    # Sample data based on the actual database structure
+    claims = [
+        {
+            'id': '1',
+            'loan_id': '5',
+            'loan_no': 'L005/2023',
+            'borrower_id': '5',
+            'borrower_name': 'Michael Kiprop',
+            'guarantor_id': '6',
+            'guarantor_name': 'Samuel Kimani',
+            'claim_amount': 200000,
+            'claim_date': '2025-01-16 15:33:25',
+            'status': 'Pending',
+            'notes': '',
+            'document_path': 'uploads/claims/AccountOpeningForm_801033.pdf',
+            'created_by': '1',
+            'created_at': '2025-01-16 15:33:25'
+        },
+        {
+            'id': '2',
+            'loan_id': '1',
+            'loan_no': 'L001/2023',
+            'borrower_id': '1',
+            'borrower_name': 'Samuel Kimani',
+            'guarantor_id': '1',
+            'guarantor_name': 'Elizabeth Njeri',
+            'claim_amount': 100000,
+            'claim_date': '2025-04-23 12:59:48',
+            'status': 'Pending',
+            'notes': '',
+            'document_path': 'uploads/claims/sample_1.pdf',
+            'created_by': '1',
+            'created_at': '2025-04-23 12:59:48'
+        }
+    ]
+    
+    # Log the session data for debugging
+    status_updates = session.get('claim_status_updates', {})
+    current_app.logger.info(f"Session status updates: {status_updates}")
+    
+    # Apply status updates from session if available
+    for claim in claims:
+        claim_id = claim['id']
+        if claim_id in status_updates:
+            original_status = claim['status']
+            claim['status'] = status_updates[claim_id]['status']
+            current_app.logger.info(f"Updated claim {claim_id} status from {original_status} to {claim['status']}")
+    
+    # Calculate statistics based on current data (including session updates)
+    statistics = calculate_claim_statistics(claims)
+    
+    return jsonify(statistics)
 
 @user_bp.route('/api/reports/guarantor-claims/download', methods=['POST'])
 @login_required
@@ -5714,15 +5807,74 @@ def create_guarantor_claim():
         return jsonify({'error': 'Failed to create claim'}), 500
 
 
+# Helper function to calculate claim statistics
+def calculate_claim_statistics(claims):
+    # Initialize counters
+    total = len(claims)
+    pending = 0
+    approved = 0
+    rejected = 0
+    pending_amount = 0
+    approved_amount = 0
+    
+    # Debug information
+    current_app.logger.info(f"Calculating statistics for {len(claims)} claims")
+    
+    # Count claims by status and sum amounts
+    for claim in claims:
+        # Handle case-insensitive status comparison
+        status = claim['status'].lower() if isinstance(claim['status'], str) else ''
+        current_app.logger.info(f"Claim {claim['id']} has status: {status}")
+        
+        # Handle claim amount - could be string with commas or numeric
+        if 'claim_amount' in claim:
+            amount_str = str(claim['claim_amount']).replace(',', '')
+            try:
+                amount = float(amount_str)
+            except ValueError:
+                amount = 0
+        else:
+            amount = 0
+        
+        # Print the exact status for debugging
+        current_app.logger.info(f"Exact status for claim {claim['id']}: '{claim['status']}'")
+        
+        # Use case-insensitive comparison to be safe
+        if status in ['pending', 'pendiente']:
+            pending += 1
+            pending_amount += amount
+            current_app.logger.info(f"Added to pending: {claim['id']} with amount {amount}")
+        elif status in ['approved', 'aprobado', 'aprovado']:
+            approved += 1
+            approved_amount += amount
+            current_app.logger.info(f"Added to approved: {claim['id']} with amount {amount}")
+        elif status == 'rejected':
+            rejected += 1
+            current_app.logger.info(f"Added to rejected: {claim['id']}")
+    
+    # Return statistics
+    return {
+        'total': total,
+        'pending': pending,
+        'approved': approved,
+        'rejected': rejected,
+        'pending_amount': pending_amount,
+        'approved_amount': approved_amount
+    }
+
 @user_bp.route('/api/guarantor-claims/<claim_id>/status', methods=['POST'])
 @login_required
 def update_guarantor_claim_status(claim_id):
     """API endpoint to update the status of a guarantor claim"""
     try:
+        # Import the necessary models
+        from models.guarantor_claim import GuarantorClaim
+        from sqlalchemy import text
+        
         # Get the data from the request
-        new_status = request.form.get('new_status')
-        notes = request.form.get('notes', '')
-        previous_status = request.form.get('previous_status', '')
+        data = request.form
+        new_status = data.get('new_status')
+        notes = data.get('notes', '')
         
         if not new_status:
             return jsonify({"error": "New status is required"}), 400
@@ -5731,36 +5883,67 @@ def update_guarantor_claim_status(claim_id):
         valid_statuses = ['Pending', 'In Progress', 'Approved', 'Rejected', 'Settled']
         if new_status not in valid_statuses:
             return jsonify({"error": "Invalid status"}), 400
+            
+        # Get current timestamp
+        current_time = datetime.utcnow()
         
-        # Log the status change
-        current_app.logger.info(f"Guarantor claim {claim_id} status updated from {previous_status} to {new_status} by {current_user.username}")
+        # Update the claim directly in the database
+        update_query = text("""
+            UPDATE guarantor_claims 
+            SET status = :status,
+                notes = :notes,
+                updated_by = :updated_by,
+                updated_at = :updated_at
+            WHERE id = :claim_id
+        """)
         
-        # For demonstration purposes, we'll simulate a successful update
-        # In a real implementation with proper database models, you would update the database
-        current_app.logger.info(f"Simulating database update: Claim {claim_id} status changed from {previous_status} to {new_status}")
+        # Execute the update
+        db.session.execute(
+            update_query,
+            {
+                'status': new_status,
+                'notes': notes,
+                'updated_by': current_user.id,
+                'updated_at': current_time,
+                'claim_id': claim_id
+            }
+        )
         
-        # Store the status update in the session so it persists between requests
-        # This is just for demonstration - in a real app, you'd use the database
-        if 'claim_status_updates' not in session:
-            session['claim_status_updates'] = {}
+        # Fetch the updated row
+        select_query = text("""
+            SELECT id, status, notes, updated_at 
+            FROM guarantor_claims 
+            WHERE id = :claim_id
+        """)
         
-        session['claim_status_updates'][claim_id] = {
-            'status': new_status,
-            'updated_at': datetime.now().isoformat(),
-            'updated_by': current_user.username,
-            'notes': notes
-        }
+        result = db.session.execute(select_query, {'claim_id': claim_id})
+        updated_row = result.fetchone()
         
-        # Make sure to save the session
-        session.modified = True
+        if not updated_row:
+            return jsonify({"error": "Claim not found"}), 404
+            
+        # Commit the transaction
+        db.session.commit()
+            
+        # Log the update
+        current_app.logger.info(f"Successfully updated guarantor claim {claim_id} status to {new_status}")
         
+        # Return success response with updated data
         return jsonify({
-            "success": True, 
-            "message": f"Claim status updated successfully to {new_status}"
+            'success': True,
+            'message': f"Claim status updated successfully to {new_status}",
+            'claim': {
+                'id': updated_row.id,
+                'status': updated_row.status,
+                'notes': updated_row.notes,
+                'updated_at': updated_row.updated_at.isoformat() if updated_row.updated_at else None
+            }
         }), 200
+        
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"Error updating guarantor claim status: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Failed to update claim status: {str(e)}"}), 500
 
 @user_bp.route('/create_demand_letter', methods=['POST'])
 @login_required

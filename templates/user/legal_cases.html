@@ -225,7 +225,7 @@
                         </div>
                         <button type="button" onclick="closeNewCaseModal()" class="text-gray-400 hover:text-gray-500">
                             <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -234,264 +234,219 @@
                 <!-- Modal Body -->
                 <div class="px-6 py-4">
                     <form id="newCaseForm" action="{{ url_for('user.create_legal_case') }}" method="POST" class="wizard-form" enctype="multipart/form-data">
-    <!-- Wizard Steps Indicator -->
-    <div class="wizard-steps flex mb-6">
-        <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="1">1. Customer</div>
-        <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="2">2. Case</div>
-        <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="3">3. Parties</div>
-        <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="4">4. Legal Rep</div>
-        <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="5">5. Docs</div>
-    </div>
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="assigned_branch" id="branchInput" value="{{ branch_id }}">
-                        
-                        <!-- Hidden fields for raw values -->
-                        <input type="hidden" name="raw_outstanding_balance" id="raw_outstanding_balance">
-                        <input type="hidden" name="raw_days_in_arrears" id="raw_days_in_arrears">
-                        <input type="hidden" name="raw_installment_amount" id="raw_installment_amount">
-                        
-                        <!-- Hidden fields for customer and loan details -->
-                        <input type="hidden" name="customer_name" id="customer_name">
-                        <input type="hidden" name="loan_account_no" id="loan_account_no">
-                        
-                        <!-- Step 1: Customer & Loan Info -->
-                        <div class="wizard-step" data-step="1">
-                            <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                                <h4 class="text-sm font-medium text-gray-900 mb-3">Customer Information</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Customer</label>
-                                        <select id="customer_id" name="customer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                            <option value="">Select Customer</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Loan Account</label>
-                                        <select id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                            <option value="">Select Loan</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Outstanding Balance</label>
-                                        <input type="text" id="outstanding_balance" name="outstanding_balance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Days in Arrears</label>
-                                        <input type="text" id="days_in_arrears" name="days_in_arrears" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
-                                    </div>
-                                </div>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Missed Payments</label>
-                                        <input type="text" id="missed_payments" name="missed_payments" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Installment Amount</label>
-                                        <input type="text" id="installment_amount" name="installment_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" readonly>
-                                    </div>
-                                </div>
+                        <div class="space-y-6">
+                            <!-- Wizard Steps Indicator -->
+                            <div class="wizard-steps flex mb-6">
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="1">1. Customer</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="2">2. Case</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="3">3. Parties</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="4">4. Legal Rep</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="5">5. Docs</div>
                             </div>
-                        </div>
-                        <!-- Step 2: Case Details -->
-                        <div class="wizard-step hidden" data-step="2">
-                            <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                                <h4 class="text-sm font-medium text-gray-900 mb-3">Case Details</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="case_number" class="block text-sm font-medium text-gray-700">Case Number</label>
-                                        <input type="text" id="case_number" name="case_number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                            
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="assigned_branch" id="branchInput" value="{{ branch_id }}">
+                            
+                            <!-- Hidden fields for raw values -->
+                            <input type="hidden" name="raw_outstanding_balance" id="raw_outstanding_balance">
+                            <input type="hidden" name="raw_days_in_arrears" id="raw_days_in_arrears">
+                            <input type="hidden" name="raw_installment_amount" id="raw_installment_amount">
+                            
+                            <!-- Step 1: Customer & Loan Info -->
+                            <div class="wizard-step" data-step="1">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Customer Information</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Customer</label>
+                                            <select id="customer_id" name="customer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Customer</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Loan Account</label>
+                                            <select id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Loan</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label for="case_type" class="block text-sm font-medium text-gray-700">Case Type</label>
-                                        <select id="case_type" name="case_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                            <option value="">Select Case Type</option>
-                                            <option value="Civil">Civil</option>
-                                            <option value="Criminal">Criminal</option>
-                                            <option value="Commercial">Commercial</option>
-                                        </select>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Outstanding Balance</label>
+                                            <input type="text" id="outstanding_balance" name="outstanding_balance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Days in Arrears</label>
+                                            <input type="text" id="days_in_arrears" name="days_in_arrears" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="court_name" class="block text-sm font-medium text-gray-700">Court Name</label>
-                                        <input type="text" id="court_name" name="court_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Missed Payments</label>
+                                            <input type="text" id="missed_payments" name="missed_payments" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Installment Amount</label>
+                                            <input type="text" id="installment_amount" name="installment_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label for="filing_date" class="block text-sm font-medium text-gray-700">Filing Date</label>
-                                        <input type="date" id="filing_date" name="filing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                    </div>
-                                </div>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                            <option value="">Select Status</option>
-                                            <option value="Active">Active</option>
-                                            <option value="On Hold">On Hold</option>
-                                            <option value="Resolved">Resolved</option>
-                                            <option value="Appealed">Appealed</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label for="next_hearing_date" class="block text-sm font-medium text-gray-700">Next Hearing Date</label>
-                                        <input type="date" id="next_hearing_date" name="next_hearing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
-                                    </div>
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">Case Details</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="case_number" class="block text-sm font-medium text-gray-700">Case Number</label>
-                                    <input type="text" id="case_number" name="case_number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                                <div>
-                                    <label for="case_type" class="block text-sm font-medium text-gray-700">Case Type</label>
-                                    <select id="case_type" name="case_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                        <option value="">Select Case Type</option>
-                                        <option value="Civil">Civil</option>
-                                        <option value="Criminal">Criminal</option>
-                                        <option value="Commercial">Commercial</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="court_name" class="block text-sm font-medium text-gray-700">Court Name</label>
-                                    <input type="text" id="court_name" name="court_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                                <div>
-                                    <label for="filing_date" class="block text-sm font-medium text-gray-700">Filing Date</label>
-                                    <input type="date" id="filing_date" name="filing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                            </div>
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                    <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                        <option value="">Select Status</option>
-                                        <option value="Active">Active</option>
-                                        <option value="On Hold">On Hold</option>
-                                        <option value="Resolved">Resolved</option>
-                                        <option value="Appealed">Appealed</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="next_hearing_date" class="block text-sm font-medium text-gray-700">Next Hearing Date</label>
-                                    <input type="date" id="next_hearing_date" name="next_hearing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Assignment Section -->
-                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">Legal Officer Assignment</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Legal Officer</label>
-                                    <select id="legal_officer_id" name="legal_officer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3" required>
-                                        <option value="">Select Legal Officer</option>
-                                    </select>
-                                    <input type="hidden" id="legal_officer_name" name="legal_officer_name" value="">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Supervisor</label>
-                                    <select id="supervisor_id" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3">
-                                        <option value="">Select Supervisor</option>
-                                    </select>
-                                    <input type="hidden" id="supervisor_name" name="supervisor_name" value="">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Case Parties Section -->
-                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">Case Parties</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="plaintiff" class="block text-sm font-medium text-gray-700">Plaintiff</label>
-                                    <input type="text" id="plaintiff" name="plaintiff" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                                <div>
-                                    <label for="defendant" class="block text-sm font-medium text-gray-700">Defendant</label>
-                                    <input type="text" id="defendant" name="defendant" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                            </div>
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="amount_claimed" class="block text-sm font-medium text-gray-700">Amount Claimed</label>
-                                    <input type="number" step="0.01" id="amount_claimed" name="amount_claimed" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                </div>
-                                <div>
-                                    <label for="lawyer_name" class="block text-sm font-medium text-gray-700">Lawyer Name</label>
-                                    <input type="text" id="lawyer_name" name="lawyer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <label for="lawyer_contact" class="block text-sm font-medium text-gray-700">Lawyer Contact</label>
-                                <input type="tel" id="lawyer_contact" name="lawyer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
-                            </div>
-                        </div>
-                        
-                        <!-- Additional Information -->
-                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">Additional Information</h4>
-                            <div>
-                                <label for="description" class="block text-sm font-medium text-gray-700">Case Description</label>
-                                <textarea id="description" name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required></textarea>
-                            </div>
-                        </div>
-                        
-                        <!-- Attachments Section -->
-                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">Attachments</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label for="attachment_type" class="block text-sm font-medium text-gray-700">Attachment Type</label>
-                                    <select id="attachment_type" name="attachment_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
-                                        <option value="">Select Type</option>
-                                        <option value="court_document">Court Document</option>
-                                        <option value="legal_notice">Legal Notice</option>
-                                        <option value="evidence">Evidence</option>
-                                        <option value="correspondence">Correspondence</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="attachment_description" class="block text-sm font-medium text-gray-700">Description</label>
-                                    <input type="text" id="attachment_description" name="attachment_description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" placeholder="Brief description of the attachment">
                                 </div>
                             </div>
                             
-                            <!-- File Upload Area with Drag & Drop -->
-                            <div class="mt-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Upload File</label>
-                                <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors duration-200">
-                                    <div class="space-y-1 text-center">
-                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <div class="flex text-sm text-gray-600">
-                                            <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
-                                                <span>Upload a file</span>
-                                                <input id="file-upload" name="attachment" type="file" class="sr-only">
-                                            </label>
-                                            <p class="pl-1">or drag and drop</p>
+                            <!-- Step 2: Case Details -->
+                            <div class="wizard-step hidden" data-step="2">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Case Details</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="case_number" class="block text-sm font-medium text-gray-700">Case Number</label>
+                                            <input type="text" id="case_number" name="case_number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
                                         </div>
-                                        <p class="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB</p>
+                                        <div>
+                                            <label for="case_type" class="block text-sm font-medium text-gray-700">Case Type</label>
+                                            <select id="case_type" name="case_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Case Type</option>
+                                                <option value="Civil">Civil</option>
+                                                <option value="Criminal">Criminal</option>
+                                                <option value="Commercial">Commercial</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="court_name" class="block text-sm font-medium text-gray-700">Court Name</label>
+                                            <input type="text" id="court_name" name="court_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                        <div>
+                                            <label for="filing_date" class="block text-sm font-medium text-gray-700">Filing Date</label>
+                                            <input type="date" id="filing_date" name="filing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                            <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Status</option>
+                                                <option value="Active">Active</option>
+                                                <option value="On Hold">On Hold</option>
+                                                <option value="Resolved">Resolved</option>
+                                                <option value="Appealed">Appealed</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="next_hearing_date" class="block text-sm font-medium text-gray-700">Next Hearing Date</label>
+                                            <input type="date" id="next_hearing_date" name="next_hearing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Wizard Navigation -->
-                        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-                            <button type="button" id="cancelCaseBtn" onclick="closeNewCaseModal()" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cancel
-                            </button>
-                            <div id="navButtons" class="flex items-center space-x-3">
-                                <button type="button" id="prevBtn" class="inline-flex justify-center px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden" onclick="previousStep()">Back</button>
-                                <button type="button" id="nextBtn" class="inline-flex justify-center px-4 py-2 bg-primary text-white border border-transparent rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" onclick="nextStep()">Next</button>
-                                <button type="submit" id="submitBtn" class="inline-flex justify-center px-4 py-2 bg-primary text-white border border-transparent rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden">Create Case</button>
+                            
+                            <!-- Step 3: Case Parties -->
+                            <div class="wizard-step hidden" data-step="3">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Case Parties</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="plaintiff" class="block text-sm font-medium text-gray-700">Plaintiff</label>
+                                            <input type="text" id="plaintiff" name="plaintiff" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                        <div>
+                                            <label for="defendant" class="block text-sm font-medium text-gray-700">Defendant</label>
+                                            <input type="text" id="defendant" name="defendant" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="amount_claimed" class="block text-sm font-medium text-gray-700">Amount Claimed</label>
+                                            <input type="number" step="0.01" id="amount_claimed" name="amount_claimed" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                        <div>
+                                            <label for="lawyer_name" class="block text-sm font-medium text-gray-700">Lawyer Name</label>
+                                            <input type="text" id="lawyer_name" name="lawyer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label for="lawyer_contact" class="block text-sm font-medium text-gray-700">Lawyer Contact</label>
+                                        <input type="tel" id="lawyer_contact" name="lawyer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Step 4: Legal Representative -->
+                            <div class="wizard-step hidden" data-step="4">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Legal Officer Assignment</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Legal Officer</label>
+                                            <select id="legal_officer_id" name="legal_officer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Legal Officer</option>
+                                            </select>
+                                            <input type="hidden" id="legal_officer_name" name="legal_officer_name" value="">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Supervisor</label>
+                                            <select id="supervisor_id" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                                <option value="">Select Supervisor</option>
+                                            </select>
+                                            <input type="hidden" id="supervisor_name" name="supervisor_name" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Step 5: Documents -->
+                            <div class="wizard-step hidden" data-step="5">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Case Documents</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label for="attachment_type" class="block text-sm font-medium text-gray-700">Attachment Type</label>
+                                            <select id="attachment_type" name="attachment_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                                <option value="">Select Type</option>
+                                                <option value="court_document">Court Document</option>
+                                                <option value="legal_notice">Legal Notice</option>
+                                                <option value="evidence">Evidence</option>
+                                                <option value="correspondence">Correspondence</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="attachment_description" class="block text-sm font-medium text-gray-700">Description</label>
+                                            <input type="text" id="attachment_description" name="attachment_description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" placeholder="Brief description of the attachment">
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload File</label>
+                                        <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors duration-200">
+                                            <div class="space-y-1 text-center">
+                                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                                <div class="flex text-sm text-gray-600">
+                                                    <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                                        <span>Upload a file</span>
+                                                        <input id="file-upload" name="attachment" type="file" class="sr-only">
+                                                    </label>
+                                                    <p class="pl-1">or drag and drop</p>
+                                                </div>
+                                                <p class="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Wizard Navigation -->
+                            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                                <button type="button" id="cancelCaseBtn" onclick="closeNewCaseModal()" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    Cancel
+                                </button>
+                                <div id="navButtons" class="flex items-center space-x-3">
+                                    <button type="button" id="prevBtn" class="inline-flex justify-center px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden" onclick="previousStep()">Back</button>
+                                    <button type="button" id="nextBtn" class="inline-flex justify-center px-4 py-2 bg-primary text-white border border-transparent rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" onclick="nextStep()">Next</button>
+                                    <button type="submit" id="submitBtn" class="inline-flex justify-center px-4 py-2 bg-primary text-white border border-transparent rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden">Create Case</button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -1479,7 +1434,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     // Format status with badge
                     const statusElement = document.getElementById('viewStatus');
                     const statusClass = getStatusClass(data.status);
-                    statusElement.innerHTML = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${data.status}</span>`;
+                    statusElement.innerHTML = `<span class="px-2 py-1 text-xs font-medium ${statusClass}">${data.status}</span>`;
                     
                     // Format amount with currency
                     document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
@@ -1683,11 +1638,11 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             dropZone.addEventListener(eventName, unhighlight, false);
         });
 
-        function highlight(e) {
+        function highlight() {
             dropZone.classList.add('border-primary');
         }
 
-        function unhighlight(e) {
+        function unhighlight() {
             dropZone.classList.remove('border-primary');
         }
 

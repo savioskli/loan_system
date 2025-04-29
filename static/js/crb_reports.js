@@ -1,3 +1,168 @@
+// Initialize Select2 for customer dropdown
+// Global variable to store selected customer data
+let selectedCustomerData = null;
+
+$(document).ready(function() {
+    // Modal handling
+    const modal = document.getElementById('generate-modal');
+
+    function openGenerateModal() {
+        modal.classList.remove('hidden');
+        initializeSelect2();
+    }
+
+    function closeGenerateModal() {
+        modal.classList.add('hidden');
+        resetForm();
+    }
+
+    // Make modal functions available globally
+    window.openGenerateModal = openGenerateModal;
+    window.closeGenerateModal = closeGenerateModal;
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeGenerateModal();
+        }
+    });
+
+    function initializeSelect2() {
+        // Remove any existing select2 containers first
+        $('.select2-container').remove();
+
+        // Destroy and reinitialize Select2
+        if ($('#customer').data('select2')) {
+            $('#customer').select2('destroy');
+        }
+
+        // Initialize customer select
+        $('#customer').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search for a customer...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#generate-modal'),
+            ajax: {
+                url: '/api/customers/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1,
+                        per_page: 10
+                    };
+                },
+                processResults: function(data) {
+                    console.log('Customer data received:', data);
+                    
+                    if (!data || !Array.isArray(data.items)) {
+                        console.error('Invalid customer data format:', data);
+                        return { results: [] };
+                    }
+                    
+                    return {
+                        results: data.items,
+                        pagination: {
+                            more: data.has_more || false
+                        }
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 0,
+            templateResult: formatCustomerResult,
+            templateSelection: formatCustomerSelection,
+            escapeMarkup: function(markup) {
+                return markup;
+            }
+        }).on('select2:select', function(e) {
+            const customer = e.params.data;
+            updateCustomerDetails(customer);
+        }).on('select2:clear', function() {
+            $('#customer-details').addClass('hidden');
+        });
+
+        // Focus the search box after initialization
+        setTimeout(function() {
+            $('.select2-search__field').focus();
+        }, 100);
+    }
+
+    function resetForm() {
+        $('#generate-report-form')[0].reset();
+        $('#customer').val(null).trigger('change');
+        $('#customer-details').addClass('hidden');
+    }
+
+    // Form submission is now handled by the validateReportForm function
+});
+
+// Function to format customer result
+function formatCustomerResult(customer) {
+    if (customer.loading) {
+        return '<div class="text-gray-500">Loading...</div>';
+    }
+
+    // Get the first loan for loan details
+    const loan = customer.loans && customer.loans[0] || {};
+    const missedPayments = loan.DaysInArrears ? Math.ceil(loan.DaysInArrears / 30) : 0;
+    const outstandingAmount = loan.OutstandingBalance || 0;
+    const installmentAmount = loan.InstallmentAmount || outstandingAmount;
+
+    return `
+        <div class="flex items-center py-1">
+            <div class="flex-1">
+                <div class="font-medium">${customer.text}</div>
+                <div class="text-sm text-gray-500">
+                    ${customer.NationalID ? `National ID: ${customer.NationalID}` : ''}
+                    ${customer.PhoneNumber ? ` • ${customer.PhoneNumber}` : ''}
+                </div>
+                ${customer.loans ? `
+                    <div class="text-sm text-gray-500">
+                        ${customer.loans.length} loan(s) • Outstanding: ${outstandingAmount.toLocaleString('en-US', {style: 'currency', currency: 'KES'})}
+                        ${missedPayments > 0 ? ` • ${missedPayments} missed payment(s)` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Function to format selected customer
+function formatCustomerSelection(customer) {
+    return customer.text;
+}
+
+// Function to update customer details section
+function updateCustomerDetails(customer) {
+    // Store the selected customer data in the global variable
+    selectedCustomerData = customer;
+    
+    // Get customer details directly from customer object
+    $('#customer-name').text(customer.text || '-');
+    $('#customer-id').text(customer.NationalID || '-');
+    $('#customer-phone').text(customer.PhoneNumber || '-');
+    $('#customer-email').text(customer.Email || '-');
+
+    // Get the first loan for loan details
+    const loan = customer.loans && customer.loans[0] || {};
+
+    // Calculate missed payments
+    const missedPayments = loan.DaysInArrears ? Math.ceil(loan.DaysInArrears / 30) : 0;
+    const outstandingAmount = loan.OutstandingBalance || 0;
+    const installmentAmount = loan.InstallmentAmount || outstandingAmount;
+
+    // Add loan details
+    $('#customer-loan-amount').text(loan.LoanAmount ? loan.LoanAmount.toLocaleString('en-US', {style: 'currency', currency: 'KES'}) : '-');
+    $('#customer-outstanding').text(outstandingAmount.toLocaleString('en-US', {style: 'currency', currency: 'KES'}));
+    $('#customer-installment').text(installmentAmount.toLocaleString('en-US', {style: 'currency', currency: 'KES'}));
+    $('#customer-missed-payments').text(missedPayments || '-');
+    
+    $('#customer-details').removeClass('hidden');
+}
+
 // Function to open the generate report modal
 function openGenerateModal() {
     document.getElementById('generate-modal').classList.remove('hidden');
@@ -6,7 +171,9 @@ function openGenerateModal() {
 // Function to close the generate report modal
 function closeGenerateModal() {
     document.getElementById('generate-modal').classList.add('hidden');
-    document.getElementById('national-id').value = '';
+    $('#customer').val(null).trigger('change');
+    $('#customer-details').addClass('hidden');
+    $('#consent').prop('checked', false);
 }
 
 // Function to open the view report modal
@@ -20,42 +187,77 @@ function closeViewModal() {
     document.getElementById('report-content').innerHTML = '';
 }
 
-// Function to generate a new CRB report
-async function generateReport() {
-    const nationalId = document.getElementById('national-id').value.trim();
+// Function to validate the CRB report form
+function validateReportForm() {
+    const customerId = $('#customer').val();
+    const bureauId = $('#bureau').val();
+    const consent = $('#consent').is(':checked');
     
-    if (!nationalId) {
-        alert('Please enter a National ID');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/user/crb-reports/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ national_id: nationalId })
+    if (!customerId || !bureauId || !consent) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Validation Error',
+            text: !customerId ? 'Please select a customer' : 
+                  !bureauId ? 'Please select a credit bureau' : 
+                  'Please confirm customer consent'
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to generate report');
-        }
-        
-        const data = await response.json();
-        closeGenerateModal();
-        loadReports(); // Refresh the reports list
-        
-        if (data.status === 'completed') {
-            alert('Report generated successfully!');
-        } else {
-            alert('Report generation initiated. Please wait while we process your request.');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to generate report. Please try again.');
+        return false;
     }
+    
+    // Add hidden fields with customer details to the form
+    const customerData = selectedCustomerData;
+    if (customerData) {
+        // Add customer name
+        let customerName = '';
+        if (customerData.FirstName) customerName += customerData.FirstName + ' ';
+        if (customerData.LastName) customerName += customerData.LastName;
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'customer_name',
+            value: customerName.trim()
+        }).appendTo('#generate-report-form');
+        
+        // Add national ID
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'national_id',
+            value: customerData.NationalID || ''
+        }).appendTo('#generate-report-form');
+        
+        // Add phone number
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'phone_number',
+            value: customerData.PhoneNumber || ''
+        }).appendTo('#generate-report-form');
+        
+        // Add email
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'email',
+            value: customerData.Email || ''
+        }).appendTo('#generate-report-form');
+    }
+    
+    // Show loading state
+    const submitBtn = $('#generate-report-form button[type="submit"]');
+    submitBtn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Generating...').prop('disabled', true);
+    
+    // If all validations pass, return true to allow form submission
+    return true;
 }
+
+// Initialize form submission
+$(document).ready(function() {
+    $('#generate-report-form').on('submit', function(e) {
+        if (!validateReportForm()) {
+            e.preventDefault();
+            return false;
+        }
+        // Form will submit normally if validation passes
+        return true;
+    });
+});
 
 // Function to view a CRB report
 async function viewReport(reportId) {

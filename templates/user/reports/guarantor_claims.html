@@ -18,9 +18,6 @@
                 <button id="newClaimBtn" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200">
                     <i class="fas fa-plus mr-2"></i>New Claim
                 </button>
-                <button id="downloadReport" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors duration-200">
-                    <i class="fas fa-download mr-2"></i>Download Report
-                </button>
                 <button id="filterToggle" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors duration-200">
                     <i class="fas fa-filter mr-2"></i>Filters
                 </button>
@@ -690,33 +687,6 @@ $(document).ready(function() {
     
     filterToggle.addEventListener('click', () => {
         filterSection.classList.toggle('hidden');
-    });
-
-    // Download functionality
-    document.getElementById('downloadReport').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/reports/guarantor-claims/download', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(getFilterData())
-            });
-            
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'guarantor_claims_report.xlsx';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            }
-        } catch (error) {
-            console.error('Download failed:', error);
-        }
     });
 
     // Filter functionality

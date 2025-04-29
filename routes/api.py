@@ -145,7 +145,12 @@ def search_customers():
                 sql = f"""
                 SELECT 
                     m.{m_cols.get('MemberID', 'MemberID')} AS MemberID,
-                    m.{m_cols.get('FullName', 'FullName')} AS FullName"""
+                    m.{m_cols.get('FullName', 'FullName')} AS FullName,
+                    m.{m_cols.get('NationalID', 'NationalID')} AS NationalID,
+                    m.{m_cols.get('DateOfBirth', 'DateOfBirth')} AS DateOfBirth,
+                    m.{m_cols.get('Gender', 'Gender')} AS Gender,
+                    m.{m_cols.get('PhoneNumber', 'PhoneNumber')} AS PhoneNumber,
+                    m.{m_cols.get('Email', 'Email')} AS Email"""
                 
                 # Add loan information if available
                 if loan_apps and loan_ledger:
@@ -333,6 +338,11 @@ def search_customers():
             result = {
                 'id': str(member['MemberID']),
                 'text': member['FullName'],
+                'NationalID': member.get('NationalID', ''),
+                'DateOfBirth': str(member.get('DateOfBirth', '')),
+                'Gender': member.get('Gender', ''),
+                'PhoneNumber': member.get('PhoneNumber', ''),
+                'Email': member.get('Email', ''),
                 'loans': loans,
                 'guarantors': guarantors
             }

@@ -11,14 +11,16 @@ from flask import Blueprint, render_template, request, jsonify, current_app, red
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from models.module import Module, FormField
-from models.form_section import FormSection
-from models.product import Product
-from models.client_type import ClientType
+from models.crb_report import CRBReport
+from models.credit_bureau import CreditBureau
 from models.staff import Staff
 from models.form_submission import FormSubmission
 from models.calendar_event import CalendarEvent
 from models.client import Client
 from models.correspondence import Correspondence
+from models.form_section import FormSection
+from models.product import Product
+from models.client_type import ClientType
 from models.guarantor import Guarantor
 from models.field_visit import FieldVisit, FieldVisitStatusHistory, FieldVisitAttachment
 from services.guarantor_service import GuarantorService
@@ -3583,10 +3585,212 @@ def get_letter_templates():
 def crb_reports():
     """Render the CRB reports page"""
     try:
-        return render_with_modules('user/crb_reports.html')
+        # Get active credit bureaus for the dropdown
+        from models.credit_bureau import CreditBureau
+        credit_bureaus = CreditBureau.query.filter_by(is_active=True).all()
+        
+        return render_with_modules('user/crb_reports.html', credit_bureaus=credit_bureaus)
     except Exception as e:
         current_app.logger.error(f"Error rendering CRB reports page: {str(e)}")
         flash('An error occurred while loading the CRB reports page', 'error')
+        return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/crb-reports/generate', methods=['POST'])
+@login_required
+def generate_crb_report():
+    """Generate a CRB report for a customer"""
+    # Add detailed logging at the start of the function
+    current_app.logger.info("=== Starting CRB report generation ===")
+    current_app.logger.info(f"Form data: {request.form}")
+    
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+        current_app.logger.info(f"Created logs directory: {log_dir}")
+    
+    # Write debug information to a specific debug log file
+    debug_log_file = os.path.join(log_dir, 'crb_debug.log')
+    with open(debug_log_file, 'a') as f:
+        f.write(f"=== {datetime.now()} - CRB Report Generation ===\n")
+        f.write(f"Form data: {request.form}\n")
+    try:
+        # Get form data
+        customer_id = request.form.get('customer')
+        bureau_id = request.form.get('bureau')
+        report_type = request.form.get('report_type', 'full')
+        
+        if not customer_id or not bureau_id:
+            flash('Customer and Credit Bureau are required', 'error')
+            return redirect(url_for('user.crb_reports'))
+        
+        # Get customer details
+        from models.credit_bureau import CreditBureau
+        
+        # Get credit bureau credentials
+        bureau = CreditBureau.query.get(bureau_id)
+        if not bureau:
+            flash('Selected Credit Bureau not found', 'error')
+            return redirect(url_for('user.crb_reports'))
+        
+        # Get customer details directly from the form submission
+        # The form already has all the necessary customer details
+        customer_name = request.form.get('customer_name', '')
+        national_id = request.form.get('national_id', '')
+        phone_number = request.form.get('phone_number', '')
+        email = request.form.get('email', '')
+        
+        # Log the customer details
+        current_app.logger.info(f"Customer details from form: name={customer_name}, national_id={national_id}, phone={phone_number}, email={email}")
+        
+        # Validate required fields
+        if not national_id:
+            flash('Customer National ID is required for CRB report', 'error')
+            return redirect(url_for('user.crb_reports'))
+        
+        # Log the customer data for debugging
+        customer_data = {
+            'customer_name': customer_name,
+            'national_id': national_id,
+            'phone_number': phone_number,
+            'email': email
+        }
+        current_app.logger.info(f"Customer data for CRB report: {customer_data}")
+        
+        # Check if we have the required fields
+        if not national_id:
+            flash('Customer National ID is required for CRB report', 'error')
+            return redirect(url_for('user.crb_reports'))
+        
+        # Prepare response for different bureau providers
+        if bureau.provider.lower() == 'metropol':
+            try:
+                # Import the CRB service
+                from services.crb_service import CRBService
+                from models.crb_report import CRBReport
+                
+                # Prepare customer data for the API
+                customer_data = {
+                    'customer_name': customer_name,
+                    'national_id': national_id,
+                    'phone_number': phone_number,
+                    'email': email
+                }
+                
+                # Initialize the CRB service with bureau credentials
+                crb_service = CRBService(bureau=bureau)
+                
+                # Generate the report
+                current_app.logger.info(f"Calling Metropol API for customer {customer_name} with National ID {national_id}")
+                report = crb_service.generate_report(customer_data, report_type)
+                
+                # Get the report data
+                report_data = {
+                    'customer_name': customer_name,
+                    'national_id': national_id,
+                    'phone_number': phone_number,
+                    'email': email,
+                    'report_type': report_type,
+                    'bureau': bureau.name,
+                    'timestamp': report.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'status': report.status,
+                    'score': report.credit_score or 'N/A',
+                    'risk_level': 'N/A',  # This would be calculated based on the score
+                    'report_reference': report.report_reference or 'N/A',
+                    'report_id': report.id
+                }
+                
+                # Add risk level based on credit score
+                if report.credit_score:
+                    score = int(report.credit_score)
+                    if score >= 700:
+                        report_data['risk_level'] = 'Low'
+                    elif score >= 500:
+                        report_data['risk_level'] = 'Medium'
+                    else:
+                        report_data['risk_level'] = 'High'
+                
+                # Add report data if available
+                if report.report_data:
+                    report_data['full_report'] = report.report_data
+                
+                # Return success message
+                flash(f'CRB report generated successfully for {customer_name}', 'success')
+                
+                # Return the report data
+                return render_with_modules('user/crb_report_result.html', report=report_data)
+                
+            except ValueError as e:
+                # Handle specific error messages from the API service
+                error_message = str(e)
+                current_app.logger.error(f"Metropol API error: {error_message}")
+                
+                # Provide user-friendly error messages based on the error
+                if "Authentication failed" in error_message:
+                    flash('Authentication failed. Please check the API credentials for the selected credit bureau.', 'error')
+                elif "Network error" in error_message:
+                    flash('Network error connecting to the credit bureau. Please check the API base URL and try again.', 'error')
+                elif "No access token" in error_message:
+                    flash('Invalid API credentials. The credit bureau did not provide an authentication token.', 'error')
+                else:
+                    flash(f'Error generating CRB report: {error_message}', 'error')
+                
+                # Add a flash message with detailed error information for administrators
+                flash(f'Technical details: {error_message}', 'warning')
+                
+                return redirect(url_for('user.crb_reports'))
+                
+            except Exception as e:
+                error_message = str(e)
+                current_app.logger.error(f"Unexpected error calling Metropol API: {error_message}")
+                flash(f'An unexpected error occurred while generating the CRB report. Please try again later.', 'error')
+                flash(f'Technical details: {error_message}', 'warning')
+                return redirect(url_for('user.crb_reports'))
+        
+        else:
+            flash(f'Credit Bureau provider {bureau.provider} not supported yet', 'error')
+            return redirect(url_for('user.crb_reports'))
+            
+    except Exception as e:
+        # Log the detailed error
+        current_app.logger.error(f"Error generating CRB report: {str(e)}")
+        
+        # Write to debug log file
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+        debug_log_file = os.path.join(log_dir, 'crb_debug.log')
+        with open(debug_log_file, 'a') as f:
+            f.write(f"=== {datetime.now()} - CRB Report Generation ERROR ===\n")
+            f.write(f"Error: {str(e)}\n")
+        
+        # Provide a more specific error message to the user
+        if 'Invalid or missing credentials' in str(e) or 'API key is missing' in str(e):
+            flash('The credit bureau API credentials are invalid or missing. Please contact the administrator.', 'error')
+        elif 'Network error' in str(e):
+            flash('Could not connect to the credit bureau API. Please check your internet connection and try again.', 'error')
+        elif 'Authentication failed' in str(e):
+            flash('Authentication with the credit bureau failed. Please check your credentials.', 'error')
+        else:
+            flash('An error occurred while generating the CRB report: ' + str(e), 'error')
+            
+        return redirect(url_for('user.crb_reports'))
+
+@user_bp.route('/view-logs')
+@login_required
+def view_logs():
+    """View application logs for debugging"""
+    try:
+        # Get the log file path
+        log_file = current_app.config.get('LOG_FILE', '/tmp/loan_system.log')
+        
+        # Read the last 100 lines of the log file
+        import subprocess
+        result = subprocess.run(['tail', '-n', '100', log_file], capture_output=True, text=True)
+        logs = result.stdout
+        
+        return render_with_modules('user/view_logs.html', logs=logs)
+    except Exception as e:
+        current_app.logger.error(f"Error viewing logs: {str(e)}")
+        flash('An error occurred while viewing logs', 'error')
         return redirect(url_for('user.dashboard'))
 
 @user_bp.route('/legal-cases')
@@ -4905,38 +5109,72 @@ def search_customers():
             guarantors_table = guarantors_mapping.get('Guarantors', {}).get('actual_table_name')
             guarantors_columns = guarantors_mapping.get('Guarantors', {}).get('columns', {})
             
-            # Build query to get customers with loans
+                        # Build query to get customers with loans
             if loans_table and loans_columns:
-                # Build SELECT clause for loans
+                # Log the loans mapping
+                current_app.logger.info(f"Loans columns mapping: {loans_columns}")
+                
+                # Define required customer fields
+                required_fields = {
+                    'MemberID': 'member_id',
+                    'FirstName': 'first_name',
+                    'LastName': 'last_name',
+                    'NationalID': 'national_id',
+                    'DateOfBirth': 'date_of_birth',
+                    'Gender': 'gender',
+                    'PhoneNumber': 'phone_number',
+                    'Email': 'email'
+                }
+                
+                # Build SELECT clause for customer fields
                 select_clause = []
-                for expected_col, actual_col in loans_columns.items():
+                for expected_col, default_col in required_fields.items():
+                    actual_col = loans_columns.get(expected_col, default_col)
                     select_clause.append(f"{actual_col} AS {expected_col}")
+                    current_app.logger.info(f"Mapping {expected_col} to {actual_col}")
+                
+                # Add loan-specific fields
+                loan_fields = ['LoanAppID', 'LoanNo', 'LoanAmount', 'DaysInArrears', 'OutstandingBalance', 'InstallmentAmount']
+                for field in loan_fields:
+                    if field in loans_columns:
+                        select_clause.append(f"{loans_columns[field]} AS {field}")
+                        current_app.logger.info(f"Adding loan field {field} -> {loans_columns[field]}")
                 
                 select_sql = ", ".join(select_clause)
                 
                 # Add search condition if provided
                 where_clause = ""
                 if search:
-                    # Assuming there are FirstName and LastName columns
-                    first_name_col = loans_columns.get('FirstName', 'first_name')
-                    last_name_col = loans_columns.get('LastName', 'last_name')
-                    where_clause = f"WHERE {first_name_col} LIKE '%{search}%' OR {last_name_col} LIKE '%{search}%'"
+                    search_conditions = []
+                    search_fields = ['FirstName', 'LastName', 'NationalID', 'PhoneNumber', 'Email']
+                    for field in search_fields:
+                        if field in loans_columns:
+                            search_conditions.append(f"{loans_columns[field]} LIKE '%{search}%'")
+                    if search_conditions:
+                        where_clause = "WHERE " + " OR ".join(search_conditions)
                 
                 # Build the complete query with limit for pagination
                 offset = (page - 1) * per_page
                 query = f"SELECT {select_sql} FROM {loans_table} {where_clause} LIMIT {per_page} OFFSET {offset}"
                 
+                # Log the final query
+                current_app.logger.info(f"Final SQL query: {query}")
+                
                 # Execute the query
                 cursor.execute(query)
                 loans_data = cursor.fetchall()
                 
+                # Log the fetched data
+                current_app.logger.info(f"Fetched loan data: {loans_data}")
+                
                 # Process loans data to group by customer
                 customer_loans = {}
                 for loan in loans_data:
-                    # Create a unique customer ID (using MemberID or similar)
-                    customer_id = loan.get('MemberID', loan.get('BorrowerID'))
-                    if not customer_id:
-                        continue
+                    # Log raw loan data for debugging
+                    current_app.logger.info(f"Processing loan row: {loan}")
+                    
+                    # Get customer ID from loan data
+                    customer_id = str(loan.get('CustomerID', loan.get('MemberNo', '')))
                     
                     # Create customer name from FirstName and LastName
                     first_name = loan.get('FirstName', '')
@@ -4945,21 +5183,35 @@ def search_customers():
                     
                     # Add customer if not already in the dictionary
                     if customer_id not in customer_loans:
-                        customer_loans[customer_id] = {
+                        # Create customer data dictionary with all fields
+                        customer_data = {
                             'id': customer_id,
                             'text': customer_name,
+                            'NationalID': str(loan.get('NationalID', '')),
+                            'DateOfBirth': str(loan.get('DateOfBirth', '')),
+                            'Gender': str(loan.get('Gender', '')),
+                            'PhoneNumber': str(loan.get('PhoneNumber', '')),
+                            'Email': str(loan.get('Email', '')),
                             'loans': []
                         }
+                        
+                        # Log customer data for debugging
+                        current_app.logger.info(f"Adding new customer: {customer_data}")
+                        
+                        customer_loans[customer_id] = customer_data
                     
                     # Add loan to customer's loans
                     loan_data = {
-                        'LoanAppID': loan.get('LoanAppID'),
-                        'LoanNo': loan.get('LoanNo', ''),
-                        'LoanAmount': float(loan.get('LoanAmount', 0)),
-                        'DaysInArrears': int(loan.get('DaysInArrears', 0)),
-                        'OutstandingBalance': float(loan.get('OutstandingBalance', 0)),
-                        'InstallmentAmount': float(loan.get('InstallmentAmount', 0))
+                        'LoanAppID': str(loan.get('LoanAppID', '')),
+                        'LoanNo': str(loan.get('LoanNo', '')),
+                        'LoanAmount': float(loan.get('LoanAmount', 0) or 0),
+                        'DaysInArrears': int(loan.get('DaysInArrears', 0) or 0),
+                        'OutstandingBalance': float(loan.get('OutstandingBalance', 0) or 0),
+                        'InstallmentAmount': float(loan.get('InstallmentAmount', 0) or 0)
                     }
+                    
+                    # Log loan data for debugging
+                    current_app.logger.info(f"Adding loan to customer {customer_id}: {loan_data}")
                     customer_loans[customer_id]['loans'].append(loan_data)
                 
                 # Now get guarantors for these loans
@@ -5049,6 +5301,9 @@ def search_customers():
         if search:
             customers = [c for c in customers if search.lower() in c['text'].lower()]
         
+        # Log the customer data before formatting response
+        current_app.logger.info(f"Raw customer data before response: {customers}")
+        
         # Format response for Select2
         response = {
             "items": customers,
@@ -5057,6 +5312,7 @@ def search_customers():
         
         # Log the response for debugging
         current_app.logger.info(f"Customer search response: {len(customers)} customers found")
+        current_app.logger.info(f"Final response data: {response}")
         
         return jsonify(response)
     except Exception as e:

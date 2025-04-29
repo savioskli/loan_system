@@ -90,13 +90,38 @@ def create_app():
     app.config.from_object('config.Config')
 
     # Configure Flask logger
-    app.logger.setLevel(logging.DEBUG)
-    if not app.logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
-        handler.setFormatter(formatter)
-        app.logger.addHandler(handler)
+    log_level = getattr(logging, app.config.get('LOG_LEVEL', 'DEBUG'))
+    app.logger.setLevel(log_level)
+    
+    # Clear existing handlers
+    app.logger.handlers = []
+    
+    # Add console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+    console_handler.setFormatter(console_formatter)
+    app.logger.addHandler(console_handler)
+    
+    # Add file handler
+    log_file = app.config.get('LOG_FILE', 'logs/loan_system.log')
+    log_dir = os.path.dirname(log_file)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+        
+    from logging.handlers import RotatingFileHandler
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=app.config.get('LOG_MAX_BYTES', 10485760),
+        backupCount=app.config.get('LOG_BACKUP_COUNT', 10)
+    )
+    file_handler.setLevel(log_level)
+    file_formatter = logging.Formatter(app.config.get('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    file_handler.setFormatter(file_formatter)
+    app.logger.addHandler(file_handler)
+    
+    # Log that logging has been configured
+    app.logger.info('Logging configured - writing to console and %s', log_file)
 
     # APScheduler settings
     app.config['SCHEDULER_API_ENABLED'] = True

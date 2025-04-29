@@ -45,3 +45,10 @@ class Config:
     
     # Encryption
     ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY') or 'u8BtMHHQNtisWw1uqKPHu6jCRzk_20csT0zhvXCBJrg='  # Default key if not set in env
+    
+    # Logging
+    LOG_LEVEL = 'DEBUG'
+    LOG_FILE = 'logs/loan_system.log'
+    LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    LOG_MAX_BYTES = 10485760  # 10MB
+    LOG_BACKUP_COUNT = 10

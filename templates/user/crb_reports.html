@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+{% block styles %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
     {% include 'user/post_disbursement_sidebar.html' %}
     
@@ -94,20 +99,89 @@
     <!-- Generate Report Modal -->
     <div id="generate-modal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4 text-center">
-            <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+            <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
                 <div>
                     <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">Generate CRB Report</h3>
                     <div class="mt-2">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Enter the National ID number to generate a CRB report.</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Select a customer to generate their CRB report.</p>
                     </div>
-                    <div class="mt-4">
-                        <label for="national-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">National ID</label>
-                        <input type="text" name="national-id" id="national-id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600" placeholder="Enter National ID">
-                    </div>
-                </div>
-                <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="button" onclick="generateReport()" class="inline-flex w-full justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:col-start-2 sm:text-sm">Generate</button>
-                    <button type="button" onclick="closeGenerateModal()" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white dark:bg-gray-700 px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm">Cancel</button>
+                    <form id="generate-report-form" class="mt-4 space-y-6" method="POST" action="/user/crb-reports/generate">
+                        <!-- CSRF Token -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- Customer Selection Section -->
+                        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg space-y-4">
+                            <h4 class="text-md font-semibold text-gray-900 dark:text-gray-100">Customer Information</h4>
+                            
+                            <!-- Customer Select -->
+                            <div>
+                                <label for="customer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label>
+                                <select id="customer" name="customer" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600" required>
+                                    <option value="">Select a customer</option>
+                                </select>
+                            </div>
+
+                            <!-- Customer Details (populated when customer is selected) -->
+                            <div id="customer-details" class="hidden space-y-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+                                        <p id="customer-name" class="mt-1 text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">National ID</label>
+                                        <p id="customer-id" class="mt-1 text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Phone</label>
+                                        <p id="customer-phone" class="mt-1 text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+                                        <p id="customer-email" class="mt-1 text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Consent Checkbox -->
+                        <div class="flex items-center">
+                            <input id="consent" name="consent" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" required>
+                            <label for="consent" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
+                                I confirm that I have obtained the customer's consent to perform a credit check
+                            </label>
+                        </div>
+                            
+                        <!-- Credit Bureau Selection -->
+                        <div>
+                            <label for="bureau" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Credit Bureau</label>
+                            <select id="bureau" name="bureau" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600" required>
+                                <option value="">Select a credit bureau</option>
+                                {% for bureau in credit_bureaus %}
+                                <option value="{{ bureau.id }}">{{ bureau.name }} ({{ bureau.provider }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                            
+                        <!-- Report Type Selection -->
+                        <div>
+                            <label for="report_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Report Type</label>
+                            <select id="report_type" name="report_type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                <option value="full">Full Report</option>
+                                <option value="summary">Summary Report</option>
+                                <option value="score_only">Credit Score Only</option>
+                            </select>
+                        </div>
+
+                        <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                            <button type="button" onclick="closeGenerateModal()" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:mt-0 sm:col-start-1 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600">
+                                Cancel
+                            </button>
+                            <button type="submit" class="inline-flex w-full justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 sm:col-start-2 sm:text-sm">
+                                Generate Report
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -134,5 +208,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ url_for('static', filename='js/crb_reports.js') }}"></script>
 {% endblock %}

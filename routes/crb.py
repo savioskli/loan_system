@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required
 from models.crb_report import CRBReport
@@ -60,8 +62,31 @@ def get_crb_report(report_id):
 def list_crb_reports():
     """Get paginated list of CRB reports with stats"""
     try:
+        # Get active credit bureau for Metropol
+        from models.credit_bureau import CreditBureau
+        bureau = CreditBureau.query.filter_by(provider='metropol', is_active=True).first()
+        
+        # Log the bureau information
+        if bureau:
+            current_app.logger.info(f"Using active credit bureau: {bureau.name}")
+            current_app.logger.info(f"Bureau credentials: base_url={bureau.base_url}, api_key={bureau.api_key[:5]}...")
+        else:
+            current_app.logger.warning("No active Metropol credit bureau found. Using default configuration.")
+            
+        # Create logs directory if it doesn't exist
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            current_app.logger.info(f"Created logs directory: {log_dir}")
+        
+        # Write debug information to a specific debug log file
+        debug_log_file = os.path.join(log_dir, 'crb_debug.log')
+        with open(debug_log_file, 'a') as f:
+            f.write(f"=== {datetime.now()} - CRB Reports Listing ===\n")
+            f.write(f"Bureau: {bureau.name if bureau else 'None'}\n")
+        
         page = request.args.get('page', 1, type=int)
-        crb_service = CRBService()
+        crb_service = CRBService(bureau=bureau)
         pagination = crb_service.get_reports(page=page)
         
         reports = [{

@@ -53,7 +53,7 @@ from models.core_banking import CoreBankingSystem, CoreBankingEndpoint
 from forms.demand_letter_forms import DemandLetterForm
 from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
-from models.legal_case import LegalCase
+from models.legal_case import LegalCase, LegalCaseAttachment
 from models.auction import Auction
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
@@ -6404,23 +6404,47 @@ def create_legal_case():
         db.session.commit()
         
         # Handle file upload if present
-        if 'attachment' in request.files:
-            file = request.files['attachment']
-            if file and file.filename:
-                # Save file to uploads directory
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
+        attachment_file = request.files.get('attachment')
+        if attachment_file and attachment_file.filename:
+            try:
+                # Create a secure filename
+                filename = secure_filename(attachment_file.filename)
+                
+                # Create the uploads directory if it doesn't exist
+                uploads_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'legal_cases', str(new_case.id))
+                os.makedirs(uploads_dir, exist_ok=True)
+                
+                # Generate a unique filename with timestamp
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                unique_filename = f"{timestamp}_{filename}"
+                file_path = os.path.join(uploads_dir, unique_filename)
+                
+                # Save the file
+                attachment_file.save(file_path)
+                
+                # Get file size
+                file_size = os.path.getsize(file_path)
+                
+                # Get file type
+                file_type = attachment_file.content_type
                 
                 # Create attachment record
                 attachment = LegalCaseAttachment(
                     legal_case_id=new_case.id,
                     file_name=filename,
                     file_path=file_path,
-                    file_type=file.content_type
+                    file_type=file_type,
                 )
                 db.session.add(attachment)
                 db.session.commit()
+                
+            except Exception as e:
+                current_app.logger.error(f"Error saving attachment: {str(e)}")
+                db.session.rollback()
+                return jsonify({
+                    'error': 'Failed to save attachment',
+                    'details': str(e)
+                }), 500
         
         return jsonify({
             'message': 'Legal case created successfully', 
@@ -6433,8 +6457,12 @@ def create_legal_case():
     
     except Exception as e:
         current_app.logger.error(f"Error creating legal case: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         db.session.rollback()
-        return jsonify({'error': 'An error occurred while creating the legal case'}), 500
+        return jsonify({
+            'error': 'An error occurred while creating the legal case',
+            'details': str(e)
+        }), 500
 @user_bp.route('/legal-cases/<int:case_id>')
 @login_required
 def get_legal_case(case_id):

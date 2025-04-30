@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from extensions import db
+from models.staff import Staff
 
 class LegalCase(db.Model):
     __tablename__ = 'legal_cases'
@@ -44,6 +45,13 @@ class LegalCaseAttachment(db.Model):
     
     # Relationships
     legal_case = relationship("LegalCase", back_populates="attachments")
+
+    __table_args__ = (
+        db.UniqueConstraint('legal_case_id', 'file_name', name='uq_legal_case_file'),
+    )
+
+    def __repr__(self):
+        return f'<LegalCaseAttachment {self.id}: {self.file_name}>'
 
 class CaseHistory(db.Model):
     __tablename__ = 'case_history'

@@ -1157,15 +1157,17 @@ $('#customer_id').on('select2:select', function(e) {
 
 // When loan is selected, populate loan details
 $('#loan_id').on('select2:select', function(e) {
-    const loanId = e.params.data.id;
-    const loanAccountNo = e.params.data.text || '';
+    const loan = e.params.data;
+    const loanId = loan.id;
+    const loanAccountNo = loan.text || '';
     
-    console.log('Selected loan:', e.params.data);
+    console.log('Selected loan:', loan);
     
-    // Store loan account number in hidden field
+    // Update visible fields with loan details
+    $(this).val(loanId).trigger('change'); // Set the value and trigger change
     $('#loan_account_no').val(loanAccountNo);
     
-    // Check if we already have the loan data from the option
+    // Check if we already have the loan data
     const loanData = $(e.params.data.element).data('loan');
     if (loanData) {
         console.log('Using cached loan data:', loanData);
@@ -1345,8 +1347,11 @@ function formatFileSize(bytes) {
 document.getElementById('newCaseForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    // Collect form data
-    const formData = new FormData(this);
+    // Get the form element
+    const form = this;
+    
+    // Create FormData from the form
+    const formData = new FormData(form);
     
     // Log form data for debugging
     console.log('Submitting form data:');
@@ -1360,11 +1365,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             fetch('/user/create_legal_case', {
                 method: 'POST',
                 credentials: 'same-origin', // Include cookies for CSRF
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify(formData)
+                body: formData
             })
             .then(response => {
                 console.log('Full Response:', {

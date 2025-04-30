@@ -20,6 +20,11 @@ class LegalCase(db.Model):
     lawyer_contact = Column(String(100))
     description = Column(Text)
     next_hearing_date = Column(DateTime)
+    legal_officer_id = Column(Integer)
+    legal_officer_name = Column(String(100))
+    supervisor_id = Column(Integer)
+    supervisor_name = Column(String(100))
+    assigned_branch = Column(String(50))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

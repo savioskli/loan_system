@@ -6359,8 +6359,10 @@ def create_demand_letter():
 def create_legal_case():
     """Create a new legal case"""
     try:
-        # Get form data
-        data = request.get_json()
+        # Get form data from FormData
+        data = {}
+        for key, value in request.form.items():
+            data[key] = value
         
         # Validate required fields
         required_fields = ['loan_id', 'case_number', 'court_name', 'case_type', 
@@ -6389,12 +6391,36 @@ def create_legal_case():
             lawyer_name=data.get('lawyer_name', ''),
             lawyer_contact=data.get('lawyer_contact', ''),
             description=data.get('description', ''),
-            next_hearing_date=next_hearing_date
+            next_hearing_date=next_hearing_date,
+            legal_officer_id=data.get('legal_officer_id'),
+            legal_officer_name=data.get('legal_officer_name'),
+            supervisor_id=data.get('supervisor_id'),
+            supervisor_name=data.get('supervisor_name'),
+            assigned_branch=data.get('assigned_branch')
         )
         
         # Add and commit to database
         db.session.add(new_case)
         db.session.commit()
+        
+        # Handle file upload if present
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename:
+                # Save file to uploads directory
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+                
+                # Create attachment record
+                attachment = LegalCaseAttachment(
+                    legal_case_id=new_case.id,
+                    file_name=filename,
+                    file_path=file_path,
+                    file_type=file.content_type
+                )
+                db.session.add(attachment)
+                db.session.commit()
         
         return jsonify({
             'message': 'Legal case created successfully', 

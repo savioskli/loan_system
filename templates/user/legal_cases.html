@@ -758,9 +758,7 @@
             document.getElementById('newCaseModal').classList.remove('hidden');
         }
 
-        function closeNewCaseModal() {
-            document.getElementById('newCaseModal').classList.add('hidden');
-        }
+       
 
         // Filter functionality
         const statusFilter = document.getElementById('statusFilter');
@@ -1244,15 +1242,23 @@ function openNewCaseModal() {
         initializeSelect2Dropdowns();
     }, 100);
 }
-
-// Close modal function
 function closeNewCaseModal() {
     const modal = document.getElementById('newCaseModal');
-    modal.classList.add('hidden');
-    document.getElementById('newCaseForm').reset();
     
-    // Destroy Select2 instances to prevent positioning issues on next open
-    $('#customer_id, #loan_id, #legal_officer_id, #supervisor_id').select2('destroy');
+    // Hide modal
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    
+    // Cleanup Select2
+    ['#customer_id', '#loan_id', '#legal_officer_id', '#supervisor_id'].forEach(selector => {
+        const $element = $(selector);
+        if ($element.data('select2')) {
+            $element.select2('destroy');
+        }
+    });
+
+    // Reset form
+    document.getElementById('newCaseForm').reset();
 }
 
 // Handle file attachment with drag and drop

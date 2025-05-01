@@ -23,6 +23,7 @@ from models.product import Product
 from models.client_type import ClientType
 from models.guarantor import Guarantor
 from models.field_visit import FieldVisit, FieldVisitStatusHistory, FieldVisitAttachment
+from models.legal_case import LegalCase, LegalCaseAttachment, CaseHistory
 from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
@@ -6578,7 +6579,39 @@ def add_case_history():
     except Exception as e:
         current_app.logger.error(f"Error adding case history: {str(e)}")
         return jsonify({'error': 'Failed to add case history'}), 500
+        
+@user_bp.route('/legal-cases/<int:case_id>/delete', methods=['DELETE'])
+@login_required
+def delete_legal_case(case_id):
+    try:
+        # First check if the case exists
+        case = LegalCase.query.get(case_id)
+        if not case:
+            return jsonify({'error': 'Legal case not found'}), 404
 
+        # Delete attachments first
+        attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
+        for attachment in attachments:
+            db.session.delete(attachment)
+
+        # Delete case history
+        history_records = CaseHistory.query.filter_by(case_id=case_id).all()
+        for history in history_records:
+            db.session.delete(history)
+
+        # Delete the case
+        db.session.delete(case)
+        
+        # Commit the changes
+        db.session.commit()
+        
+        return jsonify({'message': 'Legal case deleted successfully'}), 200
+
+    except Exception as e:
+        # Rollback on error
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting legal case: {str(e)}")
+        return jsonify({'error': 'Failed to delete legal case'}), 500
 @user_bp.route('/auction/<int:auction_id>')
 @login_required
 def get_auction_details(auction_id):

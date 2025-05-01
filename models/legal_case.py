@@ -59,9 +59,10 @@ class CaseHistory(db.Model):
     id = Column(Integer, primary_key=True)
     case_id = Column(Integer, ForeignKey('legal_cases.id'), nullable=False)
     action = Column(String(255), nullable=False)
-    date = Column(DateTime, default=datetime.utcnow)
+    action_date = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer)
 
     # Relationships
     legal_case = relationship("LegalCase", back_populates="history")

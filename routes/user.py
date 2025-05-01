@@ -6517,33 +6517,74 @@ def get_legal_case(case_id):
         current_app.logger.error(f"Error in get_legal_case: {str(e)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
+from flask_wtf import FlaskForm
+from wtforms import StringField, DateTimeField, TextAreaField, SelectField
+
+class CaseHistoryForm(FlaskForm):
+    case_id = StringField('Case ID')
+    action = StringField('Action')
+    action_date = DateTimeField('Action Date')
+    notes = TextAreaField('Notes')
+    status = SelectField('Status', choices=[('Active', 'Active'), ('Pending', 'Pending'), ('Closed', 'Closed')])
+
 @user_bp.route('/add_case_history', methods=['POST'])
 @login_required
 def add_case_history():
     try:
-        # Validate CSRF token
-        csrf_token = request.headers.get('X-CSRFToken')
-        if not csrf_token or not csrf.validate_csrf(csrf_token):
-            return jsonify({'error': 'Invalid CSRF token'}), 400
-
-        case_id = request.form.get('case_id')
-        action = request.form.get('action')
-        action_date = request.form.get('action_date')
-        notes = request.form.get('notes')
+        # Log all form data
+        current_app.logger.debug(f"Form data received: {dict(request.form)}")
+        current_app.logger.debug(f"Files received: {request.files}")
         
-        if not all([case_id, action, action_date]):
-            return jsonify({'error': 'Missing required fields'}), 400
+        # Get form data from FormData
+        form_data = request.form
+        case_id = form_data.get('case_id')
+        action = form_data.get('action') or form_data.get('actionType')  # Use actionType if action is not present
+        action_date = form_data.get('actionDate')
+        notes = form_data.get('notes', '')
+        status = form_data.get('status')
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        # Log specific field values
+        current_app.logger.debug(f"case_id: {case_id} (type: {type(case_id)})")
+        current_app.logger.debug(f"action: {action}")
+        current_app.logger.debug(f"action_date: {action_date}")
+        current_app.logger.debug(f"status: {status}")
 
-        # Insert case history
-        cursor.execute('''
-            INSERT INTO case_history (case_id, action, action_date, notes, created_by)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (case_id, action, action_date, notes, current_user.id))
+        # Validate required fields
+        if not all([case_id, action, action_date, status]):
+            current_app.logger.debug("Validation failed: Missing required fields")
+            return jsonify({'error': 'All required fields must be filled'}), 400
+
+        try:
+            # Parse action date
+            action_date = datetime.strptime(action_date, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            current_app.logger.debug(f"Invalid date format: {action_date}")
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Create case history record
+        try:
+            case_history = CaseHistory(
+                case_id=int(case_id),  # Convert to int since it comes as string
+                action=action,
+                action_date=action_date,
+                notes=notes,
+                status=status,
+                created_by=current_user.id
+            )
+            current_app.logger.debug("Case history object created successfully")
+        except Exception as e:
+            current_app.logger.error(f"Error creating case history object: {str(e)}")
+            return jsonify({'error': f'Failed to create case history: {str(e)}'}), 400
         
-        case_history_id = cursor.lastrowid
+        # Add to database
+        try:
+            db.session.add(case_history)
+            db.session.commit()
+            current_app.logger.debug("Case history added to database successfully")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Database error: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
 
         # Handle file attachments
         if 'attachments' in request.files:
@@ -6554,25 +6595,20 @@ def add_case_history():
             for file in files:
                 if file and allowed_file(file.filename):
                     filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_dir, f"{case_history_id}_{filename}")
+                    file_path = os.path.join(upload_dir, f"{case_history.id}_{filename}")
                     file.save(file_path)
                     
-                    # Save file info to database
-                    cursor.execute('''
-                        INSERT INTO case_attachments 
-                        (case_history_id, file_name, file_path, file_type, file_size)
-                        VALUES (%s, %s, %s, %s, %s)
-                    ''', (
-                        case_history_id,
-                        filename,
-                        file_path,
-                        file.content_type,
-                        os.path.getsize(file_path)
-                    ))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
+                    # Create attachment record
+                    attachment = CaseAttachment(
+                        case_history_id=case_history.id,
+                        file_name=filename,
+                        file_path=file_path,
+                        file_type=file.content_type,
+                        file_size=os.path.getsize(file_path)
+                    )
+                    db.session.add(attachment)
+            
+            db.session.commit()
 
         return jsonify({'message': 'Case history added successfully'}), 200
 
@@ -8001,6 +8037,7 @@ Directly answer the user's question without saying 'I found X results'."""
 
 # Import the ChatMessage model
 from models.chat_message import ChatMessage
+from models.legal_case import CaseHistory, CaseAttachment
 
 # Chat history table creation
 def ensure_chat_tables_exist():

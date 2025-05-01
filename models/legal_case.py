@@ -61,8 +61,28 @@ class CaseHistory(db.Model):
     action = Column(String(255), nullable=False)
     action_date = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text)
+    status = Column(String(50), nullable=False)  # Active, Pending, Closed
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(Integer)
 
     # Relationships
     legal_case = relationship("LegalCase", back_populates="history")
+    attachments = relationship("CaseAttachment", back_populates="case_history")
+
+class CaseAttachment(db.Model):
+    __tablename__ = 'case_attachments'
+
+    id = Column(Integer, primary_key=True)
+    case_history_id = Column(Integer, ForeignKey('case_history.id'), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(255), nullable=False)
+    file_type = Column(String(50))
+    file_size = Column(Integer)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    case_history = relationship("CaseHistory", back_populates="attachments")
+
+    __table_args__ = (
+        db.UniqueConstraint('case_history_id', 'file_name', name='uq_case_history_file'),
+    )

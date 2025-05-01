@@ -640,6 +640,53 @@
                             </div>
                         </div>
 
+                        <!-- Court Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Court Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Court Name</label>
+                                    <p id="viewCourtName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case Type</label>
+                                    <p id="viewCaseType" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Case Attachments -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Attachments</h4>
+                            <div id="viewAttachments" class="space-y-3">
+                                <!-- Attachments will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Legal Team -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Legal Team</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Legal Officer</label>
+                                    <p id="viewLegalOfficer" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Supervisor</label>
+                                    <p id="viewSupervisor" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Branch Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Branch Information</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Assigned Branch</label>
+                                <p id="viewBranch" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                        </div>
+
                         <!-- Case Details -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                             <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Details</h4>
@@ -657,6 +704,32 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Case Timeline -->
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mt-8">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Timeline</h4>
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-calendar-plus text-green-500 text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Created</p>
+                                    <p id="viewCreatedAt" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-calendar-edit text-blue-500 text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Last Updated</p>
+                                    <p id="viewUpdatedAt" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Modal Footer -->
@@ -1556,6 +1629,47 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date) || 'N/A';
                     document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date) || 'Not Scheduled';
                     
+                    // Update court information
+                    document.getElementById('viewCourtName').textContent = data.court_name || 'N/A';
+                    document.getElementById('viewCaseType').textContent = data.case_type || 'N/A';
+                    
+                    // Update attachments
+                    const attachmentsContainer = document.getElementById('viewAttachments');
+                    attachmentsContainer.innerHTML = '';
+                    
+                    if (data.attachments && data.attachments.length > 0) {
+                        data.attachments.forEach(attachment => {
+                            const attachmentItem = document.createElement('div');
+                            attachmentItem.className = 'flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
+                            
+                            attachmentItem.innerHTML = `
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-paperclip text-gray-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${attachment.filename}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(attachment.upload_date)}</p>
+                                    <a href="/user/download_attachment/${attachment.id}" class="text-sm text-primary hover:underline">Download</a>
+                                </div>
+                            `;
+                            
+                            attachmentsContainer.appendChild(attachmentItem);
+                        });
+                    } else {
+                        attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No attachments available</p>';
+                    }
+                    
+                    // Update legal team
+                    document.getElementById('viewLegalOfficer').textContent = data.legal_officer_name || 'Not Assigned';
+                    document.getElementById('viewSupervisor').textContent = data.supervisor_name || 'Not Assigned';
+                    
+                    // Update branch information
+                    document.getElementById('viewBranch').textContent = data.branch_name || 'N/A';
+                    
+                    // Update case timeline
+                    document.getElementById('viewCreatedAt').textContent = formatDate(data.created_at);
+                    document.getElementById('viewUpdatedAt').textContent = formatDate(data.updated_at);
+                    
                     // Update parties involved
                     document.getElementById('viewPlaintiff').textContent = data.plaintiff || 'N/A';
                     document.getElementById('viewDefendant').textContent = data.defendant || 'N/A';
@@ -1582,7 +1696,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${item.action}</p>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.date)}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.action_date)}</p>
                                     ${item.notes ? `<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">${item.notes}</p>` : ''}
                                 </div>
                             `;

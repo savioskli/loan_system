@@ -1786,7 +1786,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
 
             fetch('/user/add_case_history', {
                 method: 'POST',
-                body: new URLSearchParams(formData)
+                body: formData
             })
             .then(response => {
                 if (!response.ok) {
@@ -1812,8 +1812,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             });
         }
 
-        // Add event listener to the form
-        document.getElementById('addHistoryForm').addEventListener('submit', submitCaseHistory);
+        // Remove this line since we already have the onsubmit handler in the form
 
         // Handle file selection
         document.getElementById('attachments').addEventListener('change', function(e) {

@@ -67,7 +67,7 @@ class CaseHistory(db.Model):
 
     # Relationships
     legal_case = relationship("LegalCase", back_populates="history")
-    attachments = relationship("CaseAttachment", back_populates="case_history")
+    history_attachments = relationship("CaseHistoryAttachment", back_populates="case_history")
 
 class CaseAttachment(db.Model):
     __tablename__ = 'case_attachments'
@@ -79,9 +79,6 @@ class CaseAttachment(db.Model):
     file_type = Column(String(50))
     file_size = Column(Integer)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    case_history = relationship("CaseHistory", back_populates="attachments")
 
     __table_args__ = (
         db.UniqueConstraint('case_history_id', 'file_name', name='uq_case_history_file'),

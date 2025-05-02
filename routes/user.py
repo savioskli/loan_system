@@ -8,6 +8,7 @@ from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session
+import uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -23,7 +24,7 @@ from models.product import Product
 from models.client_type import ClientType
 from models.guarantor import Guarantor
 from models.field_visit import FieldVisit, FieldVisitStatusHistory, FieldVisitAttachment
-from models.legal_case import LegalCase, LegalCaseAttachment, CaseHistory
+from models.legal_case import LegalCase, LegalCaseAttachment
 from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
@@ -6593,21 +6594,27 @@ def add_case_history():
             os.makedirs(upload_dir, exist_ok=True)
 
             for file in files:
-                if file and allowed_file(file.filename):
+                if file and file.filename:
+                    # Generate a unique UUID for the filename
+                    unique_id = str(uuid.uuid4())
                     filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_dir, f"{case_history.id}_{filename}")
+                    unique_filename = f"{unique_id}_{filename}"
+                    file_path = os.path.join(upload_dir, unique_filename)
+
+                    # Save the file first
                     file.save(file_path)
                     
-                    # Create attachment record
-                    attachment = CaseAttachment(
+                    # Create attachment record using ORM
+                    attachment = CaseHistoryAttachment(
                         case_history_id=case_history.id,
-                        file_name=filename,
+                        file_name=unique_filename,
                         file_path=file_path,
                         file_type=file.content_type,
                         file_size=os.path.getsize(file_path)
                     )
-                    db.session.add(attachment)
-            
+                    
+                    # Add to session
+                    db.session.add(attachment)      
             db.session.commit()
 
         return jsonify({'message': 'Case history added successfully'}), 200
@@ -6625,13 +6632,18 @@ def delete_legal_case(case_id):
         if not case:
             return jsonify({'error': 'Legal case not found'}), 404
 
-        # Delete attachments first
+        # Delete case history and its attachments
+        history_records = CaseHistory.query.filter_by(case_id=case_id).all()
+        for history in history_records:
+            # Delete attachments first
+            for attachment in history.history_attachments:
+                db.session.delete(attachment)
+            db.session.delete(history)
+
+        # Delete legal case attachments
         attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
         for attachment in attachments:
             db.session.delete(attachment)
-
-        # Delete case history
-        history_records = CaseHistory.query.filter_by(case_id=case_id).all()
         for history in history_records:
             db.session.delete(history)
 
@@ -8037,7 +8049,8 @@ Directly answer the user's question without saying 'I found X results'."""
 
 # Import the ChatMessage model
 from models.chat_message import ChatMessage
-from models.legal_case import CaseHistory, CaseAttachment
+from models.legal_case import CaseHistory
+from models.case_history_attachment import CaseHistoryAttachment
 
 # Chat history table creation
 def ensure_chat_tables_exist():

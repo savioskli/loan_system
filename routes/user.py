@@ -6492,6 +6492,38 @@ def get_legal_case_attachments(case_id):
         current_app.logger.error(f"Error fetching case attachments: {str(e)}")
         return jsonify({'error': 'Failed to fetch case attachments'}), 500
 
+@user_bp.route('/legal-cases/<int:case_id>/attachments/<int:attachment_id>/download')
+@login_required
+def download_legal_case_attachment(case_id, attachment_id):
+    try:
+        # Get the attachment
+        attachment = LegalCaseAttachment.query.get_or_404(attachment_id)
+        
+        # Verify that the attachment belongs to the specified case
+        if attachment.legal_case_id != case_id:
+            abort(404)
+            
+        # Check if file exists
+        if not os.path.exists(attachment.file_path):
+            return jsonify({
+                'success': False,
+                'message': 'Attachment file not found'
+            }), 404
+        
+        # Return the file for download
+        return send_file(
+            attachment.file_path,
+            as_attachment=True,
+            download_name=attachment.file_name,
+            mimetype=attachment.file_type or 'application/octet-stream'
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error downloading legal case attachment: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred while downloading the attachment'
+        }), 500
+
 @user_bp.route('/legal-cases/<int:case_id>')
 @login_required
 def get_legal_case(case_id):

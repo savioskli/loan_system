@@ -6562,8 +6562,71 @@ def get_legal_case(case_id):
         if case.get('next_hearing_date'):
             case['next_hearing_date'] = case['next_hearing_date'].isoformat()
 
-        # Add empty history array since we don't have the history table yet
-        case['history'] = []
+        # Get case history
+        history_query = """
+            SELECT 
+                ch.id,
+                ch.action,
+                ch.action_date,
+                ch.notes,
+                ch.status,
+                ch.created_at
+            FROM case_history ch
+            WHERE ch.case_id = %s
+            ORDER BY ch.created_at DESC
+        """
+        
+        cursor.execute(history_query, (case_id,))
+        history = cursor.fetchall()
+
+        # Format dates for history entries
+        for entry in history:
+            if entry.get('action_date'):
+                entry['action_date'] = entry['action_date'].isoformat()
+            if entry.get('created_at'):
+                entry['created_at'] = entry['created_at'].isoformat()
+
+        # Get attachments for each history entry
+        for entry in history:
+            attachments_query = """
+                SELECT 
+                    a.id,
+                    a.file_name,
+                    a.file_path,
+                    a.file_type,
+                    a.uploaded_at
+                FROM case_history_attachments a
+                WHERE a.case_history_id = %s
+                ORDER BY a.uploaded_at DESC
+            """
+            cursor.execute(attachments_query, (entry['id'],))
+            entry['attachments'] = cursor.fetchall()
+            
+            # Format dates for attachments
+            for attachment in entry.get('attachments', []):
+                if attachment.get('uploaded_at'):
+                    attachment['uploaded_at'] = attachment['uploaded_at'].isoformat()
+
+        # Get case attachments
+        case_attachments_query = """
+            SELECT 
+                a.id,
+                a.file_name,
+                a.file_path,
+                a.file_type,
+                a.uploaded_at
+            FROM legal_case_attachments a
+            WHERE a.legal_case_id = %s
+            ORDER BY a.uploaded_at DESC
+        """
+        
+        cursor.execute(case_attachments_query, (case_id,))
+        case['attachments'] = cursor.fetchall()
+        
+        # Format dates for case attachments
+        for attachment in case.get('attachments', []):
+            if attachment.get('uploaded_at'):
+                attachment['uploaded_at'] = attachment['uploaded_at'].isoformat()
 
         cursor.close()
         conn.close()

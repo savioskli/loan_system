@@ -1976,15 +1976,190 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             document.getElementById('attachments').dispatchEvent(event);
         }
     </script>
+    <!-- Case History Modal -->
+    <div id="viewHistoryModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:align-middle">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start sm:justify-between">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100" id="viewHistoryTitle">Case History</h3>
+                        </div>
+                        <div class="mt-3 sm:mt-0 sm:ml-4">
+                            <button type="button" class="inline-flex justify-center rounded-md border border-transparent bg-white text-sm font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:text-sm" onclick="closeViewHistoryModal()">
+                                <span class="sr-only">Close</span>
+                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="space-y-6">
+                            <!-- Case Information -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Case ID:</p>
+                                        <p id="caseId" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID:</p>
+                                        <p id="loanId" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff:</p>
+                                        <p id="plaintiff" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Defendant:</p>
+                                        <p id="defendant" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed:</p>
+                                        <p id="amountClaimed" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Filing Date:</p>
+                                        <p id="filingDate" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Next Hearing Date:</p>
+                                        <p id="nextHearingDate" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status:</p>
+                                        <p id="caseStatus" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Case History -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case History</h4>
+                                <div id="viewCaseHistory" class="space-y-3">
+                                    <!-- History items will be inserted here -->
+                                </div>
+                            </div>
+
+                            <!-- Case Attachments -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Attachments</h4>
+                                <div id="caseAttachments" class="space-y-3">
+                                    <!-- Attachments will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Case History Functions
-        function viewCaseHistory(caseId) {
-            Swal.fire({
-                title: 'View History',
-                text: 'This feature is not yet implemented.',
-                icon: 'info',
-                confirmButtonText: 'OK'
+        function closeViewHistoryModal() {
+            document.getElementById('viewHistoryModal').classList.add('hidden');
+            // Reset all content
+            document.getElementById('viewCaseHistory').innerHTML = '';
+            document.getElementById('caseAttachments').innerHTML = '';
+            // Reset all info fields
+            document.querySelectorAll('#viewHistoryModal p').forEach(p => {
+                if (p.id) {
+                    p.textContent = '-';
+                }
             });
+        }
+
+        function viewCaseHistory(caseId) {
+            fetch(`/user/legal-cases/${caseId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error! status: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update the title
+                    document.getElementById('viewHistoryTitle').textContent = `Case History - Case #${caseId}`;
+
+                    // Update case information
+                    document.getElementById('caseId').textContent = data.id;
+                    document.getElementById('loanId').textContent = data.loan_id;
+                    document.getElementById('plaintiff').textContent = data.plaintiff;
+                    document.getElementById('defendant').textContent = data.defendant;
+                    document.getElementById('amountClaimed').textContent = formatCurrency(data.amount_claimed);
+                    document.getElementById('filingDate').textContent = formatDate(data.filing_date);
+                    document.getElementById('nextHearingDate').textContent = formatDate(data.next_hearing_date);
+                    document.getElementById('caseStatus').textContent = data.status;
+
+                    // Update case history
+                    const historyContainer = document.getElementById('viewCaseHistory');
+                    historyContainer.innerHTML = '';
+
+                    if (data.history && data.history.length > 0) {
+                        data.history.forEach(entry => {
+                            const entryDiv = document.createElement('div');
+                            entryDiv.className = 'border rounded-lg p-4 mb-3';
+                            entryDiv.innerHTML = `
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-gray-100">${entry.action}</h5>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(entry.date)}</p>
+                                    </div>
+                                    <span class="px-3 py-1 text-sm font-medium rounded-full ${getStatusClass(entry.status)}">
+                                        ${entry.status}
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 dark:text-gray-300">${entry.notes || 'No notes provided'}</p>
+                            `;
+                            historyContainer.appendChild(entryDiv);
+                        });
+                    } else {
+                        historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No case history entries found.</p>';
+                    }
+
+                    // Update case attachments
+                    const attachmentsContainer = document.getElementById('caseAttachments');
+                    attachmentsContainer.innerHTML = '';
+
+                    if (data.attachments && data.attachments.length > 0) {
+                        data.attachments.forEach(attachment => {
+                            const attachmentDiv = document.createElement('div');
+                            attachmentDiv.className = 'border rounded-lg p-4 mb-3';
+                            attachmentDiv.innerHTML = `
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-gray-100">${attachment.file_name}</h5>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(attachment.uploaded_at)}</p>
+                                    </div>
+                                    <a href="/user/legal-cases/${caseId}/attachments/${attachment.id}/download" class="text-blue-600 hover:text-blue-800">
+                                        Download
+                                    </a>
+                                </div>
+                            `;
+                            attachmentsContainer.appendChild(attachmentDiv);
+                        });
+                    } else {
+                        attachmentsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No attachments found.</p>';
+                    }
+
+                    // Show the modal
+                    document.getElementById('viewHistoryModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error fetching case data:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to load case data. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
+                });
         }
 
         // Add Update Modal Functions

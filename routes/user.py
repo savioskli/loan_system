@@ -8,6 +8,7 @@ from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session
+import uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from models.module import Module, FormField
@@ -23,7 +24,7 @@ from models.product import Product
 from models.client_type import ClientType
 from models.guarantor import Guarantor
 from models.field_visit import FieldVisit, FieldVisitStatusHistory, FieldVisitAttachment
-from models.legal_case import LegalCase, LegalCaseAttachment, CaseHistory
+from models.legal_case import LegalCase, LegalCaseAttachment
 from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
@@ -6544,33 +6545,74 @@ def get_legal_case(case_id):
         current_app.logger.error(f"Error in get_legal_case: {str(e)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
+from flask_wtf import FlaskForm
+from wtforms import StringField, DateTimeField, TextAreaField, SelectField
+
+class CaseHistoryForm(FlaskForm):
+    case_id = StringField('Case ID')
+    action = StringField('Action')
+    action_date = DateTimeField('Action Date')
+    notes = TextAreaField('Notes')
+    status = SelectField('Status', choices=[('Active', 'Active'), ('Pending', 'Pending'), ('Closed', 'Closed')])
+
 @user_bp.route('/add_case_history', methods=['POST'])
 @login_required
 def add_case_history():
     try:
-        # Validate CSRF token
-        csrf_token = request.headers.get('X-CSRFToken')
-        if not csrf_token or not csrf.validate_csrf(csrf_token):
-            return jsonify({'error': 'Invalid CSRF token'}), 400
-
-        case_id = request.form.get('case_id')
-        action = request.form.get('action')
-        action_date = request.form.get('action_date')
-        notes = request.form.get('notes')
+        # Log all form data
+        current_app.logger.debug(f"Form data received: {dict(request.form)}")
+        current_app.logger.debug(f"Files received: {request.files}")
         
-        if not all([case_id, action, action_date]):
-            return jsonify({'error': 'Missing required fields'}), 400
+        # Get form data from FormData
+        form_data = request.form
+        case_id = form_data.get('case_id')
+        action = form_data.get('action') or form_data.get('actionType')  # Use actionType if action is not present
+        action_date = form_data.get('actionDate')
+        notes = form_data.get('notes', '')
+        status = form_data.get('status')
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        # Log specific field values
+        current_app.logger.debug(f"case_id: {case_id} (type: {type(case_id)})")
+        current_app.logger.debug(f"action: {action}")
+        current_app.logger.debug(f"action_date: {action_date}")
+        current_app.logger.debug(f"status: {status}")
 
-        # Insert case history
-        cursor.execute('''
-            INSERT INTO case_history (case_id, action, action_date, notes, created_by)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (case_id, action, action_date, notes, current_user.id))
+        # Validate required fields
+        if not all([case_id, action, action_date, status]):
+            current_app.logger.debug("Validation failed: Missing required fields")
+            return jsonify({'error': 'All required fields must be filled'}), 400
+
+        try:
+            # Parse action date
+            action_date = datetime.strptime(action_date, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            current_app.logger.debug(f"Invalid date format: {action_date}")
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Create case history record
+        try:
+            case_history = CaseHistory(
+                case_id=int(case_id),  # Convert to int since it comes as string
+                action=action,
+                action_date=action_date,
+                notes=notes,
+                status=status,
+                created_by=current_user.id
+            )
+            current_app.logger.debug("Case history object created successfully")
+        except Exception as e:
+            current_app.logger.error(f"Error creating case history object: {str(e)}")
+            return jsonify({'error': f'Failed to create case history: {str(e)}'}), 400
         
-        case_history_id = cursor.lastrowid
+        # Add to database
+        try:
+            db.session.add(case_history)
+            db.session.commit()
+            current_app.logger.debug("Case history added to database successfully")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Database error: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
 
         # Handle file attachments
         if 'attachments' in request.files:
@@ -6579,27 +6621,28 @@ def add_case_history():
             os.makedirs(upload_dir, exist_ok=True)
 
             for file in files:
-                if file and allowed_file(file.filename):
+                if file and file.filename:
+                    # Generate a unique UUID for the filename
+                    unique_id = str(uuid.uuid4())
                     filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_dir, f"{case_history_id}_{filename}")
+                    unique_filename = f"{unique_id}_{filename}"
+                    file_path = os.path.join(upload_dir, unique_filename)
+
+                    # Save the file first
                     file.save(file_path)
                     
-                    # Save file info to database
-                    cursor.execute('''
-                        INSERT INTO case_attachments 
-                        (case_history_id, file_name, file_path, file_type, file_size)
-                        VALUES (%s, %s, %s, %s, %s)
-                    ''', (
-                        case_history_id,
-                        filename,
-                        file_path,
-                        file.content_type,
-                        os.path.getsize(file_path)
-                    ))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
+                    # Create attachment record using ORM
+                    attachment = CaseHistoryAttachment(
+                        case_history_id=case_history.id,
+                        file_name=unique_filename,
+                        file_path=file_path,
+                        file_type=file.content_type,
+                        file_size=os.path.getsize(file_path)
+                    )
+                    
+                    # Add to session
+                    db.session.add(attachment)      
+            db.session.commit()
 
         return jsonify({'message': 'Case history added successfully'}), 200
 
@@ -6616,13 +6659,18 @@ def delete_legal_case(case_id):
         if not case:
             return jsonify({'error': 'Legal case not found'}), 404
 
-        # Delete attachments first
+        # Delete case history and its attachments
+        history_records = CaseHistory.query.filter_by(case_id=case_id).all()
+        for history in history_records:
+            # Delete attachments first
+            for attachment in history.history_attachments:
+                db.session.delete(attachment)
+            db.session.delete(history)
+
+        # Delete legal case attachments
         attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
         for attachment in attachments:
             db.session.delete(attachment)
-
-        # Delete case history
-        history_records = CaseHistory.query.filter_by(case_id=case_id).all()
         for history in history_records:
             db.session.delete(history)
 
@@ -8028,6 +8076,8 @@ Directly answer the user's question without saying 'I found X results'."""
 
 # Import the ChatMessage model
 from models.chat_message import ChatMessage
+from models.legal_case import CaseHistory
+from models.case_history_attachment import CaseHistoryAttachment
 
 # Chat history table creation
 def ensure_chat_tables_exist():

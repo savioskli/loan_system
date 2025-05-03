@@ -199,7 +199,7 @@
                                                     <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                                     </svg>
-                                                    Add History
+                                                    Add Update
                                                 </button>
                                                 <button onclick="confirmDeleteCase('{{ case.id }}')" 
                                                         class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
@@ -333,24 +333,6 @@
                                             <input type="text" id="court_name" name="court_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
                                         </div>
                                         <div>
-                                            <label for="filing_date" class="block text-sm font-medium text-gray-700">Filing Date</label>
-                                            <input type="date" id="filing_date" name="filing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                        </div>
-                                    </div>
-                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                            <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
-                                                <option value="">Select Status</option>
-                                                <option value="Active">Active</option>
-                                                <option value="On Hold">On Hold</option>
-                                                <option value="Resolved">Resolved</option>
-                                                <option value="Appealed">Appealed</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="next_hearing_date" class="block text-sm font-medium text-gray-700">Next Hearing Date</label>
-                                            <input type="date" id="next_hearing_date" name="next_hearing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
                                         </div>
                                     </div>
                                     <div class="mt-4">
@@ -474,7 +456,7 @@
         </div>
     </div>
 
-    <!-- Add History Modal -->
+    <!-- Add Update Modal -->
     <div id="addHistoryModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -485,7 +467,7 @@
                     <input type="hidden" id="case_id" name="case_id">
                     <div class="mb-4">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Add Case History</h3>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Add Case Update</h3>
                             <button type="button" onclick="closeAddHistoryModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
                                 <span class="sr-only">Close</span>
                                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -523,6 +505,17 @@
                                 placeholder="Enter detailed notes about the action..."></textarea>
                         </div>
 
+                        <!-- Status -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                            <select name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 px-4 py-2" required>
+                                <option value="">Select Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+
                         <!-- Attachments -->
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
@@ -546,8 +539,8 @@
                     </div>
 
                     <div class="bg-gray-100 dark:bg-gray-700 px-6 py-3 sm:flex sm:flex-row-reverse">
-                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm">
-                            Save History
+                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm">
+                            Save Update
                         </button>
                         <button type="button" onclick="closeAddHistoryModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500">
                             Cancel
@@ -644,6 +637,53 @@
                             </div>
                         </div>
 
+                        <!-- Court Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Court Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Court Name</label>
+                                    <p id="viewCourtName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Case Type</label>
+                                    <p id="viewCaseType" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Case Attachments -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Attachments</h4>
+                            <div id="viewAttachments" class="space-y-3">
+                                <!-- Attachments will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Legal Team -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Legal Team</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Legal Officer</label>
+                                    <p id="viewLegalOfficer" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Supervisor</label>
+                                    <p id="viewSupervisor" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Branch Information -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Branch Information</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Assigned Branch</label>
+                                <p id="viewBranch" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                            </div>
+                        </div>
+
                         <!-- Case Details -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                             <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Details</h4>
@@ -669,6 +709,32 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Case Timeline -->
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mt-8">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Timeline</h4>
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-calendar-plus text-green-500 text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Created</p>
+                                    <p id="viewCreatedAt" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-calendar-edit text-blue-500 text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Last Updated</p>
+                                    <p id="viewUpdatedAt" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Modal Footer -->
@@ -1684,7 +1750,101 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                         </div>
                     `;
                     
+<<<<<<< HEAD
                     historyContainer.appendChild(historyItem);
+                    
+                    // Format amount with currency
+                    document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
+                    
+                    // Format dates
+                    document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date) || 'N/A';
+                    document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date) || 'Not Scheduled';
+                    
+                    // Update court information
+                    document.getElementById('viewCourtName').textContent = data.court_name || 'N/A';
+                    document.getElementById('viewCaseType').textContent = data.case_type || 'N/A';
+                    
+                    // Update attachments
+                    const attachmentsContainer = document.getElementById('viewAttachments');
+                    attachmentsContainer.innerHTML = '';
+                    
+                    if (data.attachments && data.attachments.length > 0) {
+                        data.attachments.forEach(attachment => {
+                            const attachmentItem = document.createElement('div');
+                            attachmentItem.className = 'flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
+                            
+                            attachmentItem.innerHTML = `
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-paperclip text-gray-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${attachment.filename}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(attachment.upload_date)}</p>
+                                    <a href="/user/download_attachment/${attachment.id}" class="text-sm text-primary hover:underline">Download</a>
+                                </div>
+                            `;
+                            
+                            attachmentsContainer.appendChild(attachmentItem);
+                        });
+                    } else {
+                        attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No attachments available</p>';
+                    }
+                    
+                    // Update legal team
+                    document.getElementById('viewLegalOfficer').textContent = data.legal_officer_name || 'Not Assigned';
+                    document.getElementById('viewSupervisor').textContent = data.supervisor_name || 'Not Assigned';
+                    
+                    // Update branch information
+                    document.getElementById('viewBranch').textContent = data.branch_name || 'N/A';
+                    
+                    // Update case timeline
+                    document.getElementById('viewCreatedAt').textContent = formatDate(data.created_at);
+                    document.getElementById('viewUpdatedAt').textContent = formatDate(data.updated_at);
+                    
+                    // Update parties involved
+                    document.getElementById('viewPlaintiff').textContent = data.plaintiff || 'N/A';
+                    document.getElementById('viewDefendant').textContent = data.defendant || 'N/A';
+                    
+                    // Update legal representation
+                    document.getElementById('viewLawyerName').textContent = data.lawyer_name || 'Not Assigned';
+                    document.getElementById('viewLawyerContact').textContent = data.lawyer_contact || 'N/A';
+                    
+                    // Update description
+                    document.getElementById('viewDescription').textContent = data.description || 'No description available';
+                    
+                    // Update case history
+                    const historyContainer = document.getElementById('viewCaseHistory');
+                    historyContainer.innerHTML = '';
+                    
+                    if (data.history && data.history.length > 0) {
+                        data.history.forEach(item => {
+                            const historyItem = document.createElement('div');
+                            historyItem.className = 'flex items-start space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
+                            
+                            historyItem.innerHTML = `
+                                <div class="flex-shrink-0">
+                                    <div class="w-2 h-2 mt-2 rounded-full bg-primary"></div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${item.action}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.action_date)}</p>
+                                    ${item.notes ? `<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">${item.notes}</p>` : ''}
+                                </div>
+                            `;
+                            
+                            historyContainer.appendChild(historyItem);
+                        });
+                    } else {
+                        historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
+                    }
+                    
+                    // Show modal
+                    document.getElementById('viewDetailsModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error fetching case details:', error);
+                    showErrorToast('Error fetching case details');
+>>>>>>> 7e181d91bb8820685948215e3453b42f813dc600
                 });
             } else {
                 historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
@@ -1778,9 +1938,6 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
 
             fetch('/user/add_case_history', {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                },
                 body: formData
             })
             .then(response => {
@@ -1807,8 +1964,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             });
         }
 
-        // Add event listener to the form
-        document.getElementById('addHistoryForm').addEventListener('submit', submitCaseHistory);
+        // Remove this line since we already have the onsubmit handler in the form
 
         // Handle file selection
         document.getElementById('attachments').addEventListener('change', function(e) {

@@ -1977,6 +1977,69 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         }
     </script>
     <script>
+        // Case History Functions
+        function viewCaseHistory(caseId) {
+            Swal.fire({
+                title: 'View History',
+                text: 'This feature is not yet implemented.',
+                icon: 'info',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        // Add Update Modal Functions
+        function openAddHistoryModal(caseId) {
+            document.getElementById('case_id').value = caseId;
+            document.getElementById('addHistoryModal').classList.remove('hidden');
+        }
+
+        function closeAddHistoryModal() {
+            document.getElementById('addHistoryModal').classList.add('hidden');
+        }
+
+        function submitCaseHistory(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            fetch('/user/add_case_history', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Case history updated successfully',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        closeAddHistoryModal();
+                        // Refresh the case details view
+                        const caseId = form.querySelector('#case_id').value;
+                        viewCaseDetails(caseId);
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to update case history',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while updating the case history',
+                    confirmButtonText: 'OK'
+                });
+            });
+        }
+
         let currentStep = 1;
         const totalSteps = 5;
         

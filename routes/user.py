@@ -6464,6 +6464,33 @@ def create_legal_case():
             'error': 'An error occurred while creating the legal case',
             'details': str(e)
         }), 500
+@user_bp.route('/legal-cases/<int:case_id>/attachments')
+@login_required
+def get_legal_case_attachments(case_id):
+    try:
+        # Get all attachments for the case
+        attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
+        
+        # Convert attachments to dictionary format
+        attachment_list = []
+        for attachment in attachments:
+            attachment_dict = {
+                'id': attachment.id,
+                'filename': attachment.file_name,
+                'upload_date': attachment.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'file_type': attachment.file_type,
+                'file_path': attachment.file_path
+            }
+            attachment_list.append(attachment_dict)
+        
+        return jsonify({
+            'attachments': attachment_list,
+            'total_attachments': len(attachment_list)
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching case attachments: {str(e)}")
+        return jsonify({'error': 'Failed to fetch case attachments'}), 500
+
 @user_bp.route('/legal-cases/<int:case_id>')
 @login_required
 def get_legal_case(case_id):

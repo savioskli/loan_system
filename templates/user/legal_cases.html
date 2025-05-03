@@ -353,6 +353,10 @@
                                             <input type="date" id="next_hearing_date" name="next_hearing_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
                                         </div>
                                     </div>
+                                    <div class="mt-4">
+                                        <label for="description" class="block text-sm font-medium text-gray-700">Case Description</label>
+                                        <textarea id="description" name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" placeholder="Enter detailed case description..."></textarea>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -646,6 +650,14 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Description</label>
                                 <p id="viewDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap"></p>
+                            </div>
+                        </div>
+
+                        <!-- Case Attachments -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Attachments</h4>
+                            <div id="viewAttachments" class="space-y-3">
+                                <!-- Attachments will be inserted here -->
                             </div>
                         </div>
 
@@ -1248,6 +1260,85 @@ function updateLoanDetailsInForm(loan) {
     $('#amount_claimed').val(loan.outstanding_balance || 0); // Default amount claimed
 }
 
+// Function to fetch and display case attachments
+function fetchCaseAttachments(caseId) {
+    fetch(`/user/legal-cases/${caseId}/attachments`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const attachmentsContainer = document.getElementById('viewAttachments');
+            attachmentsContainer.innerHTML = '';
+            
+            if (data.attachments && data.attachments.length > 0) {
+                data.attachments.forEach(attachment => {
+                    const attachmentElement = document.createElement('div');
+                    attachmentElement.className = 'bg-gray-50 dark:bg-gray-700 rounded-md p-3';
+                    attachmentElement.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">${attachment.filename}</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    ${attachment.file_type} • Uploaded on ${attachment.upload_date}
+                                </p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <a href="${attachment.file_path}" target="_blank" class="text-primary hover:text-primary-dark">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </a>
+                                <button onclick="deleteAttachment(${caseId}, ${attachment.id})" class="text-red-500 hover:text-red-600">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    attachmentsContainer.appendChild(attachmentElement);
+                });
+            } else {
+                attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No attachments available</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching attachments:', error);
+            const attachmentsContainer = document.getElementById('viewAttachments');
+            attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">Error loading attachments</p>';
+        });
+}
+
+// Function to delete an attachment
+function deleteAttachment(caseId, attachmentId) {
+    if (confirm('Are you sure you want to delete this attachment? This action cannot be undone.')) {
+        fetch(`/user/legal-cases/${caseId}/attachments/${attachmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete attachment');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Refresh attachments list
+            fetchCaseAttachments(caseId);
+        })
+        .catch(error => {
+            console.error('Error deleting attachment:', error);
+            alert('Failed to delete attachment. Please try again.');
+        });
+    }
+}
+
 // Initialize Select2 when opening the modal
 function openNewCaseModal() {
     const modal = document.getElementById('newCaseModal');
@@ -1532,75 +1623,83 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         });
 
         function viewCaseDetails(caseId) {
-            fetch(`/user/legal-cases/${caseId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('HTTP error! status: ' + response.status);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Update case information
-                    document.getElementById('viewCaseId').textContent = `Case #${data.case_number || data.id}`;
-                    document.getElementById('viewLoanId').textContent = data.loan_id || 'N/A';
+    fetch(`/user/legal-cases/${caseId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error! status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update case information
+            document.getElementById('viewCaseId').textContent = `Case #${data.case_number || data.id}`;
+            document.getElementById('viewLoanId').textContent = data.loan_id || 'N/A';
+            
+            // Format status with badge
+            const statusElement = document.getElementById('viewStatus');
+            const statusClass = getStatusClass(data.status);
+            statusElement.innerHTML = `<span class="px-2 py-1 text-xs font-medium ${statusClass}">${data.status}</span>`;
+            
+            // Format amount with currency
+            document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
+            
+            // Format dates
+            document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date) || 'N/A';
+            document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date) || 'Not Scheduled';
+            
+            // Update parties involved
+            document.getElementById('viewPlaintiff').textContent = data.plaintiff || 'N/A';
+            document.getElementById('viewDefendant').textContent = data.defendant || 'N/A';
+            
+            // Update legal representation
+            document.getElementById('viewLawyerName').textContent = data.lawyer_name || 'Not Assigned';
+            document.getElementById('viewLawyerContact').textContent = data.lawyer_contact || 'N/A';
+            
+            // Update description
+            document.getElementById('viewDescription').textContent = data.description || 'No description available';
+            
+            // Show modal first
+            document.getElementById('viewDetailsModal').classList.remove('hidden');
+            
+            // Fetch and update case attachments
+            fetchCaseAttachments(caseId);
+            
+            // Update case history
+            const historyContainer = document.getElementById('viewCaseHistory');
+            historyContainer.innerHTML = '';
+            
+            if (data.history && data.history.length > 0) {
+                data.history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'flex items-start space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
                     
-                    // Format status with badge
-                    const statusElement = document.getElementById('viewStatus');
-                    const statusClass = getStatusClass(data.status);
-                    statusElement.innerHTML = `<span class="px-2 py-1 text-xs font-medium ${statusClass}">${data.status}</span>`;
+                    historyItem.innerHTML = `
+                        <div class="flex-shrink-0">
+                            <div class="w-2 h-2 mt-2 rounded-full bg-primary"></div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${item.action}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.date)}</p>
+                            ${item.notes ? `<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">${item.notes}</p>` : ''}
+                        </div>
+                    `;
                     
-                    // Format amount with currency
-                    document.getElementById('viewAmount').textContent = formatCurrency(data.amount_claimed);
-                    
-                    // Format dates
-                    document.getElementById('viewFilingDate').textContent = formatDate(data.filing_date) || 'N/A';
-                    document.getElementById('viewHearingDate').textContent = formatDate(data.next_hearing_date) || 'Not Scheduled';
-                    
-                    // Update parties involved
-                    document.getElementById('viewPlaintiff').textContent = data.plaintiff || 'N/A';
-                    document.getElementById('viewDefendant').textContent = data.defendant || 'N/A';
-                    
-                    // Update legal representation
-                    document.getElementById('viewLawyerName').textContent = data.lawyer_name || 'Not Assigned';
-                    document.getElementById('viewLawyerContact').textContent = data.lawyer_contact || 'N/A';
-                    
-                    // Update description
-                    document.getElementById('viewDescription').textContent = data.description || 'No description available';
-                    
-                    // Update case history
-                    const historyContainer = document.getElementById('viewCaseHistory');
-                    historyContainer.innerHTML = '';
-                    
-                    if (data.history && data.history.length > 0) {
-                        data.history.forEach(item => {
-                            const historyItem = document.createElement('div');
-                            historyItem.className = 'flex items-start space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg';
-                            
-                            historyItem.innerHTML = `
-                                <div class="flex-shrink-0">
-                                    <div class="w-2 h-2 mt-2 rounded-full bg-primary"></div>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${item.action}</p>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(item.date)}</p>
-                                    ${item.notes ? `<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">${item.notes}</p>` : ''}
-                                </div>
-                            `;
-                            
-                            historyContainer.appendChild(historyItem);
-                        });
-                    } else {
-                        historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
-                    }
-                    
-                    // Show modal
-                    document.getElementById('viewDetailsModal').classList.remove('hidden');
-                })
-                .catch(error => {
-                    console.error('Error fetching case details:', error);
-                    showErrorToast('Error fetching case details');
+                    historyContainer.appendChild(historyItem);
                 });
-        }
+            } else {
+                historyContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">No history available</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching case details:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load case details. Please try again.',
+                confirmButtonText: 'OK'
+            });
+        });
+}
 
         function getStatusClass(status) {
             const statusClasses = {

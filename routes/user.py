@@ -3807,37 +3807,223 @@ def legal_cases():
         active_cases = LegalCase.query.filter_by(status='Active').count()
         resolved_cases = LegalCase.query.filter_by(status='Closed').count()
         
-        # Calculate upcoming hearings (cases with hearing dates in the future)
-        from datetime import datetime
+        # Count upcoming hearings (next 30 days)
+        today = datetime.now().date()
+        thirty_days_later = today + timedelta(days=30)
         upcoming_hearings = LegalCase.query.filter(
-            LegalCase.next_hearing_date >= datetime.now(),
-            LegalCase.status != 'Closed'
+            LegalCase.next_hearing_date.between(today, thirty_days_later)
         ).count()
         
         # Calculate total amount in litigation
-        from sqlalchemy import func
-        total_amount = db.session.query(func.sum(LegalCase.amount_claimed))\
-            .filter(LegalCase.status != 'Closed')\
-            .scalar() or 0
+        active_cases_query = LegalCase.query.filter_by(status='Active').all()
+        amount_in_litigation = sum(case.amount_claimed for case in active_cases_query if case.amount_claimed)
         
-        # Format amount for display
-        if total_amount >= 1_000_000:
-            amount_display = f"KES {total_amount/1_000_000:.1f}M"
-        elif total_amount >= 1_000:
-            amount_display = f"KES {total_amount/1_000:.1f}K"
-        else:
-            amount_display = f"KES {total_amount:,.0f}"
-
-        return render_with_modules('user/legal_cases.html',
-                           legal_cases=legal_cases,
-                           active_cases=active_cases,
-                           resolved_cases=resolved_cases,
-                           upcoming_hearings=upcoming_hearings,
-                           amount_in_litigation=amount_display)
+        # Format amount with commas
+        amount_in_litigation = f"${amount_in_litigation:,.2f}"
+        
+        return render_with_modules('user/legal_cases.html', 
+                            legal_cases=legal_cases,
+                            active_cases=active_cases,
+                            resolved_cases=resolved_cases,
+                            upcoming_hearings=upcoming_hearings,
+                            amount_in_litigation=amount_in_litigation)
     except Exception as e:
-        current_app.logger.error(f"Error rendering legal cases page: {str(e)}")
-        flash('An error occurred while loading the legal cases page', 'error')
+        current_app.logger.error(f"Error loading legal cases: {str(e)}")
+        flash('An error occurred while loading legal cases. Please try again.', 'error')
         return redirect(url_for('user.dashboard'))
+
+@user_bp.route('/legal-cases/<int:case_id>/history')
+@login_required
+def get_case_history(case_id):
+    """Get case history data including plaintiff/defendant details, case history information, and attachments"""
+    try:
+        # Get the legal case
+        legal_case = LegalCase.query.get_or_404(case_id)
+        
+        # Get case history entries with their attachments
+        case_history = CaseHistory.query.filter_by(case_id=case_id).order_by(CaseHistory.action_date.desc()).all()
+        
+        # Get case attachments
+        case_attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
+        
+        # Prepare the response data
+        history_data = []
+        for entry in case_history:
+            # Get attachments for this history entry
+            attachments = []
+            for attachment in entry.history_attachments:
+                attachments.append({
+                    'id': attachment.id,
+                    'file_name': attachment.file_name,
+                    'file_type': attachment.file_type,
+                    'file_size': attachment.file_size,
+                    'uploaded_at': attachment.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if attachment.uploaded_at else None
+                })
+            
+            history_data.append({
+                'id': entry.id,
+                'action': entry.action,
+                'action_date': entry.action_date.strftime('%Y-%m-%d %H:%M:%S') if entry.action_date else None,
+                'notes': entry.notes,
+                'status': entry.status,
+                'created_at': entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if entry.created_at else None,
+                'created_by': entry.created_by,
+                'attachments': attachments
+            })
+        
+        # Prepare case attachments data
+        attachments_data = []
+        for attachment in case_attachments:
+            attachments_data.append({
+                'id': attachment.id,
+                'file_name': attachment.file_name,
+                'file_type': attachment.file_type,
+                'uploaded_at': attachment.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if attachment.uploaded_at else None
+            })
+        
+        # Prepare case data
+        case_data = {
+            'id': legal_case.id,
+            'loan_id': legal_case.loan_id,
+            'case_number': legal_case.case_number,
+            'court_name': legal_case.court_name,
+            'case_type': legal_case.case_type,
+            'filing_date': legal_case.filing_date.strftime('%Y-%m-%d') if legal_case.filing_date else None,
+            'status': legal_case.status,
+            'plaintiff': legal_case.plaintiff,
+            'defendant': legal_case.defendant,
+            'amount_claimed': legal_case.amount_claimed,
+            'lawyer_name': legal_case.lawyer_name,
+            'lawyer_contact': legal_case.lawyer_contact,
+            'description': legal_case.description,
+            'next_hearing_date': legal_case.next_hearing_date.strftime('%Y-%m-%d') if legal_case.next_hearing_date else None
+        }
+        
+        return jsonify({
+            'case': case_data,
+            'history': history_data,
+            'attachments': attachments_data
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error getting case history: {str(e)}")
+        return jsonify({'error': 'An error occurred while getting case history'}), 500
+
+@user_bp.route('/legal-cases/<int:case_id>/attachments/<int:attachment_id>/view')
+@login_required
+def view_case_attachment(case_id, attachment_id):
+    """View a case attachment"""
+    try:
+        # Get the attachment
+        attachment = LegalCaseAttachment.query.filter_by(id=attachment_id, legal_case_id=case_id).first_or_404()
+        
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('Attachment file not found.', 'error')
+            return redirect(url_for('user.legal_cases'))
+        
+        # Determine content type
+        content_type = attachment.file_type or 'application/octet-stream'
+        
+        # For images and PDFs, display them directly
+        if content_type.startswith('image/') or content_type == 'application/pdf':
+            return send_file(attachment.file_path, mimetype=content_type)
+        
+        # For other file types, force download
+        return send_file(attachment.file_path, 
+                         mimetype=content_type,
+                         as_attachment=True,
+                         download_name=attachment.file_name)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error viewing case attachment: {str(e)}")
+        flash('An error occurred while viewing the attachment.', 'error')
+        return redirect(url_for('user.legal_cases'))
+
+@user_bp.route('/legal-cases/<int:case_id>/attachments/<int:attachment_id>/download')
+@login_required
+def download_case_attachment(case_id, attachment_id):
+    """Download a case attachment"""
+    try:
+        # Get the attachment
+        attachment = LegalCaseAttachment.query.filter_by(id=attachment_id, legal_case_id=case_id).first_or_404()
+        
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('Attachment file not found.', 'error')
+            return redirect(url_for('user.legal_cases'))
+        
+        # Force download
+        return send_file(attachment.file_path, 
+                         mimetype=attachment.file_type or 'application/octet-stream',
+                         as_attachment=True,
+                         download_name=attachment.file_name)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error downloading case attachment: {str(e)}")
+        flash('An error occurred while downloading the attachment.', 'error')
+        return redirect(url_for('user.legal_cases'))
+
+@user_bp.route('/legal-cases/<int:case_id>/history/<int:history_id>/attachments/<int:attachment_id>/view')
+@login_required
+def view_case_history_attachment(case_id, history_id, attachment_id):
+    """View a case history attachment"""
+    try:
+        # Get the case history entry
+        history_entry = CaseHistory.query.filter_by(id=history_id, case_id=case_id).first_or_404()
+        
+        # Get the attachment
+        attachment = CaseHistoryAttachment.query.filter_by(id=attachment_id, case_history_id=history_id).first_or_404()
+        
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('Attachment file not found.', 'error')
+            return redirect(url_for('user.legal_cases'))
+        
+        # Determine content type
+        content_type = attachment.file_type or 'application/octet-stream'
+        
+        # For images and PDFs, display them directly
+        if content_type.startswith('image/') or content_type == 'application/pdf':
+            return send_file(attachment.file_path, mimetype=content_type)
+        
+        # For other file types, force download
+        return send_file(attachment.file_path, 
+                         mimetype=content_type,
+                         as_attachment=True,
+                         download_name=attachment.file_name)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error viewing case history attachment: {str(e)}")
+        flash('An error occurred while viewing the attachment.', 'error')
+        return redirect(url_for('user.legal_cases'))
+
+@user_bp.route('/legal-cases/<int:case_id>/history/<int:history_id>/attachments/<int:attachment_id>/download')
+@login_required
+def download_case_history_attachment(case_id, history_id, attachment_id):
+    """Download a case history attachment"""
+    try:
+        # Get the case history entry
+        history_entry = CaseHistory.query.filter_by(id=history_id, case_id=case_id).first_or_404()
+        
+        # Get the attachment
+        attachment = CaseHistoryAttachment.query.filter_by(id=attachment_id, case_history_id=history_id).first_or_404()
+        
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('Attachment file not found.', 'error')
+            return redirect(url_for('user.legal_cases'))
+        
+        # Force download
+        return send_file(attachment.file_path, 
+                         mimetype=attachment.file_type or 'application/octet-stream',
+                         as_attachment=True,
+                         download_name=attachment.file_name)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error downloading case history attachment: {str(e)}")
+        flash('An error occurred while downloading the attachment.', 'error')
+        return redirect(url_for('user.legal_cases'))
 
 @user_bp.route('/auction-process')
 @login_required

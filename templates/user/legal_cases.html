@@ -2068,7 +2068,7 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         }
 
         function viewCaseHistory(caseId) {
-            fetch(`/user/legal-cases/${caseId}`)
+            fetch(`/user/legal-cases/${caseId}/history`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('HTTP error! status: ' + response.status);
@@ -2080,14 +2080,14 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     document.getElementById('viewHistoryTitle').textContent = `Case History - Case #${caseId}`;
 
                     // Update case information
-                    document.getElementById('caseId').textContent = data.id;
-                    document.getElementById('loanId').textContent = data.loan_id;
-                    document.getElementById('plaintiff').textContent = data.plaintiff;
-                    document.getElementById('defendant').textContent = data.defendant;
-                    document.getElementById('amountClaimed').textContent = formatCurrency(data.amount_claimed);
-                    document.getElementById('filingDate').textContent = formatDate(data.filing_date);
-                    document.getElementById('nextHearingDate').textContent = formatDate(data.next_hearing_date);
-                    document.getElementById('caseStatus').textContent = data.status;
+                    document.getElementById('caseId').textContent = data.case.id;
+                    document.getElementById('loanId').textContent = data.case.loan_id;
+                    document.getElementById('plaintiff').textContent = data.case.plaintiff;
+                    document.getElementById('defendant').textContent = data.case.defendant;
+                    document.getElementById('amountClaimed').textContent = formatCurrency(data.case.amount_claimed);
+                    document.getElementById('filingDate').textContent = formatDate(data.case.filing_date);
+                    document.getElementById('nextHearingDate').textContent = formatDate(data.case.next_hearing_date);
+                    document.getElementById('caseStatus').textContent = data.case.status;
 
                     // Update case history
                     const historyContainer = document.getElementById('viewCaseHistory');
@@ -2097,45 +2097,154 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                         data.history.forEach(entry => {
                             const entryDiv = document.createElement('div');
                             entryDiv.className = 'border rounded-lg p-4 mb-3';
-                            entryDiv.innerHTML = `
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h5 class="font-medium text-gray-900 dark:text-gray-100">${entry.action}</h5>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(entry.date)}</p>
-                                    </div>
-                                    <span class="px-3 py-1 text-sm font-medium rounded-full ${getStatusClass(entry.status)}">
-                                        ${entry.status}
-                                    </span>
+                            
+                            // Create the header with action, date and status
+                            const headerDiv = document.createElement('div');
+                            headerDiv.className = 'flex justify-between items-start mb-2';
+                            headerDiv.innerHTML = `
+                                <div>
+                                    <h5 class="font-medium text-gray-900 dark:text-gray-100">${entry.action}</h5>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(entry.action_date)}</p>
                                 </div>
-                                <p class="text-gray-700 dark:text-gray-300">${entry.notes || 'No notes provided'}</p>
+                                <span class="px-3 py-1 text-sm font-medium rounded-full ${getStatusClass(entry.status)}">
+                                    ${entry.status}
+                                </span>
                             `;
+                            
+                            // Create the notes section
+                            const notesP = document.createElement('p');
+                            notesP.className = 'text-gray-700 dark:text-gray-300 mb-3';
+                            notesP.textContent = entry.notes || 'No notes provided';
+                            
+                            // Add attachments section if this history entry has attachments
+                            let attachmentsDiv = null;
+                            if (entry.attachments && entry.attachments.length > 0) {
+                                attachmentsDiv = document.createElement('div');
+                                attachmentsDiv.className = 'mt-3 pt-3 border-t border-gray-200 dark:border-gray-700';
+                                
+                                const attachmentTitle = document.createElement('h6');
+                                attachmentTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-2';
+                                attachmentTitle.textContent = 'Attachments:';
+                                attachmentsDiv.appendChild(attachmentTitle);
+                                
+                                const attachmentsList = document.createElement('div');
+                                attachmentsList.className = 'grid grid-cols-1 gap-2';
+                                
+                                entry.attachments.forEach(attachment => {
+                                    const attachmentItem = document.createElement('div');
+                                    attachmentItem.className = 'flex items-center justify-between bg-gray-50 dark:bg-gray-600 p-2 rounded';
+                                    
+                                    // File info section
+                                    const fileInfo = document.createElement('div');
+                                    fileInfo.className = 'flex items-center';
+                                    
+                                    // Determine icon based on file type
+                                    let fileIcon = 'fa-file';
+                                    if (attachment.file_type) {
+                                        if (attachment.file_type.includes('pdf')) {
+                                            fileIcon = 'fa-file-pdf';
+                                        } else if (attachment.file_type.includes('image')) {
+                                            fileIcon = 'fa-file-image';
+                                        } else if (attachment.file_type.includes('word') || attachment.file_type.includes('document')) {
+                                            fileIcon = 'fa-file-word';
+                                        } else if (attachment.file_type.includes('excel') || attachment.file_type.includes('spreadsheet')) {
+                                            fileIcon = 'fa-file-excel';
+                                        }
+                                    }
+                                    
+                                    fileInfo.innerHTML = `
+                                        <i class="fas ${fileIcon} text-gray-500 dark:text-gray-400 mr-2"></i>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${attachment.file_name}</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">${formatDate(attachment.uploaded_at)}</p>
+                                        </div>
+                                    `;
+                                    
+                                    // Action buttons
+                                    const actionButtons = document.createElement('div');
+                                    actionButtons.className = 'flex space-x-2';
+                                    actionButtons.innerHTML = `
+                                        <a href="/user/legal-cases/${caseId}/history/${entry.id}/attachments/${attachment.id}/view" target="_blank" 
+                                           class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <i class="fas fa-eye" title="View"></i>
+                                        </a>
+                                        <a href="/user/legal-cases/${caseId}/history/${entry.id}/attachments/${attachment.id}/download" 
+                                           class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
+                                            <i class="fas fa-download" title="Download"></i>
+                                        </a>
+                                    `;
+                                    
+                                    attachmentItem.appendChild(fileInfo);
+                                    attachmentItem.appendChild(actionButtons);
+                                    attachmentsList.appendChild(attachmentItem);
+                                });
+                                
+                                attachmentsDiv.appendChild(attachmentsList);
+                            }
+                            
+                            // Assemble the entry
+                            entryDiv.appendChild(headerDiv);
+                            entryDiv.appendChild(notesP);
+                            if (attachmentsDiv) {
+                                entryDiv.appendChild(attachmentsDiv);
+                            }
+                            
                             historyContainer.appendChild(entryDiv);
                         });
                     } else {
                         historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No case history entries found.</p>';
                     }
 
-                    // Update case attachments
+                    // Update case attachments - these are the main case attachments, not history attachments
                     const attachmentsContainer = document.getElementById('caseAttachments');
                     attachmentsContainer.innerHTML = '';
 
                     if (data.attachments && data.attachments.length > 0) {
+                        const attachmentsList = document.createElement('div');
+                        attachmentsList.className = 'grid grid-cols-1 gap-3';
+                        
                         data.attachments.forEach(attachment => {
-                            const attachmentDiv = document.createElement('div');
-                            attachmentDiv.className = 'border rounded-lg p-4 mb-3';
-                            attachmentDiv.innerHTML = `
-                                <div class="flex justify-between items-start">
+                            const attachmentItem = document.createElement('div');
+                            attachmentItem.className = 'flex items-center justify-between bg-gray-50 dark:bg-gray-600 p-3 rounded';
+                            
+                            // Determine icon based on file type
+                            let fileIcon = 'fa-file';
+                            if (attachment.file_type) {
+                                if (attachment.file_type.includes('pdf')) {
+                                    fileIcon = 'fa-file-pdf';
+                                } else if (attachment.file_type.includes('image')) {
+                                    fileIcon = 'fa-file-image';
+                                } else if (attachment.file_type.includes('word') || attachment.file_type.includes('document')) {
+                                    fileIcon = 'fa-file-word';
+                                } else if (attachment.file_type.includes('excel') || attachment.file_type.includes('spreadsheet')) {
+                                    fileIcon = 'fa-file-excel';
+                                }
+                            }
+                            
+                            attachmentItem.innerHTML = `
+                                <div class="flex items-center">
+                                    <i class="fas ${fileIcon} text-gray-500 dark:text-gray-400 mr-3"></i>
                                     <div>
-                                        <h5 class="font-medium text-gray-900 dark:text-gray-100">${attachment.file_name}</h5>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">${formatDate(attachment.uploaded_at)}</p>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${attachment.file_name}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">${formatDate(attachment.uploaded_at)}</p>
                                     </div>
-                                    <a href="/user/legal-cases/${caseId}/attachments/${attachment.id}/download" class="text-blue-600 hover:text-blue-800">
-                                        Download
+                                </div>
+                                <div class="flex space-x-3">
+                                    <a href="/user/legal-cases/${caseId}/attachments/${attachment.id}/view" target="_blank" 
+                                       class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                        <i class="fas fa-eye" title="View"></i>
+                                    </a>
+                                    <a href="/user/legal-cases/${caseId}/attachments/${attachment.id}/download" 
+                                       class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
+                                        <i class="fas fa-download" title="Download"></i>
                                     </a>
                                 </div>
                             `;
-                            attachmentsContainer.appendChild(attachmentDiv);
+                            
+                            attachmentsList.appendChild(attachmentItem);
                         });
+                        
+                        attachmentsContainer.appendChild(attachmentsList);
                     } else {
                         attachmentsContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No attachments found.</p>';
                     }
@@ -2144,11 +2253,11 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     document.getElementById('viewHistoryModal').classList.remove('hidden');
                 })
                 .catch(error => {
-                    console.error('Error fetching case data:', error);
+                    console.error('Error fetching case history data:', error);
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: 'Failed to load case data. Please try again.',
+                        text: 'Failed to load case history data. Please try again.',
                         confirmButtonText: 'OK'
                     });
                 });

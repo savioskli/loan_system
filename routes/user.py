@@ -1,6 +1,7 @@
 import requests
 import re
 import sqlparse
+import traceback
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from langchain.prompts import PromptTemplate
@@ -3832,19 +3833,52 @@ def legal_cases():
         flash('An error occurred while loading legal cases. Please try again.', 'error')
         return redirect(url_for('user.dashboard'))
 
+@user_bp.route('/legal-cases/debug')
+@login_required
+def debug_legal_cases():
+    """Debug route to list all legal cases"""
+    try:
+        # Get all legal cases
+        legal_cases = LegalCase.query.all()
+        
+        # Prepare response data
+        cases_data = []
+        for case in legal_cases:
+            cases_data.append({
+                'id': case.id,
+                'loan_id': case.loan_id,
+                'case_number': case.case_number,
+                'plaintiff': case.plaintiff,
+                'defendant': case.defendant,
+                'status': case.status
+            })
+        
+        return jsonify({
+            'count': len(cases_data),
+            'cases': cases_data
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error debugging legal cases: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'error': 'An error occurred while debugging legal cases'}), 500
+
 @user_bp.route('/legal-cases/<int:case_id>/history')
 @login_required
 def get_case_history(case_id):
     """Get case history data including plaintiff/defendant details, case history information, and attachments"""
     try:
-        # Get the legal case
+        # Get the legal case with detailed logging
+        current_app.logger.info(f"Fetching legal case with ID: {case_id}")
         legal_case = LegalCase.query.get_or_404(case_id)
+        current_app.logger.info(f"Found legal case: {legal_case.id}, plaintiff: {legal_case.plaintiff}, defendant: {legal_case.defendant}")
         
         # Get case history entries with their attachments
         case_history = CaseHistory.query.filter_by(case_id=case_id).order_by(CaseHistory.action_date.desc()).all()
+        current_app.logger.info(f"Found {len(case_history)} history entries for case {case_id}")
         
         # Get case attachments
         case_attachments = LegalCaseAttachment.query.filter_by(legal_case_id=case_id).all()
+        current_app.logger.info(f"Found {len(case_attachments)} attachments for case {case_id}")
         
         # Prepare the response data
         history_data = []
@@ -3881,7 +3915,7 @@ def get_case_history(case_id):
                 'uploaded_at': attachment.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if attachment.uploaded_at else None
             })
         
-        # Prepare case data
+        # Prepare case data with explicit handling of plaintiff and defendant
         case_data = {
             'id': legal_case.id,
             'loan_id': legal_case.loan_id,
@@ -3890,8 +3924,8 @@ def get_case_history(case_id):
             'case_type': legal_case.case_type,
             'filing_date': legal_case.filing_date.strftime('%Y-%m-%d') if legal_case.filing_date else None,
             'status': legal_case.status,
-            'plaintiff': legal_case.plaintiff,
-            'defendant': legal_case.defendant,
+            'plaintiff': legal_case.plaintiff or "No plaintiff specified",  # Ensure we have a value
+            'defendant': legal_case.defendant or "No defendant specified",  # Ensure we have a value
             'amount_claimed': legal_case.amount_claimed,
             'lawyer_name': legal_case.lawyer_name,
             'lawyer_contact': legal_case.lawyer_contact,
@@ -3899,14 +3933,19 @@ def get_case_history(case_id):
             'next_hearing_date': legal_case.next_hearing_date.strftime('%Y-%m-%d') if legal_case.next_hearing_date else None
         }
         
-        return jsonify({
+        # Log the response data for debugging
+        current_app.logger.info(f"Returning case data with plaintiff: {case_data['plaintiff']}, defendant: {case_data['defendant']}")
+        
+        response_data = {
             'case': case_data,
             'history': history_data,
             'attachments': attachments_data
-        })
+        }
+        
+        return jsonify(response_data)
     
     except Exception as e:
-        current_app.logger.error(f"Error getting case history: {str(e)}")
+        current_app.logger.error(f"Error getting case history: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'error': 'An error occurred while getting case history'}), 500
 
 @user_bp.route('/legal-cases/<int:case_id>/attachments/<int:attachment_id>/view')

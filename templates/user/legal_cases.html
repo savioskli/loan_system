@@ -2003,13 +2003,13 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                                         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID:</p>
                                         <p id="loanId" class="text-sm text-gray-900 dark:text-gray-100">-</p>
                                     </div>
-                                    <div>
+                                    <div class="border-l-4 border-blue-500 pl-2">
                                         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff:</p>
-                                        <p id="plaintiff" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                        <p id="plaintiff" class="text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-800 p-3 rounded-lg shadow-sm">-</p>
                                     </div>
-                                    <div>
+                                    <div class="border-l-4 border-red-500 pl-2">
                                         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Defendant:</p>
-                                        <p id="defendant" class="text-sm text-gray-900 dark:text-gray-100">-</p>
+                                        <p id="defendant" class="text-sm font-bold text-gray-900 dark:text-gray-100 bg-red-100 dark:bg-red-800 p-3 rounded-lg shadow-sm">-</p>
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed:</p>
@@ -2052,15 +2052,22 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
             document.getElementById('viewHistoryModal').classList.add('hidden');
             // Reset all content
             document.getElementById('viewCaseHistory').innerHTML = '';
-            // Reset all info fields
+            // Reset all info fields except plaintiff and defendant
             document.querySelectorAll('#viewHistoryModal p').forEach(p => {
-                if (p.id) {
+                if (p.id && p.id !== 'plaintiff' && p.id !== 'defendant') {
                     p.textContent = '-';
                 }
             });
+            
+            // Special handling for plaintiff and defendant
+            const plaintiffEl = document.getElementById('plaintiff');
+            const defendantEl = document.getElementById('defendant');
+            if (plaintiffEl) plaintiffEl.innerHTML = '-';
+            if (defendantEl) defendantEl.innerHTML = '-';
         }
 
         function viewCaseHistory(caseId) {
+            console.log('Fetching case history for case ID:', caseId);
             fetch(`/user/legal-cases/${caseId}/history`)
                 .then(response => {
                     if (!response.ok) {
@@ -2069,18 +2076,72 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     return response.json();
                 })
                 .then(data => {
+                    console.log('Received case history data:', data);
+                    
                     // Update the title
                     document.getElementById('viewHistoryTitle').textContent = `Case History - Case #${caseId}`;
 
                     // Update case information
-                    document.getElementById('caseId').textContent = data.case.id;
-                    document.getElementById('loanId').textContent = data.case.loan_id;
-                    document.getElementById('plaintiff').textContent = data.case.plaintiff;
-                    document.getElementById('defendant').textContent = data.case.defendant;
-                    document.getElementById('amountClaimed').textContent = formatCurrency(data.case.amount_claimed);
-                    document.getElementById('filingDate').textContent = formatDate(data.case.filing_date);
-                    document.getElementById('nextHearingDate').textContent = formatDate(data.case.next_hearing_date);
-                    document.getElementById('caseStatus').textContent = data.case.status;
+                    if (data.case) {
+                        // Force string values and handle null/undefined - define these at the top level
+                        const plaintiffValue = data.case.plaintiff ? String(data.case.plaintiff) : 'No plaintiff specified';
+                        const defendantValue = data.case.defendant ? String(data.case.defendant) : 'No defendant specified';
+                        
+                        // Debug output for plaintiff and defendant
+                        console.log('Plaintiff value:', plaintiffValue);
+                        console.log('Defendant value:', defendantValue);
+                        
+                        // Get the case information container
+                        const caseInfoContainer = document.querySelector('#viewHistoryModal .bg-gray-50.dark\\:bg-gray-700.rounded-lg.p-4');
+                        
+                        if (caseInfoContainer) {
+                            // Completely rebuild the case information section
+                            caseInfoContainer.innerHTML = `
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Case Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Case ID:</p>
+                                        <p id="caseId" class="text-sm text-gray-900 dark:text-gray-100">${data.case.id || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Loan ID:</p>
+                                        <p id="loanId" class="text-sm text-gray-900 dark:text-gray-100">${data.case.loan_id || '-'}</p>
+                                    </div>
+                                    <div class="border-l-4 border-blue-500 pl-2">
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Plaintiff:</p>
+                                        <p id="plaintiff" class="text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-800 p-3 rounded-lg shadow-sm">${plaintiffValue}</p>
+                                    </div>
+                                    <div class="border-l-4 border-red-500 pl-2">
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Defendant:</p>
+                                        <p id="defendant" class="text-sm font-bold text-gray-900 dark:text-gray-100 bg-red-100 dark:bg-red-800 p-3 rounded-lg shadow-sm">${defendantValue}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Amount Claimed:</p>
+                                        <p id="amountClaimed" class="text-sm text-gray-900 dark:text-gray-100">${data.case.amount_claimed ? formatCurrency(data.case.amount_claimed) : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Filing Date:</p>
+                                        <p id="filingDate" class="text-sm text-gray-900 dark:text-gray-100">${data.case.filing_date ? formatDate(data.case.filing_date) : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Next Hearing Date:</p>
+                                        <p id="nextHearingDate" class="text-sm text-gray-900 dark:text-gray-100">${data.case.next_hearing_date ? formatDate(data.case.next_hearing_date) : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status:</p>
+                                        <p id="caseStatus" class="text-sm text-gray-900 dark:text-gray-100">${data.case.status || '-'}</p>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            console.log('Case information section completely rebuilt with plaintiff:', plaintiffValue);
+                            console.log('Case information section completely rebuilt with defendant:', defendantValue);
+                        } else {
+                            console.error('Case information container not found');
+                        }
+                    } else {
+                        console.error('No case data received');
+                    }
 
                     // Update case history
                     const historyContainer = document.getElementById('viewCaseHistory');
@@ -2192,6 +2253,25 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
 
                     // Show the modal
                     document.getElementById('viewHistoryModal').classList.remove('hidden');
+                    
+                    // After showing the modal, directly check and update the elements
+                    setTimeout(() => {
+                        const plaintiffEl = document.getElementById('plaintiff');
+                        const defendantEl = document.getElementById('defendant');
+                        
+                        console.log('Direct DOM check - Plaintiff element:', plaintiffEl);
+                        console.log('Direct DOM check - Defendant element:', defendantEl);
+                        
+                        if (plaintiffEl && data.case && data.case.plaintiff) {
+                            plaintiffEl.innerHTML = '<strong>' + data.case.plaintiff + '</strong>';
+                            console.log('Directly set plaintiff to:', data.case.plaintiff);
+                        }
+                        
+                        if (defendantEl && data.case && data.case.defendant) {
+                            defendantEl.innerHTML = '<strong>' + data.case.defendant + '</strong>';
+                            console.log('Directly set defendant to:', data.case.defendant);
+                        }
+                    }, 100); // Small delay to ensure the modal is fully rendered
                 })
                 .catch(error => {
                     console.error('Error fetching case history data:', error);
@@ -2298,6 +2378,43 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         // Initialize the wizard when the modal opens
         document.addEventListener('DOMContentLoaded', () => {
             updateStepDisplay();
+            
+            // Verify plaintiff and defendant elements exist
+            const plaintiffEl = document.getElementById('plaintiff');
+            const defendantEl = document.getElementById('defendant');
+            
+            console.log('DOM Ready - Plaintiff element exists:', !!plaintiffEl);
+            console.log('DOM Ready - Defendant element exists:', !!defendantEl);
+            
+            // Add test data to the elements to verify they can be updated
+            if (plaintiffEl) {
+                plaintiffEl.setAttribute('data-test', 'Plaintiff element found');
+                console.log('Plaintiff element test attribute added');
+            }
+            
+            if (defendantEl) {
+                defendantEl.setAttribute('data-test', 'Defendant element found');
+                console.log('Defendant element test attribute added');
+            }
+            
+            // Add click handler to the modal to update plaintiff and defendant
+            const modal = document.getElementById('viewHistoryModal');
+            if (modal) {
+                modal.addEventListener('click', function() {
+                    const pEl = document.getElementById('plaintiff');
+                    const dEl = document.getElementById('defendant');
+                    
+                    if (pEl && pEl.textContent === '-') {
+                        pEl.innerHTML = '<strong>TEST PLAINTIFF</strong>';
+                        console.log('Plaintiff updated on modal click');
+                    }
+                    
+                    if (dEl && dEl.textContent === '-') {
+                        dEl.innerHTML = '<strong>TEST DEFENDANT</strong>';
+                        console.log('Defendant updated on modal click');
+                    }
+                });
+            }
         });
     </script>
 {% endblock %}

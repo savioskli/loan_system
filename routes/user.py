@@ -3819,8 +3819,8 @@ def legal_cases():
         active_cases_query = LegalCase.query.filter_by(status='Active').all()
         amount_in_litigation = sum(case.amount_claimed for case in active_cases_query if case.amount_claimed)
         
-        # Format amount with commas
-        amount_in_litigation = f"${amount_in_litigation:,.2f}"
+        # Format amount with commas using KES currency
+        amount_in_litigation = f"KES {amount_in_litigation:,.2f}"
         
         return render_with_modules('user/legal_cases.html', 
                             legal_cases=legal_cases,

@@ -77,11 +77,11 @@
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
-                            <i class="fas fa-dollar-sign text-red-600 text-3xl"></i>
+                            <span class="text-red-600 text-3xl font-bold">KSh</span>
                         </div>
                         <div class="ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Amount in Litigation</dt>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Amount in Litigation (KES)</dt>
                                 <dd class="flex items-baseline">
                                     <div class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ amount_in_litigation }}</div>
                                 </dd>
@@ -2067,7 +2067,6 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         }
 
         function viewCaseHistory(caseId) {
-            console.log('Fetching case history for case ID:', caseId);
             fetch(`/user/legal-cases/${caseId}/history`)
                 .then(response => {
                     if (!response.ok) {
@@ -2076,8 +2075,6 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Received case history data:', data);
-                    
                     // Update the title
                     document.getElementById('viewHistoryTitle').textContent = `Case History - Case #${caseId}`;
 
@@ -2086,10 +2083,6 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                         // Force string values and handle null/undefined - define these at the top level
                         const plaintiffValue = data.case.plaintiff ? String(data.case.plaintiff) : 'No plaintiff specified';
                         const defendantValue = data.case.defendant ? String(data.case.defendant) : 'No defendant specified';
-                        
-                        // Debug output for plaintiff and defendant
-                        console.log('Plaintiff value:', plaintiffValue);
-                        console.log('Defendant value:', defendantValue);
                         
                         // Get the case information container
                         const caseInfoContainer = document.querySelector('#viewHistoryModal .bg-gray-50.dark\\:bg-gray-700.rounded-lg.p-4');
@@ -2134,13 +2127,8 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                                 </div>
                             `;
                             
-                            console.log('Case information section completely rebuilt with plaintiff:', plaintiffValue);
-                            console.log('Case information section completely rebuilt with defendant:', defendantValue);
-                        } else {
-                            console.error('Case information container not found');
+                            // Case information section completely rebuilt
                         }
-                    } else {
-                        console.error('No case data received');
                     }
 
                     // Update case history
@@ -2254,27 +2242,9 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
                     // Show the modal
                     document.getElementById('viewHistoryModal').classList.remove('hidden');
                     
-                    // After showing the modal, directly check and update the elements
-                    setTimeout(() => {
-                        const plaintiffEl = document.getElementById('plaintiff');
-                        const defendantEl = document.getElementById('defendant');
-                        
-                        console.log('Direct DOM check - Plaintiff element:', plaintiffEl);
-                        console.log('Direct DOM check - Defendant element:', defendantEl);
-                        
-                        if (plaintiffEl && data.case && data.case.plaintiff) {
-                            plaintiffEl.innerHTML = '<strong>' + data.case.plaintiff + '</strong>';
-                            console.log('Directly set plaintiff to:', data.case.plaintiff);
-                        }
-                        
-                        if (defendantEl && data.case && data.case.defendant) {
-                            defendantEl.innerHTML = '<strong>' + data.case.defendant + '</strong>';
-                            console.log('Directly set defendant to:', data.case.defendant);
-                        }
-                    }, 100); // Small delay to ensure the modal is fully rendered
+
                 })
                 .catch(error => {
-                    console.error('Error fetching case history data:', error);
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
@@ -2378,43 +2348,6 @@ document.getElementById('newCaseForm').addEventListener('submit', function(e) {
         // Initialize the wizard when the modal opens
         document.addEventListener('DOMContentLoaded', () => {
             updateStepDisplay();
-            
-            // Verify plaintiff and defendant elements exist
-            const plaintiffEl = document.getElementById('plaintiff');
-            const defendantEl = document.getElementById('defendant');
-            
-            console.log('DOM Ready - Plaintiff element exists:', !!plaintiffEl);
-            console.log('DOM Ready - Defendant element exists:', !!defendantEl);
-            
-            // Add test data to the elements to verify they can be updated
-            if (plaintiffEl) {
-                plaintiffEl.setAttribute('data-test', 'Plaintiff element found');
-                console.log('Plaintiff element test attribute added');
-            }
-            
-            if (defendantEl) {
-                defendantEl.setAttribute('data-test', 'Defendant element found');
-                console.log('Defendant element test attribute added');
-            }
-            
-            // Add click handler to the modal to update plaintiff and defendant
-            const modal = document.getElementById('viewHistoryModal');
-            if (modal) {
-                modal.addEventListener('click', function() {
-                    const pEl = document.getElementById('plaintiff');
-                    const dEl = document.getElementById('defendant');
-                    
-                    if (pEl && pEl.textContent === '-') {
-                        pEl.innerHTML = '<strong>TEST PLAINTIFF</strong>';
-                        console.log('Plaintiff updated on modal click');
-                    }
-                    
-                    if (dEl && dEl.textContent === '-') {
-                        dEl.innerHTML = '<strong>TEST DEFENDANT</strong>';
-                        console.log('Defendant updated on modal click');
-                    }
-                });
-            }
         });
     </script>
 {% endblock %}

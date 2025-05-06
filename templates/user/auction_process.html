@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block styles %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
 {% block content %}
     {% include 'user/post_disbursement_sidebar.html' %}
     
@@ -177,109 +181,236 @@
         </div>
     </div>
 
-    <!-- New Auction Modal -->
+    <!-- New Auction Modal -->    
     <div id="newAuctionModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-            <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
-                <form id="newAuctionForm" class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create New Auction</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <!-- Modal Header -->
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
                         <div>
-                            <label for="loan_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Loan ID</label>
-                            <input type="text" id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                            <h3 class="text-lg font-medium text-gray-900">Register New Auction</h3>
+                            <p class="text-sm text-gray-500">Create a new auction for a property</p>
                         </div>
-                        <div>
-                            <label for="client_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Name</label>
-                            <input type="text" id="client_name" name="client_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="property_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Type</label>
-                            <select id="property_type" name="property_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                                <option value="">Select Property Type</option>
-                                <option value="Residential">Residential</option>
-                                <option value="Commercial">Commercial</option>
-                                <option value="Industrial">Industrial</option>
-                                <option value="Land">Land</option>
-                                <option value="Movable Property">Movable Property</option>
-                                <option value="Chattels">Chattels</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="property_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Description</label>
-                            <input type="text" id="property_description" name="property_description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="valuation_amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Valuation Amount</label>
-                            <input type="number" id="valuation_amount" name="valuation_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="reserve_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reserve Price</label>
-                            <input type="number" id="reserve_price" name="reserve_price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="auction_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Date</label>
-                            <input type="datetime-local" id="auction_date" name="auction_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="auction_venue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Venue</label>
-                            <input type="text" id="auction_venue" name="auction_venue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                        </div>
-                        <div>
-                            <label for="auctioneer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Name</label>
-                            <input type="text" id="auctioneer_name" name="auctioneer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
-                        </div>
-                        <div>
-                            <label for="auctioneer_contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auctioneer Contact</label>
-                            <input type="tel" id="auctioneer_contact" name="auctioneer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
-                        </div>
-                        <div>
-                            <label for="advertisement_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Date</label>
-                            <input type="date" id="advertisement_date" name="advertisement_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
-                        </div>
-                        <div>
-                            <label for="advertisement_medium" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Advertisement Medium</label>
-                            <input type="text" id="advertisement_medium" name="advertisement_medium" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
-                        </div>
+                        <button type="button" onclick="closeNewAuctionModal()" class="text-gray-400 hover:text-gray-500">
+                            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
-                    <div class="mt-4">
-                        <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                            <option value="">Select Status</option>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="mt-4">
-                        <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
-                        <textarea id="notes" name="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600"></textarea>
-                    </div>
-                    <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
-                        <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
-                            <div class="space-y-1 text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <div class="flex text-sm text-gray-600 dark:text-gray-400">
-                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
-                                        <span>Upload a file</span>
-                                        <input id="file-upload" name="file-upload" type="file" class="sr-only" multiple>
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="px-6 py-4">
+                    <form id="newAuctionForm" class="wizard-form">
+                        <div class="space-y-6">
+                            <!-- Wizard Steps Indicator -->
+                            <div class="wizard-steps flex mb-6">
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="1">1. Customer</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="2">2. Property</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="3">3. Auction & Docs</div>
+                                <div class="step flex-1 text-center py-2 border-b-2 border-gray-200 text-gray-400" data-step="4">4. Staff</div>
+                            </div>
+                            
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <!-- Hidden fields for raw values -->
+                            <input type="hidden" name="raw_outstanding_balance" id="raw_outstanding_balance">
+                            <input type="hidden" name="raw_days_in_arrears" id="raw_days_in_arrears">
+                            <input type="hidden" name="raw_installment_amount" id="raw_installment_amount">
+                            
+                            <!-- Step 1: Customer & Loan Info -->
+                            <div class="wizard-step" data-step="1">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Customer Information</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Customer</label>
+                                            <select id="customer_id" name="customer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Customer</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Loan Account</label>
+                                            <select id="loan_id" name="loan_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Loan</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Outstanding Balance</label>
+                                            <input type="text" id="outstanding_balance" name="outstanding_balance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Days in Arrears</label>
+                                            <input type="text" id="days_in_arrears" name="days_in_arrears" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Missed Payments</label>
+                                            <input type="text" id="missed_payments" name="missed_payments" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Installment Amount</label>
+                                            <input type="text" id="installment_amount" name="installment_amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" readonly>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF up to 10MB</p>
+                            </div>
+                            
+                            <!-- Step 2: Property Details -->
+                            <div class="wizard-step hidden" data-step="2">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Property Details</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="property_type" class="block text-sm font-medium text-gray-700">Property Type</label>
+                                            <select id="property_type" name="property_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Property Type</option>
+                                                <option value="Residential">Residential</option>
+                                                <option value="Commercial">Commercial</option>
+                                                <option value="Industrial">Industrial</option>
+                                                <option value="Land">Land</option>
+                                                <option value="Movable Property">Movable Property</option>
+                                                <option value="Chattels">Chattels</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="property_location" class="block text-sm font-medium text-gray-700">Property Location</label>
+                                            <input type="text" id="property_location" name="property_location" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label for="property_description" class="block text-sm font-medium text-gray-700">Property Description</label>
+                                        <textarea id="property_description" name="property_description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" placeholder="Enter detailed property description..." required></textarea>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="valuation_amount" class="block text-sm font-medium text-gray-700">Valuation Amount (KES)</label>
+                                            <input type="number" id="valuation_amount" name="valuation_amount" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                        <div>
+                                            <label for="reserve_price" class="block text-sm font-medium text-gray-700">Reserve Price (KES)</label>
+                                            <input type="number" id="reserve_price" name="reserve_price" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Step 3: Auction Details & Attachments -->
+                            <div class="wizard-step hidden" data-step="3">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Auction Details</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="auction_date" class="block text-sm font-medium text-gray-700">Auction Date</label>
+                                            <input type="datetime-local" id="auction_date" name="auction_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                        <div>
+                                            <label for="auction_venue" class="block text-sm font-medium text-gray-700">Auction Venue</label>
+                                            <input type="text" id="auction_venue" name="auction_venue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="auctioneer_name" class="block text-sm font-medium text-gray-700">Auctioneer Name</label>
+                                            <input type="text" id="auctioneer_name" name="auctioneer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
+                                        <div>
+                                            <label for="auctioneer_contact" class="block text-sm font-medium text-gray-700">Auctioneer Contact</label>
+                                            <input type="tel" id="auctioneer_contact" name="auctioneer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="advertisement_date" class="block text-sm font-medium text-gray-700">Advertisement Date</label>
+                                            <input type="date" id="advertisement_date" name="advertisement_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
+                                        <div>
+                                            <label for="advertisement_medium" class="block text-sm font-medium text-gray-700">Advertisement Medium</label>
+                                            <input type="text" id="advertisement_medium" name="advertisement_medium" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                            <option value="">Select Status</option>
+                                            <option value="Scheduled">Scheduled</option>
+                                            <option value="In Progress">In Progress</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                        <textarea id="notes" name="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" placeholder="Enter any additional notes..."></textarea>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
+                                        <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                            <div class="space-y-1 text-center">
+                                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                                <div class="flex text-sm text-gray-600">
+                                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                                        <span>Upload a file</span>
+                                                        <input id="file-upload" name="file-upload" type="file" class="sr-only" multiple>
+                                                    </label>
+                                                    <p class="pl-1">or drag and drop</p>
+                                                </div>
+                                                <p class="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Step 4: Staff Assignment -->
+                            <div class="wizard-step hidden" data-step="4">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="text-sm font-medium text-gray-900 mb-3">Staff Assignment</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Assigned Staff</label>
+                                            <select id="assigned_staff_id" name="assigned_staff_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3" required>
+                                                <option value="">Select Staff</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Supervisor</label>
+                                            <select id="supervisor_id" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3">
+                                                <option value="">Select Supervisor</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Navigation Buttons -->
+                            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                                <button type="button" id="cancelAuctionBtn" onclick="closeNewAuctionModal()" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    Cancel
+                                </button>
+                                <div id="navButtons" class="flex items-center space-x-3">
+                                    <button type="button" id="prevBtn" onclick="previousStep()" class="hidden inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Previous
+                                    </button>
+                                    <button type="button" id="nextBtn" onclick="nextStep()" class="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+                                        Next
+                                    </button>
+                                    <button type="submit" id="submitBtn" class="hidden inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+                                        Create Auction
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" onclick="closeNewAuctionModal()" class="rounded-md border border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Cancel</button>
-                        <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">Create Auction</button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -695,10 +826,18 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
         }
 
         function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-KE', {
-                style: 'currency',
-                currency: 'KES'
-            }).format(amount);
+            if (!amount) return 'KES 0.00';
+            
+            // Convert to number if it's a string
+            if (typeof amount === 'string') {
+                amount = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+            }
+            
+            // Format with commas and 2 decimal places using toLocaleString
+            return 'KES ' + amount.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
         </script>
 
@@ -816,6 +955,444 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
         function handleFiles(files) {
             // Handle file upload logic here
             console.log('Files:', files);
+        }
+    </script>
+    
+    <!-- Wizard Functionality -->
+    <script>
+        // Wizard variables
+        let currentStep = 1;
+        const totalSteps = 4;
+        
+        // Function to update loan details in the form
+        function updateLoanDetailsInForm(loan) {
+            // Ensure loan object has all required properties with fallbacks
+            const outstandingBalance = loan.outstanding_balance || loan.OutstandingBalance || loan.Balance || 0;
+            const daysInArrears = parseInt(loan.days_in_arrears || loan.DaysInArrears || 0);
+            const installmentAmount = loan.installment_amount || loan.InstallmentAmount || (outstandingBalance > 0 ? outstandingBalance / 12 : 0);
+            
+            // Format currency values
+            const formattedOutstandingBalance = formatCurrency(outstandingBalance);
+            const formattedInstallmentAmount = formatCurrency(installmentAmount);
+            
+            // Set raw values in hidden fields
+            $('#raw_outstanding_balance').val(outstandingBalance);
+            $('#raw_days_in_arrears').val(daysInArrears);
+            $('#raw_installment_amount').val(installmentAmount);
+            
+            // Set formatted values in visible fields
+            $('#outstanding_balance').val(formattedOutstandingBalance);
+            $('#days_in_arrears').val(daysInArrears);
+            
+            // Calculate missed payments based on days in arrears
+            const missedPayments = daysInArrears > 0 ? Math.ceil(daysInArrears / 30) : 0;
+            $('#missed_payments').val(missedPayments);
+            
+            // Set installment amount, using outstanding_balance as fallback if not available
+            if (loan.installment_amount || loan.InstallmentAmount) {
+                $('#installment_amount').val(formattedInstallmentAmount);
+            } else if (outstandingBalance > 0) {
+                // Use outstanding_balance as fallback per memory instructions
+                $('#installment_amount').val(formattedInstallmentAmount + ' (estimated)');
+            } else {
+                $('#installment_amount').val('KES 0.00');
+            }
+            
+            console.log('Updated loan details:', {
+                outstandingBalance: outstandingBalance,
+                daysInArrears: daysInArrears,
+                missedPayments: missedPayments,
+                installmentAmount: installmentAmount
+            });
+        }
+        
+        // Wizard navigation functions
+        function updateStepIndicator(step) {
+            document.querySelectorAll('.wizard-steps .step').forEach((el, index) => {
+                el.classList.toggle('border-primary', index < step);
+                el.classList.toggle('text-primary', index < step);
+            });
+        }
+        
+        function validateStep(step) {
+            const inputs = document.querySelectorAll(`.wizard-step[data-step="${step}"] [required]`);
+            let isValid = true;
+            
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    input.classList.add('border-red-500');
+                } else {
+                    input.classList.remove('border-red-500');
+                }
+            });
+            
+            return isValid;
+        }
+        
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    updateStepDisplay();
+                }
+            } else {
+                showToast('error', 'Please fill in all required fields');
+            }
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+            }
+        }
+        
+        function updateStepDisplay() {
+            // Hide all steps
+            document.querySelectorAll('.wizard-step').forEach(step => {
+                step.classList.add('hidden');
+            });
+            
+            // Show current step
+            document.querySelector(`.wizard-step[data-step="${currentStep}"]`).classList.remove('hidden');
+            
+            // Update step indicator
+            updateStepIndicator(currentStep);
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').classList.toggle('hidden', currentStep === 1);
+            document.getElementById('nextBtn').classList.toggle('hidden', currentStep === totalSteps);
+            document.getElementById('submitBtn').classList.toggle('hidden', currentStep !== totalSteps);
+        }
+        
+        // Initialize the wizard when the document is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize wizard display
+            updateStepDisplay();
+            
+            // Add event listeners for Select2 initialization
+            const openModalBtn = document.querySelector('button[onclick="openNewAuctionModal()"]');
+            if (openModalBtn) {
+                const originalOpenModal = openNewAuctionModal;
+                openNewAuctionModal = function() {
+                    originalOpenModal();
+                    // Initialize Select2 dropdowns after modal is opened
+                    if (typeof $ !== 'undefined') {
+                        initializeSelect2Dropdowns();
+                    }
+                };
+            }
+        });
+        
+        // Function to initialize Select2 dropdowns
+        function initializeSelect2Dropdowns() {
+            if (typeof $ === 'undefined' || typeof $.fn.select2 === 'undefined') {
+                console.warn('Select2 not available');
+                return;
+            }
+            
+            // Initialize customer dropdown
+            $('#customer_id').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#newAuctionModal'),
+                width: '100%',
+                placeholder: 'Search for a customer...',
+                allowClear: true,
+                ajax: {
+                    url: '/api/customers/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            q: params.term || '',
+                            page: params.page || 1,
+                            per_page: 10
+                        };
+                    },
+                    processResults: function(data) {
+                        console.log('Customer data received:', data);
+                        
+                        if (!data || !Array.isArray(data.items)) {
+                            console.error('Invalid customer data format:', data);
+                            return { results: [] };
+                        }
+                        
+                        return {
+                            results: data.items.map(item => ({
+                                id: item.id,
+                                text: item.text,
+                                loans: item.loans || []
+                            })),
+                            pagination: {
+                                more: data.has_more || false
+                            }
+                        };
+                    },
+                    cache: true
+                }
+            });
+            
+            // Initialize staff dropdowns
+            $('#assigned_staff_id, #supervisor_id').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#newAuctionModal'),
+                width: '100%',
+                placeholder: 'Search for staff...',
+                allowClear: true,
+                ajax: {
+                    url: '/api/collection-schedules/staff',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term || '',
+                            page: params.page || 1
+                        };
+                    },
+                    processResults: function(data) {
+                        if (!data || !Array.isArray(data)) {
+                            return { results: [] };
+                        }
+                        // Format the staff data for Select2
+                        const results = data.map(item => ({
+                            id: item.id,
+                            text: item.name || `${item.first_name} ${item.last_name}`,
+                            position: item.role || item.position,
+                            branch: item.branch
+                        }));
+                        return { results: results };
+                    },
+                    cache: true
+                }
+            });
+            
+            // When customer is selected, populate loans dropdown
+            $('#customer_id').on('select2:select', function(e) {
+                const customerId = e.params.data.id;
+                const customerName = e.params.data.text || '';
+                const customerLoans = e.params.data.loans || [];
+                
+                console.log('Selected customer:', e.params.data);
+                
+                // Clear loan dropdown and add placeholder
+                $('#loan_id').empty().append('<option value="">Select Loan</option>');
+                
+                // If customer has loans, populate them directly
+                if (customerLoans && customerLoans.length > 0) {
+                    console.log('Populating loans from customer data');
+                    $('#loan_id').prop('disabled', false);
+                    
+                    customerLoans.forEach(loan => {
+                        // Map the loan properties to a consistent format
+                        const loanId = loan.id || loan.LoanAppID;
+                        const loanNumber = loan.account_number || loan.LoanNo;
+                        const outstandingBalance = loan.outstanding_balance || loan.Balance;
+                        const daysInArrears = loan.days_in_arrears || loan.DaysInArrears || 0;
+                        
+                        console.log('Raw loan data:', loan);
+                        
+                        // Create a standardized loan object
+                        const standardizedLoan = {
+                            id: loanId,
+                            account_number: loanNumber,
+                            outstanding_balance: loan.OutstandingBalance || loan.outstanding_balance || loan.Balance,
+                            days_in_arrears: daysInArrears,
+                            installment_amount: loan.InstallmentAmount || loan.installment_amount
+                        };
+                        
+                        console.log('Standardized loan data:', standardizedLoan);
+                        
+                        // Create the option with the loan number as text
+                        const option = new Option(loanNumber, loanId, false, false);
+                        
+                        // Store the standardized loan data with the option
+                        $(option).data('loan', standardizedLoan);
+                        
+                        // Add the option to the dropdown
+                        $('#loan_id').append(option);
+                    });
+                    
+
+                    
+                    // Initialize Select2 for loan dropdown
+                    $('#loan_id').select2({
+                        theme: 'bootstrap-5',
+                        dropdownParent: $('#newAuctionModal'),
+                        width: '100%',
+                        placeholder: 'Select a loan...'
+                    });
+                    
+                    // Trigger the loan selection handler to populate loan details
+                    $('#loan_id').on('select2:select', function(e) {
+                        const loanId = e.params.data.id;
+                        const loanOption = $(this).find('option:selected');
+                        const loan = loanOption.data('loan');
+                        
+                        if (loan) {
+                            updateLoanDetailsInForm(loan);
+                        } else if (loanId) {
+                            // Fetch loan details if not already available
+                            $.ajax({
+                                url: '/api/loans/' + loanId,
+                                type: 'GET',
+                                dataType: 'json',
+                                success: function(data) {
+                                    if (data) {
+                                        updateLoanDetailsInForm(data);
+                                    } else {
+                                        showToast('error', 'No loan details found');
+                                    }
+                                },
+                                error: function(xhr, status, error) {
+                                    showToast('error', 'Failed to fetch loan details: ' + error);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // If no loans in customer data, try to fetch them from API
+                    console.log('Fetching loans from API for customer:', customerId);
+                    $.ajax({
+                        url: '/api/customers/' + customerId + '/loans',
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data && data.length > 0) {
+                                $('#loan_id').prop('disabled', false);
+                                
+                                // Add each loan as an option
+                                data.forEach(function(loan) {
+                                    console.log('API loan data:', loan);
+                                    
+                                    // Standardize the loan data format
+                                    const standardizedLoan = {
+                                        id: loan.id || loan.LoanAppID,
+                                        account_number: loan.loan_no || loan.account_number || loan.LoanNo,
+                                        outstanding_balance: loan.OutstandingBalance || loan.outstanding_balance || loan.Balance,
+                                        days_in_arrears: loan.days_in_arrears || loan.DaysInArrears || 0,
+                                        installment_amount: loan.InstallmentAmount || loan.installment_amount
+                                    };
+                                    
+                                    console.log('API standardized loan data:', standardizedLoan);
+                                    
+                                    // Create the option with the loan number as text
+                                    const option = new Option(standardizedLoan.account_number, standardizedLoan.id, false, false);
+                                    
+                                    // Store the standardized loan data with the option
+                                    $(option).data('loan', standardizedLoan);
+                                    
+                                    // Add the option to the dropdown
+                                    $('#loan_id').append(option);
+                                });
+                                
+                                // Initialize Select2 for loan dropdown
+                                $('#loan_id').select2({
+                                    theme: 'bootstrap-5',
+                                    dropdownParent: $('#newAuctionModal'),
+                                    width: '100%',
+                                    placeholder: 'Select a loan...'
+                                });
+                                
+                                // Trigger the loan selection handler to populate loan details
+                                $('#loan_id').on('select2:select', function(e) {
+                                    const loanId = e.params.data.id;
+                                    const loanOption = $(this).find('option:selected');
+                                    const loan = loanOption.data('loan');
+                                    
+                                    if (loan) {
+                                        updateLoanDetailsInForm(loan);
+                                    } else if (loanId) {
+                                        // Fetch loan details if not already available
+                                        $.ajax({
+                                            url: '/api/loans/' + loanId,
+                                            type: 'GET',
+                                            dataType: 'json',
+                                            success: function(data) {
+                                                if (data) {
+                                                    updateLoanDetailsInForm(data);
+                                                } else {
+                                                    showToast('error', 'No loan details found');
+                                                }
+                                            },
+                                            error: function(xhr, status, error) {
+                                                showToast('error', 'Failed to fetch loan details: ' + error);
+                                            }
+                                        });
+                                    }
+                                });
+                            } else {
+                                showToast('error', 'No loans found for this customer');
+                            }
+                        },
+                        error: function() {
+                            showToast('error', 'Failed to fetch loans');
+                        }
+                    });
+                }
+            });
+            
+            // When loan is selected, populate loan details
+            $('#loan_id').on('select2:select', function(e) {
+                const loan = e.params.data;
+                const loanId = loan.id;
+                const loanAccountNo = loan.text || '';
+                
+                console.log('Selected loan:', loan);
+                
+                // Update visible fields with loan details
+                $(this).val(loanId).trigger('change'); // Set the value and trigger change
+                
+                // Check if we already have the loan data
+                const loanData = $(e.params.data.element).data('loan');
+                if (loanData) {
+                    console.log('Using cached loan data:', loanData);
+                    // Check if the loan data has the required properties
+                    if (loanData.outstanding_balance || loanData.OutstandingBalance) {
+                        updateLoanDetailsInForm(loanData);
+                    } else {
+                        // If the loan data doesn't have the required properties, fetch it from the API
+                        console.log('Cached loan data missing required properties, fetching from API');
+                        $.ajax({
+                            url: `/api/loans/${loanId}`,
+                            type: 'GET',
+                            dataType: 'json',
+                            success: function(data) {
+                                console.log('Loan details received:', data);
+                                updateLoanDetailsInForm(data);
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error fetching loan details:', error);
+                                showToast('error', 'Failed to fetch loan details: ' + error);
+                            }
+                        });
+                    }
+                } else {
+                    // Otherwise fetch loan details via API
+                    console.log('Fetching loan details via API for loan:', loanId);
+                    $.ajax({
+                        url: `/api/loans/${loanId}`,
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(data) {
+                            console.log('Loan details received:', data);
+                            // Standardize the loan data format
+                            const standardizedData = {
+                                id: data.id || data.LoanAppID,
+                                account_number: data.account_number || data.LoanNo,
+                                outstanding_balance: data.outstanding_balance || data.OutstandingBalance,
+                                days_in_arrears: data.days_in_arrears || data.DaysInArrears || 0,
+                                installment_amount: data.installment_amount || data.InstallmentAmount
+                            };
+                            updateLoanDetailsInForm(standardizedData);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error fetching loan details:', error);
+                            showToast('error', 'Failed to fetch loan details: ' + error);
+                        }
+                    });
+                }
+            });
         }
     </script>
 {% endblock %}

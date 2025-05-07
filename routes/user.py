@@ -1,4 +1,5 @@
 import requests
+import os
 import re
 import sqlparse
 import traceback
@@ -57,10 +58,9 @@ from forms.demand_letter_forms import DemandLetterForm
 from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
 from models.legal_case import LegalCase, LegalCaseAttachment
-from models.auction import Auction, AuctionAttachment
+from models.auction import Auction, AuctionHistory, AuctionHistoryAttachment
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
-from models.loan import Loan
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
 from models import Client
 from functools import lru_cache
@@ -4104,11 +4104,10 @@ def auction_process():
 @user_bp.route('/create_auction', methods=['POST'])
 @login_required
 def create_auction():
-    """Create a new auction with attachments"""
+    """Create a new auction"""
     try:
-        # Get form data and files
-        data = request.form
-        files = request.files.getlist('files[]')
+        # Get form data
+        data = request.get_json()
         
         # Validate required fields
         required_fields = ['loan_id', 'property_description', 'valuation_amount', 
@@ -4123,14 +4122,14 @@ def create_auction():
         auction_date = datetime.strptime(data['auction_date'], '%Y-%m-%dT%H:%M')
         advertisement_date = datetime.strptime(data['advertisement_date'], '%Y-%m-%d') if data.get('advertisement_date') else None
         
-        # Create new auction using the account number directly
+        # Create new auction
         new_auction = Auction(
-            loan_id=data['loan_id'],  # Use the account number from the form
+            loan_id=data['loan_id'],
             client_name=data['client_name'],
             property_type=data['property_type'],
             property_description=data['property_description'],
-            valuation_amount=float(data['valuation_amount']),
-            reserve_price=float(data['reserve_price']),
+            valuation_amount=data['valuation_amount'],
+            reserve_price=data['reserve_price'],
             auction_date=auction_date,
             auction_venue=data['auction_venue'],
             status=data.get('status', 'Scheduled'),  # Default to Scheduled if not provided
@@ -4149,31 +4148,6 @@ def create_auction():
         db.session.add(new_auction)
         db.session.commit()
         
-        # Handle file attachments
-        if files:
-            import os
-            from werkzeug.utils import secure_filename
-            
-            # Create auction attachments directory if it doesn't exist
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'auction_attachments', str(new_auction.id))
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            for file in files:
-                if file:
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_dir, filename)
-                    file.save(file_path)
-                    
-                    # Create attachment record
-                    attachment = AuctionAttachment(
-                        auction_id=new_auction.id,
-                        file_name=filename,
-                        file_path=os.path.join('auction_attachments', str(new_auction.id), filename)
-                    )
-                    db.session.add(attachment)
-            
-            db.session.commit()
-        
         return jsonify({'message': 'Auction created successfully', 'id': new_auction.id})
     
     except Exception as e:
@@ -4181,27 +4155,108 @@ def create_auction():
         current_app.logger.error(f"Error creating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while creating the auction'}), 500
 
-@user_bp.route('/auction_attachments/<int:auction_id>/<path:filename>')
+@user_bp.route('/auction/<int:auction_id>/add_update', methods=['POST'])
 @login_required
-def get_auction_attachment(auction_id, filename):
-    """Serve auction attachment files"""
+def add_auction_update(auction_id):
+    auction = Auction.query.get_or_404(auction_id)
+    
+    # Get form data
+    action_type = request.form.get('action_type')
+    action_date_str = request.form.get('action_date')
+    notes = request.form.get('notes')
+    status = request.form.get('status')
+    
+    # Validate required fields
+    if not all([action_type, action_date_str, status]): # Notes can be optional
+        return jsonify({'error': 'Action Type, Action Date, and Status are required'}), 400
+
+    # Parse action_date
     try:
-        # Verify the auction exists and user has access
-        auction = Auction.query.get_or_404(auction_id)
+        # The HTML datetime-local input format is 'YYYY-MM-DDTHH:MM'
+        action_date = datetime.strptime(action_date_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Invalid date format for Action Date'}), 400
+
+    history_entry = None # Initialize to ensure it's in scope for finally block if needed
+
+    try:
+        history_entry = AuctionHistory(
+            auction_id=auction.id,
+            action_type=action_type,
+            action_date=action_date,
+            notes=notes, # Renamed from description
+            status=status,
+            # created_at is default now() in model
+        )
+        db.session.add(history_entry)
+        db.session.flush() # Flush to get history_entry.id for attachments
         
-        # Construct the file path
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'auction_attachments', str(auction_id), filename)
+        uploaded_files_info = []
+        files = request.files.getlist('attachments')
         
-        # Check if file exists
-        if not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
+        if files:
+            # Ensure base upload folder exists
+            base_upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+            auction_attachment_folder = os.path.join(base_upload_folder, 'auction_attachments', str(history_entry.id))
             
-        # Send the file
-        return send_file(file_path)
+            try:
+                os.makedirs(auction_attachment_folder, exist_ok=True)
+            except OSError as e:
+                current_app.logger.error(f"Error creating directory {auction_attachment_folder}: {e}")
+                db.session.rollback()
+                return jsonify({'error': 'Failed to create directory for attachments'}), 500
+
+            for file in files:
+                if file and file.filename:
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(auction_attachment_folder, filename)
+                    
+                    try:
+                        file.save(file_path)
+                        
+                        # Get file type (extension)
+                        file_type = filename.rsplit('.', 1)[1].lower() if '.' in filename else None
+                        
+                        attachment = AuctionHistoryAttachment(
+                            history_id=history_entry.id,
+                            file_name=filename,
+                            file_path=file_path, # Storing relative path from app root might be better for serving
+                                               # Or adjust based on how UPLOAD_FOLDER is configured and served.
+                                               # For now, using the full path as saved.
+                            file_type=file_type
+                        )
+                        db.session.add(attachment)
+                        uploaded_files_info.append({'name': filename, 'path': file_path})
+                    except Exception as e:
+                        current_app.logger.error(f"Error saving file {filename} for auction history {history_entry.id}: {e}")
+                        # Potentially delete already saved files for this entry if one fails? Or mark entry as partial?
+                        # For now, continue and let overall transaction rollback.
+                        raise # Re-raise to trigger overall rollback
+
+        db.session.commit()
+        current_app.logger.info(f"Auction update added for auction {auction_id} (History ID: {history_entry.id}) by user {current_user.id}")
+        return jsonify({
+            'message': 'Auction update added successfully', 
+            'history_id': history_entry.id,
+            'attachments_uploaded': uploaded_files_info
+        }), 201
         
     except Exception as e:
-        current_app.logger.error(f"Error serving auction attachment: {str(e)}")
-        return jsonify({'error': 'Error serving file'}), 500
+        db.session.rollback()
+        current_app.logger.error(f"Error adding auction update for auction {auction_id}: {e}")
+        # Clean up created directory if history_entry was flushed and ID obtained
+        if history_entry and history_entry.id:
+             auction_attachment_folder_to_clean = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'auction_attachments', str(history_entry.id))
+             if os.path.exists(auction_attachment_folder_to_clean):
+                try:
+                    # Be careful with rmtree, ensure it's the correct directory
+                    import shutil
+                    shutil.rmtree(auction_attachment_folder_to_clean)
+                    current_app.logger.info(f"Cleaned up attachment directory: {auction_attachment_folder_to_clean}")
+                except Exception as cleanup_error:
+                    current_app.logger.error(f"Error cleaning up attachment directory {auction_attachment_folder_to_clean}: {cleanup_error}")
+        return jsonify({'error': f'Failed to add auction update: {str(e)}'}), 500
+
 
 @user_bp.route('/api/field-visits/<int:visit_id>', methods=['GET'])
 @login_required
@@ -7078,10 +7133,6 @@ def get_auction_details(auction_id):
             'file_path': attachment.file_path
         } for attachment in auction.attachments]
         
-        # Get staff names from database
-        assigned_staff_name = auction.assigned_staff_name
-        supervisor_name = auction.supervisor_name
-        
         return jsonify({
             'id': auction.id,
             'loan_id': auction.loan_id,
@@ -7091,8 +7142,6 @@ def get_auction_details(auction_id):
             'valuation_amount': float(auction.valuation_amount),
             'reserve_price': float(auction.reserve_price),
             'auction_date': auction.auction_date.isoformat(),
-            'assigned_staff_name': assigned_staff_name,
-            'supervisor_name': supervisor_name,
             'auction_venue': auction.auction_venue,
             'auctioneer_name': auction.auctioneer_name,
             'auctioneer_contact': auction.auctioneer_contact,

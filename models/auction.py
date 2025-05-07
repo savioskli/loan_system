@@ -59,8 +59,10 @@ class AuctionHistory(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     auction_id = db.Column(db.Integer, db.ForeignKey('auction.id', ondelete='CASCADE'), nullable=False)
-    action = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    action = db.Column(db.String(100), nullable=False)  # This will be the new 'action_type'
+    action_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    notes = db.Column(db.Text, nullable=True) # Renamed from description, making it nullable as per typical notes fields
+    status = db.Column(db.String(50), nullable=False) # e.g., Pending, In Progress, Completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
 

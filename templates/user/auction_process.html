@@ -162,8 +162,8 @@
                                         </span>
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <button onclick="viewAuctionDetails({{ auction.id }})" class="text-primary hover:text-primary-dark mr-2">View Details</button>
-                                        <button onclick="openEditAuctionModal({{ auction.id }})" class="text-blue-600 hover:text-blue-900">Edit</button>
+                                        <button onclick="viewAuctionDetails('{{ auction.id }}')" class="text-primary hover:text-primary-dark mr-2">View Details</button>
+                                        <button onclick="openEditAuctionModal('{{ auction.id }}')" class="text-blue-600 hover:text-blue-900">Edit</button>
                                     </td>
                                 </tr>
                                 {% else %}
@@ -447,6 +447,14 @@
                                     <p id="viewLoanId" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
                                 </div>
                                 <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Client Name</label>
+                                    <p id="viewClientName" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Property Type</label>
+                                    <p id="viewPropertyType" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
                                     <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Property Description</label>
                                     <p id="viewPropertyDescription" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
                                 </div>
@@ -499,6 +507,21 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Advertisement Medium</label>
                                     <p id="viewAdvertisementMedium" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Staff Assignment -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Staff Assignment</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Assigned Staff</label>
+                                    <p id="viewAssignedStaff" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Supervisor</label>
+                                    <p id="viewSupervisor" class="mt-1 text-sm text-gray-900 dark:text-gray-100"></p>
                                 </div>
                             </div>
                         </div>
@@ -752,19 +775,22 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                         showToast('error', data.error);
                         return;
                     }
-
                     // Set auction details
-                    document.getElementById('viewAuctionId').textContent = `AUC-${String(data.id).padStart(4, '0')}`;
+                    document.getElementById('viewAuctionId').textContent = `Auction #${data.id}`;
                     document.getElementById('viewLoanId').textContent = data.loan_id;
+                    document.getElementById('viewClientName').textContent = data.client_name;
+                    document.getElementById('viewPropertyType').textContent = data.property_type;
                     document.getElementById('viewPropertyDescription').textContent = data.property_description;
                     document.getElementById('viewValuationAmount').textContent = formatCurrency(data.valuation_amount);
                     document.getElementById('viewReservePrice').textContent = formatCurrency(data.reserve_price);
-                    document.getElementById('viewAuctionDate').textContent = formatDate(data.auction_date);
+                    document.getElementById('viewAuctionDate').textContent = formatDateTime(data.auction_date);
                     document.getElementById('viewAuctionVenue').textContent = data.auction_venue;
                     document.getElementById('viewAuctioneerName').textContent = data.auctioneer_name || 'N/A';
                     document.getElementById('viewAuctioneerContact').textContent = data.auctioneer_contact || 'N/A';
                     document.getElementById('viewAdvertisementDate').textContent = data.advertisement_date ? formatDate(data.advertisement_date) : 'N/A';
                     document.getElementById('viewAdvertisementMedium').textContent = data.advertisement_medium || 'N/A';
+                    document.getElementById('viewAssignedStaff').textContent = data.assigned_staff_name || 'N/A';
+                    document.getElementById('viewSupervisor').textContent = data.supervisor_name || 'N/A';
                     document.getElementById('viewNotes').textContent = data.notes || 'No notes available';
 
                     // Set status with appropriate styling
@@ -841,7 +867,46 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 maximumFractionDigits: 2
             });
         }
-        </script>
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function formatDateTime(dateString) {
+        if (!dateString) return 'Not set';
+        const date = new Date(dateString);
+        return date.toLocaleString('en-KE', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function formatCurrency(amount) {
+        if (!amount) return 'KES 0.00';
+        
+        // Convert to number if it's a string
+        if (typeof amount === 'string') {
+            amount = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+        }
+        
+        // Format with commas and 2 decimal places using toLocaleString
+        return 'KES ' + amount.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    </script>
 
     <!-- Modal JavaScript -->
     <script>

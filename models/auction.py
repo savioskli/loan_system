@@ -20,6 +20,11 @@ class Auction(db.Model):
     advertisement_date = db.Column(db.DateTime)
     advertisement_medium = db.Column(db.String(100))
     notes = db.Column(db.Text)
+    # Staff assignment fields
+    assigned_staff_id = db.Column(db.Integer)
+    assigned_staff_name = db.Column(db.String(100))
+    supervisor_id = db.Column(db.Integer)
+    supervisor_name = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

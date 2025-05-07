@@ -57,7 +57,7 @@ from forms.demand_letter_forms import DemandLetterForm
 from forms.letter_template_forms import LetterTypeForm
 from models.letter_template import LetterType, DemandLetter
 from models.legal_case import LegalCase, LegalCaseAttachment
-from models.auction import Auction
+from models.auction import Auction, AuctionAttachment
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
@@ -4091,16 +4091,23 @@ def auction_process():
                              total_recovery=total_recovery)
     except Exception as e:
         current_app.logger.error(f"Error rendering auction process page: {str(e)}")
-        flash('An error occurred while loading the auction process page', 'error')
-        return redirect(url_for('user.dashboard'))
+        # Instead of redirecting, render the page with an error message
+        return render_with_modules('user/auction_process.html',
+                              auctions=[],
+                              pending_auctions=0,
+                              completed_auctions=0,
+                              properties_listed=0,
+                              total_recovery=0,
+                              error_message='An error occurred while loading the auction data')
 
 @user_bp.route('/create_auction', methods=['POST'])
 @login_required
 def create_auction():
-    """Create a new auction"""
+    """Create a new auction with attachments"""
     try:
-        # Get form data
-        data = request.get_json()
+        # Get form data and files
+        data = request.form
+        files = request.files.getlist('files[]')
         
         # Validate required fields
         required_fields = ['loan_id', 'property_description', 'valuation_amount', 
@@ -4121,20 +4128,50 @@ def create_auction():
             client_name=data['client_name'],
             property_type=data['property_type'],
             property_description=data['property_description'],
-            valuation_amount=data['valuation_amount'],
-            reserve_price=data['reserve_price'],
+            valuation_amount=float(data['valuation_amount']),
+            reserve_price=float(data['reserve_price']),
             auction_date=auction_date,
             auction_venue=data['auction_venue'],
-            status=data.get('status'),
+            status=data.get('status', 'Scheduled'),  # Default to Scheduled if not provided
             auctioneer_name=data.get('auctioneer_name'),
             auctioneer_contact=data.get('auctioneer_contact'),
             advertisement_date=advertisement_date,
             advertisement_medium=data.get('advertisement_medium'),
-            notes=data.get('notes')
+            notes=data.get('notes'),
+            # Add staff assignment data
+            assigned_staff_id=data.get('assigned_staff_id'),
+            assigned_staff_name=data.get('assigned_staff_name'),
+            supervisor_id=data.get('supervisor_id'),
+            supervisor_name=data.get('supervisor_name')
         )
         
         db.session.add(new_auction)
         db.session.commit()
+        
+        # Handle file attachments
+        if files:
+            import os
+            from werkzeug.utils import secure_filename
+            
+            # Create auction attachments directory if it doesn't exist
+            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'auction_attachments', str(new_auction.id))
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            for file in files:
+                if file:
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(upload_dir, filename)
+                    file.save(file_path)
+                    
+                    # Create attachment record
+                    attachment = AuctionAttachment(
+                        auction_id=new_auction.id,
+                        file_name=filename,
+                        file_path=os.path.join('auction_attachments', str(new_auction.id), filename)
+                    )
+                    db.session.add(attachment)
+            
+            db.session.commit()
         
         return jsonify({'message': 'Auction created successfully', 'id': new_auction.id})
     
@@ -4142,7 +4179,6 @@ def create_auction():
         db.session.rollback()
         current_app.logger.error(f"Error creating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while creating the auction'}), 500
-        return redirect(url_for('user.dashboard'))
 
 @user_bp.route('/api/field-visits/<int:visit_id>', methods=['GET'])
 @login_required

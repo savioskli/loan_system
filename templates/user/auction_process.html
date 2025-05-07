@@ -221,6 +221,11 @@
                             <input type="hidden" name="raw_days_in_arrears" id="raw_days_in_arrears">
                             <input type="hidden" name="raw_installment_amount" id="raw_installment_amount">
                             
+                            <!-- Hidden fields for names -->
+                            <input type="hidden" name="customer_name" id="customer_name">
+                            <input type="hidden" name="assigned_staff_name" id="assigned_staff_name">
+                            <input type="hidden" name="supervisor_name" id="supervisor_name">
+                            
                             <!-- Step 1: Customer & Loan Info -->
                             <div class="wizard-step" data-step="1">
                                 <div class="bg-gray-50 p-4 rounded-lg mb-4">
@@ -873,9 +878,16 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
             
             // Collect form data
             const formData = new FormData(this);
+            
+            // Log form data for debugging
+            console.log('Submitting auction form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+            
             const data = {
                 loan_id: formData.get('loan_id'),
-                client_name: formData.get('client_name'),
+                client_name: formData.get('customer_name'), // Use the hidden field with customer name
                 property_type: formData.get('property_type'),
                 property_description: formData.get('property_description'),
                 valuation_amount: parseFloat(formData.get('valuation_amount')),
@@ -886,23 +898,48 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 auctioneer_contact: formData.get('auctioneer_contact'),
                 advertisement_date: formData.get('advertisement_date'),
                 advertisement_medium: formData.get('advertisement_medium'),
-                notes: formData.get('notes')
+                notes: formData.get('notes'),
+                // Add staff assignment data
+                assigned_staff_id: formData.get('assigned_staff_id'),
+                assigned_staff_name: formData.get('assigned_staff_name'),
+                supervisor_id: formData.get('supervisor_id'),
+                supervisor_name: formData.get('supervisor_name'),
+                status: formData.get('status') || 'Scheduled' // Default to Scheduled if not provided
             };
+            
+            console.log('Processed auction data:', data);
 
+            // Create FormData and append all form fields
+            const formDataToSend = new FormData();
+            Object.keys(data).forEach(key => {
+                formDataToSend.append(key, data[key]);
+            });
+            
+            // Get files from the file input
+            const fileInput = document.getElementById('file-upload');
+            const files = fileInput.files;
+            for (let i = 0; i < files.length; i++) {
+                formDataToSend.append('files[]', files[i]);
+            }
+            
             // Send data to server
             fetch('/user/create_auction', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify(data)
+                body: formDataToSend
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
                 if (data.error) {
+                    console.error('Server error:', data.error);
                     showToast('error', data.error);
                 } else {
+                    console.log('Success response:', data);
                     showToast('success', 'Auction created successfully');
                     closeNewAuctionModal();
                     // Reload page to show new auction
@@ -910,7 +947,7 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Submission error:', error);
                 showToast('error', 'An error occurred while creating the auction');
             });
         });
@@ -953,8 +990,47 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
         }
 
         function handleFiles(files) {
-            // Handle file upload logic here
-            console.log('Files:', files);
+            const fileInput = document.getElementById('file-upload');
+            
+            // Create a new DataTransfer object
+            const dataTransfer = new DataTransfer();
+            
+            // Add existing files
+            for (let i = 0; i < fileInput.files.length; i++) {
+                dataTransfer.items.add(fileInput.files[i]);
+            }
+            
+            // Add new files
+            for (let i = 0; i < files.length; i++) {
+                dataTransfer.items.add(files[i]);
+            }
+            
+            // Update the file input
+            fileInput.files = dataTransfer.files;
+            
+            // Show selected files
+            const fileList = Array.from(fileInput.files)
+                .map(file => `<div class="text-sm text-gray-600">${file.name} (${formatFileSize(file.size)})</div>`)
+                .join('');
+            
+            const fileListContainer = document.createElement('div');
+            fileListContainer.className = 'mt-2';
+            fileListContainer.innerHTML = fileList;
+            
+            // Clear previous list and append new one
+            const previousList = dropZone.querySelector('.selected-files');
+            if (previousList) previousList.remove();
+            
+            fileListContainer.classList.add('selected-files');
+            dropZone.appendChild(fileListContainer);
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
     </script>
     
@@ -1167,6 +1243,32 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 }
             });
             
+            // Update hidden assigned_staff_name when selection changes
+            $('#assigned_staff_id').on('select2:select', function(e) {
+                const selectedText = e.params.data.text || '';
+                $('#assigned_staff_name').val(selectedText);
+                console.log('Assigned staff name set to:', selectedText);
+            });
+            
+            // Clear assigned_staff_name when staff is cleared
+            $('#assigned_staff_id').on('select2:clear', function() {
+                $('#assigned_staff_name').val('');
+                console.log('Assigned staff name cleared');
+            });
+            
+            // Update hidden supervisor_name when selection changes
+            $('#supervisor_id').on('select2:select', function(e) {
+                const selectedText = e.params.data.text || '';
+                $('#supervisor_name').val(selectedText);
+                console.log('Supervisor name set to:', selectedText);
+            });
+            
+            // Clear supervisor_name when supervisor is cleared
+            $('#supervisor_id').on('select2:clear', function() {
+                $('#supervisor_name').val('');
+                console.log('Supervisor name cleared');
+            });
+            
             // When customer is selected, populate loans dropdown
             $('#customer_id').on('select2:select', function(e) {
                 const customerId = e.params.data.id;
@@ -1174,6 +1276,9 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 const customerLoans = e.params.data.loans || [];
                 
                 console.log('Selected customer:', e.params.data);
+                
+                // Store customer name in hidden field
+                $('#customer_name').val(customerName);
                 
                 // Clear loan dropdown and add placeholder
                 $('#loan_id').empty().append('<option value="">Select Loan</option>');

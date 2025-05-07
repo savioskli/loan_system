@@ -789,6 +789,7 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                     document.getElementById('viewAuctioneerContact').textContent = data.auctioneer_contact || 'N/A';
                     document.getElementById('viewAdvertisementDate').textContent = data.advertisement_date ? formatDate(data.advertisement_date) : 'N/A';
                     document.getElementById('viewAdvertisementMedium').textContent = data.advertisement_medium || 'N/A';
+                    // Show staff names from database fields
                     document.getElementById('viewAssignedStaff').textContent = data.assigned_staff_name || 'N/A';
                     document.getElementById('viewSupervisor').textContent = data.supervisor_name || 'N/A';
                     document.getElementById('viewNotes').textContent = data.notes || 'No notes available';

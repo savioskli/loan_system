@@ -7056,6 +7056,10 @@ def get_auction_details(auction_id):
             'file_path': attachment.file_path
         } for attachment in auction.attachments]
         
+        # Get staff names from database
+        assigned_staff_name = auction.assigned_staff_name
+        supervisor_name = auction.supervisor_name
+        
         return jsonify({
             'id': auction.id,
             'loan_id': auction.loan_id,
@@ -7065,6 +7069,8 @@ def get_auction_details(auction_id):
             'valuation_amount': float(auction.valuation_amount),
             'reserve_price': float(auction.reserve_price),
             'auction_date': auction.auction_date.isoformat(),
+            'assigned_staff_name': assigned_staff_name,
+            'supervisor_name': supervisor_name,
             'auction_venue': auction.auction_venue,
             'auctioneer_name': auction.auctioneer_name,
             'auctioneer_contact': auction.auctioneer_contact,

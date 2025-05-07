@@ -4181,6 +4181,28 @@ def create_auction():
         current_app.logger.error(f"Error creating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while creating the auction'}), 500
 
+@user_bp.route('/auction_attachments/<int:auction_id>/<path:filename>')
+@login_required
+def get_auction_attachment(auction_id, filename):
+    """Serve auction attachment files"""
+    try:
+        # Verify the auction exists and user has access
+        auction = Auction.query.get_or_404(auction_id)
+        
+        # Construct the file path
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'auction_attachments', str(auction_id), filename)
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+            
+        # Send the file
+        return send_file(file_path)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error serving auction attachment: {str(e)}")
+        return jsonify({'error': 'Error serving file'}), 500
+
 @user_bp.route('/api/field-visits/<int:visit_id>', methods=['GET'])
 @login_required
 def get_field_visit(visit_id):

@@ -806,9 +806,14 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                             const attachmentElement = document.createElement('div');
                             attachmentElement.className = 'flex items-center space-x-2';
                             attachmentElement.innerHTML = `
-                                <a href="${attachment.file_path}" target="_blank" class="text-primary hover:text-primary-dark">
-                                    <i class="fas fa-file-alt mr-2"></i>${attachment.file_name}
-                                </a>
+                                <div class="flex items-center justify-between w-full">
+                                    <a href="/user/auction_attachments/${data.id}/${attachment.file_name}" target="_blank" class="text-primary hover:text-primary-dark flex items-center">
+                                        <i class="fas fa-file-alt mr-2"></i>${attachment.file_name}
+                                    </a>
+                                    <button onclick="window.open('/user/auction_attachments/${data.id}/${attachment.file_name}', '_blank')" class="ml-4 inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-primary hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-150">
+                                        <i class="fas fa-eye mr-1"></i> View
+                                    </button>
+                                </div>
                             `;
                             attachmentsContainer.appendChild(attachmentElement);
                         });

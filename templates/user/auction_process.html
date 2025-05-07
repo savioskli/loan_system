@@ -356,20 +356,17 @@
                                     </div>
                                     <div class="mt-4">
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
-                                        <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                            <div class="space-y-1 text-center">
-                                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                                </svg>
-                                                <div class="flex text-sm text-gray-600">
-                                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
-                                                        <span>Upload a file</span>
-                                                        <input id="file-upload" name="file-upload" type="file" class="sr-only" multiple>
-                                                    </label>
-                                                    <p class="pl-1">or drag and drop</p>
-                                                </div>
-                                                <p class="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
-                                            </div>
+                                        <div class="mt-1">
+                                            <input type="file" id="file-upload" name="files[]" multiple
+                                                class="block w-full text-sm text-gray-500
+                                                file:mr-4 file:py-2 file:px-4
+                                                file:rounded-md file:border-0
+                                                file:text-sm file:font-semibold
+                                                file:bg-primary file:text-white
+                                                hover:file:bg-primary-dark
+                                                cursor-pointer">
+                                            <p class="mt-1 text-sm text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                                            <div id="fileList" class="mt-2 space-y-2"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -848,6 +845,24 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
 
     <!-- Modal JavaScript -->
     <script>
+        // Modal functions
+        function openNewAuctionModal() {
+            document.getElementById('newAuctionModal').classList.remove('hidden');
+            // Reset form
+            document.getElementById('newAuctionForm').reset();
+            // Reset file upload
+            const dropZone = document.getElementById('dropZone');
+            const previousList = dropZone.querySelector('.selected-files');
+            if (previousList) previousList.remove();
+            // Reset wizard to first step
+            currentStep = 1;
+            updateWizardUI();
+        }
+
+        function closeNewAuctionModal() {
+            document.getElementById('newAuctionModal').classList.add('hidden');
+        }
+
         // Toast notification function
         function showToast(type, message) {
             const toast = document.createElement('div');
@@ -915,114 +930,64 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                 formDataToSend.append(key, data[key]);
             });
             
-            // Get files from the file input
-            const fileInput = document.getElementById('file-upload');
-            const files = fileInput.files;
-            for (let i = 0; i < files.length; i++) {
-                formDataToSend.append('files[]', files[i]);
-            }
-            
-            // Send data to server
             fetch('/user/create_auction', {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: formDataToSend
+                body: formData
             })
             .then(response => {
                 console.log('Response status:', response.status);
-                return response.json();
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Server error');
+                    }
+                    return data;
+                });
             })
             .then(data => {
-                if (data.error) {
-                    console.error('Server error:', data.error);
-                    showToast('error', data.error);
-                } else {
-                    console.log('Success response:', data);
-                    showToast('success', 'Auction created successfully');
-                    closeNewAuctionModal();
-                    // Reload page to show new auction
-                    window.location.reload();
-                }
+                showToast('success', 'Auction created successfully');
+                closeNewAuctionModal();
+                // Refresh auction list
+                loadAuctions();
             })
             .catch(error => {
-                console.error('Submission error:', error);
-                showToast('error', 'An error occurred while creating the auction');
+                console.error('Server error:', error);
+                showToast('error', error.message || 'Failed to create auction');
             });
         });
 
         // File upload handling
-        const dropZone = document.getElementById('dropZone');
-        const fileUpload = document.getElementById('file-upload');
+        const fileInput = document.getElementById('file-upload');
+        const fileList = document.getElementById('fileList');
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        function highlight(e) {
-            dropZone.classList.add('border-primary');
-        }
-
-        function unhighlight(e) {
-            dropZone.classList.remove('border-primary');
-        }
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
+        fileInput.addEventListener('change', function(e) {
+            // Show selected files
+            fileList.innerHTML = Array.from(this.files)
+                .map(file => `
+                    <div class="flex items-center p-2 bg-gray-50 rounded">
+                        <i class="fas fa-file mr-2 text-primary"></i>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-gray-900">${file.name}</div>
+                            <div class="text-xs text-gray-500">${formatFileSize(file.size)}</div>
+                        </div>
+                    </div>
+                `)
+                .join('');
         });
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, unhighlight, false);
-        });
-
-        dropZone.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFiles(files) {
+        
+        function removeFile(fileName) {
             const fileInput = document.getElementById('file-upload');
-            
-            // Create a new DataTransfer object
             const dataTransfer = new DataTransfer();
             
-            // Add existing files
+            // Add all files except the one to remove
             for (let i = 0; i < fileInput.files.length; i++) {
-                dataTransfer.items.add(fileInput.files[i]);
+                if (fileInput.files[i].name !== fileName) {
+                    dataTransfer.items.add(fileInput.files[i]);
+                }
             }
             
-            // Add new files
-            for (let i = 0; i < files.length; i++) {
-                dataTransfer.items.add(files[i]);
-            }
-            
-            // Update the file input
+            // Update the file input and refresh the preview
             fileInput.files = dataTransfer.files;
-            
-            // Show selected files
-            const fileList = Array.from(fileInput.files)
-                .map(file => `<div class="text-sm text-gray-600">${file.name} (${formatFileSize(file.size)})</div>`)
-                .join('');
-            
-            const fileListContainer = document.createElement('div');
-            fileListContainer.className = 'mt-2';
-            fileListContainer.innerHTML = fileList;
-            
-            // Clear previous list and append new one
-            const previousList = dropZone.querySelector('.selected-files');
-            if (previousList) previousList.remove();
-            
-            fileListContainer.classList.add('selected-files');
-            dropZone.appendChild(fileListContainer);
+            handleFiles([]); // Refresh the preview
         }
         
         function formatFileSize(bytes) {
@@ -1309,7 +1274,7 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                         console.log('Standardized loan data:', standardizedLoan);
                         
                         // Create the option with the loan number as text
-                        const option = new Option(loanNumber, loanId, false, false);
+                        const option = new Option(loanNumber, standardizedLoan.account_number, false, false);
                         
                         // Store the standardized loan data with the option
                         $(option).data('loan', standardizedLoan);
@@ -1382,7 +1347,7 @@ document.getElementById('editAuctionForm').addEventListener('submit', function(e
                                     console.log('API standardized loan data:', standardizedLoan);
                                     
                                     // Create the option with the loan number as text
-                                    const option = new Option(standardizedLoan.account_number, standardizedLoan.id, false, false);
+                                    const option = new Option(standardizedLoan.account_number, standardizedLoan.account_number, false, false);
                                     
                                     // Store the standardized loan data with the option
                                     $(option).data('loan', standardizedLoan);

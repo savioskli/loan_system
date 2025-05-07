@@ -60,6 +60,7 @@ from models.legal_case import LegalCase, LegalCaseAttachment
 from models.auction import Auction, AuctionAttachment
 from models.loan_reschedule import LoanReschedule
 from models.loan_refinance import RefinanceApplication
+from models.loan import Loan
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
 from models import Client
 from functools import lru_cache
@@ -4122,9 +4123,9 @@ def create_auction():
         auction_date = datetime.strptime(data['auction_date'], '%Y-%m-%dT%H:%M')
         advertisement_date = datetime.strptime(data['advertisement_date'], '%Y-%m-%d') if data.get('advertisement_date') else None
         
-        # Create new auction
+        # Create new auction using the account number directly
         new_auction = Auction(
-            loan_id=data['loan_id'],
+            loan_id=data['loan_id'],  # Use the account number from the form
             client_name=data['client_name'],
             property_type=data['property_type'],
             property_description=data['property_description'],

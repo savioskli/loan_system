@@ -163,23 +163,23 @@
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                         <div class="flex space-x-2">
-                                            <button onclick="viewAuctionDetails({{ auction.id }})" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                            <button type="button" data-auction-id="{{ auction.id }}" class="view-details-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
                                                 View
                                             </button>
-                                            <button onclick="viewAuctionHistory({{ auction.id }})" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                                            <button type="button" data-auction-id="{{ auction.id }}" class="view-history-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
                                                 History
                                             </button>
-                                            <button onclick="openAddAuctionUpdateModal({{ auction.id }})" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-teal-700 bg-teal-50 hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
-                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                                            <button type="button" data-auction-id="{{ auction.id }}" class="add-update-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-teal-700 bg-teal-50 hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
                                                 Add Update
                                             </button>
-                                            <button onclick="openEditAuctionModal({{ auction.id }})" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+                                            <button type="button" data-auction-id="{{ auction.id }}" class="edit-auction-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                                <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
                                                 Edit
                                             </button>
-                                            <button onclick="confirmDeleteAuction({{ auction.id }})" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                            <button type="button" data-auction-id="{{ auction.id }}" class="delete-auction-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                                 <svg class="-ml-0.5 mr-1.5 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                                                 Delete
                                             </button>
@@ -713,7 +713,7 @@
                         <!-- Action Type -->
                         <div class="mb-4">
                             <label for="auction_action_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action Type</label>
-                            <select id="auction_action_type" name="action_type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 px-4 py-2">
+                            <select id="auction_action_type" name="action" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 px-4 py-2">
                                 <option value="">Select Action Type</option>
                                 <option value="Valuation Report Received">Valuation Report Received</option>
                                 <option value="Advertisement Placed">Advertisement Placed</option>
@@ -789,6 +789,41 @@
             </div>
         </div>
     </div>
+
+<!-- View History Modal -->
+<div id="viewHistoryModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+        <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:align-middle">
+            <div class="px-6 pt-6 pb-4">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Auction History</h3>
+                        <p id="viewHistoryAuctionId" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                    </div>
+                    <button onclick="closeViewHistoryModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                        <span class="sr-only">Close</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- History Timeline -->
+                <div id="historyEntries" class="space-y-4 max-h-[60vh] overflow-y-auto pr-4">
+                    <!-- History entries will be populated here -->
+                </div>
+            </div>
+
+            <div class="bg-gray-100 dark:bg-gray-700 px-6 py-3 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="closeViewHistoryModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     function openEditAuctionModal(auctionId) {
@@ -886,13 +921,25 @@ function closeAddAuctionUpdateModal() {
 async function submitAuctionUpdate(event) {
     event.preventDefault();
     const form = event.target;
-    const auctionId = document.getElementById('add_auction_update_auction_id').value;
+    const auctionId = document.getElementById('update_auction_id').value;
     const formData = new FormData();
 
-    formData.append('action_type', form.auction_action_type.value);
+    console.log('Form elements:', {
+        action: form.auction_action_type.value,
+        action_date: form.auction_action_date.value,
+        notes: form.auction_notes.value,
+        status: form.auction_status.value
+    });
+
+    formData.append('action', form.auction_action_type.value);
     formData.append('action_date', form.auction_action_date.value);
     formData.append('notes', form.auction_notes.value);
     formData.append('status', form.auction_status.value);
+
+    // Log the FormData entries
+    for (let [key, value] of formData.entries()) {
+        console.log(`FormData entry - ${key}: ${value}`);
+    }
     
     // Append files
     auctionUpdateFiles.forEach(file => {
@@ -1089,6 +1136,96 @@ function removeAuctionUpdateFile(index) {
             });
         }
 
+        function viewAuctionHistory(auctionId) {
+            fetch(`/user/auction/${auctionId}/history`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast('error', data.error);
+                        return;
+                    }
+
+                    // Set auction ID in the title
+                    document.getElementById('viewHistoryAuctionId').textContent = `AUC-${String(auctionId).padStart(4, '0')}`;
+
+                    // Populate history entries
+                    const historyContainer = document.getElementById('historyEntries');
+                    historyContainer.innerHTML = '';
+
+                    data.forEach(entry => {
+                        const entryElement = document.createElement('div');
+                        entryElement.className = 'mb-6 relative pl-8 before:content-[""] before:absolute before:left-3 before:top-2 before:w-px before:h-full before:bg-gray-300 dark:before:bg-gray-600';
+                        
+                        // Create the dot indicator
+                        const dotIndicator = document.createElement('div');
+                        dotIndicator.className = 'absolute left-0 top-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center';
+                        dotIndicator.innerHTML = '<i class="fas fa-circle text-white text-xs"></i>';
+                        entryElement.appendChild(dotIndicator);
+
+                        // Create the main content container
+                        const contentContainer = document.createElement('div');
+                        contentContainer.className = 'bg-white dark:bg-gray-800 rounded-lg shadow p-4';
+
+                        // Header with action and date
+                        const header = document.createElement('div');
+                        header.className = 'flex justify-between items-start mb-2';
+                        header.innerHTML = `
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">${entry.action}</h4>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">${formatDate(entry.action_date)}</p>
+                            </div>
+                            <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusClass(entry.status)}">
+                                ${entry.status}
+                            </span>
+                        `;
+
+                        // Notes section
+                        const notes = document.createElement('div');
+                        notes.className = 'mt-2 text-sm text-gray-700 dark:text-gray-300';
+                        notes.textContent = entry.notes || 'No notes provided';
+
+                        // Attachments section
+                        const attachments = document.createElement('div');
+                        attachments.className = 'mt-3';
+                        if (entry.attachments && entry.attachments.length > 0) {
+                            const attachmentsList = document.createElement('div');
+                            attachmentsList.className = 'space-y-2';
+                            entry.attachments.forEach(attachment => {
+                                const attachmentItem = document.createElement('div');
+                                attachmentItem.className = 'flex items-center space-x-2';
+                                attachmentItem.innerHTML = `
+                                    <a href="${attachment.file_path}" target="_blank" 
+                                       class="flex items-center space-x-2 text-sm text-primary hover:text-primary-dark">
+                                        <i class="fas fa-paperclip"></i>
+                                        <span>${attachment.file_name}</span>
+                                    </a>
+                                `;
+                                attachmentsList.appendChild(attachmentItem);
+                            });
+                            attachments.appendChild(attachmentsList);
+                        }
+
+                        // Assemble the content
+                        contentContainer.appendChild(header);
+                        contentContainer.appendChild(notes);
+                        contentContainer.appendChild(attachments);
+                        entryElement.appendChild(contentContainer);
+                        historyContainer.appendChild(entryElement);
+                    });
+
+                    // Show modal
+                    document.getElementById('viewHistoryModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('error', 'An error occurred while fetching auction history');
+                });
+        }
+
+        function closeViewHistoryModal() {
+            document.getElementById('viewHistoryModal').classList.add('hidden');
+        }
+
         function formatCurrency(amount) {
             if (!amount) return 'KES 0.00';
             
@@ -1104,87 +1241,46 @@ function removeAuctionUpdateFile(index) {
             });
         }
 
-        // View auction history
-        function viewAuctionHistory(auctionId) {
-            fetch(`/user/auction/${auctionId}/history`)
-                .then(response => response.json())
-                .then(history => {
-                    // Create modal content
-                    let historyHtml = `
-                        <div class="bg-white rounded-lg p-6 max-h-[80vh] overflow-y-auto">
-                            <h3 class="text-lg font-semibold mb-4">Auction History</h3>
-                            <div class="space-y-4">
-                    `;
+        // Add event listeners using event delegation
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableBody = document.querySelector('tbody');
+            if (!tableBody) return;
 
+            tableBody.addEventListener('click', function(event) {
+                const button = event.target.closest('button');
+                if (!button) return;
 
-                    if (history.length > 0) {
-                        history.forEach(record => {
-                            historyHtml += `
-                                <div class="border-l-4 border-blue-500 pl-4 py-2">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <p class="font-medium">${record.action}</p>
-                                            <p class="text-sm text-gray-600">${record.description}</p>
-                                        </div>
-                                        <div class="text-right">
-                                            <p class="text-sm font-medium">${record.staff ? record.staff.full_name : 'System'}</p>
-                                            <p class="text-xs text-gray-500">${new Date(record.created_at).toLocaleString()}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    } else {
-                        historyHtml += `
-                            <div class="text-center py-4">
-                                <p class="text-gray-500">No history available for this auction</p>
-                            </div>
-                        `;
-                    }
+                const auctionId = button.dataset.auctionId;
+                if (!auctionId) return;
 
-                    historyHtml += `
-                            </div>
-                        </div>
-                    `;
-
-                    // Show modal with history
+                if (button.classList.contains('view-details-btn')) {
+                    viewAuctionDetails(auctionId);
+                } else if (button.classList.contains('view-history-btn')) {
+                    viewAuctionHistory(auctionId);
+                } else if (button.classList.contains('add-update-btn')) {
+                    openAddAuctionUpdateModal(auctionId);
+                } else if (button.classList.contains('edit-auction-btn')) {
+                    openEditAuctionModal(auctionId);
+                } else if (button.classList.contains('delete-auction-btn')) {
+                    // Show confirmation dialog
                     Swal.fire({
-                        title: 'Auction History',
-                        html: historyHtml,
-                        showCloseButton: true,
-                        showConfirmButton: false,
-                        width: '600px',
-                        padding: '0',
-                        customClass: {
-                            popup: 'rounded-lg',
-                            closeButton: 'top-4 right-4'
+                        title: 'Are you sure?',
+                        text: 'This will permanently delete the auction and all its history.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            deleteAuction(auctionId);
                         }
                     });
-                })
-                .catch(error => {
-                    console.error('Error fetching auction history:', error);
-                    showToast('error', 'Failed to load auction history');
-                });
-        }
-
-        // Confirm auction deletion
-        function confirmDeleteAuction(auctionId) {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'This will permanently delete the auction and all its history.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!',
-                cancelButtonText: 'Cancel',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    deleteAuction(auctionId);
                 }
             });
-        }
+        });
 
         // Delete auction
         function deleteAuction(auctionId) {
@@ -1219,49 +1315,9 @@ function removeAuctionUpdateFile(index) {
 
         function closeAddAuctionUpdateModal() {
             document.getElementById('addAuctionUpdateModal').classList.add('hidden');
-            document.getElementById('addAuctionUpdateForm').reset(); // Reset form fields
+            document.getElementById('addAuctionUpdateForm').reset();
         }
 
-        function submitAuctionUpdate(event) {
-            event.preventDefault();
-            const form = event.target;
-            const auctionId = form.auction_id.value;
-            const action = form.action.value;
-            const description = form.description.value;
-
-            fetch(`/user/auction/${auctionId}/add_update`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': form.csrf_token.value
-                },
-                body: JSON.stringify({ action, description })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Failed to add update'); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showToast('success', data.message || 'Update added successfully');
-                closeAddAuctionUpdateModal();
-                // Optionally, refresh the auction history or table if needed
-                if (typeof viewAuctionHistory === 'function') {
-                    // If a viewAuctionHistory function exists and is open, refresh it or re-open it
-                    // This is a simple way, might need more sophisticated logic depending on UI
-                    // For now, we can just close any open history and let user re-open
-                     if (Swal.isVisible()) {
-                        Swal.close();
-                        viewAuctionHistory(auctionId);
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error adding auction update:', error);
-                showToast('error', error.message || 'Failed to add update');
-            });
-        }
         </script>
 
     <!-- Modal JavaScript -->

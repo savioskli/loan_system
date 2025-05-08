@@ -4155,20 +4155,65 @@ def create_auction():
         current_app.logger.error(f"Error creating auction: {str(e)}")
         return jsonify({'error': 'An error occurred while creating the auction'}), 500
 
+@user_bp.route('/auction/<int:auction_id>/history', methods=['GET'])
+@login_required
+def get_auction_history(auction_id):
+    try:
+        auction = Auction.query.get_or_404(auction_id)
+        history_entries = AuctionHistory.query.filter_by(auction_id=auction_id).order_by(AuctionHistory.action_date.desc()).all()
+        
+        history_data = []
+        for entry in history_entries:
+            attachments = [{
+                'id': att.id,
+                'file_name': att.file_name,
+                'file_path': att.file_path,
+                'file_type': att.file_type,
+                'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None
+            } for att in entry.attachments]
+            
+            history_data.append({
+                'id': entry.id,
+                'action': entry.action,
+                'action_date': entry.action_date.isoformat(),
+                'notes': entry.notes,
+                'status': entry.status,
+                'created_at': entry.created_at.isoformat() if entry.created_at else None,
+                'created_by': entry.created_by,
+                'attachments': attachments
+            })
+        
+        return jsonify(history_data)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching auction history: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching auction history'}), 500
+
 @user_bp.route('/auction/<int:auction_id>/add_update', methods=['POST'])
 @login_required
 def add_auction_update(auction_id):
     auction = Auction.query.get_or_404(auction_id)
     
     # Get form data
-    action_type = request.form.get('action_type')
+    current_app.logger.debug(f"Form data received: {request.form}")
+    action_type = request.form.get('action')
     action_date_str = request.form.get('action_date')
     notes = request.form.get('notes')
     status = request.form.get('status')
+    current_app.logger.debug(f"Parsed values: action={action_type}, date={action_date_str}, status={status}")
     
-    # Validate required fields
-    if not all([action_type, action_date_str, status]): # Notes can be optional
-        return jsonify({'error': 'Action Type, Action Date, and Status are required'}), 400
+    # Validate required fields with detailed error message
+    missing_fields = []
+    if not action_type:
+        missing_fields.append('Action Type')
+    if not action_date_str:
+        missing_fields.append('Action Date')
+    if not status:
+        missing_fields.append('Status')
+    
+    if missing_fields:
+        error_msg = f"Missing required fields: {', '.join(missing_fields)}"
+        current_app.logger.error(error_msg)
+        return jsonify({'error': error_msg}), 400
 
     # Parse action_date
     try:
@@ -4182,10 +4227,11 @@ def add_auction_update(auction_id):
     try:
         history_entry = AuctionHistory(
             auction_id=auction.id,
-            action_type=action_type,
+            action=action_type,
             action_date=action_date,
             notes=notes, # Renamed from description
             status=status,
+            created_by=current_user.id,
             # created_at is default now() in model
         )
         db.session.add(history_entry)

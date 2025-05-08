@@ -64,7 +64,7 @@ class AuctionHistory(db.Model):
     notes = db.Column(db.Text, nullable=True) # Renamed from description, making it nullable as per typical notes fields
     status = db.Column(db.String(50), nullable=False) # e.g., Pending, In Progress, Completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
 
     # Relationships
     auction = db.relationship("Auction", back_populates="history")

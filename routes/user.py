@@ -4167,9 +4167,10 @@ def get_auction_history(auction_id):
             attachments = [{
                 'id': att.id,
                 'file_name': att.file_name,
-                'file_path': att.file_path,
                 'file_type': att.file_type,
-                'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None
+                'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
+                'url': url_for('user.view_auction_attachment', auction_id=auction_id, history_id=entry.id, attachment_id=att.id),
+                'download_url': url_for('user.download_auction_attachment', auction_id=auction_id, history_id=entry.id, attachment_id=att.id)
             } for att in entry.attachments]
             
             history_data.append({
@@ -4187,6 +4188,55 @@ def get_auction_history(auction_id):
     except Exception as e:
         current_app.logger.error(f"Error fetching auction history: {str(e)}")
         return jsonify({'error': 'An error occurred while fetching auction history'}), 500
+
+@user_bp.route('/auction/<int:auction_id>/history/<int:history_id>/attachments/<int:attachment_id>/view')
+@login_required
+def view_auction_attachment(auction_id, history_id, attachment_id):
+    try:
+        # Get the auction and attachment
+        auction = Auction.query.get_or_404(auction_id)
+        history_entry = AuctionHistory.query.get_or_404(history_id)
+        attachment = AuctionHistoryAttachment.query.get_or_404(attachment_id)
+        
+        # Verify the attachment belongs to this auction history
+        if history_entry.auction_id != auction_id or attachment.history_id != history_id:
+            abort(404)
+        
+        # Get the directory name from the file path
+        directory = os.path.dirname(attachment.file_path)
+        filename = os.path.basename(attachment.file_path)
+        
+        return send_from_directory(directory, filename)
+    except Exception as e:
+        current_app.logger.error(f"Error serving auction attachment: {str(e)}")
+        abort(404)
+
+@user_bp.route('/auction/<int:auction_id>/history/<int:history_id>/attachments/<int:attachment_id>/download')
+@login_required
+def download_auction_attachment(auction_id, history_id, attachment_id):
+    try:
+        # Get the auction and attachment
+        auction = Auction.query.get_or_404(auction_id)
+        history_entry = AuctionHistory.query.get_or_404(history_id)
+        attachment = AuctionHistoryAttachment.query.get_or_404(attachment_id)
+        
+        # Verify the attachment belongs to this auction history
+        if history_entry.auction_id != auction_id or attachment.history_id != history_id:
+            abort(404)
+        
+        # Get the directory name from the file path
+        directory = os.path.dirname(attachment.file_path)
+        filename = os.path.basename(attachment.file_path)
+        
+        return send_from_directory(
+            directory,
+            filename,
+            as_attachment=True,
+            download_name=attachment.file_name
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error downloading auction attachment: {str(e)}")
+        abort(404)
 
 @user_bp.route('/auction/<int:auction_id>/add_update', methods=['POST'])
 @login_required

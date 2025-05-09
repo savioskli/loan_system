@@ -7218,6 +7218,54 @@ def delete_legal_case(case_id):
         db.session.rollback()
         current_app.logger.error(f"Error deleting legal case: {str(e)}")
         return jsonify({'error': 'Failed to delete legal case'}), 500
+@user_bp.route('/auction/<int:auction_id>/attachments/<int:attachment_id>/view')
+@login_required
+def view_auction_attachment_direct(auction_id, attachment_id):
+    try:
+        # Get the auction and attachment
+        auction = Auction.query.get_or_404(auction_id)
+        attachment = AuctionAttachment.query.get_or_404(attachment_id)
+        
+        # Verify the attachment belongs to this auction
+        if attachment.auction_id != auction_id:
+            abort(404)
+        
+        # Send the file as a download
+        return send_file(
+            attachment.file_path,
+            as_attachment=True,
+            download_name=attachment.file_name
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error serving auction attachment: {str(e)}")
+        abort(404)
+
+@user_bp.route('/auction/<int:auction_id>/attachments/<int:attachment_id>/download')
+@login_required
+def download_auction_attachment_direct(auction_id, attachment_id):
+    try:
+        # Get the auction and attachment
+        auction = Auction.query.get_or_404(auction_id)
+        attachment = AuctionAttachment.query.get_or_404(attachment_id)
+        
+        # Verify the attachment belongs to this auction
+        if attachment.auction_id != auction_id:
+            abort(404)
+        
+        # Get the directory name from the file path
+        directory = os.path.dirname(attachment.file_path)
+        filename = os.path.basename(attachment.file_path)
+        
+        return send_from_directory(
+            directory,
+            filename,
+            as_attachment=True,
+            download_name=attachment.file_name
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error downloading auction attachment: {str(e)}")
+        abort(404)
+
 @user_bp.route('/auction/<int:auction_id>')
 @login_required
 def get_auction_details(auction_id):
@@ -7226,6 +7274,7 @@ def get_auction_details(auction_id):
         
         # Get attachments
         attachments = [{
+            'id': attachment.id,
             'file_name': attachment.file_name,
             'file_path': attachment.file_path
         } for attachment in auction.attachments]

@@ -747,9 +747,17 @@
                         </div>
                         
                         <div class="mt-4">
-                            <!-- Attachments -->
+                            <!-- Existing Attachments -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Existing Attachments</label>
+                                <div id="editAttachments" class="grid grid-cols-1 gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                    <!-- Existing attachments will be displayed here -->
+                                </div>
+                            </div>
+                            
+                            <!-- Upload New Attachments -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload New Attachments</label>
                                 <div id="edit_dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
                                     <div class="space-y-1 text-center">
                                         <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
@@ -778,30 +786,20 @@
 
                             <!-- Assigned Staff -->
                             <div>
-                                <label for="edit_assigned_staff" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigned Staff</label>
-                                <select id="edit_assigned_staff" name="assigned_staff" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                                    <option value="">Select Staff Member</option>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigned Staff</label>
+                                <select id="edit_assigned_staff_id" name="assigned_staff_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
+                                    <option value="">Select Staff</option>
                                     <!-- Staff options will be populated dynamically -->
                                 </select>
                             </div>
                             
-                            <!-- Staff Role -->
+                            <!-- Supervisor -->
                             <div>
-                                <label for="edit_staff_role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Staff Role</label>
-                                <select id="edit_staff_role" name="staff_role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600" required>
-                                    <option value="">Select Role</option>
-                                    <option value="Lead">Lead</option>
-                                    <option value="Support">Support</option>
-                                    <option value="Observer">Observer</option>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Supervisor</label>
+                                <select id="edit_supervisor_id" name="supervisor_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="">Select Supervisor</option>
+                                    <!-- Supervisor options will be populated dynamically -->
                                 </select>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4">
-                            <!-- Assignment Notes -->
-                            <div>
-                                <label for="edit_assignment_notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assignment Notes</label>
-                                <textarea id="edit_assignment_notes" name="assignment_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5 px-3 dark:bg-gray-700 dark:border-gray-600"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1027,9 +1025,32 @@
             document.getElementById('edit_notes').value = auction.notes;
 
             // Step 4: Staff Assignment
-            document.getElementById('edit_assigned_staff').value = auction.assigned_staff;
-            document.getElementById('edit_staff_role').value = auction.staff_role;
-            document.getElementById('edit_assignment_notes').value = auction.assignment_notes;
+            document.getElementById('edit_assigned_staff_id').value = auction.assigned_staff_id;
+            document.getElementById('edit_supervisor_id').value = auction.supervisor_id;
+            
+            // Display existing attachments
+            const attachmentsContainer = document.getElementById('editAttachments');
+            attachmentsContainer.innerHTML = '';
+            if (auction.attachments && auction.attachments.length > 0) {
+                auction.attachments.forEach(attachment => {
+                    const attachmentElement = document.createElement('div');
+                    attachmentElement.className = 'flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700';
+                    attachmentElement.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-file-alt text-primary"></i>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">${attachment.file_name}</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="/user/auction/${auction.id}/attachments/${attachment.id}/view-direct" target="_blank" class="text-gray-500 hover:text-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    `;
+                    attachmentsContainer.appendChild(attachmentElement);
+                });
+            } else {
+                attachmentsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-2">No attachments available</p>';
+            }
 
             // Reset to first step
             currentEditStep = 1;

@@ -9,6 +9,7 @@ class Auction(db.Model):
     loan_id = db.Column(db.String(50), nullable=False)
     client_name = db.Column(db.String(200), nullable=False)
     property_type = db.Column(db.String(50), nullable=False)  # Residential, Commercial, Industrial, Land
+    property_location = db.Column(db.Text, nullable=True)
     property_description = db.Column(db.Text, nullable=False)
     valuation_amount = db.Column(db.Float, nullable=False)
     reserve_price = db.Column(db.Float, nullable=False)

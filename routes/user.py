@@ -4127,6 +4127,7 @@ def create_auction():
             loan_id=data['loan_id'],
             client_name=data['client_name'],
             property_type=data['property_type'],
+            property_location=data.get('property_location'),
             property_description=data['property_description'],
             valuation_amount=data['valuation_amount'],
             reserve_price=data['reserve_price'],
@@ -7235,6 +7236,7 @@ def get_auction_details(auction_id):
             'client_name': auction.client_name,
             'property_description': auction.property_description,
             'property_type': auction.property_type,
+            'property_location': auction.property_location,
             'valuation_amount': float(auction.valuation_amount),
             'reserve_price': float(auction.reserve_price),
             'auction_date': auction.auction_date.isoformat(),
@@ -7275,6 +7277,7 @@ def update_auction(auction_id):
         auction.loan_id = data['loan_id']
         auction.client_name = data.get('client_name', auction.client_name)
         auction.property_type = data.get('property_type', auction.property_type)
+        auction.property_location = data.get('property_location', auction.property_location)
         auction.property_description = data['property_description']
         auction.valuation_amount = data['valuation_amount']
         auction.reserve_price = data['reserve_price']

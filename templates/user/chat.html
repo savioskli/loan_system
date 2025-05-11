@@ -1043,6 +1043,7 @@ document.addEventListener('DOMContentLoaded', function() {
               conversations.forEach(conv => {
                   const convItem = document.createElement('div');
                   convItem.className = 'conversation-item';
+                  convItem.setAttribute('data-conversation-id', conv.conversation_id);
                   
                   // Format the date
                   let formattedDate = 'Unknown date';

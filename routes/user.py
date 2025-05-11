@@ -3,6 +3,7 @@ import os
 import re
 import sqlparse
 import traceback
+import mimetypes
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from langchain.prompts import PromptTemplate
@@ -1040,6 +1041,10 @@ def reports():
 def post_disbursement():
     current_app.logger.info("Starting post_disbursement route")
 
+    # Get current user ID from Flask-Login
+    from flask_login import current_user
+    user_id = current_user.id
+
     # Use the global render_with_modules function
     
     # Statically define the module ID
@@ -1051,7 +1056,13 @@ def post_disbursement():
         'WATCH': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '31-90 days'},
         'SUBSTANDARD': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '91-180 days'},
         'DOUBTFUL': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '181-360 days'},
-        'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '>360 days'}
+        'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '360+ days'}
+    }
+
+    # Prepare template data
+    template_data = {
+        'user_id': user_id,
+        'default_overdue_loans': default_overdue_loans
     }
 
     try:
@@ -1060,6 +1071,7 @@ def post_disbursement():
         if not core_system:
             flash('No active core banking system configured', 'error')
             return render_with_modules('user/post_disbursement.html',
+                                   user_id=user_id,
                                    total_loans=0,
                                    total_outstanding=0,
                                    total_in_arrears=0,
@@ -1426,7 +1438,8 @@ def post_disbursement():
             loan_data=loan_data,
             overdue_loans=overdue_loans,
             last_sync=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            error=None
+            error=None,
+            user_id=current_user.id
         )
 
     except Exception as e:
@@ -1451,10 +1464,54 @@ def post_disbursement():
             'loan_data': [],
             'overdue_loans': default_overdue_loans,
             'last_sync': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'error': str(e)
+            'error': str(e),
+            'user_id': current_user.id
         }
 
         return render_with_modules('user/post_disbursement.html', **default_values)
+@user_bp.route('/clear_chat_history', methods=['POST'])
+def clear_chat_history():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        conversation_id = data.get('conversation_id')
+
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+
+        # Get the ChatMessage model
+        from models.chat_message import ChatMessage
+
+        try:
+            # If conversation_id is provided, delete specific conversation
+            if conversation_id:
+                deleted = ChatMessage.query.filter_by(
+                    user_id=user_id,
+                    conversation_id=conversation_id
+                ).delete()
+                message = 'Conversation deleted successfully'
+            else:
+                # Delete all conversations for the user
+                deleted = ChatMessage.query.filter_by(user_id=user_id).delete()
+                message = 'All chat history cleared successfully'
+            
+            # Commit the transaction
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'deleted_count': deleted
+            })
+        except Exception as db_error:
+            db.session.rollback()
+            current_app.logger.error(f'Database error clearing chat history: {str(db_error)}')
+            return jsonify({'error': f'Database error: {str(db_error)}'}), 500
+
+    except Exception as e:
+        current_app.logger.error(f'Error processing clear chat history request: {str(e)}')
+        return jsonify({'error': str(e)}), 400
+
 @user_bp.route('/analytics', methods=['GET'])
 @login_required
 def analytics():
@@ -3324,7 +3381,16 @@ def loan_rescheduling():
 
         # Fetch loan rescheduling requests from the database
         loan_reschedules = query.all()
-        return render_with_modules('user/loan_rescheduling.html', loan_reschedules=loan_reschedules)
+
+        # Get all loans from the database
+        loans = Loan.query.all()
+
+        # Add loans to template data
+        template_data = {}
+        template_data['loans'] = loans
+
+        # Return the template with the data
+        return render_template('user/loan_rescheduling.html', loan_reschedules=loan_reschedules, **template_data)
     except Exception as e:
         current_app.logger.error(f"Error rendering loan rescheduling page: {str(e)}")
         flash('An error occurred while loading the loan rescheduling page', 'error')
@@ -7229,13 +7295,34 @@ def view_auction_attachment_direct(auction_id, attachment_id):
         # Verify the attachment belongs to this auction
         if attachment.auction_id != auction_id:
             abort(404)
+            
+        # Get the base upload folder from config
+        base_upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
         
-        # Send the file as a download
-        return send_file(
-            attachment.file_path,
-            as_attachment=True,
-            download_name=attachment.file_name
-        )
+        # Construct the full file path
+        full_file_path = os.path.join(base_upload_folder, attachment.file_path)
+            
+        if not os.path.exists(full_file_path):
+            current_app.logger.error(f"File not found at path: {full_file_path}")
+            abort(404)
+        
+        try:
+            # Get the MIME type of the file
+            mime_type = mimetypes.guess_type(attachment.file_name)[0]
+            if mime_type is None:
+                mime_type = 'application/octet-stream'
+            
+            # Send the file for viewing in browser
+            return send_file(
+                full_file_path,
+                mimetype=mime_type,
+                as_attachment=False,  # This allows the file to be viewed in browser
+                download_name=attachment.file_name
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error sending file {full_file_path}: {str(e)}")
+            abort(404)
+            
     except Exception as e:
         current_app.logger.error(f"Error serving auction attachment: {str(e)}")
         abort(404)
@@ -7252,16 +7339,27 @@ def download_auction_attachment_direct(auction_id, attachment_id):
         if attachment.auction_id != auction_id:
             abort(404)
         
-        # Get the directory name from the file path
-        directory = os.path.dirname(attachment.file_path)
-        filename = os.path.basename(attachment.file_path)
+        # Get the base upload folder from config
+        base_upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
         
-        return send_from_directory(
-            directory,
-            filename,
-            as_attachment=True,
-            download_name=attachment.file_name
-        )
+        # Construct the full file path
+        full_file_path = os.path.join(base_upload_folder, attachment.file_path)
+        
+        if not os.path.exists(full_file_path):
+            current_app.logger.error(f"File not found at path: {full_file_path}")
+            abort(404)
+        
+        try:
+            return send_from_directory(
+                os.path.dirname(full_file_path),
+                os.path.basename(full_file_path),
+                as_attachment=True,
+                download_name=attachment.file_name
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error sending file {full_file_path}: {str(e)}")
+            abort(404)
+            
     except Exception as e:
         current_app.logger.error(f"Error downloading auction attachment: {str(e)}")
         abort(404)
@@ -8759,6 +8857,8 @@ def get_chat_history():
     except Exception as e:
         current_app.logger.error(f"Error retrieving chat history: {str(e)}")
         return jsonify({'error': 'Failed to retrieve chat history'}), 500
+
+
 
 @user_bp.route('/chat', methods=['POST'])
 def chat():

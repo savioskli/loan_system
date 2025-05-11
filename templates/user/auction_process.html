@@ -1325,8 +1325,11 @@
                             <span class="text-sm text-gray-700 dark:text-gray-300">${attachment.file_name}</span>
                         </div>
                         <div class="flex space-x-2">
-                            <a href="/user/auction/${auction.id}/attachments/${attachment.id}/view-direct" target="_blank" class="text-gray-500 hover:text-primary" title="View">
+                            <a href="/user/auction/${auction.id}/attachments/${attachment.id}/view" target="_blank" class="text-gray-500 hover:text-primary" title="View">
                                 <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="/user/auction/${auction.id}/attachments/${attachment.id}/download" class="text-gray-500 hover:text-primary" title="Download">
+                                <i class="fas fa-download"></i>
                             </a>
                         </div>
                     `;
@@ -1642,12 +1645,31 @@ function removeAuctionUpdateFile(index) {
                     if (data.attachments && data.attachments.length > 0) {
                         data.attachments.forEach(attachment => {
                             const attachmentElement = document.createElement('div');
-                            attachmentElement.className = 'flex items-center space-x-2';
-                            attachmentElement.innerHTML = `
-                                <a href="${attachment.file_path}" target="_blank" class="text-primary hover:text-primary-dark">
-                                    <i class="fas fa-file-alt mr-2"></i>${attachment.file_name}
+                            attachmentElement.className = 'flex items-center justify-between';
+                            
+                            // Create the file info section
+                            const fileInfo = document.createElement('div');
+                            fileInfo.className = 'flex items-center space-x-2';
+                            fileInfo.innerHTML = `
+                                <i class="fas fa-file-alt text-primary"></i>
+                                <span class="text-sm">${attachment.file_name}</span>
+                            `;
+                            
+                            // Create the action buttons
+                            const actionButtons = document.createElement('div');
+                            actionButtons.className = 'flex space-x-2';
+                            actionButtons.innerHTML = `
+                                <a href="/user/auction/${data.id}/attachments/${attachment.id}/view" target="_blank" class="text-primary hover:text-primary-dark" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="/user/auction/${data.id}/attachments/${attachment.id}/download" class="text-primary hover:text-primary-dark" title="Download">
+                                    <i class="fas fa-download"></i>
                                 </a>
                             `;
+                            
+                            // Add the sections to the attachment element
+                            attachmentElement.appendChild(fileInfo);
+                            attachmentElement.appendChild(actionButtons);
                             attachmentsContainer.appendChild(attachmentElement);
                         });
                     } else {
@@ -1788,12 +1810,13 @@ function removeAuctionUpdateFile(index) {
                                 // Action buttons
                                 const actionButtons = document.createElement('div');
                                 actionButtons.className = 'flex space-x-2';
+                                // Use the correct routes for auction history attachments
                                 actionButtons.innerHTML = `
-                                    <a href="${attachment.url}" target="_blank" 
+                                    <a href="/user/auction/${auctionId}/history/${entry.id}/attachments/${attachment.id}/view" target="_blank" 
                                        class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                                         <i class="fas fa-eye" title="View"></i>
                                     </a>
-                                    <a href="${attachment.download_url}" 
+                                    <a href="/user/auction/${auctionId}/history/${entry.id}/attachments/${attachment.id}/download" 
                                        class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
                                         <i class="fas fa-download" title="Download"></i>
                                     </a>

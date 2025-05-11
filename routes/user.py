@@ -8070,6 +8070,14 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         "missed payment", "late payment", "arrears", "overdue"
     ])
     
+    # Detect account summary requests
+    is_account_summary = any(pattern in user_input.lower() for pattern in [
+        "account summary", "customer summary", "member summary", 
+        "account details for", "summary for", "information about",
+        "tell me about", "show me details for", "give me account",
+        "account history", "transaction history", "payment history"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8079,6 +8087,10 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Add instructions for complex queries
     if is_complex_borrower_query:
         special_instructions += "\n\nThis appears to be a complex query about a borrower's history and character. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information\n2. Loan summary data\n3. Borrowing history details\n4. Repayment patterns\nEach query should be complete and executable on its own."
+    
+    # Add instructions for account summary requests
+    if is_account_summary:
+        special_instructions += "\n\nThis appears to be a request for an account summary. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information (name, contact details)\n2. Account details (balance, shares)\n3. Loan information (amount, status, application date, repayment period, interest rate)\n4. Loan ledger details (disbursed amount, outstanding balance, next repayment date, missed installments)\nEach query should be complete and executable on its own."
     
     # Add instructions for missed payment queries based on user preferences
     if is_missed_payment_query:
@@ -8624,7 +8636,8 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
     is_account_summary = any(pattern in user_question.lower() for pattern in [
         "account summary", "customer summary", "member summary", 
         "account details for", "summary for", "information about",
-        "tell me about", "show me details for", "give me account"
+        "tell me about", "show me details for", "give me account",
+        "account history", "transaction history", "payment history"
     ])
     
     # Determine if this is a query about missed payments
@@ -9038,7 +9051,8 @@ def chat():
         is_account_summary = any(pattern in user_input.lower() for pattern in [
             "account summary", "customer summary", "member summary", 
             "account details for", "summary for", "information about",
-            "tell me about", "show me details for", "give me account"
+            "tell me about", "show me details for", "give me account",
+            "account history", "transaction history", "payment history"
         ])
         
         return jsonify({

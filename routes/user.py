@@ -8094,7 +8094,7 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     
     # Add instructions for missed payment queries based on user preferences
     if is_missed_payment_query:
-        special_instructions += "\n\nIMPORTANT: For missed payments, calculate based on the number of missed installments rather than using raw days in arrears. Do not directly use the DaysInArrears field."
+        special_instructions += "\n\nThis appears to be a query about missed payments or arrears. Please generate SQL queries to:\n1. Find the customer's basic information\n2. Retrieve their loan details including the days_in_arrears column and outstanding_balance column\n3. IMPORTANT: In your response, include both the actual days in arrears AND the calculated missed installments (using Math.ceil(days_in_arrears / 30))\nEach query should be complete and executable on its own."
     
     # Add general instruction about InstallmentAmount based on user preferences
     special_instructions += "\n\nIMPORTANT: When InstallmentAmount is not available in the database schema, use OutstandingBalance as a substitute rather than PenaltyAmount."
@@ -8578,7 +8578,7 @@ def generate_natural_response(user_input, query_result, sql_query):
 11. If the query is about a specific person, mention their name in the response
 12. NEVER say 'I found X results' - instead provide the actual information
 13. For loan data, when InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
-14. When discussing missed payments, calculate based on the number of missed installments rather than using raw days in arrears
+14. When discussing missed payments, ALWAYS include both the actual days in arrears AND the calculated number of missed installments (calculated as Math.ceil(days_in_arrears / 30))
 15. For complex queries about borrowers, provide a comprehensive view including summary, history and character assessment when requested
 
 # ACCOUNT SUMMARY FORMATTING RULES
@@ -8680,8 +8680,9 @@ IMPORTANT:
         special_instructions = """This appears to be a query about missed payments or arrears.
 
 IMPORTANT: 
-- Calculate missed payments based on the number of missed installments rather than using raw days in arrears
-- Report the number of missed installments rather than the raw days count
+- ALWAYS include both the actual days in arrears value AND the calculated number of missed installments
+- Calculate missed installments using the formula: Math.ceil(days_in_arrears / 30)
+- Include the outstanding balance in your response
 - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount"""
     
     user_content = f"""Original question: {user_question}

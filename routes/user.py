@@ -8096,6 +8096,14 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         "repayments made", "payments made", "repayment pattern", "payment pattern", "irregular payment"
     ])
     
+    # Detect portfolio analytics queries
+    is_portfolio_analytics_query = any(pattern in user_input.lower() for pattern in [
+        "portfolio value", "total portfolio", "delinquency rate", "breakdown of loans",
+        "top clients", "top borrowers", "top loans", "loans by branch", "branch performance",
+        "disbursement trends", "loan trends", "average loan", "loan officer", "portfolio at risk",
+        "par report", "par30", "par60", "par90", "loan portfolio", "product type"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8109,6 +8117,28 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Add instructions for account summary requests
     if is_account_summary:
         special_instructions += "\n\nThis appears to be a request for an account summary. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information (name, contact details)\n2. Account details (balance, shares)\n3. Loan information (amount, status, application date, repayment period, interest rate)\n4. Loan ledger details (disbursed amount, outstanding balance, next repayment date, missed installments)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for portfolio analytics queries
+    elif is_portfolio_analytics_query:
+        # Check for specific portfolio analytics query types
+        if any(term in user_input.lower() for term in ["portfolio value", "total portfolio", "loan portfolio"]):
+            special_instructions += "\n\nThis appears to be a query about the total loan portfolio value. Please generate SQL queries to:\n1. Calculate the sum of all outstanding loan balances\n2. Group by loan status if relevant (active, closed, etc.)\n3. Include the total number of loans in the portfolio\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["delinquency rate"]):
+            special_instructions += "\n\nThis appears to be a query about delinquency rate. Please generate SQL queries to:\n1. Calculate the total value of all loans in the portfolio\n2. Calculate the value of loans in arrears (days_in_arrears > 0)\n3. Calculate the delinquency rate using the formula: (Value of Loans in Arrears / Total Portfolio Value) * 100\n4. If the query specifies a time period (e.g., this quarter), filter the data accordingly\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["breakdown", "by product", "product type"]):
+            special_instructions += "\n\nThis appears to be a query about loan breakdown by product type. Please generate SQL queries to:\n1. Count the number of loans by product type or category\n2. Calculate the total value of loans by product type or category\n3. Calculate the percentage of the total portfolio for each product type\n4. Order by loan value (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["top clients", "top borrowers", "top loans"]):
+            special_instructions += "\n\nThis appears to be a query about top clients or loans. Please generate SQL queries to:\n1. Find the clients with the highest outstanding loan balances\n2. Include client name, loan details, and outstanding balance\n3. Limit results to 10 records (or as specified in the query)\n4. Order by outstanding balance (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["by branch", "branch performance"]):
+            special_instructions += "\n\nThis appears to be a query about branch performance. Please generate SQL queries to:\n1. Count the number of loans disbursed by branch\n2. Calculate the total value of loans disbursed by branch\n3. Include branch name and any other relevant branch details\n4. Order by number of loans or total value (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["trends", "past 6 months", "over time"]):
+            special_instructions += "\n\nThis appears to be a query about loan trends over time. Please generate SQL queries to:\n1. Count the number of loans disbursed by month/period\n2. Calculate the total value of loans disbursed by month/period\n3. Limit to the time period specified in the query (e.g., past 6 months)\n4. Order by date (ascending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["average loan", "loan officer", "by officer"]):
+            special_instructions += "\n\nThis appears to be a query about loan officer performance. Please generate SQL queries to:\n1. Calculate the average loan amount by loan officer\n2. Count the number of loans handled by each loan officer\n3. Calculate the total value of loans handled by each loan officer\n4. Include loan officer name and ID\n5. Order by average loan amount (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["portfolio at risk", "par report", "par30", "par60", "par90"]):
+            special_instructions += "\n\nThis appears to be a query about Portfolio at Risk (PAR). Please generate SQL queries to:\n1. Calculate the total value of all loans in the portfolio\n2. Calculate the value of loans with arrears > 30 days (PAR30)\n3. Calculate the value of loans with arrears > 60 days (PAR60)\n4. Calculate the value of loans with arrears > 90 days (PAR90)\n5. Calculate the PAR ratios using the formula: (Value of Loans with Arrears > X days / Total Portfolio Value) * 100\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a portfolio analytics query. Please generate SQL queries to:\n1. Retrieve the relevant portfolio metrics based on the query\n2. Include appropriate aggregations (sum, count, average, etc.)\n3. Group by relevant dimensions (product, branch, officer, etc.)\n4. Order results logically based on the query context\nEach query should be complete and executable on its own."
     
     # Add instructions for repayment and schedule queries
     elif is_repayment_query:
@@ -8752,6 +8782,14 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
         "repayments made", "payments made", "repayment pattern", "payment pattern", "irregular payment"
     ])
     
+    # Detect portfolio analytics queries
+    is_portfolio_analytics_query = any(pattern in user_question.lower() for pattern in [
+        "portfolio value", "total portfolio", "delinquency rate", "breakdown of loans",
+        "top clients", "top borrowers", "top loans", "loans by branch", "branch performance",
+        "disbursement trends", "loan trends", "average loan", "loan officer", "portfolio at risk",
+        "par report", "par30", "par60", "par90", "loan portfolio", "product type"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8768,6 +8806,99 @@ IMPORTANT:
 - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
 - For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
 - Format the response as a structured account summary with clear sections"""
+    
+    # For portfolio analytics queries
+    elif is_portfolio_analytics_query:
+        # Check for specific portfolio analytics query types
+        if any(term in user_question.lower() for term in ["portfolio value", "total portfolio", "loan portfolio"]):
+            special_instructions = """This appears to be a query about the total loan portfolio value.
+
+IMPORTANT:
+- Present the total portfolio value prominently at the beginning of your response
+- Format large numbers with commas (e.g., 1,234,567)
+- Include a breakdown by loan status if available (active, closed, etc.)
+- Include the total number of loans in the portfolio
+- If relevant, include a brief comparison to previous periods"""
+        elif any(term in user_question.lower() for term in ["delinquency rate"]):
+            special_instructions = """This appears to be a query about delinquency rate.
+
+IMPORTANT:
+- Present the delinquency rate prominently as a percentage
+- Include the formula used: Delinquency Rate = (Value of Loans in Arrears / Total Portfolio Value) * 100
+- Include the total value of loans in arrears and the total portfolio value
+- Format large numbers with commas (e.g., 1,234,567)
+- If the query specifies a time period, clearly indicate this in your response
+- If available, include a comparison to previous periods or industry benchmarks"""
+        elif any(term in user_question.lower() for term in ["breakdown", "by product", "product type"]):
+            special_instructions = """This appears to be a query about loan breakdown by product type.
+
+IMPORTANT:
+- Present the results as a clear, structured table or list
+- For each product type, include the number of loans, total value, and percentage of portfolio
+- Order by loan value (highest first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include totals at the end
+- Highlight the product types with the highest concentration"""
+        elif any(term in user_question.lower() for term in ["top clients", "top borrowers", "top loans"]):
+            special_instructions = """This appears to be a query about top clients or loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list (1 to 10 or as specified)
+- For each client/loan, include client name, loan details, and outstanding balance
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the percentage of the total portfolio for each top client
+- Order by outstanding balance (highest first)"""
+        elif any(term in user_question.lower() for term in ["by branch", "branch performance"]):
+            special_instructions = """This appears to be a query about branch performance.
+
+IMPORTANT:
+- Present the results as a clear, structured table or list
+- For each branch, include the number of loans disbursed and total value
+- Calculate and show the percentage of total disbursements for each branch
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by number of loans or total value (highest first)
+- Highlight the top performing branches"""
+        elif any(term in user_question.lower() for term in ["trends", "past 6 months", "over time"]):
+            special_instructions = """This appears to be a query about loan trends over time.
+
+IMPORTANT:
+- Present the results as a clear, chronological table or list
+- For each period (month/quarter), include the number of loans disbursed and total value
+- Calculate and show the percentage change between periods
+- Format large numbers with commas (e.g., 1,234,567)
+- Highlight significant trends or changes
+- Summarize the overall trend at the beginning or end of your response"""
+        elif any(term in user_question.lower() for term in ["average loan", "loan officer", "by officer"]):
+            special_instructions = """This appears to be a query about loan officer performance.
+
+IMPORTANT:
+- Present the results as a clear, structured table or list
+- For each loan officer, include name, number of loans, total value, and average loan amount
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by average loan amount or total value (highest first)
+- Highlight top performing loan officers
+- Include overall averages for comparison"""
+        elif any(term in user_question.lower() for term in ["portfolio at risk", "par report", "par30", "par60", "par90"]):
+            special_instructions = """This appears to be a query about Portfolio at Risk (PAR).
+
+IMPORTANT:
+- Present the PAR values prominently as percentages
+- Include the formula used: PAR = (Value of Loans with Arrears > X days / Total Portfolio Value) * 100
+- Show PAR30, PAR60, and PAR90 values separately
+- Include the total value of at-risk loans for each PAR category
+- Format large numbers with commas (e.g., 1,234,567)
+- If available, include a comparison to previous periods or industry benchmarks
+- Highlight any concerning trends or values"""
+        else:
+            special_instructions = """This appears to be a portfolio analytics query.
+
+IMPORTANT:
+- Present the results in a clear, structured format appropriate to the query
+- Include relevant metrics and calculations based on the query context
+- Format large numbers with commas (e.g., 1,234,567)
+- Highlight key insights or findings
+- Include totals and percentages where relevant
+- Order results logically based on the query context"""
     
     # For repayment and schedule queries
     elif is_repayment_query:

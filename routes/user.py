@@ -8068,7 +8068,8 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     
     is_missed_payment_query = any(term in user_input.lower() for term in [
         "missed payment", "late payment", "arrears", "overdue", "delinquent", "deliquent", 
-        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue"
+        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue",
+        "past due", "non-performing", "npl"
     ])
     
     # Detect account summary requests
@@ -8077,6 +8078,14 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         "account details for", "summary for", "information about",
         "tell me about", "show me details for", "give me account",
         "account history", "transaction history", "payment history"
+    ])
+    
+    # Detect loan performance and monitoring queries
+    is_loan_monitoring_query = any(pattern in user_input.lower() for pattern in [
+        "outstanding balance", "due this week", "due next week", "due soon", "due date",
+        "disbursed in", "disbursed last", "recently disbursed", "new loans",
+        "active loans", "current status", "loan status", "loan id", "loan account",
+        "not received", "no repayment", "restructured", "rescheduled"
     ])
     
     # Add special instructions based on query type
@@ -8092,6 +8101,26 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Add instructions for account summary requests
     if is_account_summary:
         special_instructions += "\n\nThis appears to be a request for an account summary. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information (name, contact details)\n2. Account details (balance, shares)\n3. Loan information (amount, status, application date, repayment period, interest rate)\n4. Loan ledger details (disbursed amount, outstanding balance, next repayment date, missed installments)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for loan monitoring queries
+    elif is_loan_monitoring_query:
+        # Check for specific loan monitoring query types
+        if "outstanding balance" in user_input.lower() or "loan account" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about a specific loan's outstanding balance. Please generate SQL queries to:\n1. Find the loan by its ID or account number\n2. Retrieve the loan details including outstanding_balance, disbursed_amount, and repayment_status\n3. Include customer information if available\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["due this week", "due next week", "due soon", "due date"]):
+            special_instructions += "\n\nThis appears to be a query about loans due soon. Please generate SQL queries to:\n1. Find loans with upcoming due dates (within the next 7 days)\n2. Include loan details, customer information, and payment amounts\n3. Order by due date (ascending)\nEach query should be complete and executable on its own."
+        elif "disbursed" in user_input.lower() or "new loans" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about recently disbursed loans. Please generate SQL queries to:\n1. Find loans disbursed within the specified time period\n2. Include loan details, disbursement date, and customer information\n3. Order by disbursement date (descending)\nEach query should be complete and executable on its own."
+        elif "active loans" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about active loans for a specific member. Please generate SQL queries to:\n1. Find all active loans for the specified member\n2. Include loan details, disbursement date, outstanding balance, and next payment date\n3. Order by disbursement date (descending)\nEach query should be complete and executable on its own."
+        elif "status" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about a loan's current status. Please generate SQL queries to:\n1. Find the specific loan by ID\n2. Retrieve comprehensive loan details including status, outstanding balance, days in arrears, and payment history\n3. Include customer information\nEach query should be complete and executable on its own."
+        elif "not received" in user_input.lower() or "no repayment" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about loans without recent repayments. Please generate SQL queries to:\n1. Find loans that have not received payments within the specified time period\n2. Include loan details, customer information, outstanding balance, and last payment date\n3. Order by last payment date (ascending)\nEach query should be complete and executable on its own."
+        elif "restructured" in user_input.lower() or "rescheduled" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about restructured loans. Please generate SQL queries to:\n1. Find loans that have been restructured within the specified time period\n2. Include loan details, customer information, restructuring date, and terms\n3. Order by restructuring date (descending)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a loan monitoring query. Please generate SQL queries to:\n1. Retrieve the relevant loan information based on the query\n2. Include customer details where appropriate\n3. Ensure results are ordered in a logical manner (e.g., by date, amount, or status)\n4. Limit results if necessary to avoid overwhelming output\nEach query should be complete and executable on its own."
     
     # Add instructions for missed payment queries based on user preferences
     if is_missed_payment_query:
@@ -8675,7 +8704,16 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
     # Determine if this is a query about missed payments or delinquent loans
     is_missed_payment_query = any(term in user_question.lower() for term in [
         "missed payment", "late payment", "arrears", "overdue", "delinquent", "deliquent", 
-        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue"
+        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue",
+        "past due", "non-performing", "npl"
+    ])
+    
+    # Detect loan performance and monitoring queries
+    is_loan_monitoring_query = any(pattern in user_question.lower() for pattern in [
+        "outstanding balance", "due this week", "due next week", "due soon", "due date",
+        "disbursed in", "disbursed last", "recently disbursed", "new loans",
+        "active loans", "current status", "loan status", "loan id", "loan account",
+        "not received", "no repayment", "restructured", "rescheduled"
     ])
     
     # Add special instructions based on query type
@@ -8694,6 +8732,83 @@ IMPORTANT:
 - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
 - For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
 - Format the response as a structured account summary with clear sections"""
+    
+    # For loan monitoring queries
+    elif is_loan_monitoring_query:
+        # Check for specific loan monitoring query types
+        if "outstanding balance" in user_question.lower() or "loan account" in user_question.lower():
+            special_instructions = """This appears to be a query about a specific loan's outstanding balance.
+
+IMPORTANT:
+- Present the loan information in a clear, structured format
+- Include the loan account number, customer name, and outstanding balance
+- Format large numbers with commas (e.g., 1,234,567)
+- If available, include the original loan amount and disbursement date for context
+- When InstallmentAmount is not available, use OutstandingBalance as a substitute"""
+        elif any(term in user_question.lower() for term in ["due this week", "due next week", "due soon", "due date"]):
+            special_instructions = """This appears to be a query about loans due soon.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of upcoming loan payments
+- For each loan, include customer name, loan ID, due date, and payment amount
+- Order the results by due date (earliest first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the total number of loans due in the specified period"""
+        elif "disbursed" in user_question.lower() or "new loans" in user_question.lower():
+            special_instructions = """This appears to be a query about recently disbursed loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of recently disbursed loans
+- For each loan, include customer name, loan ID, disbursement date, and loan amount
+- Order the results by disbursement date (most recent first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the total number and value of loans disbursed in the specified period"""
+        elif "active loans" in user_question.lower():
+            special_instructions = """This appears to be a query about active loans for a specific member.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of active loans
+- For each loan, include loan ID, disbursement date, loan amount, and outstanding balance
+- Order the results by disbursement date (most recent first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the total number and combined outstanding balance of all active loans"""
+        elif "status" in user_question.lower():
+            special_instructions = """This appears to be a query about a loan's current status.
+
+IMPORTANT:
+- Present the loan information in a clear, structured format with sections
+- Include comprehensive loan details: ID, customer name, status, disbursement date, etc.
+- If in arrears, include both days in arrears AND missed installments (calculated as Math.ceil(days_in_arrears / 30))
+- Format large numbers with commas (e.g., 1,234,567)
+- Include payment history summary if available"""
+        elif "not received" in user_question.lower() or "no repayment" in user_question.lower():
+            special_instructions = """This appears to be a query about loans without recent repayments.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of loans without recent payments
+- For each loan, include customer name, loan ID, last payment date, and outstanding balance
+- Order the results by last payment date (oldest first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include both days since last payment AND missed installments (calculated as Math.ceil(days_in_arrears / 30))"""
+        elif "restructured" in user_question.lower() or "rescheduled" in user_question.lower():
+            special_instructions = """This appears to be a query about restructured loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of restructured loans
+- For each loan, include customer name, loan ID, restructuring date, and new terms
+- Order the results by restructuring date (most recent first)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the original loan terms for comparison where available"""
+        else:
+            special_instructions = """This appears to be a loan monitoring query.
+
+IMPORTANT:
+- Present the results in a clear, structured format (numbered list or sections as appropriate)
+- Include all relevant loan details based on the query context
+- Order the results in a logical manner (by date, amount, or status as appropriate)
+- Format large numbers with commas (e.g., 1,234,567)
+- For queries involving arrears, include both days in arrears AND missed installments (calculated as Math.ceil(days_in_arrears / 30))"""
+
     
     # For complex borrower queries
     elif is_complex_borrower_query:

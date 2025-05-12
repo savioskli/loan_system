@@ -8088,6 +8088,14 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         "not received", "no repayment", "restructured", "rescheduled"
     ])
     
+    # Detect repayment and schedule queries
+    is_repayment_query = any(pattern in user_input.lower() for pattern in [
+        "repayment schedule", "payment schedule", "installment schedule", "amortization",
+        "missed installment", "missed payment", "next repayment", "next payment", "next installment",
+        "partial repayment", "partial payment", "received payment", "received repayment",
+        "repayments made", "payments made", "repayment pattern", "payment pattern", "irregular payment"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8101,6 +8109,25 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Add instructions for account summary requests
     if is_account_summary:
         special_instructions += "\n\nThis appears to be a request for an account summary. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information (name, contact details)\n2. Account details (balance, shares)\n3. Loan information (amount, status, application date, repayment period, interest rate)\n4. Loan ledger details (disbursed amount, outstanding balance, next repayment date, missed installments)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for repayment and schedule queries
+    elif is_repayment_query:
+        # Check for specific repayment query types
+        if any(term in user_input.lower() for term in ["repayment schedule", "payment schedule", "installment schedule", "amortization"]):
+            special_instructions += "\n\nThis appears to be a query about a loan's repayment schedule. Please generate SQL queries to:\n1. Find the loan by its ID or account number\n2. Retrieve the complete repayment schedule including payment dates, installment amounts, and payment status\n3. Include loan details such as disbursement date, loan amount, and interest rate for context\n4. Order by payment date (ascending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["missed installment", "missed payment", "missed their last"]):
+            special_instructions += "\n\nThis appears to be a query about missed installments. Please generate a SIMPLE SQL query to:\n1. Find loans or members where the most recent scheduled payment was not made\n2. Join the customers/members table to get member names\n3. Include only essential columns: member name, loan ID, due date, days overdue, amount\n4. Limit results to 20 records maximum\n5. Order by days overdue (descending)\nKeep the query simple and avoid complex subqueries or analytics."
+
+        elif any(term in user_input.lower() for term in ["next repayment", "next payment", "next installment"]):
+            special_instructions += "\n\nThis appears to be a query about upcoming repayment dates. Please generate SQL queries to:\n1. Find the specified loan or member\n2. Retrieve the next scheduled payment date, amount, and status\n3. Include loan details and previous payment history for context\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["partial repayment", "partial payment"]):
+            special_instructions += "\n\nThis appears to be a query about partial repayments. Please generate SQL queries to:\n1. Find partial payments within the specified time period\n2. Include customer information, loan details, payment amount, and scheduled amount\n3. Calculate the difference between scheduled and actual payment amounts\n4. Order by payment date (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["received payment", "received repayment", "repayments made", "payments made"]):
+            special_instructions += "\n\nThis appears to be a query about received payments. Please generate SQL queries to:\n1. Find payments received within the specified time period\n2. Include customer information, loan details, payment amount, and payment date\n3. Order by payment date (descending)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["repayment pattern", "payment pattern", "irregular payment"]):
+            special_instructions += "\n\nThis appears to be a query about repayment patterns. Please generate SQL queries to:\n1. Analyze payment history for loans to identify irregular patterns\n2. Include customer information, loan details, and payment history\n3. Look for inconsistencies in payment dates or amounts\n4. Order by irregularity severity (most irregular first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about loan repayments or schedules. Please generate SQL queries to:\n1. Retrieve the relevant payment information based on the query\n2. Include customer details and loan information where appropriate\n3. Ensure results are ordered in a logical manner (e.g., by date or amount)\n4. Limit results if necessary to avoid overwhelming output\nEach query should be complete and executable on its own."
     
     # Add instructions for loan monitoring queries
     elif is_loan_monitoring_query:
@@ -8169,8 +8196,9 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     
     while retry_count < max_retries:
         try:
-            # Increased timeout from 10 to 20 seconds
-            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=20)
+            # Adjust timeout based on query complexity
+            timeout_value = 30 if any(term in user_input.lower() for term in ["missed installment", "missed payment", "missed their last"]) else 20
+            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=timeout_value)
             
             if response.status_code == 200:
                 api_response = response.json()
@@ -8716,6 +8744,14 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
         "not received", "no repayment", "restructured", "rescheduled"
     ])
     
+    # Detect repayment and schedule queries
+    is_repayment_query = any(pattern in user_question.lower() for pattern in [
+        "repayment schedule", "payment schedule", "installment schedule", "amortization",
+        "missed installment", "missed payment", "next repayment", "next payment", "next installment",
+        "partial repayment", "partial payment", "received payment", "received repayment",
+        "repayments made", "payments made", "repayment pattern", "payment pattern", "irregular payment"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8732,6 +8768,75 @@ IMPORTANT:
 - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
 - For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
 - Format the response as a structured account summary with clear sections"""
+    
+    # For repayment and schedule queries
+    elif is_repayment_query:
+        # Check for specific repayment query types
+        if any(term in user_question.lower() for term in ["repayment schedule", "payment schedule", "installment schedule", "amortization"]):
+            special_instructions = """This appears to be a query about a loan's repayment schedule.
+
+IMPORTANT:
+- Present the repayment schedule as a clear, chronological table or list
+- Include payment number, due date, installment amount, principal, interest, and balance
+- Highlight any missed or upcoming payments
+- Format large numbers with commas (e.g., 1,234,567)
+- Include loan summary information (amount, term, interest rate) at the beginning"""
+        elif any(term in user_question.lower() for term in ["missed installment", "missed payment", "missed their last"]):
+            special_instructions = """This appears to be a query about missed installments.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of members with missed installments
+- For each member, include name, loan ID, due date, days overdue, and installment amount
+- Include both the actual days in arrears AND the calculated number of missed installments (using Math.ceil(days_in_arrears / 30))
+- Format large numbers with commas (e.g., 1,234,567)
+- Order the results by severity (most overdue first)
+- If the list is long, summarize the total number of members with missed installments
+- Keep the response concise and focused on the most critical information"""
+        elif any(term in user_question.lower() for term in ["next repayment", "next payment", "next installment"]):
+            special_instructions = """This appears to be a query about upcoming repayment dates.
+
+IMPORTANT:
+- Present the next repayment information in a clear, structured format
+- Include member name, loan ID, next payment date, and installment amount
+- If available, include the loan balance and payment history summary
+- Format large numbers with commas (e.g., 1,234,567)
+- Clearly indicate how many days until the next payment is due"""
+        elif any(term in user_question.lower() for term in ["partial repayment", "partial payment"]):
+            special_instructions = """This appears to be a query about partial repayments.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of partial payments
+- For each payment, include member name, loan ID, payment date, actual amount, and scheduled amount
+- Calculate and show the shortfall amount and percentage
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the total number and value of partial payments in the specified period"""
+        elif any(term in user_question.lower() for term in ["received payment", "received repayment", "repayments made", "payments made"]):
+            special_instructions = """This appears to be a query about received payments.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of received payments
+- For each payment, include member name, loan ID, payment date, and amount
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the total number and value of payments in the specified period
+- Group by loan or member if there are multiple payments for the same loan"""
+        elif any(term in user_question.lower() for term in ["repayment pattern", "payment pattern", "irregular payment"]):
+            special_instructions = """This appears to be a query about repayment patterns.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of loans with irregular patterns
+- For each loan, include member name, loan ID, and description of the irregularity
+- Include specific examples of irregular payments (late, early, partial, etc.)
+- Format large numbers with commas (e.g., 1,234,567)
+- Summarize the overall pattern and potential concerns"""
+        else:
+            special_instructions = """This appears to be a query about loan repayments or schedules.
+
+IMPORTANT:
+- Present the results in a clear, structured format appropriate to the query
+- Include all relevant payment details based on the query context
+- Format large numbers with commas (e.g., 1,234,567)
+- Order the results in a logical manner (by date, amount, or status as appropriate)
+- For queries involving missed payments, include both days in arrears AND missed installments"""
     
     # For loan monitoring queries
     elif is_loan_monitoring_query:

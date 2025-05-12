@@ -8067,7 +8067,8 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     ])
     
     is_missed_payment_query = any(term in user_input.lower() for term in [
-        "missed payment", "late payment", "arrears", "overdue"
+        "missed payment", "late payment", "arrears", "overdue", "delinquent", "deliquent", 
+        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue"
     ])
     
     # Detect account summary requests
@@ -8094,7 +8095,13 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     
     # Add instructions for missed payment queries based on user preferences
     if is_missed_payment_query:
-        special_instructions += "\n\nThis appears to be a query about missed payments or arrears. Please generate SQL queries to:\n1. Find the customer's basic information\n2. Retrieve their loan details including the days_in_arrears column and outstanding_balance column\n3. IMPORTANT: In your response, include both the actual days in arrears AND the calculated missed installments (using Math.ceil(days_in_arrears / 30))\nEach query should be complete and executable on its own."
+        # Check if this is a ranking query (top N delinquent loans)
+        is_ranking_query = any(term in user_input.lower() for term in ["top", "highest", "most", "worst", "ranking", "list"])
+        
+        if is_ranking_query:
+            special_instructions += "\n\nThis appears to be a query about ranking delinquent loans. Please generate SQL queries to:\n1. Find customers with loans in arrears\n2. Include customer name, loan details, days_in_arrears, and outstanding_balance\n3. Order by days_in_arrears in descending order (highest first)\n4. Limit the results to 5-10 records\n5. IMPORTANT: In your response, include both the actual days in arrears AND the calculated missed installments (using Math.ceil(days_in_arrears / 30))\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about missed payments or arrears. Please generate SQL queries to:\n1. Find the customer's basic information\n2. Retrieve their loan details including the days_in_arrears column and outstanding_balance column\n3. IMPORTANT: In your response, include both the actual days in arrears AND the calculated missed installments (using Math.ceil(days_in_arrears / 30))\nEach query should be complete and executable on its own."
     
     # Add general instruction about InstallmentAmount based on user preferences
     special_instructions += "\n\nIMPORTANT: When InstallmentAmount is not available in the database schema, use OutstandingBalance as a substitute rather than PenaltyAmount."
@@ -8127,20 +8134,31 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         'temperature': 0.2
     }
 
-    max_retries = 3
+    max_retries = 5  # Increased from 3 to 5
     retry_count = 0
+    last_error = None
     
     while retry_count < max_retries:
         try:
-            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=10)
+            # Increased timeout from 10 to 20 seconds
+            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=20)
+            
             if response.status_code == 200:
                 api_response = response.json()
                 if 'choices' in api_response and api_response['choices']:
                     return api_response['choices'][0]['message']['content'].strip()
                 else:
-                    current_app.logger.error("Mistral API returned an empty response")
+                    error_msg = "Mistral API returned an empty response"
+                    current_app.logger.error(error_msg)
+                    last_error = error_msg
             else:
-                current_app.logger.error(f"Mistral API error: {response.status_code} - {response.text}")
+                error_msg = f"Mistral API error: {response.status_code} - {response.text}"
+                current_app.logger.error(error_msg)
+                last_error = error_msg
+                
+                # For certain status codes, don't retry (e.g., 400 Bad Request)
+                if response.status_code == 400:
+                    break
             
             # If we get here, something went wrong
             retry_count += 1
@@ -8149,11 +8167,25 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
                 current_app.logger.warning(f"Retrying API call ({retry_count}/{max_retries}) in {wait_time}s")
                 time.sleep(wait_time)
             
-        except Exception as e:
-            current_app.logger.error(f"API request error: {str(e)}")
+        except requests.exceptions.Timeout as e:
+            error_msg = f"API request timeout: {str(e)}"
+            current_app.logger.error(error_msg)
+            last_error = error_msg
             retry_count += 1
             if retry_count < max_retries:
-                time.sleep(2 ** retry_count)  # Exponential backoff
+                wait_time = 2 ** retry_count  # Exponential backoff
+                current_app.logger.warning(f"Retrying after timeout ({retry_count}/{max_retries}) in {wait_time}s")
+                time.sleep(wait_time)
+                
+        except Exception as e:
+            error_msg = f"API request error: {str(e)}"
+            current_app.logger.error(error_msg)
+            last_error = error_msg
+            retry_count += 1
+            if retry_count < max_retries:
+                wait_time = 2 ** retry_count  # Exponential backoff
+                current_app.logger.warning(f"Retrying after error ({retry_count}/{max_retries}) in {wait_time}s")
+                time.sleep(wait_time)
     
     return None
 
@@ -8640,9 +8672,10 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
         "account history", "transaction history", "payment history"
     ])
     
-    # Determine if this is a query about missed payments
+    # Determine if this is a query about missed payments or delinquent loans
     is_missed_payment_query = any(term in user_question.lower() for term in [
-        "missed payment", "late payment", "arrears", "overdue"
+        "missed payment", "late payment", "arrears", "overdue", "delinquent", "deliquent", 
+        "defaulted", "default", "behind on", "top arrears", "highest arrears", "most overdue"
     ])
     
     # Add special instructions based on query type
@@ -8677,7 +8710,22 @@ IMPORTANT:
     
     # For missed payment queries
     elif is_missed_payment_query:
-        special_instructions = """This appears to be a query about missed payments or arrears.
+        # Check if this is a ranking query (top N delinquent loans)
+        is_ranking_query = any(term in user_question.lower() for term in ["top", "highest", "most", "worst", "ranking", "list"])
+        
+        if is_ranking_query:
+            special_instructions = """This appears to be a query about ranking delinquent loans.
+
+IMPORTANT: 
+- Present the results as a ranked list of delinquent borrowers
+- For each borrower, include their name, loan details, days in arrears, and missed installments
+- ALWAYS include both the actual days in arrears value AND the calculated number of missed installments
+- Calculate missed installments using the formula: Math.ceil(days_in_arrears / 30)
+- Include the outstanding balance for each loan
+- Format the response as a clear, numbered list
+- When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount"""
+        else:
+            special_instructions = """This appears to be a query about missed payments or arrears.
 
 IMPORTANT: 
 - ALWAYS include both the actual days in arrears value AND the calculated number of missed installments
@@ -8925,12 +8973,26 @@ def chat():
             })
             
         # Step 1: Get raw AI response with database preference and conversation history
-        raw_response = call_mistral_api(user_input, preferred_db, chat_context)
+        # Add retry logic at this level too for more resilience
+        retry_attempts = 2  # Number of retries at this level
+        for attempt in range(retry_attempts + 1):
+            raw_response = call_mistral_api(user_input, preferred_db, chat_context)
+            if raw_response:
+                break  # Success, exit the retry loop
+            elif attempt < retry_attempts:
+                # Log the retry attempt
+                current_app.logger.warning(f"API call failed, retrying at chat level ({attempt+1}/{retry_attempts})...")
+                time.sleep(3)  # Wait before retrying
+                
+        # If still no response after all retries
         if not raw_response:
+            # Provide a more helpful error message
+            error_msg = f"Failed to process: \"{user_input}\". The system is experiencing high load or connectivity issues. Please try again in a few moments."
+            current_app.logger.error(error_msg)
             return jsonify({
                 'type': 'error',
-                'content': "I'm having trouble connecting to the database. Please try again."
-            }), 500
+                'content': error_msg
+            }), 503  # Service Unavailable status code
 
         # Step 2: Extract SQL query from response
         cleaned_sql = clean_sql_response(raw_response)

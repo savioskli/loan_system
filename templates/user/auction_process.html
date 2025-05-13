@@ -983,7 +983,7 @@
             return;
         }
         
-        // Initialize customer dropdown
+        // Initialize customer dropdown with the same configuration as collection schedule
         $('#edit_customer_id').select2({
             theme: 'bootstrap-5',
             dropdownParent: $('#editAuctionModal'),
@@ -1023,50 +1023,70 @@
                         }
                     };
                 },
-                cache: true
+                cache: false // Set cache to false to ensure fresh results each time
+            },
+            minimumInputLength: 1, // Reduce to 1 character to make search more accessible
+            templateResult: function(client) {
+                return client.loading ? 'Loading...' : client.text;
+            },
+            templateSelection: function(client) {
+                return client.text;
             }
         });
         
-        // When customer is selected, populate loans dropdown
-        $('#edit_customer_id').on('select2:select', function(e) {
-            const customerId = e.params.data.id;
-            const customerName = e.params.data.text || '';
-            const customerLoans = e.params.data.loans || [];
+        // When customer is selected, populate loans dropdown - similar to collection schedule
+        $('#edit_customer_id').off('select2:select').on('select2:select', function(e) {
+            const data = e.params.data;
+            const customerId = data.id;
+            const customerName = data.text || '';
+            const customerLoans = data.loans || [];
             
-            console.log('Selected customer:', e.params.data);
+            console.log('Selected customer:', data);
             
             // Update hidden customer name field
             $('#edit_client_name').val(customerName);
             
+            // Store loans data for later access
+            $(this).data('loans', customerLoans);
+            
             // Clear and disable loan dropdown
             $('#edit_loan_id').empty().prop('disabled', true).val(null).trigger('change');
             
-            // If customer has loans, populate loans dropdown
-            if (customerLoans.length > 0) {
+            // Populate the loan dropdown with all loans for the selected client
+            // This matches how the collection schedule handles it
+            if (customerLoans && customerLoans.length > 0) {
+                console.log('Using loans data from customer search results:', customerLoans);
+                
                 // Enable loan dropdown
                 $('#edit_loan_id').prop('disabled', false);
                 
-                // Create loan options with an empty default option
-                let options = [`<option value="">Select a loan...</option>`];
-                
-                // Add loan options
-                options = options.concat(customerLoans.map(loan => {
+                // Add loan options - match collection schedule format
+                customerLoans.forEach(loan => {
                     const loanId = loan.id || loan.LoanAppID;
                     const loanNumber = loan.loan_number || loan.LoanNo || 'Loan';
                     const loanAmount = loan.amount || loan.LoanAmount || loan.OutstandingBalance || 0;
-                    return `<option value="${loanId}" data-loan='${JSON.stringify(loan)}'>${loanNumber} (${formatCurrency(loanAmount)})</option>`;
-                }));
+                    
+                    const option = new Option(
+                        `${loanNumber} - ${formatCurrency(loanAmount)}`,
+                        loanId,
+                        false,
+                        false
+                    );
+                    
+                    // Store the full loan data in the option for later access
+                    $(option).data('loan', loan);
+                    $('#edit_loan_id').append(option);
+                });
                 
-                // Add options to loan dropdown without selecting any
-                $('#edit_loan_id').html(options);
+                // Initialize loan dropdown with Select2
+                try {
+                    if ($('#edit_loan_id').data('select2')) {
+                        $('#edit_loan_id').select2('destroy');
+                    }
+                } catch (e) {
+                    console.log('Error destroying loan select2:', e);
+                }
                 
-                // Clear any previously populated loan details
-                $('#edit_outstanding_balance').val('');
-                $('#edit_days_in_arrears').val('');
-                $('#edit_missed_payments').val('');
-                $('#edit_installment_amount').val('');
-                
-                // Initialize Select2 for loan dropdown
                 $('#edit_loan_id').select2({
                     theme: 'bootstrap-5',
                     dropdownParent: $('#editAuctionModal'),
@@ -1074,85 +1094,106 @@
                     placeholder: 'Select a loan...',
                     allowClear: true
                 });
+                
+                // If there's only one loan, select it automatically
+                if (customerLoans.length === 1) {
+                    const loan = customerLoans[0];
+                    console.log('Auto-selecting first loan:', loan);
+                    $('#edit_loan_id').val(loan.id || loan.LoanAppID).trigger('change');
+                    
+                    // Update loan details in the form
+                    updateLoanDetailsInEditForm(loan);
+                    
+                    // Calculate missed payments based on days in arrears
+                    const daysInArrears = loan.DaysInArrears || 0;
+                    const missedInstallments = Math.ceil(daysInArrears / 30);
+                    console.log('Calculated missed installments:', missedInstallments, 'from days in arrears:', daysInArrears);
+                    $('#edit_missed_payments').val(missedInstallments);
+                }
             } else {
-                // If no loans in customer data, try to fetch them from API
-                $.ajax({
-                    url: `/api/customers/${customerId}/loans`,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        if (data && data.length > 0) {
-                            // Enable loan dropdown
-                            $('#edit_loan_id').prop('disabled', false);
-                            
-                            // Create loan options
-                            const options = data.map(loan => {
-                                return `<option value="${loan.id}">${loan.loan_number || loan.account_number} - ${loan.product_type || 'Loan'} (${formatCurrency(loan.amount || loan.loan_amount)})</option>`;
-                            });
-                            
-                            // Add options to loan dropdown
-                            $('#edit_loan_id').html(options);
-                            
-                            // Initialize Select2 for loan dropdown
-                            $('#edit_loan_id').select2({
-                                theme: 'bootstrap-5',
-                                dropdownParent: $('#editAuctionModal'),
-                                width: '100%',
-                                placeholder: 'Select a loan...',
-                                allowClear: true
-                            });
-                        } else {
-                            showToast('error', 'No loans found for this customer');
-                        }
-                    },
-                    error: function() {
-                        showToast('error', 'Failed to fetch loans');
+                // No loans found
+                console.log('No loans found for customer');
+                $('#edit_loan_id').empty();
+                const option = new Option('No loans found', '', true, true);
+                $('#edit_loan_id').append(option);
+                
+                // Initialize Select2 for empty state
+                try {
+                    if ($('#edit_loan_id').data('select2')) {
+                        $('#edit_loan_id').select2('destroy');
                     }
+                } catch (e) {
+                    console.log('Error destroying loan select2:', e);
+                }
+                
+                $('#edit_loan_id').select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#editAuctionModal'),
+                    width: '100%',
+                    placeholder: 'No loans available',
+                    allowClear: false
                 });
             }
+            
+            // Initialize Select2 for loan dropdown
+            $('#edit_loan_id').select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#editAuctionModal'),
+                width: '100%',
+                placeholder: 'Select a loan...',
+                allowClear: true
+            });
         });
         
-        // When loan is selected, populate loan details
-        $('#edit_loan_id').on('select2:select', function(e) {
-            const selectedOption = $(this).find('option:selected');
-            const loanId = selectedOption.val();
-            const loanText = selectedOption.text();
+        // Handle loan selection - similar to collection schedule
+        $('#edit_loan_id').off('select2:select').on('select2:select', function(e) {
+            const loanId = e.params.data.id;
+            console.log('Loan selected:', loanId);
             
-            console.log('Selected loan option:', selectedOption);
+            // First try to get loan data from the selected option
+            let selectedOption = $(this).find('option:selected');
+            let selectedLoan = selectedOption.data('loan');
             
-            // Try to get loan data from the option's data attribute
-            let loanData;
-            try {
-                loanData = selectedOption.data('loan');
-                console.log('Loan data from option:', loanData);
-            } catch (err) {
-                console.error('Error parsing loan data:', err);
+            if (selectedLoan) {
+                console.log('Found loan data in option:', selectedLoan);
+                updateLoanDetailsInEditForm(selectedLoan);
+                return;
             }
             
-            // Update loan account number field
-            $('#edit_loan_account_number').val(loanText);
+            // If not found in option, try to get from customer select data
+            const customerSelect = $('#edit_customer_id');
+            const customerLoans = customerSelect.data('loans') || [];
             
-            // If we have loan data from the option, use it
-            if (loanData) {
-                updateLoanDetailsInEditForm(loanData);
-            } else if (loanId) {
-                // Fetch loan details if not already available
-                $.ajax({
-                    url: '/api/loans/' + loanId,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        if (data) {
-                            updateLoanDetailsInEditForm(data);
-                        } else {
-                            showToast('error', 'No loan details found');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        showToast('error', 'Failed to fetch loan details: ' + error);
-                    }
-                });
+            if (Array.isArray(customerLoans) && customerLoans.length > 0) {
+                // Find the selected loan
+                selectedLoan = customerLoans.find(loan => 
+                    (loan.LoanAppID == loanId || loan.id == loanId));
+                    
+                if (selectedLoan) {
+                    console.log('Found selected loan in customer loans:', selectedLoan);
+                    updateLoanDetailsInEditForm(selectedLoan);
+                    return;
+                }
             }
+            
+            // If we still don't have the loan data, fetch it from the API
+            console.log('Fetching loan details from API for ID:', loanId);
+            showToast('info', 'Loading loan details...');
+            
+            $.ajax({
+                url: `/api/loans/${loanId}`,
+                type: 'GET',
+                dataType: 'json',
+                success: function(loan) {
+                    console.log('Loan details fetched from API:', loan);
+                    updateLoanDetailsInEditForm(loan);
+                    hideToast();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Failed to fetch loan details:', error);
+                    showToast('error', 'Failed to fetch loan details: ' + error);
+                }
+            });
         });
         
         // No need for Select2 initialization for staff and supervisor dropdowns
@@ -1176,12 +1217,12 @@
         // Use OutstandingBalance as substitute when InstallmentAmount is not available
         // per memory instructions
         const installmentAmount = loan.installment_amount || loan.InstallmentAmount || 
-            loan.PenaltyAmount || (outstandingBalance > 0 ? outstandingBalance / 12 : 0);
+            (outstandingBalance > 0 ? outstandingBalance / 12 : 0);
             
         const loanAccountNo = loan.account_number || loan.LoanNo || loan.AccountNo || loan.loan_number || '';
         
-        // Format currency values - no currency for outstanding balance
-        const formattedOutstandingBalance = outstandingBalance ? outstandingBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00';
+        // Format currency values
+        const formattedOutstandingBalance = formatCurrency(outstandingBalance);
         const formattedInstallmentAmount = formatCurrency(installmentAmount);
         
         // Set loan account number
@@ -1194,6 +1235,8 @@
         // Calculate missed payments based on days in arrears
         // Using Math.ceil to round up to the nearest installment
         // (1 missed payment per 30 days in arrears)
+        // This follows the memory requirement to calculate based on days in arrears,
+        // not directly using the DaysInArrears field
         const missedPayments = daysInArrears > 0 ? Math.ceil(daysInArrears / 30) : 0;
         $('#edit_missed_payments').val(missedPayments);
         
@@ -1202,17 +1245,35 @@
             $('#edit_installment_amount').val(formattedInstallmentAmount);
         } else if (outstandingBalance > 0) {
             // Use outstanding_balance as fallback per memory instructions
+            // This follows the memory requirement to use OutstandingBalance as a substitute
+            // when InstallmentAmount is not available
             $('#edit_installment_amount').val(formattedInstallmentAmount + ' (estimated)');
         } else {
             $('#edit_installment_amount').val('0.00');
         }
         
+        // Update priority based on days in arrears (similar to collection schedule)
+        const prioritySelect = document.getElementById('edit_priority');
+        if (prioritySelect) {
+            if (daysInArrears >= 90) {
+                prioritySelect.value = 'Critical';
+            } else if (daysInArrears >= 60) {
+                prioritySelect.value = 'High';
+            } else if (daysInArrears >= 30) {
+                prioritySelect.value = 'Medium';
+            } else {
+                prioritySelect.value = 'Low';
+            }
+        }
+        
         console.log('Updated loan details in edit form:', {
             loanAccountNo: loanAccountNo,
             outstandingBalance: outstandingBalance,
+            formattedOutstandingBalance: formattedOutstandingBalance,
             daysInArrears: daysInArrears,
             missedPayments: missedPayments,
-            installmentAmount: installmentAmount
+            installmentAmount: installmentAmount,
+            formattedInstallmentAmount: formattedInstallmentAmount
         });
     }
     
@@ -1232,13 +1293,16 @@
         console.log('Error handling Select2 instances:', e);
     }
     
-    // Initialize the Select2 dropdowns with clean state
-    initializeEditSelect2Dropdowns();
+    // Initialize the Select2 dropdowns with clean state - we'll initialize customer select later
+    // after we've loaded the auction data to ensure search functionality works properly
     
     // Clear any existing data in the form
     $('#edit_customer_id').empty();
     $('#edit_loan_id').empty().prop('disabled', true);
     $('#edit_outstanding_balance, #edit_days_in_arrears, #edit_missed_payments, #edit_installment_amount').val('');
+    
+    // Initialize the customer dropdown to ensure search functionality works
+    initializeEditSelect2Dropdowns();
 
     // Show loading indicator
     showToast('info', 'Loading auction data...');
@@ -1316,9 +1380,78 @@
             // Handle customer and loan data
             console.log('Setting up customer and loan data');
             
-            // Check if we have client_name (customer name)
-            if (auction.client_name) {
-                console.log('Client name found:', auction.client_name);
+            // Check if we have customer_id and client_name
+            if (auction.customer_id && auction.client_name) {
+                console.log('Customer data found:', auction.customer_id, auction.client_name);
+                
+                // Ensure clean state for the customer select
+                try {
+                    if ($('#edit_customer_id').data('select2')) {
+                        $('#edit_customer_id').select2('destroy');
+                    }
+                } catch (e) {
+                    console.log('Error handling customer select2:', e);
+                }
+                $('#edit_customer_id').empty();
+                
+                // Create a customer option with the actual ID and name
+                const customerOption = new Option(
+                    auction.client_name,
+                    auction.customer_id,
+                    true,
+                    true
+                );
+                
+                // Add to select
+                $('#edit_customer_id').append(customerOption);
+                
+                // Initialize the customer select with the proper configuration
+                initializeEditSelect2Dropdowns();
+                
+                // Manually select the option without triggering change event yet
+                $('#edit_customer_id').val(auction.customer_id);
+                
+                // Set hidden customer name field
+                document.getElementById('edit_client_name').value = auction.client_name;
+                
+                // Create a data object with loans if available
+                const selectedData = {
+                    id: auction.customer_id,
+                    text: auction.client_name,
+                    loans: []
+                };
+                
+                // If we have loan data in the auction, create a simplified loan object
+                if (auction.loan_id) {
+                    const simplifiedLoan = {
+                        id: auction.loan_id,
+                        LoanAppID: auction.loan_id,
+                        LoanNo: auction.loan_id,
+                        loan_number: auction.loan_id,
+                        OutstandingBalance: auction.outstanding_balance || 0,
+                        LoanAmount: auction.outstanding_balance || 0,
+                        DaysInArrears: auction.days_in_arrears || 0,
+                        InstallmentAmount: auction.installment_amount || 0
+                    };
+                    
+                    // Add the loan to the loans array
+                    selectedData.loans.push(simplifiedLoan);
+                }
+                
+                // Store the data for later use
+                $('#edit_customer_id').data('loans', selectedData.loans);
+                
+                // Now trigger the change event
+                $('#edit_customer_id').trigger('change');
+                
+                // Manually trigger the select2:select event to load loans
+                $('#edit_customer_id').trigger({
+                    type: 'select2:select',
+                    params: { data: selectedData }
+                });
+            } else if (auction.client_name) {
+                // Fallback if we only have client_name
+                console.log('Only client name found:', auction.client_name);
                 
                 // Ensure clean state for the customer select
                 try {
@@ -1333,7 +1466,7 @@
                 // Create a placeholder customer option with the name
                 const customerOption = new Option(
                     auction.client_name,
-                    'placeholder', // Use a placeholder ID since we don't have the actual ID
+                    'placeholder',
                     true,
                     true
                 );
@@ -1341,14 +1474,8 @@
                 // Add to select
                 $('#edit_customer_id').append(customerOption);
                 
-                // Reinitialize select2
-                $('#edit_customer_id').select2({
-                    theme: 'bootstrap-5',
-                    dropdownParent: $('#editAuctionModal'),
-                    width: '100%',
-                    placeholder: 'Select a customer...',
-                    allowClear: true
-                });
+                // Initialize the customer select with the proper configuration
+                initializeEditSelect2Dropdowns();
                 
                 // Manually select the option
                 $('#edit_customer_id').val('placeholder').trigger('change');
@@ -1373,17 +1500,56 @@
                 }
                 $('#edit_loan_id').empty();
                 
-                // Create the loan option
-                const loanText = auction.loan_id;
-                const loanOption = new Option(
-                    loanText,
-                    'placeholder', // Use a placeholder ID since we don't have the actual ID
-                    true,
-                    true
-                );
+                // If we have customer loans data, try to find the matching loan
+                const customerLoans = $('#edit_customer_id').data('loans');
+                let loanData = null;
+                let loanText = auction.loan_id;
+                let loanId = auction.loan_id;
                 
-                // Add to select
-                $('#edit_loan_id').append(loanOption);
+                if (customerLoans && customerLoans.length > 0) {
+                    // Try to find the loan in the customer's loans
+                    loanData = customerLoans.find(loan => 
+                        (loan.id == auction.loan_id || loan.LoanAppID == auction.loan_id || loan.LoanNo == auction.loan_id));
+                    
+                    if (loanData) {
+                        console.log('Found loan in customer loans:', loanData);
+                        loanId = loanData.id || loanData.LoanAppID;
+                        loanText = loanData.LoanNo || loanData.loan_number || auction.loan_id;
+                        
+                        // Add all customer loans to the dropdown
+                        let options = [];
+                        
+                        customerLoans.forEach(loan => {
+                            const id = loan.id || loan.LoanAppID;
+                            const number = loan.LoanNo || loan.loan_number || 'Loan';
+                            const amount = loan.LoanAmount || loan.OutstandingBalance || 0;
+                            const selected = id == loanId;
+                            
+                            const option = new Option(
+                                `${number} (${formatCurrency(amount)})`,
+                                id,
+                                selected,
+                                selected
+                            );
+                            $(option).data('loan', loan);
+                            $('#edit_loan_id').append(option);
+                        });
+                    }
+                }
+                
+                // If we didn't find the loan in customer loans, create a placeholder option
+                if (!loanData) {
+                    console.log('Creating placeholder loan option');
+                    const loanOption = new Option(
+                        loanText,
+                        loanId,
+                        true,
+                        true
+                    );
+                    
+                    // Add to select
+                    $('#edit_loan_id').append(loanOption);
+                }
                 
                 // Initialize select2 for loan dropdown
                 $('#edit_loan_id').select2({
@@ -1395,21 +1561,24 @@
                 });
                 
                 // Manually select the option
-                $('#edit_loan_id').val('placeholder').trigger('change');
+                $('#edit_loan_id').val(loanId).trigger('change');
                 
                 // Set hidden loan account number field
                 document.getElementById('edit_loan_account_number').value = loanText;
                 
-                // Create a simplified loan object with the data we have
-                const simplifiedLoan = {
-                    loan_number: auction.loan_id,
-                    outstanding_balance: auction.outstanding_balance || 0,
-                    days_in_arrears: auction.days_in_arrears || 0,
-                    installment_amount: auction.installment_amount || 0
+                // Create a loan object with the data we have
+                const loanObject = loanData || {
+                    loan_number: loanText,
+                    LoanNo: loanText,
+                    id: loanId,
+                    LoanAppID: loanId,
+                    OutstandingBalance: auction.outstanding_balance || 0,
+                    DaysInArrears: auction.days_in_arrears || 0,
+                    InstallmentAmount: auction.installment_amount || 0
                 };
                 
                 // Update loan details in the form
-                updateLoanDetailsInEditForm(simplifiedLoan);
+                updateLoanDetailsInEditForm(loanObject);
             }
             
             // Complete auction data setup

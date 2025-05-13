@@ -1221,10 +1221,15 @@
     
     // First, properly destroy any existing Select2 instances to prevent conflicts
     try {
-        $('#edit_customer_id').select2('destroy');
-        $('#edit_loan_id').select2('destroy');
+        // Check if Select2 is initialized before trying to destroy it
+        if ($('#edit_customer_id').data('select2')) {
+            $('#edit_customer_id').select2('destroy');
+        }
+        if ($('#edit_loan_id').data('select2')) {
+            $('#edit_loan_id').select2('destroy');
+        }
     } catch (e) {
-        console.log('Select2 instances not initialized yet or already destroyed');
+        console.log('Error handling Select2 instances:', e);
     }
     
     // Initialize the Select2 dropdowns with clean state
@@ -1317,9 +1322,11 @@
                 
                 // Ensure clean state for the customer select
                 try {
-                    $('#edit_customer_id').select2('destroy');
+                    if ($('#edit_customer_id').data('select2')) {
+                        $('#edit_customer_id').select2('destroy');
+                    }
                 } catch (e) {
-                    console.log('Customer select2 already destroyed');
+                    console.log('Error handling customer select2:', e);
                 }
                 $('#edit_customer_id').empty();
                 
@@ -1358,9 +1365,11 @@
                 
                 // Ensure clean state for loan select
                 try {
-                    $('#edit_loan_id').select2('destroy');
+                    if ($('#edit_loan_id').data('select2')) {
+                        $('#edit_loan_id').select2('destroy');
+                    }
                 } catch (e) {
-                    console.log('Loan select2 already destroyed');
+                    console.log('Error handling loan select2:', e);
                 }
                 $('#edit_loan_id').empty();
                 

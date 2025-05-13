@@ -2176,7 +2176,14 @@ function removeAuctionUpdateFile(index) {
 
         function viewAuctionHistory(auctionId) {
             fetch(`/user/auction/${auctionId}/history`)
-                .then(response => response.json())
+                .then(response => {
+                    // Check if the response is valid JSON before parsing
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Server returned non-JSON response. The endpoint might not be properly configured.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         showToast('error', data.error);
@@ -2317,8 +2324,17 @@ function removeAuctionUpdateFile(index) {
                     document.getElementById('viewHistoryModal').classList.remove('hidden');
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    showToast('error', 'An error occurred while fetching auction history');
+                    console.error('Error fetching auction history:', error);
+                    
+                    // Check if the error is related to JSON parsing
+                    if (error.message.includes('JSON')) {
+                        showToast('error', 'The server returned an invalid response. The history API endpoint may not be properly configured.');
+                        
+                        // Log additional information for debugging
+                        console.warn('This error often occurs when the server returns HTML instead of JSON. Check that the endpoint is correctly implemented.');
+                    } else {
+                        showToast('error', 'An error occurred while fetching auction history: ' + error.message);
+                    }
                 });
         }
 

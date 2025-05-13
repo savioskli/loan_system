@@ -1,0 +1,188 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Audit Logs{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-primary rounded-full p-3">
+                <i class="fas fa-history text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Audit Logs</h2>
+                <p class="text-gray-600 dark:text-gray-300">Comprehensive history of all system activities</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Filter Audit Logs</h3>
+        <form action="{{ url_for('audit.audit_logs') }}" method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Action Type Filter -->
+                <div>
+                    <label for="action_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action Type</label>
+                    <select id="action_type" name="action_type" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                        <option value="">All Actions</option>
+                        {% for action_type in action_types %}
+                            <option value="{{ action_type }}" {% if selected_action_type == action_type %}selected{% endif %}>{{ action_type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Entity Type Filter -->
+                <div>
+                    <label for="entity_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Entity Type</label>
+                    <select id="entity_type" name="entity_type" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                        <option value="">All Entities</option>
+                        {% for entity_type in entity_types %}
+                            <option value="{{ entity_type }}" {% if selected_entity_type == entity_type %}selected{% endif %}>{{ entity_type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Entity ID Filter -->
+                <div>
+                    <label for="entity_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Entity ID</label>
+                    <input type="text" id="entity_id" name="entity_id" value="{{ selected_entity_id or '' }}" placeholder="Entity ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- User Filter -->
+                <div>
+                    <label for="user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User ID</label>
+                    <input type="text" id="user_id" name="user_id" value="{{ selected_user_id or '' }}" placeholder="User ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+
+                <!-- Date Range Filters -->
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Date</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ selected_date_from or '' }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To Date</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ selected_date_to or '' }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <a href="{{ url_for('audit.audit_logs') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    Clear
+                </a>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Audit Logs</h3>
+            <a href="{{ url_for('audit.audit_dashboard') }}" class="text-primary hover:text-secondary text-sm font-medium">
+                <i class="fas fa-chart-bar mr-1"></i> View Dashboard
+            </a>
+        </div>
+
+        {% if pagination.items %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Action</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Entity</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for log in pagination.items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ log.id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {% if log.user %}
+                                <a href="{{ url_for('audit.user_audit_history', user_id=log.user_id) }}" class="text-primary hover:text-secondary">
+                                    {{ log.user.username }}
+                                </a>
+                            {% else %}
+                                System
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if log.action_type == 'create' %}bg-green-100 text-green-800{% elif log.action_type == 'update' %}bg-blue-100 text-blue-800{% elif log.action_type == 'delete' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ log.action_type|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {% if log.entity_id %}
+                                <a href="{{ url_for('audit.entity_audit_history', entity_type=log.entity_type, entity_id=log.entity_id) }}" class="text-primary hover:text-secondary">
+                                    {{ log.entity_type|title }} #{{ log.entity_id }}
+                                </a>
+                            {% else %}
+                                {{ log.entity_type|title }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{{ log.description|truncate(50) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('audit.audit_detail', log_id=log.id) }}" class="text-primary hover:text-secondary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-4 flex items-center justify-between">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                Showing <span class="font-medium">{{ pagination.items|length }}</span> of <span class="font-medium">{{ pagination.total }}</span> results
+            </div>
+            <div class="flex space-x-1">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('audit.audit_logs', page=pagination.prev_num, action_type=selected_action_type, entity_type=selected_entity_type, entity_id=selected_entity_id, user_id=selected_user_id, date_from=selected_date_from, date_to=selected_date_to) }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    Previous
+                </a>
+                {% endif %}
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        {% if page_num == pagination.page %}
+                        <span class="px-3 py-1 bg-primary text-white rounded-md">
+                            {{ page_num }}
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('audit.audit_logs', page=page_num, action_type=selected_action_type, entity_type=selected_entity_type, entity_id=selected_entity_id, user_id=selected_user_id, date_from=selected_date_from, date_to=selected_date_to) }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                            {{ page_num }}
+                        </a>
+                        {% endif %}
+                    {% else %}
+                        <span class="px-3 py-1">…</span>
+                    {% endif %}
+                {% endfor %}
+                {% if pagination.has_next %}
+                <a href="{{ url_for('audit.audit_logs', page=pagination.next_num, action_type=selected_action_type, entity_type=selected_entity_type, entity_id=selected_entity_id, user_id=selected_user_id, date_from=selected_date_from, date_to=selected_date_to) }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-gray-500 dark:text-gray-400">No audit logs found. Apply different filters or check back later.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

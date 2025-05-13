@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize the dropdowns when the modal is shown
         $('[data-modal-toggle="create-demand-letter-modal"], [data-modal-target="create-demand-letter-modal"]').on('click', function() {
+            // Ensure modal is properly positioned before initializing dropdowns
+            $('#create-demand-letter-modal').addClass('flex items-center justify-center');
+            
+            // Wait for modal to be fully visible before initializing
             setTimeout(function() {
                 // Initialize dropdowns if not already initialized
                 if ($('#member_id').hasClass('select2-hidden-accessible')) {
@@ -22,13 +26,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#loan_id').select2('destroy');
                 }
                 
-                initializeMemberSelect();
-                initializeLoanSelect();
-                
                 // Reset form and hide loan details
                 $('#demand-letter-form')[0].reset();
                 $('#loan_details_container').hide();
-            }, 100);
+                
+                // Initialize dropdowns after modal is fully visible
+                initializeMemberSelect();
+                initializeLoanSelect();
+            }, 300);
         });
         
         // Also initialize on document ready to ensure they're available
@@ -348,12 +353,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const selectedLoanId = e.target.value;
                 const loan = $(e.target.selectedOptions[0]).data('loan');
                 
-                // Update amount outstanding with defensive checks
                 if (loan && loan.OutstandingBalance !== undefined) {
                     const outstandingAmount = loan.OutstandingBalance;
                     const daysInArrears = loan.DaysInArrears || 0;
                     const missedPayments = loan.missedPayments || 0;
-                    const installmentAmount = loan.InstallmentAmount || loan.OutstandingBalance || 0;
+                    const installmentAmount = loan.installmentAmount || 0;
                     
                     // Set amount outstanding field with raw numeric value
                     $('#amount_outstanding').val(outstandingAmount.toFixed(2));
@@ -379,8 +383,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#missed_payments_display').val(missedPayments);
                     $('#installment_amount_display').val(formatCurrency(installmentAmount));
                     
-                    // Show the loan details container
-                    $('#loan_details_container').show();
+                    // Show the loan details container after a slight delay to prevent modal jumping
+                    setTimeout(function() {
+                        $('#loan_details_container').show();
+                    }, 50);
                     
                     // Log for debugging
                     console.log('Selected Loan Details:', {

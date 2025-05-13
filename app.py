@@ -34,6 +34,7 @@ from models.sms_template import SMSTemplate, TemplateType
 from models.email_template import EmailTemplate, EmailTemplateType
 from models.sms_log import SMSLog
 from models.post_disbursement_modules import PostDisbursementModule
+from models.audit import AuditLog
 
 # Import routes
 from routes.branch_routes import branch_bp
@@ -58,6 +59,7 @@ from routes.thresholds import thresholds_bp
 from routes.collection_schedule import collection_schedule_bp
 from routes.core_banking import bp as core_banking_bp
 from routes.api import api_bp
+from routes.audit import audit_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -156,6 +158,7 @@ def create_app():
     app.register_blueprint(post_disbursement_workflows_bp)
     app.register_blueprint(progress_update_bp)
     app.register_blueprint(api_bp)  # Register the API blueprint
+    app.register_blueprint(audit_bp)  # Register the Audit blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp
@@ -189,6 +192,7 @@ def create_app():
             from models.email_template import EmailTemplate, EmailTemplateType
             from models.sms_log import SMSLog
             from models.post_disbursement_modules import PostDisbursementModule
+            from models.audit import AuditLog
             db.create_all()
             
         # Initialize chat tables

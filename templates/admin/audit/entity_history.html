@@ -1,0 +1,114 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Entity Audit History{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="bg-primary rounded-full p-3">
+                    <i class="fas fa-history text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ entity_type|title }} #{{ entity_id }} History</h2>
+                    <p class="text-gray-600 dark:text-gray-300">Complete audit trail for this entity</p>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('audit.audit_logs') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Logs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-6">Activity Timeline</h3>
+        
+        {% if audit_logs %}
+        <div class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3">
+            {% for log in audit_logs %}
+            <div class="mb-8 ml-6">
+                <div class="absolute w-6 h-6 -left-3 rounded-full 
+                    {% if log.action_type == 'create' %}bg-green-500{% elif log.action_type == 'update' %}bg-blue-500{% elif log.action_type == 'delete' %}bg-red-500{% else %}bg-gray-500{% endif %} flex items-center justify-center">
+                    <i class="fas 
+                        {% if log.action_type == 'create' %}fa-plus{% elif log.action_type == 'update' %}fa-edit{% elif log.action_type == 'delete' %}fa-trash{% elif log.action_type == 'view' %}fa-eye{% else %}fa-circle{% endif %} text-white text-xs"></i>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
+                    <time class="text-sm font-normal leading-none text-gray-500 dark:text-gray-400">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</time>
+                    <div>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full 
+                            {% if log.action_type == 'create' %}bg-green-100 text-green-800{% elif log.action_type == 'update' %}bg-blue-100 text-blue-800{% elif log.action_type == 'delete' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ log.action_type|title }}
+                        </span>
+                        {% if log.user %}
+                        <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                            by <a href="{{ url_for('audit.user_audit_history', user_id=log.user_id) }}" class="text-primary hover:text-secondary">{{ log.user.username }}</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-2">{{ log.description }}</h4>
+                    
+                    {% if log.action_type == 'update' and log.old_value and log.new_value %}
+                    <div class="mt-2">
+                        <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Changes:</h5>
+                        <div class="space-y-2">
+                            {% for field in log.old_value.keys() %}
+                            {% if log.old_value[field] != log.new_value[field] %}
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <span class="font-medium">{{ field|title }}:</span>
+                                    <span class="text-red-500 line-through">{{ log.old_value[field]|default('None', true)|truncate(30) }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-medium">New:</span>
+                                    <span class="text-green-500">{{ log.new_value[field]|default('None', true)|truncate(30) }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% elif log.action_type == 'create' and log.new_value %}
+                    <div class="mt-2">
+                        <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Created with:</h5>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {% for field, value in log.new_value.items()|slice(0, 6) %}
+                            <div>
+                                <span class="font-medium">{{ field|title }}:</span>
+                                <span>{{ value|default('None', true)|truncate(30) }}</span>
+                            </div>
+                            {% endfor %}
+                            {% if log.new_value.items()|length > 6 %}
+                            <div class="col-span-2 text-center">
+                                <a href="{{ url_for('audit.audit_detail', log_id=log.id) }}" class="text-primary hover:text-secondary text-xs">
+                                    View all {{ log.new_value.items()|length }} fields
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-2 text-right">
+                        <a href="{{ url_for('audit.audit_detail', log_id=log.id) }}" class="text-primary hover:text-secondary text-xs">
+                            View full details <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-gray-500 dark:text-gray-400">No audit history found for this entity.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

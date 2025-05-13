@@ -1,0 +1,265 @@
+{% extends "admin/base.html" %}
+
+{% block title %}System Audit{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-primary rounded-full p-3">
+                <i class="fas fa-clipboard-check text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">System Audit</h2>
+                <p class="text-gray-600 dark:text-gray-300">Track and monitor all system activities</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Total Audit Logs -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-history text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Total Audit Logs</h4>
+                    <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ total_logs }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Today -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-calendar-day text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Logs Today</h4>
+                    <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ logs_today }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Most Common Action -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-bolt text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Most Common Action</h4>
+                    {% if action_stats %}
+                        {% set most_common_action = action_stats|sort(attribute='1', reverse=True)|first %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">{{ most_common_action[0]|title }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ most_common_action[1] }} times</p>
+                    {% else %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">No data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Most Tracked Entity -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-database text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Most Tracked Entity</h4>
+                    {% if entity_stats %}
+                        {% set most_common_entity = entity_stats|sort(attribute='1', reverse=True)|first %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">{{ most_common_entity[0]|title }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ most_common_entity[1] }} logs</p>
+                    {% else %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">No data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Filter Audit Logs</h3>
+        <form action="{{ url_for('audit.audit_dashboard') }}" method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Action Type Filter -->
+                <div>
+                    <label for="action_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action Type</label>
+                    <select id="action_type" name="action_type" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                        <option value="">All Actions</option>
+                        {% for action_type in action_types %}
+                            <option value="{{ action_type }}" {% if selected_action_type == action_type %}selected{% endif %}>{{ action_type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Entity Type Filter -->
+                <div>
+                    <label for="entity_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Entity Type</label>
+                    <select id="entity_type" name="entity_type" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                        <option value="">All Entities</option>
+                        {% for entity_type in entity_types %}
+                            <option value="{{ entity_type }}" {% if selected_entity_type == entity_type %}selected{% endif %}>{{ entity_type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- User Filter -->
+                <div>
+                    <label for="user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
+                    <input type="text" id="user_id" name="user_id" value="{{ selected_user_id or '' }}" placeholder="User ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Date Range Filters -->
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Date</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ selected_date_from or '' }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To Date</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ selected_date_to or '' }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <a href="{{ url_for('audit.audit_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    Clear
+                </a>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Recent Activity</h3>
+            <a href="{{ url_for('audit.audit_logs') }}" class="text-primary hover:text-secondary text-sm font-medium">
+                View All Logs <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+
+        {% if audit_logs %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Action</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Entity</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for log in audit_logs %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {% if log.user %}
+                                <a href="{{ url_for('audit.user_audit_history', user_id=log.user_id) }}" class="text-primary hover:text-secondary">
+                                    {{ log.user.username }}
+                                </a>
+                            {% else %}
+                                System
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if log.action_type == 'create' %}bg-green-100 text-green-800{% elif log.action_type == 'update' %}bg-blue-100 text-blue-800{% elif log.action_type == 'delete' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ log.action_type|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {% if log.entity_id %}
+                                <a href="{{ url_for('audit.entity_audit_history', entity_type=log.entity_type, entity_id=log.entity_id) }}" class="text-primary hover:text-secondary">
+                                    {{ log.entity_type|title }} #{{ log.entity_id }}
+                                </a>
+                            {% else %}
+                                {{ log.entity_type|title }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{{ log.description|truncate(50) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('audit.audit_detail', log_id=log.id) }}" class="text-primary hover:text-secondary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-gray-500 dark:text-gray-400">No audit logs found. Apply different filters or check back later.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Type Distribution -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Action Type Distribution</h3>
+            {% if action_stats %}
+            <div class="space-y-4">
+                {% for action, count in action_stats|sort(attribute='1', reverse=true) %}
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ action|title }}</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ count }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        {% set percentage = (count / action_stats|map(attribute='1')|sum * 100)|round|int %}
+                        <div class="bg-primary h-2.5 rounded-full" style="width: {{ percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-500 dark:text-gray-400">No action data available.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Entity Type Distribution -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Entity Type Distribution</h3>
+            {% if entity_stats %}
+            <div class="space-y-4">
+                {% for entity, count in entity_stats|sort(attribute='1', reverse=true) %}
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ entity|title }}</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ count }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        {% set percentage = (count / entity_stats|map(attribute='1')|sum * 100)|round|int %}
+                        <div class="bg-primary h-2.5 rounded-full" style="width: {{ percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-500 dark:text-gray-400">No entity data available.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

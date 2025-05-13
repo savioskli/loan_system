@@ -1,0 +1,149 @@
+{% extends "admin/base.html" %}
+
+{% block title %}User Audit History{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="bg-primary rounded-full p-3">
+                    <i class="fas fa-user-clock text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">User Activity History</h2>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        {% if audit_logs[0].user %}
+                            Complete audit trail for {{ audit_logs[0].user.username }}
+                        {% else %}
+                            Complete audit trail for User #{{ user_id }}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('audit.audit_logs') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Logs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Activity Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Total Activities -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-history text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Total Activities</h4>
+                    <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ audit_logs|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Most Common Action -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-bolt text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Most Common Action</h4>
+                    {% if audit_logs %}
+                        {% set action_counts = {} %}
+                        {% for log in audit_logs %}
+                            {% if log.action_type in action_counts %}
+                                {% set _ = action_counts.update({log.action_type: action_counts[log.action_type] + 1}) %}
+                            {% else %}
+                                {% set _ = action_counts.update({log.action_type: 1}) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set most_common = {'action': '', 'count': 0} %}
+                        {% for action, count in action_counts.items() %}
+                            {% if count > most_common.count %}
+                                {% set _ = most_common.update({'action': action, 'count': count}) %}
+                            {% endif %}
+                        {% endfor %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">{{ most_common.action|title }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ most_common.count }} times</p>
+                    {% else %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">No data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Most Recent Activity -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary bg-opacity-10 rounded-full p-3">
+                    <i class="fas fa-clock text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-gray-600 dark:text-gray-300 text-sm">Last Activity</h4>
+                    {% if audit_logs %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">{{ audit_logs[0].created_at.strftime('%Y-%m-%d') }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ audit_logs[0].created_at.strftime('%H:%M:%S') }}</p>
+                    {% else %}
+                        <p class="text-lg font-bold text-gray-800 dark:text-white">No data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-6">Activity Timeline</h3>
+        
+        {% if audit_logs %}
+        <div class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3">
+            {% for log in audit_logs %}
+            <div class="mb-8 ml-6">
+                <div class="absolute w-6 h-6 -left-3 rounded-full 
+                    {% if log.action_type == 'create' %}bg-green-500{% elif log.action_type == 'update' %}bg-blue-500{% elif log.action_type == 'delete' %}bg-red-500{% else %}bg-gray-500{% endif %} flex items-center justify-center">
+                    <i class="fas 
+                        {% if log.action_type == 'create' %}fa-plus{% elif log.action_type == 'update' %}fa-edit{% elif log.action_type == 'delete' %}fa-trash{% elif log.action_type == 'view' %}fa-eye{% else %}fa-circle{% endif %} text-white text-xs"></i>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
+                    <time class="text-sm font-normal leading-none text-gray-500 dark:text-gray-400">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</time>
+                    <div>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full 
+                            {% if log.action_type == 'create' %}bg-green-100 text-green-800{% elif log.action_type == 'update' %}bg-blue-100 text-blue-800{% elif log.action_type == 'delete' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ log.action_type|title }}
+                        </span>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-2">{{ log.description }}</h4>
+                    
+                    <div class="flex justify-between items-center">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {% if log.entity_id %}
+                                <a href="{{ url_for('audit.entity_audit_history', entity_type=log.entity_type, entity_id=log.entity_id) }}" class="text-primary hover:text-secondary">
+                                    {{ log.entity_type|title }} #{{ log.entity_id }}
+                                </a>
+                            {% else %}
+                                {{ log.entity_type|title }}
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('audit.audit_detail', log_id=log.id) }}" class="text-primary hover:text-secondary text-xs">
+                            View details <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-gray-500 dark:text-gray-400">No activity history found for this user.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

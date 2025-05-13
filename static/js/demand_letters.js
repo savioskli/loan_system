@@ -10,6 +10,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        
+        // Initialize the dropdowns when the modal is shown
+        $('[data-modal-toggle="create-demand-letter-modal"], [data-modal-target="create-demand-letter-modal"]').on('click', function() {
+            setTimeout(function() {
+                // Initialize dropdowns if not already initialized
+                if ($('#member_id').hasClass('select2-hidden-accessible')) {
+                    $('#member_id').select2('destroy');
+                }
+                if ($('#loan_id').hasClass('select2-hidden-accessible')) {
+                    $('#loan_id').select2('destroy');
+                }
+                
+                initializeMemberSelect();
+                initializeLoanSelect();
+                
+                // Reset form and hide loan details
+                $('#demand-letter-form')[0].reset();
+                $('#loan_details_container').hide();
+            }, 100);
+        });
+        
+        // Also initialize on document ready to ensure they're available
+        initializeMemberSelect();
+        initializeLoanSelect();
 
         // Form Validation Function
         function validateDemandLetterForm() {
@@ -157,9 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Initialize member select
             $('#member_id').select2({
                 theme: 'bootstrap-5',
-                placeholder: 'Search for a member...',
+                placeholder: 'Search for a customer...',
                 allowClear: true,
                 width: '100%',
+                dropdownParent: $('#create-demand-letter-modal'),
                 ajax: {
                     url: '/api/customers/search',  
                     dataType: 'json',
@@ -214,11 +239,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     cache: true
                 },
-                minimumInputLength: 2,
+                minimumInputLength: 0,
                 templateResult: function(item) {
                     // Custom template to show more details
-                    if (!item.id) {
-                        return item.text;
+                    if (!item.id || item.loading) {
+                        return item.text || 'Loading...';
                     }
                     
                     const loans = item.loans || [];
@@ -256,6 +281,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 $(`input[name="${memberNameFieldName}"]`).val(memberName);
                 $('input[name="member_number"]').val(memberNumber);
                 
+                // Hide loan details container when changing member
+                $('#loan_details_container').hide();
+                
                 // Defensive check for loans
                 if (currentMemberData && 
                     currentMemberData.loans && 
@@ -267,6 +295,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         const loanNo = loan.LoanNo || 'Unknown Loan';
                         const outstandingBalance = loan.OutstandingBalance || 0;
                         const loanAppId = loan.LoanAppID || '';
+                        const daysInArrears = loan.DaysInArrears || 0;
+                        // Use outstanding balance as fallback for installment amount per requirements
+                        const installmentAmount = loan.InstallmentAmount || loan.OutstandingBalance || 0;
+                        
+                        // Calculate missed payments based on days in arrears (round up) per requirements
+                        const missedPayments = Math.ceil(daysInArrears / 30);
                         
                         const option = new Option(
                             `${loanNo} (Outstanding: ${formatCurrency(outstandingBalance)})`, 
@@ -274,9 +308,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             false, 
                             false
                         );
-                        $(option).data('loan', loan);
+                        
+                        // Store all loan data including calculated fields
+                        $(option).data('loan', {
+                            ...loan,
+                            missedPayments: missedPayments,
+                            installmentAmount: installmentAmount
+                        });
+                        
                         loanSelect.append(option);
+                        console.log('Added loan option:', loanNo, loanAppId);
                     });
+                    
+                    // Log the number of loans added
+                    console.log(`Added ${currentMemberData.loans.length} loans to dropdown`);
                 } else {
                     // No loans found
                     loanSelect.append(new Option('No loans available', '', true, true));
@@ -297,7 +342,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 theme: 'bootstrap-5',
                 placeholder: 'Select a Loan',
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                dropdownParent: $('#create-demand-letter-modal')
             }).on('select2:select', function(e) {
                 const selectedLoanId = e.target.value;
                 const loan = $(e.target.selectedOptions[0]).data('loan');
@@ -305,9 +351,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update amount outstanding with defensive checks
                 if (loan && loan.OutstandingBalance !== undefined) {
                     const outstandingAmount = loan.OutstandingBalance;
+                    const daysInArrears = loan.DaysInArrears || 0;
+                    const missedPayments = loan.missedPayments || 0;
+                    const installmentAmount = loan.InstallmentAmount || loan.OutstandingBalance || 0;
                     
                     // Set amount outstanding field with raw numeric value
                     $('#amount_outstanding').val(outstandingAmount.toFixed(2));
+                    
+                    // Set demand amount to match outstanding balance by default
+                    $('#demand_amount').val(outstandingAmount.toFixed(2));
                     
                     // Optional: Set a max value for the demand letter amount
                     $('#demand_amount').attr({
@@ -316,19 +368,48 @@ document.addEventListener('DOMContentLoaded', function() {
                         'step': '0.01'
                     });
                     
+                    // Set hidden raw values
+                    $('#raw_days_in_arrears').val(daysInArrears);
+                    $('#raw_missed_payments').val(missedPayments);
+                    $('#raw_installment_amount').val(installmentAmount);
+                    
+                    // Update display fields
+                    $('#outstanding_balance_display').val(formatCurrency(outstandingAmount));
+                    $('#days_in_arrears_display').val(daysInArrears);
+                    $('#missed_payments_display').val(missedPayments);
+                    $('#installment_amount_display').val(formatCurrency(installmentAmount));
+                    
+                    // Show the loan details container
+                    $('#loan_details_container').show();
+                    
                     // Log for debugging
                     console.log('Selected Loan Details:', {
                         loanId: selectedLoanId,
-                        outstandingBalance: outstandingAmount
+                        outstandingBalance: outstandingAmount,
+                        daysInArrears: daysInArrears,
+                        missedPayments: missedPayments,
+                        installmentAmount: installmentAmount
                     });
                 } else {
                     $('#amount_outstanding').val('0.00');
+                    $('#demand_amount').val('0.00');
                     console.warn('No outstanding balance found for loan:', loan);
+                    
+                    // Hide the loan details container
+                    $('#loan_details_container').hide();
                 }
             }).on('select2:clear', function() {
                 // Reset fields when loan is cleared
                 $('#amount_outstanding').val('0.00');
-                $('#demand_amount').removeAttr('max min step');
+                $('#demand_amount').val('0.00').removeAttr('max min step');
+                
+                // Reset hidden raw values
+                $('#raw_days_in_arrears').val('');
+                $('#raw_missed_payments').val('');
+                $('#raw_installment_amount').val('');
+                
+                // Hide the loan details container
+                $('#loan_details_container').hide();
             });
         }
 
@@ -349,9 +430,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Initialize selects
-        initializeMemberSelect();
-        initializeLoanSelect();
+        // Remove any legacy event handlers
+        $('#member_id').off('select2:select');
+        $('#loan_id').off('select2:select').off('select2:clear');
 
         // Dynamically populate letter templates based on letter type
         $('#letter_type_id').on('change', function() {
@@ -408,6 +489,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Remove any legacy event handlers or functions
         // This ensures we don't have conflicting event listeners
-        $('#member_id').off('select2:select', populateLoanDropdown);
+        $('#member_id').off('select2:select');
     });
 });

@@ -96,32 +96,40 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Status</label>
-                    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option>All Status</option>
-                        <option>Scheduled</option>
-                        <option>In Progress</option>
-                        <option>Completed</option>
-                        <option>Cancelled</option>
+                    <select id="filter-status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2">
+                        <option value="">All Status</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Type</label>
-                    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option>All Types</option>
-                        <option>Residential</option>
-                        <option>Commercial</option>
-                        <option>Industrial</option>
-                        <option>Land</option>
+                    <select id="filter-property-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2">
+                        <option value="">All Types</option>
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Industrial">Industrial</option>
+                        <option value="Land">Land</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Auction Date</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                    <input type="date" id="filter-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
-                    <input type="text" placeholder="Search by property or reference" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600">
+                    <input type="text" id="filter-search" placeholder="Search by property or reference" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 px-4 py-2">
                 </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="reset-filters" type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-2">
+                    Reset
+                </button>
+                <button id="apply-filters" type="button" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Apply Filters
+                </button>
             </div>
         </div>
 
@@ -1170,8 +1178,8 @@
             
         const loanAccountNo = loan.account_number || loan.LoanNo || loan.AccountNo || loan.loan_number || '';
         
-        // Format currency values
-        const formattedOutstandingBalance = formatCurrency(outstandingBalance);
+        // Format currency values - no currency for outstanding balance
+        const formattedOutstandingBalance = outstandingBalance ? outstandingBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00';
         const formattedInstallmentAmount = formatCurrency(installmentAmount);
         
         // Set loan account number
@@ -1194,7 +1202,7 @@
             // Use outstanding_balance as fallback per memory instructions
             $('#edit_installment_amount').val(formattedInstallmentAmount + ' (estimated)');
         } else {
-            $('#edit_installment_amount').val('KES 0.00');
+            $('#edit_installment_amount').val('0.00');
         }
         
         console.log('Updated loan details in edit form:', {
@@ -2046,7 +2054,7 @@ function removeAuctionUpdateFile(index) {
         }
 
         function formatCurrency(amount) {
-            if (!amount) return '₹ 0.00';
+            if (!amount) return '0.00';
             
             // Convert to number if it's a string
             if (typeof amount === 'string') {
@@ -2054,7 +2062,23 @@ function removeAuctionUpdateFile(index) {
             }
             
             // Format with commas and 2 decimal places using toLocaleString
-            return '₹ ' + amount.toLocaleString('en-US', {
+            return amount.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Format number without currency symbol
+        function formatNumberOnly(amount) {
+            if (!amount) return '0.00';
+            
+            // Convert to number if it's a string
+            if (typeof amount === 'string') {
+                amount = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+            }
+            
+            // Format with commas and 2 decimal places using toLocaleString
+            return amount.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
@@ -2064,6 +2088,9 @@ function removeAuctionUpdateFile(index) {
         document.addEventListener('DOMContentLoaded', function() {
             const tableBody = document.querySelector('tbody');
             if (!tableBody) return;
+            
+            // Initialize auction filters
+            initializeAuctionFilters();
 
             tableBody.addEventListener('click', function(event) {
                 const button = event.target.closest('button');
@@ -2164,7 +2191,123 @@ function removeAuctionUpdateFile(index) {
         }
 
         </script>
-
+    
+    <!-- Auction Filters JavaScript -->
+    <script>
+        // Function to initialize auction filters
+        function initializeAuctionFilters() {
+            const statusFilter = document.getElementById('filter-status');
+            const propertyTypeFilter = document.getElementById('filter-property-type');
+            const dateFilter = document.getElementById('filter-date');
+            const searchFilter = document.getElementById('filter-search');
+            const applyFiltersBtn = document.getElementById('apply-filters');
+            const resetFiltersBtn = document.getElementById('reset-filters');
+            const tableRows = document.querySelectorAll('tbody tr');
+            const tableBody = document.querySelector('tbody');
+            
+            // Apply filters when the Apply button is clicked
+            applyFiltersBtn.addEventListener('click', function() {
+                applyFilters();
+            });
+            
+            // Reset filters when the Reset button is clicked
+            resetFiltersBtn.addEventListener('click', function() {
+                statusFilter.value = '';
+                propertyTypeFilter.value = '';
+                dateFilter.value = '';
+                searchFilter.value = '';
+                applyFilters();
+            });
+            
+            // Apply filters when Enter key is pressed in the search input
+            searchFilter.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+            
+            // Apply filters as user types in the search box (with 300ms debounce)
+            let searchTimeout;
+            searchFilter.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    applyFilters();
+                }, 300);
+            });
+            
+            // Function to apply all filters
+            function applyFilters() {
+                const status = statusFilter.value.toLowerCase();
+                const propertyType = propertyTypeFilter.value.toLowerCase();
+                const date = dateFilter.value;
+                const searchText = searchFilter.value.toLowerCase();
+                
+                // Convert date to yyyy-mm-dd format for comparison
+                const formattedDate = date ? new Date(date).toISOString().split('T')[0] : '';
+                
+                // Show/hide rows based on filter criteria
+                tableRows.forEach(row => {
+                    // Skip the "No auctions found" row
+                    if (row.cells.length === 1 && row.cells[0].colSpan > 1) {
+                        return;
+                    }
+                    
+                    const rowStatus = row.querySelector('td:nth-child(6) span').textContent.trim().toLowerCase();
+                    const rowPropertyType = row.querySelector('td:nth-child(3)').textContent.trim().toLowerCase();
+                    const rowDateCell = row.querySelector('td:nth-child(5)').textContent.trim();
+                    const rowDate = rowDateCell ? new Date(rowDateCell).toISOString().split('T')[0] : '';
+                    
+                    // Get all cell text for comprehensive search
+                    const allCellsText = Array.from(row.querySelectorAll('td')).map(cell => {
+                        // For status column, get the text inside the span
+                        if (cell.querySelector('span')) {
+                            return cell.querySelector('span').textContent.trim().toLowerCase();
+                        }
+                        return cell.textContent.trim().toLowerCase();
+                    }).join(' ');
+                    
+                    // Check if the row matches all active filters
+                    const matchesStatus = !status || status === 'all status' || rowStatus.includes(status);
+                    const matchesPropertyType = !propertyType || propertyType === 'all types' || rowPropertyType.includes(propertyType);
+                    const matchesDate = !formattedDate || rowDate === formattedDate;
+                    const matchesSearch = !searchText || allCellsText.includes(searchText);
+                    
+                    // Show the row only if it matches all active filters
+                    if (matchesStatus && matchesPropertyType && matchesDate && matchesSearch) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Show a message if no auctions match the filters
+                const visibleRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
+                const noAuctionsRow = document.querySelector('tbody tr td[colspan="7"]')?.parentElement;
+                
+                if (visibleRows.length === 0 && !noAuctionsRow) {
+                    // Create a new row for "No auctions found" message if it doesn't exist
+                    const newRow = document.createElement('tr');
+                    newRow.id = 'no-results-row';
+                    newRow.innerHTML = `
+                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No auctions match the selected filters
+                        </td>
+                    `;
+                    tableBody.appendChild(newRow);
+                } else if (visibleRows.length > 0) {
+                    // Remove the "No auctions found" message if auctions are visible
+                    const noResultsRow = document.getElementById('no-results-row');
+                    if (noResultsRow) {
+                        noResultsRow.remove();
+                    }
+                }
+                
+                // Show a toast notification about the filter results
+                showToast('info', `Showing ${visibleRows.length} auction(s) matching the filters`);
+            }
+        }
+    </script>
+    
     <!-- Modal JavaScript -->
     <script>
         // Toast notification function
@@ -2347,7 +2490,7 @@ function removeAuctionUpdateFile(index) {
                 // Use outstanding_balance as fallback per memory instructions
                 $('#installment_amount').val(formattedInstallmentAmount + ' (estimated)');
             } else {
-                $('#installment_amount').val('KES 0.00');
+                $('#installment_amount').val('0.00');
             }
             
             console.log('Updated loan details:', {

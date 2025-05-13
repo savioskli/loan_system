@@ -1421,21 +1421,66 @@
                     loans: []
                 };
                 
-                // If we have loan data in the auction, create a simplified loan object
+                // If we have loan data in the auction, fetch the actual loan details from the API
                 if (auction.loan_id) {
-                    const simplifiedLoan = {
-                        id: auction.loan_id,
-                        LoanAppID: auction.loan_id,
-                        LoanNo: auction.loan_id,
-                        loan_number: auction.loan_id,
-                        OutstandingBalance: auction.outstanding_balance || 0,
-                        LoanAmount: auction.outstanding_balance || 0,
-                        DaysInArrears: auction.days_in_arrears || 0,
-                        InstallmentAmount: auction.installment_amount || 0
-                    };
+                    console.log('Fetching loan details for loan ID:', auction.loan_id);
                     
-                    // Add the loan to the loans array
-                    selectedData.loans.push(simplifiedLoan);
+                    // Show loading indicator
+                    showToast('info', 'Loading loan details...');
+                    
+                    // Fetch loan details from API
+                    $.ajax({
+                        url: `/api/loans/${auction.loan_id}`,
+                        type: 'GET',
+                        dataType: 'json',
+                        async: false, // Use synchronous request to ensure data is available before continuing
+                        success: function(loanData) {
+                            console.log('Loan details fetched from API:', loanData);
+                            
+                            // Use the fetched loan data or create a simplified loan object as fallback
+                            const loan = loanData || {
+                                id: auction.loan_id,
+                                LoanAppID: auction.loan_id,
+                                LoanNo: auction.loan_id,
+                                loan_number: auction.loan_id,
+                                // Use OutstandingBalance as substitute when not available in the database
+                                // This follows the memory requirement
+                                OutstandingBalance: loanData?.OutstandingBalance || auction.outstanding_balance || 0,
+                                LoanAmount: loanData?.LoanAmount || auction.outstanding_balance || 0,
+                                DaysInArrears: loanData?.DaysInArrears || auction.days_in_arrears || 0,
+                                // Use OutstandingBalance as substitute when InstallmentAmount is not available
+                                // This follows the memory requirement
+                                InstallmentAmount: loanData?.InstallmentAmount || (loanData?.OutstandingBalance ? loanData.OutstandingBalance / 12 : 0) || auction.installment_amount || 0
+                            };
+                            
+                            // Add the loan to the loans array
+                            selectedData.loans.push(loan);
+                            
+                            // Hide loading toast
+                            hideToast();
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Failed to fetch loan details:', error);
+                            
+                            // Create a simplified loan object as fallback
+                            const simplifiedLoan = {
+                                id: auction.loan_id,
+                                LoanAppID: auction.loan_id,
+                                LoanNo: auction.loan_id,
+                                loan_number: auction.loan_id,
+                                OutstandingBalance: auction.outstanding_balance || 0,
+                                LoanAmount: auction.outstanding_balance || 0,
+                                DaysInArrears: auction.days_in_arrears || 0,
+                                InstallmentAmount: auction.installment_amount || (auction.outstanding_balance ? auction.outstanding_balance / 12 : 0)
+                            };
+                            
+                            // Add the loan to the loans array
+                            selectedData.loans.push(simplifiedLoan);
+                            
+                            // Show error toast
+                            showToast('warning', 'Using saved loan data. Could not fetch latest loan details.');
+                        }
+                    });
                 }
                 
                 // Store the data for later use
@@ -1567,15 +1612,49 @@
                 document.getElementById('edit_loan_account_number').value = loanText;
                 
                 // Create a loan object with the data we have
-                const loanObject = loanData || {
-                    loan_number: loanText,
-                    LoanNo: loanText,
-                    id: loanId,
-                    LoanAppID: loanId,
-                    OutstandingBalance: auction.outstanding_balance || 0,
-                    DaysInArrears: auction.days_in_arrears || 0,
-                    InstallmentAmount: auction.installment_amount || 0
-                };
+                let loanObject = loanData;
+                
+                // If we don't have loan data, fetch it from the API
+                if (!loanObject) {
+                    console.log('Fetching loan details for loan ID:', loanId);
+                    
+                    // Show loading indicator
+                    showToast('info', 'Loading loan details...');
+                    
+                    // Try to fetch loan details from API
+                    let fetchedLoanData = null;
+                    $.ajax({
+                        url: `/api/loans/${loanId}`,
+                        type: 'GET',
+                        dataType: 'json',
+                        async: false, // Use synchronous request to ensure data is available
+                        success: function(data) {
+                            console.log('Loan details fetched from API:', data);
+                            fetchedLoanData = data;
+                            hideToast();
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Failed to fetch loan details:', error);
+                            showToast('warning', 'Using saved loan data. Could not fetch latest loan details.');
+                        }
+                    });
+                    
+                    // Use the fetched loan data or create a simplified loan object as fallback
+                    loanObject = fetchedLoanData || {
+                        loan_number: loanText,
+                        LoanNo: loanText,
+                        id: loanId,
+                        LoanAppID: loanId,
+                        // Use OutstandingBalance as substitute when not available in the database
+                        // This follows the memory requirement
+                        OutstandingBalance: auction.outstanding_balance || 0,
+                        LoanAmount: auction.outstanding_balance || 0,
+                        DaysInArrears: auction.days_in_arrears || 0,
+                        // Use OutstandingBalance as substitute when InstallmentAmount is not available
+                        // This follows the memory requirement
+                        InstallmentAmount: auction.installment_amount || (auction.outstanding_balance ? auction.outstanding_balance / 12 : 0)
+                    };
+                }
                 
                 // Update loan details in the form
                 updateLoanDetailsInEditForm(loanObject);

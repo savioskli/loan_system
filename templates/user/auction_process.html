@@ -1949,15 +1949,20 @@ function removeAuctionUpdateFile(index) {
 
                         // Header with action and date
                         const header = document.createElement('div');
-                        header.className = 'flex justify-between items-start mb-2';
+                        header.className = 'mb-2';
+                        
+                        // Format dates
+                        const actionDate = formatDate(entry.action_date);
+                        const createdDate = formatDate(entry.created_at || entry.created || new Date());
+                        
                         header.innerHTML = `
-                            <div>
+                            <div class="flex items-center mb-1">
                                 <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">${entry.action}</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">${formatDate(entry.action_date)}</p>
+                                <span class="ml-2 inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusClass(entry.status)}">
+                                    ${entry.status}
+                                </span>
                             </div>
-                            <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusClass(entry.status)}">
-                                ${entry.status}
-                            </span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Action Date: ${actionDate}</p>
                         `;
 
                         // Notes section
@@ -2034,10 +2039,19 @@ function removeAuctionUpdateFile(index) {
                             contentContainer.appendChild(attachmentsContainer);
                         }
 
+                        // Create the created date element at the bottom
+                        // We already have createdDate from the header section, so we can reuse it
+                        const createdElement = document.createElement('div');
+                        createdElement.className = 'mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-right';
+                        createdElement.innerHTML = `
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Created: ${createdDate}</p>
+                        `;
+                        
                         // Assemble the content
                         contentContainer.appendChild(header);
                         contentContainer.appendChild(notes);
                         contentContainer.appendChild(attachments);
+                        contentContainer.appendChild(createdElement);
                         entryElement.appendChild(contentContainer);
                         historyContainer.appendChild(entryElement);
                     });

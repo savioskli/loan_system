@@ -8104,6 +8104,41 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
         "par report", "par30", "par60", "par90", "loan portfolio", "product type"
     ])
     
+    # Detect client/member queries
+    is_client_query = any(pattern in user_input.lower() for pattern in [
+        "loan history", "member id", "client id", "contact information", "phone number", "email",
+        "multiple loans", "active loans", "cleared loans", "paid off", "settled", "credit score",
+        "risk rating", "collateral", "guarantor", "member details", "client details", "borrower details"
+    ]) or re.search(r'\bmember\s+\w+\s+\w+', user_input.lower()) is not None
+    
+    # Detect alerts and exceptions queries
+    is_alert_query = any(pattern in user_input.lower() for pattern in [
+        "exceeded", "grace period", "without guarantors", "no guarantor", "missing guarantor",
+        "less than scheduled", "underpayment", "no follow-up", "incomplete documentation",
+        "missing document", "not yet disbursed", "system mismatch", "cbs", "exception",
+        "alert", "violation", "deficiency", "irregularity", "compliance issue"
+    ])
+    
+    # Detect guarantors and collateral queries
+    is_guarantor_collateral_query = any(pattern in user_input.lower() for pattern in [
+        "guarantor", "guarantors", "collateral", "security", "secured by", "backed by",
+        "loan security", "asset", "pledge", "pledged", "guarantee", "guaranteed by"
+    ])
+    
+    # Detect rescheduling, top-ups, and restructuring queries
+    is_loan_modification_query = any(pattern in user_input.lower() for pattern in [
+        "topped up", "top-up", "topup", "top up", "additional loan", "loan extension",
+        "rescheduled", "reschedule", "restructured", "restructuring", "restructure",
+        "modified", "modification", "refinanced", "refinance", "eligible for"
+    ])
+    
+    # Detect officer/branch performance queries
+    is_performance_query = any(pattern in user_input.lower() for pattern in [
+        "officer", "branch", "managed by", "handled by", "performance", "npl ratio",
+        "non-performing", "disbursed by", "portfolio quality", "portfolio size",
+        "repayment performance", "collection rate", "disbursement target", "highest", "lowest"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8117,6 +8152,84 @@ def call_mistral_api(user_input, preferred_db=None, conversation_history=None):
     # Add instructions for account summary requests
     if is_account_summary:
         special_instructions += "\n\nThis appears to be a request for an account summary. Please generate multiple SQL queries separated by semicolons to provide a comprehensive view including:\n1. Basic customer information (name, contact details)\n2. Account details (balance, shares)\n3. Loan information (amount, status, application date, repayment period, interest rate)\n4. Loan ledger details (disbursed amount, outstanding balance, next repayment date, missed installments)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for officer/branch performance queries
+    elif is_performance_query:
+        # Check for specific performance query types
+        if re.search(r'(officer|managed by|handled by)\s+\w+\s+\w+', user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about loans managed by a specific loan officer. Please generate SQL queries to:\n1. Find the loan officer by name or ID\n2. Retrieve all loans managed or handled by this officer\n3. Include loan details, customer information, and current status\n4. Order by disbursement date (most recent first)\nEach query should be complete and executable on its own."
+        elif "repayment performance" in user_input.lower() or ("performance" in user_input.lower() and "officer" in user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about repayment performance by loan officer. Please generate SQL queries to:\n1. Calculate repayment performance metrics for each loan officer\n2. Include metrics such as collection rate, on-time payment percentage, and PAR ratio\n3. Include the number and value of loans managed by each officer\n4. Order by performance metric (best performing first)\nEach query should be complete and executable on its own."
+        elif "disbursed by branch" in user_input.lower() or ("branch" in user_input.lower() and "last 3 months" in user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about loans disbursed by a specific branch in a time period. Please generate SQL queries to:\n1. Find the branch by name or ID\n2. Retrieve all loans disbursed by this branch within the specified time period\n3. Calculate the time period based on the current date minus the specified months\n4. Include loan details, customer information, and disbursement amounts\n5. Order by disbursement date (most recent first)\nEach query should be complete and executable on its own."
+        elif "npl ratio" in user_input.lower() or "non-performing" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about officers with the highest NPL (Non-Performing Loan) ratio. Please generate SQL queries to:\n1. Calculate the NPL ratio for each loan officer\n2. Include the total portfolio value and non-performing loan value for each officer\n3. Include the number of loans and number of non-performing loans\n4. Order by NPL ratio (highest first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about officer or branch performance. Please generate SQL queries to:\n1. Calculate the relevant performance metrics based on the query\n2. Include appropriate aggregations by officer or branch\n3. Include portfolio size, quality metrics, and other relevant indicators\n4. Order results in a logical manner based on the query context\nEach query should be complete and executable on its own."
+    
+    # Add instructions for rescheduling, top-ups, and restructuring queries
+    elif is_loan_modification_query:
+        # Check for specific loan modification query types
+        if any(term in user_input.lower() for term in ["topped up", "top-up", "topup", "top up"]) and re.search(r'loan\s+\d+', user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about whether a specific loan has been topped up. Please generate SQL queries to:\n1. Find the loan by its ID or other identifiers\n2. Check if there are any top-up records associated with this loan\n3. Include details of the original loan and any top-ups (amount, date, etc.)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["rescheduled", "reschedule"]) and "past 6 months" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about rescheduled loans in the past 6 months. Please generate SQL queries to:\n1. Find loans that have been rescheduled within the past 6 months\n2. Include loan details, customer information, original terms, and new terms\n3. Calculate the time period based on the current date minus 6 months\n4. Order by rescheduling date (most recent first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["restructuring", "restructure"]) and "pending" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about loans with pending restructuring requests. Please generate SQL queries to:\n1. Find loans that have pending restructuring requests\n2. Include loan details, customer information, current terms, and proposed terms\n3. Include the date the restructuring was requested\n4. Order by request date (oldest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["eligible", "qualify"]) and any(term in user_input.lower() for term in ["top-up", "topup", "top up"]):
+            special_instructions += "\n\nThis appears to be a query about loans eligible for top-up. Please generate SQL queries to:\n1. Find active loans that meet the criteria for top-up eligibility\n2. Include loan details, customer information, and repayment history\n3. Calculate eligibility based on factors like percentage repaid, time elapsed, and payment history\n4. Order by eligibility score or potential top-up amount (highest first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about loan modifications (top-ups, rescheduling, or restructuring). Please generate SQL queries to:\n1. Find loans that match the modification criteria specified in the query\n2. Include loan details, customer information, and modification history\n3. Order results in a logical manner based on the query context\nEach query should be complete and executable on its own."
+    
+    # Add instructions for guarantors and collateral queries
+    elif is_guarantor_collateral_query:
+        # Check for specific guarantor/collateral query types
+        if re.search(r'guarantors?\s+for\s+loan', user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about guarantors for a specific loan. Please generate SQL queries to:\n1. Find the loan by its ID or other identifiers\n2. Retrieve all guarantors associated with this loan\n3. Include guarantor details (name, ID, relationship to borrower, etc.)\n4. Include the guaranteed amount or percentage for each guarantor if available\nEach query should be complete and executable on its own."
+        elif re.search(r'guarantors?\s+to\s+multiple', user_input.lower()) or "multiple loans" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about members who are guarantors to multiple loans. Please generate SQL queries to:\n1. Find members who are guarantors for more than one loan\n2. Count the number of loans each member is guaranteeing\n3. Include guarantor details and basic information about each guaranteed loan\n4. Order by the number of loans guaranteed (highest first)\nEach query should be complete and executable on its own."
+        elif re.search(r'value\s+of\s+collateral', user_input.lower()):
+            special_instructions += "\n\nThis appears to be a query about collateral value for a specific loan. Please generate SQL queries to:\n1. Find the loan by its ID or other identifiers\n2. Retrieve all collateral items associated with this loan\n3. Include collateral details (type, description, valuation, etc.)\n4. Calculate the total collateral value and compare it to the loan amount\nEach query should be complete and executable on its own."
+        elif "backed only by guarantors" in user_input.lower() or "no collateral" in user_input.lower():
+            special_instructions += "\n\nThis appears to be a query about loans backed only by guarantors with no collateral. Please generate SQL queries to:\n1. Find loans that have guarantors but no collateral recorded\n2. Include loan details, borrower information, and guarantor details\n3. Order by loan amount (highest first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about loan guarantors or collateral. Please generate SQL queries to:\n1. Retrieve the relevant guarantor or collateral information based on the query\n2. Include loan details and borrower information where appropriate\n3. Ensure results are ordered in a logical manner (e.g., by loan amount or date)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for alerts and exceptions queries
+    elif is_alert_query:
+        # Check for specific alert/exception query types
+        if any(term in user_input.lower() for term in ["exceeded", "grace period"]):
+            special_instructions += "\n\nThis appears to be a query about loans that have exceeded their grace period. Please generate SQL queries to:\n1. Find loans where the grace period has been exceeded but no action has been taken\n2. Include loan details, customer information, and the number of days past the grace period\n3. Calculate the days beyond grace period using the appropriate date fields\n4. Order by days past grace period (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["without guarantors", "no guarantor", "missing guarantor"]):
+            special_instructions += "\n\nThis appears to be a query about loans disbursed without guarantors. Please generate SQL queries to:\n1. Find loans that have been disbursed but have no guarantors recorded\n2. Include loan details, customer information, and disbursement date\n3. Order by loan amount (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["less than scheduled", "underpayment"]):
+            special_instructions += "\n\nThis appears to be a query about loans with repayment amounts less than scheduled. Please generate SQL queries to:\n1. Find loans where actual repayment amounts are less than scheduled amounts\n2. Calculate the shortfall amount and percentage\n3. Include loan details, customer information, and payment history\n4. Order by shortfall percentage (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["no follow-up", "follow up"]):
+            special_instructions += "\n\nThis appears to be a query about overdue loans with no follow-up records. Please generate SQL queries to:\n1. Find overdue loans where no follow-up actions have been recorded\n2. Include loan details, customer information, and days overdue\n3. Order by days overdue (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["incomplete documentation", "missing document"]):
+            special_instructions += "\n\nThis appears to be a query about loans with incomplete documentation. Please generate SQL queries to:\n1. Find loans where required documentation is incomplete or missing\n2. Include loan details, customer information, and missing document types\n3. Order by loan amount (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["not yet disbursed", "system mismatch", "cbs"]):
+            special_instructions += "\n\nThis appears to be a query about system synchronization issues. Please generate SQL queries to:\n1. Find loans that show as disbursed in the loan system but not in the core banking system (CBS)\n2. Include loan details, customer information, and disbursement date\n3. Order by disbursement date (most recent first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about loan exceptions or alerts. Please generate SQL queries to:\n1. Find loans that match the exception criteria specified in the query\n2. Include loan details, customer information, and relevant exception data\n3. Order results by severity or risk level (highest first)\nEach query should be complete and executable on its own."
+    
+    # Add instructions for client/member queries
+    elif is_client_query:
+        # Check for specific client/member query types
+        if any(term in user_input.lower() for term in ["loan history", "loan details"]):
+            special_instructions += "\n\nThis appears to be a query about a member's loan history. Please generate SQL queries to:\n1. Find the member by ID or name\n2. Retrieve their complete loan history including active and closed loans\n3. Include loan details such as amount, disbursement date, status, and repayment history\n4. Order by disbursement date (most recent first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["contact information", "phone number", "email", "address"]):
+            special_instructions += "\n\nThis appears to be a query about a member's contact information. Please generate SQL queries to:\n1. Find the member by ID or name\n2. Retrieve their contact information including name, phone number, email, and address\n3. Include only essential personal information and avoid retrieving sensitive data\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["multiple loans", "active loans", "more than one"]):
+            special_instructions += "\n\nThis appears to be a query about members with multiple loans. Please generate SQL queries to:\n1. Find members who have more than one active loan\n2. Include member details and basic information about each of their loans\n3. Order by the number of active loans (highest first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["cleared loans", "paid off", "settled", "completed"]):
+            special_instructions += "\n\nThis appears to be a query about members who have cleared their loans. Please generate SQL queries to:\n1. Find members who have paid off or settled their loans within the specified time period\n2. Include member details and information about the cleared loans\n3. Order by clearance date (most recent first)\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["credit score", "risk rating", "creditworthiness"]):
+            special_instructions += "\n\nThis appears to be a query about a member's credit score or risk rating. Please generate SQL queries to:\n1. Find the member by ID or name\n2. Retrieve their credit score, risk rating, or creditworthiness assessment\n3. Include relevant loan history information that might affect their rating\nEach query should be complete and executable on its own."
+        elif any(term in user_input.lower() for term in ["collateral", "security", "guarantee", "guarantor"]):
+            special_instructions += "\n\nThis appears to be a query about loans with collateral. Please generate SQL queries to:\n1. Find members or loans with collateral or guarantors\n2. Include member details, loan information, and collateral details\n3. Order by loan amount (highest first)\nEach query should be complete and executable on its own."
+        else:
+            special_instructions += "\n\nThis appears to be a query about specific members or clients. Please generate SQL queries to:\n1. Find the relevant member(s) based on the query\n2. Retrieve the appropriate member and loan information\n3. Ensure results are ordered in a logical manner\n4. Include only essential personal information and avoid retrieving sensitive data\nEach query should be complete and executable on its own."
     
     # Add instructions for portfolio analytics queries
     elif is_portfolio_analytics_query:
@@ -8790,6 +8903,41 @@ Remember: When InstallmentAmount is not available, use OutstandingBalance as a s
         "par report", "par30", "par60", "par90", "loan portfolio", "product type"
     ])
     
+    # Detect client/member queries
+    is_client_query = any(pattern in user_question.lower() for pattern in [
+        "loan history", "member id", "client id", "contact information", "phone number", "email",
+        "multiple loans", "active loans", "cleared loans", "paid off", "settled", "credit score",
+        "risk rating", "collateral", "guarantor", "member details", "client details", "borrower details"
+    ]) or re.search(r'\bmember\s+\w+\s+\w+', user_question.lower()) is not None
+    
+    # Detect alerts and exceptions queries
+    is_alert_query = any(pattern in user_question.lower() for pattern in [
+        "exceeded", "grace period", "without guarantors", "no guarantor", "missing guarantor",
+        "less than scheduled", "underpayment", "no follow-up", "incomplete documentation",
+        "missing document", "not yet disbursed", "system mismatch", "cbs", "exception",
+        "alert", "violation", "deficiency", "irregularity", "compliance issue"
+    ])
+    
+    # Detect guarantors and collateral queries
+    is_guarantor_collateral_query = any(pattern in user_question.lower() for pattern in [
+        "guarantor", "guarantors", "collateral", "security", "secured by", "backed by",
+        "loan security", "asset", "pledge", "pledged", "guarantee", "guaranteed by"
+    ])
+    
+    # Detect rescheduling, top-ups, and restructuring queries
+    is_loan_modification_query = any(pattern in user_question.lower() for pattern in [
+        "topped up", "top-up", "topup", "top up", "additional loan", "loan extension",
+        "rescheduled", "reschedule", "restructured", "restructuring", "restructure",
+        "modified", "modification", "refinanced", "refinance", "eligible for"
+    ])
+    
+    # Detect officer/branch performance queries
+    is_performance_query = any(pattern in user_question.lower() for pattern in [
+        "officer", "branch", "managed by", "handled by", "performance", "npl ratio",
+        "non-performing", "disbursed by", "portfolio quality", "portfolio size",
+        "repayment performance", "collection rate", "disbursement target", "highest", "lowest"
+    ])
+    
     # Add special instructions based on query type
     special_instructions = ""
     
@@ -8806,6 +8954,344 @@ IMPORTANT:
 - When InstallmentAmount is not available, use OutstandingBalance as a substitute rather than PenaltyAmount
 - For missed payments, calculate based on the number of missed installments rather than using raw days in arrears
 - Format the response as a structured account summary with clear sections"""
+    
+    # For officer/branch performance queries
+    elif is_performance_query:
+        # Check for specific performance query types
+        if re.search(r'(officer|managed by|handled by)\s+\w+\s+\w+', user_question.lower()):
+            special_instructions = """This appears to be a query about loans managed by a specific loan officer.
+
+IMPORTANT:
+- Present the officer information at the top (name, ID, branch, etc.)
+- List all loans in a clear, structured format
+- For each loan, include loan ID, borrower name, amount, disbursement date, and current status
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by disbursement date (most recent first)
+- Include summary statistics (total number of loans, total portfolio value, etc.)
+- Highlight any non-performing loans in the officer's portfolio"""
+        elif "repayment performance" in user_question.lower() or ("performance" in user_question.lower() and "officer" in user_question.lower()):
+            special_instructions = """This appears to be a query about repayment performance by loan officer.
+
+IMPORTANT:
+- Present the results as a clear, structured table or list of officers
+- For each officer, include name, ID, and key performance metrics
+- Include metrics such as collection rate, on-time payment percentage, and PAR ratio
+- Format percentages with one decimal place (e.g., 95.5%)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by performance metric (best performing first)
+- Include the number and value of loans managed by each officer
+- Highlight top performers and those needing improvement"""
+        elif "disbursed by branch" in user_question.lower() or ("branch" in user_question.lower() and "last 3 months" in user_question.lower()):
+            special_instructions = """This appears to be a query about loans disbursed by a specific branch in a time period.
+
+IMPORTANT:
+- Present the branch information at the top (name, location, etc.)
+- List all loans in a clear, structured format
+- For each loan, include loan ID, borrower name, amount, and disbursement date
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by disbursement date (most recent first)
+- Include summary statistics (total number of loans, total disbursed amount, etc.)
+- Compare to previous periods if data is available"""
+        elif "npl ratio" in user_question.lower() or "non-performing" in user_question.lower():
+            special_instructions = """This appears to be a query about officers with the highest NPL (Non-Performing Loan) ratio.
+
+IMPORTANT:
+- Present the results as a clear, structured table or list of officers
+- For each officer, include name, ID, NPL ratio, and portfolio details
+- Calculate NPL ratio as (Value of Non-Performing Loans / Total Portfolio Value) * 100
+- Format percentages with one decimal place (e.g., 5.2%)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by NPL ratio (highest first)
+- Include the number of loans and number of non-performing loans
+- Highlight officers with concerning NPL ratios"""
+        else:
+            special_instructions = """This appears to be a query about officer or branch performance.
+
+IMPORTANT:
+- Present the results in a clear, structured format appropriate to the query
+- Include relevant performance metrics based on the query context
+- Format percentages with one decimal place (e.g., 95.5%)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order results in a logical manner based on the query context
+- Include summary statistics where appropriate
+- Highlight notable performers (both positive and concerning)"""
+    
+    # For rescheduling, top-ups, and restructuring queries
+    elif is_loan_modification_query:
+        # Check for specific loan modification query types
+        if any(term in user_question.lower() for term in ["topped up", "top-up", "topup", "top up"]) and re.search(r'loan\s+\d+', user_question.lower()):
+            special_instructions = """This appears to be a query about whether a specific loan has been topped up.
+
+IMPORTANT:
+- Present the original loan information at the top (loan ID, amount, borrower, etc.)
+- Clearly state whether the loan has been topped up or not
+- If topped up, provide details of each top-up (amount, date, purpose)
+- Calculate and show the total loan amount (original + top-ups)
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the current status of the loan after top-ups
+- If not topped up, indicate if the loan is eligible for top-up"""
+        elif any(term in user_question.lower() for term in ["rescheduled", "reschedule"]) and "past 6 months" in user_question.lower():
+            special_instructions = """This appears to be a query about rescheduled loans in the past 6 months.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of rescheduled loans
+- For each loan, include loan ID, borrower name, original terms, and new terms
+- Show the rescheduling date and reason (if available)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by rescheduling date (most recent first)
+- Include the total number of rescheduled loans in the specified period
+- Highlight any loans that have been rescheduled multiple times"""
+        elif any(term in user_question.lower() for term in ["restructuring", "restructure"]) and "pending" in user_question.lower():
+            special_instructions = """This appears to be a query about loans with pending restructuring requests.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of loans with pending restructuring
+- For each loan, include loan ID, borrower name, current terms, and proposed terms
+- Show the date the restructuring was requested and current status
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by request date (oldest first)
+- Include the total number of pending restructuring requests
+- Highlight requests that have been pending for an extended period"""
+        elif any(term in user_question.lower() for term in ["eligible", "qualify"]) and any(term in user_question.lower() for term in ["top-up", "topup", "top up"]):
+            special_instructions = """This appears to be a query about loans eligible for top-up.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of eligible loans
+- For each loan, include loan ID, borrower name, current loan amount, and potential top-up amount
+- Show the eligibility criteria that have been met (e.g., percentage repaid, time elapsed)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by potential top-up amount (highest first)
+- Include the total number of loans eligible for top-up
+- Highlight high-value top-up opportunities"""
+        else:
+            special_instructions = """This appears to be a query about loan modifications (top-ups, rescheduling, or restructuring).
+
+IMPORTANT:
+- Present the results in a clear, structured format appropriate to the query
+- Include all relevant loan and modification details based on the query context
+- Format large numbers with commas (e.g., 1,234,567)
+- Order results in a logical manner based on the query context
+- Include summary statistics where appropriate (totals, averages, etc.)
+- Highlight any unusual or significant modifications"""
+    
+    # For guarantors and collateral queries
+    elif is_guarantor_collateral_query:
+        # Check for specific guarantor/collateral query types
+        if re.search(r'guarantors?\s+for\s+loan', user_question.lower()):
+            special_instructions = """This appears to be a query about guarantors for a specific loan.
+
+IMPORTANT:
+- Present the loan information at the top (loan ID, amount, borrower, etc.)
+- List all guarantors in a clear, structured format
+- For each guarantor, include name, ID, relationship to borrower, and contact details
+- Include the guaranteed amount or percentage for each guarantor if available
+- Format large numbers with commas (e.g., 1,234,567)
+- Indicate whether the guarantor coverage is sufficient for the loan amount
+- Protect sensitive personal information"""
+        elif re.search(r'guarantors?\s+to\s+multiple', user_question.lower()) or "multiple loans" in user_question.lower():
+            special_instructions = """This appears to be a query about members who are guarantors to multiple loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of guarantors
+- For each guarantor, include name, ID, and the number of loans guaranteed
+- Provide a brief summary of each guaranteed loan (borrower, amount, status)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by number of loans guaranteed (highest first)
+- Include the total exposure for each guarantor (sum of guaranteed amounts)
+- Protect sensitive personal information"""
+        elif re.search(r'value\s+of\s+collateral', user_question.lower()):
+            special_instructions = """This appears to be a query about collateral value for a specific loan.
+
+IMPORTANT:
+- Present the loan information at the top (loan ID, amount, borrower, etc.)
+- List all collateral items in a clear, structured format
+- For each collateral item, include type, description, and valuation
+- Calculate and show the total collateral value prominently
+- Format large numbers with commas (e.g., 1,234,567)
+- Compare the total collateral value to the loan amount (as a percentage)
+- Indicate whether the collateral coverage is sufficient for the loan amount"""
+        elif "backed only by guarantors" in user_question.lower() or "no collateral" in user_question.lower():
+            special_instructions = """This appears to be a query about loans backed only by guarantors with no collateral.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of loans
+- For each loan, include loan ID, borrower name, loan amount, and disbursement date
+- List the guarantors for each loan with their guaranteed amounts
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by loan amount (highest first)
+- Include the total number and value of loans backed only by guarantors
+- Highlight high-value loans with insufficient guarantor coverage"""
+        else:
+            special_instructions = """This appears to be a query about loan guarantors or collateral.
+
+IMPORTANT:
+- Present the results in a clear, structured format appropriate to the query
+- Include all relevant guarantor or collateral details based on the query context
+- Format large numbers with commas (e.g., 1,234,567)
+- Order results in a logical manner based on the query context
+- Highlight any security coverage issues or discrepancies
+- Protect sensitive personal information"""
+    
+    # For alerts and exceptions queries
+    elif is_alert_query:
+        # Check for specific alert/exception query types
+        if any(term in user_question.lower() for term in ["exceeded", "grace period"]):
+            special_instructions = """This appears to be a query about loans that have exceeded their grace period.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, grace period end date, and days past grace period
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by days past grace period (highest first)
+- Include the total number of loans that have exceeded the grace period
+- Highlight loans that are significantly past the grace period (e.g., >30 days)
+- Include recommended actions for follow-up"""
+        elif any(term in user_question.lower() for term in ["without guarantors", "no guarantor", "missing guarantor"]):
+            special_instructions = """This appears to be a query about loans disbursed without guarantors.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, loan amount, and disbursement date
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by loan amount (highest first)
+- Include the total number and value of loans without guarantors
+- Highlight high-value loans (e.g., top 25% by amount)
+- Include recommended actions for compliance"""
+        elif any(term in user_question.lower() for term in ["less than scheduled", "underpayment"]):
+            special_instructions = """This appears to be a query about loans with repayment amounts less than scheduled.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, scheduled amount, actual amount, and shortfall
+- Calculate and show the shortfall percentage
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by shortfall percentage (highest first)
+- Include the total number of loans with underpayments
+- Highlight loans with significant shortfalls (e.g., >25%)
+- Include recommended actions for collection"""
+        elif any(term in user_question.lower() for term in ["no follow-up", "follow up"]):
+            special_instructions = """This appears to be a query about overdue loans with no follow-up records.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, days overdue, and last contact date (if available)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by days overdue (highest first)
+- Include the total number of overdue loans without follow-up
+- Highlight loans that are significantly overdue (e.g., >30 days)
+- Include recommended actions for immediate follow-up"""
+        elif any(term in user_question.lower() for term in ["incomplete documentation", "missing document"]):
+            special_instructions = """This appears to be a query about loans with incomplete documentation.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, loan amount, and missing document types
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by loan amount (highest first)
+- Include the total number of loans with incomplete documentation
+- Highlight loans with critical missing documents
+- Include recommended actions for document collection"""
+        elif any(term in user_question.lower() for term in ["not yet disbursed", "system mismatch", "cbs"]):
+            special_instructions = """This appears to be a query about system synchronization issues.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each loan, include loan ID, customer name, loan amount, and disbursement date
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by disbursement date (most recent first)
+- Include the total number and value of loans with synchronization issues
+- Highlight loans disbursed more than 7 days ago
+- Include recommended actions for system reconciliation"""
+        else:
+            special_instructions = """This appears to be a query about loan exceptions or alerts.
+
+IMPORTANT:
+- Present the results as a clear, numbered list with a warning header
+- For each exception, include loan ID, customer name, and specific exception details
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by severity or risk level (highest first)
+- Include the total number of exceptions found
+- Highlight high-risk or urgent exceptions
+- Include recommended actions for resolution"""
+    
+    # For client/member queries
+    elif is_client_query:
+        # Check for specific client/member query types
+        if any(term in user_question.lower() for term in ["loan history", "loan details"]):
+            special_instructions = """This appears to be a query about a member's loan history.
+
+IMPORTANT:
+- Present the member's information at the top (name, ID, etc.)
+- List their loans in chronological order (most recent first)
+- For each loan, include loan ID, amount, disbursement date, status, and repayment status
+- Format large numbers with commas (e.g., 1,234,567)
+- Include a summary of their overall borrowing history (total loans, repayment performance)
+- Highlight any current active loans
+- Protect sensitive personal information"""
+        elif any(term in user_question.lower() for term in ["contact information", "phone number", "email", "address"]):
+            special_instructions = """This appears to be a query about a member's contact information.
+
+IMPORTANT:
+- Present the member's basic information clearly (name, ID, etc.)
+- Include contact details in a structured format
+- Protect sensitive personal information
+- Do not include financial details unless specifically requested
+- Format phone numbers consistently
+- If multiple contact methods are available, include all of them"""
+        elif any(term in user_question.lower() for term in ["multiple loans", "active loans", "more than one"]):
+            special_instructions = """This appears to be a query about members with multiple loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of members
+- For each member, include name, ID, and the number of active loans
+- Provide a brief summary of each loan (amount, purpose, status)
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by number of active loans (highest first)
+- Include the total number of members with multiple loans
+- Protect sensitive personal information"""
+        elif any(term in user_question.lower() for term in ["cleared loans", "paid off", "settled", "completed"]):
+            special_instructions = """This appears to be a query about members who have cleared their loans.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of members
+- For each member, include name, ID, and details of the cleared loan
+- Include the date when the loan was fully paid off
+- Format large numbers with commas (e.g., 1,234,567)
+- Order by clearance date (most recent first)
+- Include the total number of members who cleared loans in the specified period
+- Protect sensitive personal information"""
+        elif any(term in user_question.lower() for term in ["credit score", "risk rating", "creditworthiness"]):
+            special_instructions = """This appears to be a query about a member's credit score or risk rating.
+
+IMPORTANT:
+- Present the member's basic information at the top (name, ID, etc.)
+- Show their credit score or risk rating prominently
+- Explain what the score/rating means in simple terms
+- Include relevant factors that contribute to the rating
+- Summarize their loan repayment history if available
+- Protect sensitive personal information
+- Do not make subjective judgments about the member's creditworthiness"""
+        elif any(term in user_question.lower() for term in ["collateral", "security", "guarantee", "guarantor"]):
+            special_instructions = """This appears to be a query about loans with collateral.
+
+IMPORTANT:
+- Present the results as a clear, numbered list of members or loans
+- For each entry, include member name, loan details, and collateral information
+- Format large numbers with commas (e.g., 1,234,567)
+- Include the type and value of collateral for each loan
+- If guarantors are involved, include their relationship to the borrower
+- Order by loan amount (highest first)
+- Protect sensitive personal information"""
+        else:
+            special_instructions = """This appears to be a query about specific members or clients.
+
+IMPORTANT:
+- Present the member information in a clear, structured format
+- Include only the information specifically requested in the query
+- Format large numbers with commas (e.g., 1,234,567)
+- Order results in a logical manner based on the query context
+- Protect sensitive personal information
+- For financial data, explain what the numbers represent"""
     
     # For portfolio analytics queries
     elif is_portfolio_analytics_query:

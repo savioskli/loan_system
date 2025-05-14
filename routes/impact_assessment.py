@@ -4,7 +4,7 @@ from models.impact import ImpactCategory, ImpactMetric
 from models.loan_impact import LoanImpact, ImpactValue, ImpactEvidence
 from models.staff import Staff
 from models.core_banking import CoreBankingSystem
-from models.post_disbursement_modules import ExpectedStructure, ActualStructure
+from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
 from utils.decorators import admin_required
 from extensions import db
 import mysql.connector
@@ -20,7 +20,9 @@ impact_assessment_bp = Blueprint('impact_assessment', __name__)
 @login_required
 def impact_assessment():
     """Render the impact assessment dashboard"""
-    return render_template('user/impact/assessment.html')
+    # Get visible modules for sidebar
+    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
+    return render_template('user/impact/assessment.html', visible_modules=visible_modules)
 
 @impact_assessment_bp.route('/user/get_loans_for_impact', methods=['GET'])
 @login_required
@@ -178,10 +180,14 @@ def impact_assessment_form(loan_id):
     # Check if loan already has impact assessment
     loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first()
     
+    # Get visible modules for sidebar
+    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
+    
     return render_template('user/impact/assessment_form.html', 
                            loan_id=loan_id, 
                            categories=categories,
-                           loan_impact=loan_impact)
+                           loan_impact=loan_impact,
+                           visible_modules=visible_modules)
 
 @impact_assessment_bp.route('/user/get_metrics/<int:category_id>', methods=['GET'])
 @login_required
@@ -293,39 +299,45 @@ def submit_impact_assessment():
 @login_required
 def view_impact_assessment(loan_id):
     """View impact assessment for a specific loan"""
-    loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first()
-    if not loan_impact:
-        flash('No impact assessment found for this loan', 'error')
-        return redirect(url_for('impact_assessment.impact_assessment'))
+    # Get the loan impact record
+    loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first_or_404()
     
+    # Get the impact category
     category = ImpactCategory.query.get(loan_impact.impact_category_id)
+    
+    # Get the metrics for this category
     metrics = ImpactMetric.query.filter_by(impact_category_id=category.id).all()
     
-    # Get values for each metric
-    values = {}
-    for metric in metrics:
-        value = ImpactValue.query.filter_by(
-            loan_impact_id=loan_impact.id,
-            impact_metric_id=metric.id
-        ).first()
-        if value:
-            values[metric.id] = value.value
+    # Get the impact values for this loan impact
+    impact_values = ImpactValue.query.filter_by(loan_impact_id=loan_impact.id).all()
     
-    # Get evidence files
+    # Create a dictionary of metric values for easy access
+    metric_values = {}
+    for value in impact_values:
+        metric_values[value.impact_metric_id] = value.value
+    
+    # Get the evidence files
     evidence_files = ImpactEvidence.query.filter_by(loan_impact_id=loan_impact.id).all()
     
-    # Get submitter name
-    submitter = Staff.query.get(loan_impact.submitted_by)
-    submitter_name = f"{submitter.first_name} {submitter.last_name}" if submitter else "Unknown"
+    # Get the staff who submitted and verified
+    submitted_by = Staff.query.get(loan_impact.submitted_by)
+    verified_by = None
+    if loan_impact.verified_by:
+        verified_by = Staff.query.get(loan_impact.verified_by)
+    
+    # Get visible modules for sidebar
+    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
     
     return render_template('user/impact/view_assessment.html',
                            loan_id=loan_id,
                            loan_impact=loan_impact,
                            category=category,
                            metrics=metrics,
-                           values=values,
+                           metric_values=metric_values,
                            evidence_files=evidence_files,
-                           submitter_name=submitter_name)
+                           submitted_by=submitted_by,
+                           verified_by=verified_by,
+                           visible_modules=visible_modules)
 
 @impact_assessment_bp.route('/admin/impact/verify/<int:loan_impact_id>', methods=['POST'])
 @login_required

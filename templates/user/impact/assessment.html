@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Impact Assessment{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <style>
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-pending {
+            background-color: #FEF3C7;
+            color: #92400E;
+        }
+        .status-verified {
+            background-color: #D1FAE5;
+            color: #065F46;
+        }
+        .status-rejected {
+            background-color: #FEE2E2;
+            color: #B91C1C;
+        }
+        .status-not-submitted {
+            background-color: #E5E7EB;
+            color: #374151;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <!-- Sidebar -->
+    {% include 'user/post_disbursement_sidebar.html' %}
+    
+    <div class="flex-1 overflow-x-hidden">
+        <div class="p-4 sm:ml-64">
+            <div class="mt-14"> 
+                <!-- Content Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Impact Assessment</h1>
+                    <div class="flex flex-col items-end">
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Last Updated: <span id="lastUpdated"></span>
+                            <span class="ml-2 text-xs">(Updates every 1 minute)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Impact Assessment Description -->
+                <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">About Impact Assessment</h3>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                Impact assessment helps track how loans are being utilized and their effect on clients' lives and businesses. 
+                                Select a loan below to add or update its impact information. Your submissions will be verified by administrators.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loan Details -->
+                <div class="bg-white dark:bg-gray-700 shadow rounded-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Active Loans</h3>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label for="impact-status-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Impact Status</label>
+                            <select id="impact-status-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                                <option value="">All Statuses</option>
+                                <option value="Not Submitted">Not Submitted</option>
+                                <option value="Pending">Pending Verification</option>
+                                <option value="Verified">Verified</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="amount-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Range</label>
+                            <select id="amount-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                                <option value="">All Amounts</option>
+                                <option value="0-100000">0 - 100,000</option>
+                                <option value="100000-500000">100,000 - 500,000</option>
+                                <option value="500000-1000000">500,000 - 1,000,000</option>
+                                <option value="1000000+">Above 1,000,000</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                            <input type="text" id="search" placeholder="Search by name or loan number" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                        </div>
+                    </div>
+
+                    <div class="w-full overflow-x-auto">
+                        <table id="loan-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                            <thead class="bg-gray-50 dark:bg-gray-600">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account No.</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer Name</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Loan Amount</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outstanding</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Impact Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600" id="loan-table-body">
+                                <!-- Loan rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-600 px-4 py-3 sm:px-6 mt-4">
+                        <div class="flex-1 flex justify-between sm:hidden">
+                            <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Previous
+                            </button>
+                            <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">
+                                    Showing <span id="showing-start">1</span> to <span id="showing-end">10</span> of <span id="total-items">0</span> results
+                                </p>
+                            </div>
+                            <div>
+                                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" id="pagination">
+                                    <!-- Pagination buttons will be populated here -->
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global variables
+    let allLoans = [];
+    let filteredLoans = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    // Format date
+    function formatDate(date) {
+        const d = new Date(date);
+        return d.toLocaleString();
+    }
+
+    // Update last updated timestamp
+    function updateLastUpdated() {
+        document.getElementById('lastUpdated').textContent = formatDate(new Date());
+    }
+
+    // Format number with commas and decimals
+    function formatNumber(value, decimals = 2) {
+        if (value === null || value === undefined) return '0.00';
+        return parseFloat(value).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    // Get status badge class
+    function getStatusBadgeClass(status) {
+        switch(status) {
+            case 'Pending':
+                return 'status-badge status-pending';
+            case 'Verified':
+                return 'status-badge status-verified';
+            case 'Rejected':
+                return 'status-badge status-rejected';
+            case 'Not Submitted':
+            default:
+                return 'status-badge status-not-submitted';
+        }
+    }
+
+    // Load loan data
+    async function loadLoanData() {
+        try {
+            const response = await fetch('/user/get_loans_for_impact');
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error loading loan data:', data.error);
+                return;
+            }
+            
+            console.log('Loaded loan data:', data.data);
+            
+            allLoans = data.data;
+            filteredLoans = [...allLoans];
+            
+            updateTable();
+            updateLastUpdated();
+            
+        } catch (error) {
+            console.error('Error loading loan data:', error);
+            // Add a user-friendly error message to the UI
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'text-red-500 text-center p-4';
+            errorDiv.textContent = 'Failed to load loan data. Please try again.';
+            document.querySelector('.bg-white.dark:bg-gray-700.shadow.rounded-lg.p-6.mb-6').appendChild(errorDiv);
+        }
+    }
+
+    // Apply filters to loan data
+    function applyFilters() {
+        const statusFilter = document.getElementById('impact-status-filter').value;
+        const amountFilter = document.getElementById('amount-filter').value;
+        const searchText = document.getElementById('search').value.toLowerCase();
+        
+        filteredLoans = allLoans.filter(loan => {
+            // Status filter
+            if (statusFilter && loan.impact_status !== statusFilter) {
+                return false;
+            }
+            
+            // Amount filter
+            if (amountFilter) {
+                const amount = parseFloat(loan.LoanAmount || 0);
+                const [min, max] = amountFilter.split('-');
+                
+                if (max === undefined) {
+                    // Handle "1000000+" case
+                    const minValue = parseFloat(min.replace('+', ''));
+                    if (amount < minValue) return false;
+                } else {
+                    const minValue = parseFloat(min);
+                    const maxValue = parseFloat(max);
+                    if (amount < minValue || amount > maxValue) return false;
+                }
+            }
+            
+            // Search filter
+            if (searchText) {
+                const loanNo = (loan.LoanNo || '').toLowerCase();
+                const customerName = (loan.CustomerName || '').toLowerCase();
+                
+                if (!loanNo.includes(searchText) && !customerName.includes(searchText)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        currentPage = 1;
+        updateTable();
+    }
+
+    // Update the table with filtered and paginated data
+    function updateTable() {
+        const tableBody = document.getElementById('loan-table-body');
+        tableBody.innerHTML = '';
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredLoans.length);
+        const loansToShow = filteredLoans.slice(startIndex, endIndex);
+        
+        if (loansToShow.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    No loans found matching your criteria.
+                </td>
+            `;
+            tableBody.appendChild(emptyRow);
+        } else {
+            loansToShow.forEach(loan => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-gray-600';
+                
+                const statusClass = getStatusBadgeClass(loan.impact_status);
+                const actionButton = loan.has_impact ? 
+                    `<a href="/user/impact_assessment/view/${loan.LoanID}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3">View</a>
+                     <a href="/user/impact_assessment/${loan.LoanID}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Update</a>` : 
+                    `<a href="/user/impact_assessment/${loan.LoanID}" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">Add Impact</a>`;
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.LoanNo || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${loan.CustomerName || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.LoanAmount || 0)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${formatNumber(loan.OutstandingBalance || 0)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="${statusClass}">${loan.impact_status}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        ${actionButton}
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        updatePagination();
+    }
+
+    // Update pagination information and controls
+    function updatePagination() {
+        const totalItems = filteredLoans.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+        const endItem = Math.min(startItem + itemsPerPage - 1, totalItems);
+        
+        document.getElementById('showing-start').textContent = startItem;
+        document.getElementById('showing-end').textContent = endItem;
+        document.getElementById('total-items').textContent = totalItems;
+        
+        // Update pagination buttons
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+        
+        // Previous button
+        const prevButton = document.createElement('button');
+        prevButton.className = `relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${
+            currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
+        }`;
+        prevButton.innerHTML = '<span class="sr-only">Previous</span><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>';
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTable();
+            }
+        });
+        pagination.appendChild(prevButton);
+        
+        // Page buttons
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageButton = document.createElement('button');
+            pageButton.className = `relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${
+                i === currentPage ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'
+            }`;
+            pageButton.textContent = i;
+            pageButton.addEventListener('click', () => {
+                currentPage = i;
+                updateTable();
+            });
+            pagination.appendChild(pageButton);
+        }
+        
+        // Next button
+        const nextButton = document.createElement('button');
+        nextButton.className = `relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${
+            currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''
+        }`;
+        nextButton.innerHTML = '<span class="sr-only">Next</span><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>';
+        nextButton.disabled = currentPage === totalPages || totalPages === 0;
+        nextButton.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTable();
+            }
+        });
+        pagination.appendChild(nextButton);
+        
+        // Update mobile pagination buttons
+        document.getElementById('prev-page-mobile').disabled = currentPage === 1;
+        document.getElementById('next-page-mobile').disabled = currentPage === totalPages || totalPages === 0;
+        
+        document.getElementById('prev-page-mobile').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTable();
+            }
+        });
+        
+        document.getElementById('next-page-mobile').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTable();
+            }
+        });
+    }
+
+    // Initialize when document is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load initial data
+        loadLoanData();
+        
+        // Set up filter event listeners
+        document.getElementById('impact-status-filter').addEventListener('change', applyFilters);
+        document.getElementById('amount-filter').addEventListener('change', applyFilters);
+        document.getElementById('search').addEventListener('input', applyFilters);
+        
+        // Set up auto-refresh
+        setInterval(() => {
+            loadLoanData();
+        }, 60000); // Refresh every minute
+    });
+</script>
+{% endblock %}

@@ -37,6 +37,7 @@ from models.sms_log import SMSLog
 from models.post_disbursement_modules import PostDisbursementModule
 from models.audit import AuditLog
 from models.impact import ImpactCategory
+from models.loan_impact import LoanImpact, ImpactValue, ImpactEvidence
 
 # Import routes
 from routes.branch_routes import branch_bp
@@ -49,6 +50,7 @@ from routes.admin import admin_bp
 from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
+from routes.impact_assessment import impact_assessment_bp
 from routes.section_routes import sections_bp
 from routes.impact import impact_bp
 from routes.post_disbursement_modules import post_disbursement_modules_bp
@@ -90,6 +92,9 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True
     app.config['DEBUG'] = True
+    
+    # Upload folder configuration
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')
 
     # Load configuration
     app.config.from_object('config.Config')
@@ -166,6 +171,7 @@ def create_app():
     app.register_blueprint(api_bp)  # Register the API blueprint
     app.register_blueprint(audit_bp)  # Register the Audit blueprint
     app.register_blueprint(impact_bp)  # Register the Impact blueprint
+    app.register_blueprint(impact_assessment_bp)  # Register the Impact Assessment blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

@@ -36,6 +36,7 @@ from models.email_template import EmailTemplate, EmailTemplateType
 from models.sms_log import SMSLog
 from models.post_disbursement_modules import PostDisbursementModule
 from models.audit import AuditLog
+from models.impact import ImpactCategory
 
 # Import routes
 from routes.branch_routes import branch_bp
@@ -49,6 +50,7 @@ from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
 from routes.section_routes import sections_bp
+from routes.impact import impact_bp
 from routes.post_disbursement_modules import post_disbursement_modules_bp
 from routes.post_disbursement_workflows import post_disbursement_workflows_bp
 from routes.progress_update import progress_update_bp
@@ -163,6 +165,7 @@ def create_app():
     app.register_blueprint(progress_update_bp)
     app.register_blueprint(api_bp)  # Register the API blueprint
     app.register_blueprint(audit_bp)  # Register the Audit blueprint
+    app.register_blueprint(impact_bp)  # Register the Impact blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

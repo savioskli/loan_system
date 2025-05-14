@@ -575,10 +575,19 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         onEnd: function (evt) {
             document.body.style.cursor = 'default';
-            const newOrder = Array.from(tableBody.querySelectorAll('tr')).map(row => ({
-                id: row.getAttribute('data-id'),
-                parent_id: row.getAttribute('data-parent-id') || null
-            }));
+            const newOrder = Array.from(tableBody.querySelectorAll('tr'))
+                .filter(row => row.getAttribute('data-id')) // Filter out rows without an ID
+                .map(row => {
+                    const id = row.getAttribute('data-id');
+                    let parent_id = row.getAttribute('data-parent-id');
+                    
+                    // Ensure parent_id is properly formatted
+                    if (parent_id === 'null' || parent_id === 'None' || parent_id === '' || parent_id === null) {
+                        parent_id = null;
+                    }
+                    
+                    return { id, parent_id };
+                });
             saveOrder(newOrder);
         }
     };

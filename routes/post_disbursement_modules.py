@@ -162,8 +162,16 @@ def reorder_modules():
         
         # Update each module's order
         for index, item in enumerate(order):
-            module_id = int(item['id'])  # Extract ID from the object
-            module = PostDisbursementModule.query.get(module_id)
+            # Ensure module_id is valid before converting to int
+            if 'id' not in item or not item['id']:
+                continue
+                
+            try:
+                module_id = int(item['id'])  # Extract ID from the object
+                module = PostDisbursementModule.query.get(module_id)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid module ID: {item.get('id')}")
+                continue
             
             if not module:
                 return jsonify({
@@ -176,7 +184,11 @@ def reorder_modules():
             # Update parent if needed
             if 'parent_id' in item:
                 parent_id = item['parent_id']
-                module.parent_id = int(parent_id) if parent_id else None
+                # Handle both None and 'None' cases
+                if parent_id is None or parent_id == 'None' or parent_id == '':
+                    module.parent_id = None
+                else:
+                    module.parent_id = int(parent_id)
 
         db.session.commit()
         return jsonify({'success': True})

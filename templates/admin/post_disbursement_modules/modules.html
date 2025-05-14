@@ -152,8 +152,9 @@
                     </div>
                     <div class="mb-4">
                         <label for="create_url" class="block text-gray-700 text-sm font-bold mb-2">URL:</label>
-                        <input type="text" id="create_url" name="url" required
+                        <input type="text" id="create_url" name="url" required pattern=".*" title="Enter any URL or path (e.g. /user/impact)"
                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <p class="text-xs text-gray-500 mt-1">Can be a full URL (https://...) or a relative path (/user/impact)</p>
                     </div>
                     <div class="mb-6">
                         <label for="create_parent_id" class="block text-gray-700 text-sm font-bold mb-2">Parent Module:</label>
@@ -205,8 +206,9 @@
                     </div>
                     <div class="mb-4">
                         <label for="edit_url" class="block text-gray-700 text-sm font-bold mb-2">URL:</label>
-                        <input type="text" id="edit_url" name="url" required
+                        <input type="text" id="edit_url" name="url" required pattern=".*" title="Enter any URL or path (e.g. /user/impact)"
                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <p class="text-xs text-gray-500 mt-1">Can be a full URL (https://...) or a relative path (/user/impact)</p>
                     </div>
                     <div class="mb-6">
                         <label for="edit_parent_id" class="block text-gray-700 text-sm font-bold mb-2">Parent Module:</label>
@@ -874,14 +876,21 @@ forms.forEach(form => {
             return;
         }
 
-        // Basic URL validation
-        try {
-            new URL(urlInput.value);
-        } catch (e) {
-            event.preventDefault();
-            alert('Please enter a valid URL (including http:// or https://)')
-            urlInput.focus();
-            return;
+        // Allow both absolute URLs and relative paths
+        const urlValue = urlInput.value.trim();
+        if (urlValue.startsWith('/') || urlValue.startsWith('./') || urlValue.startsWith('../')) {
+            // Relative path is valid
+        } else {
+            // For absolute URLs, validate with URL constructor
+            try {
+                new URL(urlValue);
+            } catch (e) {
+                // Not a valid absolute URL and not a relative path
+                event.preventDefault();
+                alert('Please enter either a valid URL (with http:// or https://) or a valid path (starting with /)') 
+                urlInput.focus();
+                return;
+            }
         }
     });
 });

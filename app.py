@@ -18,6 +18,7 @@ from utils.logging_utils import log_activity
 from flask_wtf.csrf import CSRFProtect
 from flask import g
 from services.scheduler import init_scheduler
+from utils.audit_middleware import init_audit_middleware
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -135,6 +136,9 @@ def create_app():
 
     # Initialize scheduler
     init_scheduler(app)
+
+    # Initialize audit middleware
+    init_audit_middleware(app)
 
     # Register blueprints
     app.register_blueprint(main_bp)

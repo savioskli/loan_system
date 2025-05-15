@@ -68,7 +68,7 @@
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Assessment Summary</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Submitted by {{ submitter_name }} on {{ loan_impact.submission_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Submitted by {{ submitted_by.first_name }} {{ submitted_by.last_name }} on {{ loan_impact.submission_date.strftime('%Y-%m-%d %H:%M') }}</p>
                         </div>
                         <div>
                             <span class="status-badge {% if loan_impact.verification_status == 'Pending' %}status-pending{% elif loan_impact.verification_status == 'Verified' %}status-verified{% else %}status-rejected{% endif %}">
@@ -108,17 +108,17 @@
                         <div class="metric-item">
                             <div class="metric-label text-sm font-medium text-gray-700 dark:text-gray-300">{{ metric.name }}</div>
                             <div class="metric-value text-sm text-gray-900 dark:text-white">
-                                {% if metric.id in values %}
+                                {% if metric.id in metric_values %}
                                     {% if metric.data_type == 'boolean' %}
-                                        {% if values[metric.id]|lower in ['true', 'yes', '1'] %}
+                                        {% if metric_values[metric.id]|lower in ['true', 'yes', '1'] %}
                                             Yes
                                         {% else %}
                                             No
                                         {% endif %}
                                     {% elif metric.data_type == 'number' and metric.unit %}
-                                        {{ values[metric.id] }} {{ metric.unit }}
+                                        {{ metric_values[metric.id] }} {{ metric.unit }}
                                     {% else %}
-                                        {{ values[metric.id] }}
+                                        {{ metric_values[metric.id] }}
                                     {% endif %}
                                 {% else %}
                                     <span class="text-gray-500 dark:text-gray-400">Not provided</span>

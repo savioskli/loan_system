@@ -316,6 +316,26 @@ def submit_impact_assessment():
         current_app.logger.error(f"Error submitting impact assessment: {str(e)}")
         return jsonify({'error': f'Error submitting impact assessment: {str(e)}'}), 500
 
+@impact_assessment_bp.route('/uploads/impact_evidence/<filename>')
+@login_required
+def get_impact_evidence(filename):
+    """Serve impact evidence files"""
+    # Construct the path to the file
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'impact_evidence', filename)
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        current_app.logger.error(f"Evidence file not found: {file_path}")
+        return "File not found", 404
+    
+    # Determine the file's MIME type
+    import mimetypes
+    mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    
+    # Serve the file
+    from flask import send_file
+    return send_file(file_path, mimetype=mimetype)
+
 @impact_assessment_bp.route('/user/impact_assessment/view/<int:loan_id>', methods=['GET'])
 @login_required
 def view_impact_assessment(loan_id):

@@ -10,11 +10,27 @@
         }
         .metric-item {
             margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        .dark .metric-item {
+            background-color: #374151;
+            border-color: #4b5563;
         }
         .required-field::after {
             content: '*';
             color: #EF4444;
             margin-left: 0.25rem;
+        }
+        input[type="text"], input[type="number"], input[type="date"], select, textarea {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            background-color: white;
+        }
+        .dark input[type="text"], .dark input[type="number"], .dark input[type="date"], .dark select, .dark textarea {
+            background-color: #1f2937;
+            border-color: #4b5563;
         }
     </style>
 {% endblock %}
@@ -54,7 +70,7 @@
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose the category that best describes how this loan is being utilized.</p>
                             
                             <div class="grid grid-cols-1 gap-4">
-                                <div>
+                                <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                                     <label for="category_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 required-field">Impact Category</label>
                                     <select id="category_id" name="category_id" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-white" required>
                                         <option value="">Select a category</option>
@@ -81,27 +97,28 @@
                             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Supporting Evidence</h3>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Upload photos, receipts, or other documents that verify the loan's impact.</p>
                             
-                            <div>
+                            <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                                 <label for="evidence_files" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Evidence Files</label>
-                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="mt-3 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md bg-white dark:bg-gray-700">
                                     <div class="space-y-1 text-center">
                                         <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
-                                        <div class="flex text-sm text-gray-600 dark:text-gray-400">
-                                            <label for="evidence_files" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                        <div class="flex justify-center text-sm text-gray-600 dark:text-gray-400">
+                                            <label for="evidence_files" class="relative cursor-pointer bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                                 <span>Upload files</span>
                                                 <input id="evidence_files" name="evidence_files" type="file" class="sr-only" multiple>
                                             </label>
-                                            <p class="pl-1">or drag and drop</p>
+                                            <p class="pl-1 py-1">or drag and drop</p>
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             PNG, JPG, PDF up to 10MB each
                                         </p>
                                     </div>
                                 </div>
-                                <div id="file-list" class="mt-2 space-y-2">
+                                <div id="file-list" class="mt-3 space-y-2 p-3 bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600" style="min-height: 50px;">
                                     <!-- Selected files will be shown here -->
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 text-center" id="no-files-message">No files selected</p>
                                 </div>
                             </div>
                         </div>
@@ -199,25 +216,44 @@
     function handleFileSelection() {
         const fileInput = document.getElementById('evidence_files');
         const fileList = document.getElementById('file-list');
+        const noFilesMessage = document.getElementById('no-files-message');
         
         fileInput.addEventListener('change', () => {
             fileList.innerHTML = '';
             
             if (fileInput.files.length > 0) {
-                Array.from(fileInput.files).forEach(file => {
+                // Hide the no files message
+                noFilesMessage.style.display = 'none';
+                
+                for (const file of fileInput.files) {
                     const fileItem = document.createElement('div');
-                    fileItem.className = 'flex items-center justify-between text-sm text-gray-600 dark:text-gray-400';
-                    fileItem.innerHTML = `
-                        <div class="flex items-center">
-                            <svg class="flex-shrink-0 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd" />
-                            </svg>
-                            <span class="ml-2">${file.name}</span>
-                        </div>
-                        <span class="text-xs">${formatFileSize(file.size)}</span>
-                    `;
+                    fileItem.className = 'flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700';
+                    
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'flex items-center';
+                    
+                    const fileIcon = document.createElement('div');
+                    fileIcon.className = 'text-indigo-500 mr-2';
+                    fileIcon.innerHTML = '<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd" /></svg>';
+                    
+                    const fileName = document.createElement('span');
+                    fileName.className = 'text-sm text-gray-700 dark:text-gray-300';
+                    fileName.textContent = file.name;
+                    
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'ml-2 text-xs text-gray-500 dark:text-gray-400';
+                    fileSize.textContent = formatFileSize(file.size);
+                    
+                    fileInfo.appendChild(fileIcon);
+                    fileInfo.appendChild(fileName);
+                    fileInfo.appendChild(fileSize);
+                    
+                    fileItem.appendChild(fileInfo);
                     fileList.appendChild(fileItem);
-                });
+                }
+            } else {
+                // Show the no files message
+                noFilesMessage.style.display = 'block';
             }
         });
     }

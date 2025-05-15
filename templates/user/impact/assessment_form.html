@@ -85,6 +85,9 @@
                     <form id="impact-form" class="space-y-6">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="loan_id" value="{{ loan_id }}">
+                        {% if existing_values %}
+                        <input type="hidden" id="existing-values" value='{{ existing_values|tojson|safe }}'>
+                        {% endif %}
                         
                         <!-- Impact Category Selection -->
                         <div class="form-section">
@@ -141,6 +144,26 @@
                                 <div id="file-list" class="mt-3 space-y-2 p-3 bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600" style="min-height: 50px;">
                                     <!-- Selected files will be shown here -->
                                     <p class="text-sm text-gray-500 dark:text-gray-400 text-center" id="no-files-message">No files selected</p>
+                                    
+                                    <!-- Existing evidence files -->
+                                    {% if evidence_files %}
+                                    <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                                        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Existing Evidence Files:</h4>
+                                        <ul class="space-y-2">
+                                            {% for evidence in evidence_files %}
+                                            <li class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center">
+                                                    <div class="text-indigo-500 mr-2">
+                                                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd" /></svg>
+                                                    </div>
+                                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ evidence.file_name }}</span>
+                                                </div>
+                                                <a href="/uploads/impact_evidence/{{ evidence.file_name }}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -161,9 +184,22 @@
 
 {% block scripts %}
 <script>
+    // Initialize existing values object
+    let existingValues = {};
+    
     // Load metrics for selected category
     async function loadMetrics(categoryId) {
         try {
+            // Try to load existing values from hidden input if available
+            const existingValuesInput = document.getElementById('existing-values');
+            if (existingValuesInput) {
+                try {
+                    existingValues = JSON.parse(existingValuesInput.value);
+                } catch (e) {
+                    console.error('Error parsing existing values:', e);
+                }
+            }
+            
             const response = await fetch(`/user/get_metrics/${categoryId}`);
             const data = await response.json();
             
@@ -190,32 +226,38 @@
                     let inputHtml = '';
                     let labelClass = metric.required ? 'required-field' : '';
                     
+                    // Check if we have an existing value for this metric
+                    const existingValue = existingValues[metric.id];
+                    
                     switch (metric.data_type) {
                         case 'text':
-                            inputHtml = `<input type="text" id="metric_${metric.id}" name="metric_${metric.id}" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''}>`;
+                            inputHtml = `<input type="text" id="metric_${metric.id}" name="metric_${metric.id}" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''} value="${existingValue || ''}">`;
                             break;
                         case 'number':
                             inputHtml = `<div class="mt-1 relative rounded-md shadow-sm">
-                                <input type="number" id="metric_${metric.id}" name="metric_${metric.id}" class="block w-full pl-3 pr-12 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''}>
+                                <input type="number" id="metric_${metric.id}" name="metric_${metric.id}" class="block w-full pl-3 pr-12 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''} value="${existingValue || ''}">
                                 ${metric.unit ? `<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                     <span class="text-gray-500 sm:text-sm">${metric.unit}</span>
                                 </div>` : ''}
                             </div>`;
                             break;
                         case 'boolean':
+                            const isTrue = existingValue && (existingValue.toLowerCase() === 'true' || existingValue === '1' || existingValue.toLowerCase() === 'yes');
+                            const isFalse = existingValue && !isTrue;
+                            
                             inputHtml = `<div class="mt-1 p-3 bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center">
-                                    <input id="metric_${metric.id}_yes" name="metric_${metric.id}" type="radio" value="true" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300" ${metric.required ? 'required' : ''}>
+                                    <input id="metric_${metric.id}_yes" name="metric_${metric.id}" type="radio" value="true" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300" ${metric.required ? 'required' : ''} ${isTrue ? 'checked' : ''}>
                                     <label for="metric_${metric.id}_yes" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Yes</label>
                                 </div>
                                 <div class="flex items-center mt-2">
-                                    <input id="metric_${metric.id}_no" name="metric_${metric.id}" type="radio" value="false" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                    <input id="metric_${metric.id}_no" name="metric_${metric.id}" type="radio" value="false" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300" ${isFalse ? 'checked' : ''}>
                                     <label for="metric_${metric.id}_no" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">No</label>
                                 </div>
                             </div>`;
                             break;
                         case 'date':
-                            inputHtml = `<input type="date" id="metric_${metric.id}" name="metric_${metric.id}" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''}>`;
+                            inputHtml = `<input type="date" id="metric_${metric.id}" name="metric_${metric.id}" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" ${metric.required ? 'required' : ''} value="${existingValue || ''}">`;
                             break;
                     }
                     
@@ -415,6 +457,11 @@
         // If a category is already selected (edit mode), load its metrics
         if (categorySelect.value) {
             loadMetrics(categorySelect.value);
+        }
+        
+        // Update no-files message visibility if there are existing evidence files
+        if (document.querySelectorAll('#file-list li').length > 0) {
+            document.getElementById('no-files-message').style.display = 'none';
         }
     });
 </script>

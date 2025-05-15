@@ -180,6 +180,25 @@ def impact_assessment_form(loan_id):
     # Check if loan already has impact assessment
     loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first()
     
+    # Get existing impact values if this is an update
+    existing_values = {}
+    if loan_impact:
+        # Get the metrics for this category
+        metrics = ImpactMetric.query.filter_by(impact_category_id=loan_impact.impact_category_id).all()
+        
+        # Get the impact values for this loan impact
+        impact_values = ImpactValue.query.filter_by(loan_impact_id=loan_impact.id).all()
+        
+        # Create a dictionary of metric values for easy access
+        for value in impact_values:
+            existing_values[value.impact_metric_id] = value.value
+        
+        # Get the evidence files
+        evidence_files = ImpactEvidence.query.filter_by(loan_impact_id=loan_impact.id).all()
+    else:
+        metrics = []
+        evidence_files = []
+    
     # Get visible modules for sidebar
     visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
     
@@ -187,6 +206,8 @@ def impact_assessment_form(loan_id):
                            loan_id=loan_id, 
                            categories=categories,
                            loan_impact=loan_impact,
+                           existing_values=existing_values,
+                           evidence_files=evidence_files,
                            visible_modules=visible_modules)
 
 @impact_assessment_bp.route('/user/get_metrics/<int:category_id>', methods=['GET'])

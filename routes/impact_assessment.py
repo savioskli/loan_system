@@ -395,6 +395,47 @@ def get_impact_evidence(filename):
     from flask import send_file
     return send_file(file_path, mimetype=mimetype)
 
+@impact_assessment_bp.route('/user/impact_assessment/history/<int:workflow_instance_id>', methods=['GET'])
+@login_required
+def get_workflow_history(workflow_instance_id):
+    """Get the workflow history for a specific workflow instance"""
+    try:
+        # Check if the workflow instance exists
+        workflow_instance = WorkflowInstance.query.get(workflow_instance_id)
+        if not workflow_instance:
+            return jsonify({'error': 'Workflow instance not found'}), 404
+        
+        # Get the workflow history entries for this instance
+        history_entries = WorkflowHistory.query.filter_by(instance_id=workflow_instance_id).order_by(WorkflowHistory.performed_at.desc()).all()
+        
+        history_data = []
+        for entry in history_entries:
+            # Get step name
+            step = WorkflowStep.query.get(entry.step_id)
+            
+            # Get performer name
+            performer = Staff.query.get(entry.performed_by)
+            performer_name = f"{performer.first_name} {performer.last_name}" if performer else "Unknown"
+            
+            # Get action from the entry
+            action = entry.action
+            
+            history_data.append({
+                'id': entry.id,
+                'step_id': entry.step_id,
+                'step_name': step.name if step else 'Unknown',
+                'performed_by': entry.performed_by,
+                'performer_name': performer_name,
+                'performed_at': entry.performed_at.isoformat(),
+                'comments': entry.comments,
+                'action': action
+            })
+        
+        return jsonify({'history': history_data})
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving workflow history: {str(e)}")
+        return jsonify({'error': f'Error retrieving workflow history: {str(e)}'}), 500
+
 @impact_assessment_bp.route('/impact_assessment/transition', methods=['POST'])
 def transition_workflow():
     # Get form data

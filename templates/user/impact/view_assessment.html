@@ -161,32 +161,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Debug info -->
-                    <div class="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                        <h4 class="text-md font-medium text-gray-800 dark:text-gray-200 mb-2">Debug Information</h4>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">workflow_info exists: {{ workflow_info is not none }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">next_possible_steps exists: {{ next_possible_steps is defined }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">next_possible_steps length: {{ next_possible_steps|length if next_possible_steps is defined else 'Not defined' }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">Current user role_id: {{ current_user.role_id }}</p>
-                        
-                        {% if workflow_info %}
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Current step: {{ workflow_info.current_step.name if workflow_info.current_step else 'None' }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Current step role_id: {{ workflow_info.current_step.role_id if workflow_info.current_step else 'None' }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Workflow ID: {{ workflow_info.instance.workflow_id }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Workflow instance ID: {{ workflow_info.instance.id }}</p>
-                        {% endif %}
-                        
-                        <h5 class="text-md font-medium text-gray-800 dark:text-gray-200 mt-4 mb-2">Available Transitions:</h5>
-                        {% if next_possible_steps %}
-                            <ul class="list-disc pl-5">
-                            {% for step in next_possible_steps %}
-                                <li class="text-sm text-gray-600 dark:text-gray-400">{{ step.transition_name }} -> {{ step.step_name }} (ID: {{ step.transition_id }})</li>
-                            {% endfor %}
-                            </ul>
-                        {% else %}
-                            <p class="text-sm text-gray-600 dark:text-gray-400">No transitions available</p>
-                        {% endif %}
-                    </div>
+
                     
                     {% if workflow_info %}
                     <div class="mt-6">

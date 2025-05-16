@@ -241,7 +241,7 @@
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form id="transitionForm" action="/impact_assessment/transition" method="post">
+                <form id="transitionForm" action="/user/impact_assessment/transition" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" id="transition_id" name="transition_id" value="">
                     <input type="hidden" id="workflow_instance_id" name="workflow_instance_id" value="">

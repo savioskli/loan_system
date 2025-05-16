@@ -163,14 +163,23 @@ def get_loans_for_impact():
                             loan['workflow_instance_id'] = workflow_instance.id
                             loan['workflow_status'] = current_step.name if current_step else 'Unknown'
                             
-                            # Get available transitions for this step
+                            # Get all available transitions for this step
                             transitions = WorkflowTransition.query.filter_by(
                                 workflow_id=workflow_instance.workflow_id,
                                 from_step_id=workflow_instance.current_step_id
-                            ).first()
+                            ).all()
                             
                             if transitions:
-                                loan['transition_id'] = transitions.id
+                                # Add all available transitions to the loan data
+                                loan['transitions'] = []
+                                for transition in transitions:
+                                    # Get the target step name
+                                    to_step = WorkflowStep.query.get(transition.to_step_id)
+                                    loan['transitions'].append({
+                                        'id': transition.id,
+                                        'name': transition.transition_name,
+                                        'to_step_name': to_step.name if to_step else 'Unknown'
+                                    })
                 else:
                     loan['has_impact'] = False
                     loan['impact_status'] = 'Not Submitted'

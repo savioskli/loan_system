@@ -317,11 +317,18 @@
 {% block scripts %}
 <script>
     // Functions to handle the transition modal
-    function openTransitionModal(loanId, workflowInstanceId, transitionId) {
+    function openTransitionModal(loanId, workflowInstanceId, transitionId, transitionName) {
         document.getElementById('loan_id').value = loanId;
         document.getElementById('workflow_instance_id').value = workflowInstanceId;
         document.getElementById('transition_id').value = transitionId;
         document.getElementById('transitionModal').classList.remove('hidden');
+        
+        // Update modal title with transition name if provided
+        if (transitionName) {
+            document.getElementById('modal-title').textContent = transitionName;
+        } else {
+            document.getElementById('modal-title').textContent = 'Transition Impact Assessment';
+        }
         
         // Show loading state for history
         const historyContainer = document.getElementById('previous-comments');
@@ -572,13 +579,32 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div class="flex space-x-2">
                             ${actionButton}
-                            ${loan.has_impact && loan.workflow_instance_id ? 
-                                `<button onclick="openTransitionModal('${loan.LoanID}', '${loan.workflow_instance_id}', '${loan.transition_id || 8}')" class="px-3 py-1 bg-green-100 hover:bg-green-200 dark:bg-green-900/50 dark:hover:bg-green-800 text-green-700 dark:text-green-300 text-xs font-medium rounded-md flex items-center">
-                                    <svg class="w-3.5 h-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                    </svg>
-                                    Transition
-                                </button>` : 
+                            ${loan.has_impact && loan.workflow_instance_id && loan.transitions && loan.transitions.length > 0 ? 
+                                `<div class="flex flex-col space-y-2 mt-2">
+                                    ${loan.transitions.map(transition => {
+                                        // Determine button style based on transition name
+                                        let buttonClass = "px-3 py-1 text-xs font-medium rounded-md flex items-center";
+                                        let iconPath = "";
+                                        
+                                        if (transition.name.toLowerCase().includes('decline') || transition.name.toLowerCase().includes('reject')) {
+                                            buttonClass += " bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-800 text-red-700 dark:text-red-300";
+                                            iconPath = "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z";
+                                        } else if (transition.name.toLowerCase().includes('return')) {
+                                            buttonClass += " bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-800 text-amber-700 dark:text-amber-300";
+                                            iconPath = "M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z";
+                                        } else {
+                                            buttonClass += " bg-green-100 hover:bg-green-200 dark:bg-green-900/50 dark:hover:bg-green-800 text-green-700 dark:text-green-300";
+                                            iconPath = "M13 7l5 5m0 0l-5 5m5-5H6";
+                                        }
+                                        
+                                        return `<button onclick="openTransitionModal('${loan.LoanID}', '${loan.workflow_instance_id}', '${transition.id}', '${transition.name}')" class="${buttonClass}">
+                                            <svg class="w-3.5 h-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+                                            </svg>
+                                            ${transition.name}
+                                        </button>`;
+                                    }).join('')}
+                                </div>` : 
                                 ''
                             }
                         </div>

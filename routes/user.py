@@ -1059,10 +1059,67 @@ def post_disbursement():
         'LOSS': {'count': 0, 'amount': float(0), 'percentage': float(0), 'description': '360+ days'}
     }
 
+    # Get workflow tasks assigned to the current user based on their role
+    workflow_tasks = []
+    
+    try:
+        # Get the current user's roles
+        user_roles = [role.id for role in current_user.roles]
+        
+        if user_roles:
+            # Find workflow steps assigned to the user's roles
+            from models.post_disbursement_workflows import WorkflowStep, WorkflowInstance, WorkflowDefinition, WorkflowHistory
+            
+            # Get active workflow instances where the current step is assigned to one of the user's roles
+            workflow_instances = db.session.query(
+                WorkflowInstance, WorkflowStep, WorkflowDefinition
+            ).join(
+                WorkflowStep, WorkflowInstance.current_step_id == WorkflowStep.id
+            ).join(
+                WorkflowDefinition, WorkflowInstance.workflow_id == WorkflowDefinition.id
+            ).filter(
+                WorkflowStep.role_id.in_(user_roles),
+                WorkflowInstance.status == 'active'
+            ).all()
+            
+            # Process workflow instances to get task details
+            for instance, step, workflow_def in workflow_instances:
+                # For impact assessment verification tasks
+                if instance.entity_type == 'loan_impact':
+                    from models.loan_impact import LoanImpact
+                    from models.impact import ImpactCategory
+                    
+                    # Get the loan impact record
+                    loan_impact = LoanImpact.query.get(instance.entity_id)
+                    if loan_impact:
+                        # Get category name
+                        category = ImpactCategory.query.get(loan_impact.impact_category_id)
+                        category_name = category.name if category else 'Unknown'
+                        
+                        # Get submitter name
+                        submitter = Staff.query.get(loan_impact.submitted_by)
+                        submitter_name = f"{submitter.first_name} {submitter.last_name}" if submitter else 'Unknown'
+                        
+                        # Add task to the list
+                        workflow_tasks.append({
+                            'id': instance.id,
+                            'type': 'Impact Assessment Verification',
+                            'entity_id': loan_impact.loan_id,  # This is the loan ID
+                            'entity_name': f"Loan #{loan_impact.loan_id} - {category_name}",
+                            'current_step': step.name,
+                            'workflow_name': workflow_def.name,
+                            'submitted_by': submitter_name,
+                            'submission_date': loan_impact.submission_date,
+                            'url': f"/user/impact_assessment/view/{loan_impact.loan_id}"
+                        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching workflow tasks: {str(e)}")
+    
     # Prepare template data
     template_data = {
         'user_id': user_id,
-        'default_overdue_loans': default_overdue_loans
+        'default_overdue_loans': default_overdue_loans,
+        'workflow_tasks': workflow_tasks
     }
 
     try:

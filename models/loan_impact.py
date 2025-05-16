@@ -1,6 +1,7 @@
 from extensions import db
 from datetime import datetime
 from models.staff import Staff
+from models.post_disbursement_workflows import WorkflowInstance
 
 class LoanImpact(db.Model):
     __tablename__ = 'loan_impact'
@@ -13,6 +14,7 @@ class LoanImpact(db.Model):
     verification_notes = db.Column(db.Text)
     verified_by = db.Column(db.Integer, db.ForeignKey('staff.id'))
     verification_date = db.Column(db.DateTime)
+    workflow_instance_id = db.Column(db.Integer, db.ForeignKey('workflow_instances.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
     
@@ -22,6 +24,7 @@ class LoanImpact(db.Model):
     verifier = db.relationship('Staff', foreign_keys=[verified_by], backref='verified_impacts')
     values = db.relationship('ImpactValue', backref='loan_impact', cascade='all, delete-orphan')
     evidence = db.relationship('ImpactEvidence', backref='loan_impact', cascade='all, delete-orphan')
+    workflow_instance = db.relationship('WorkflowInstance', backref='loan_impacts')
 
 class ImpactValue(db.Model):
     __tablename__ = 'impact_values'

@@ -5,6 +5,7 @@ from models.loan_impact import LoanImpact, ImpactValue, ImpactEvidence
 from models.staff import Staff
 from models.core_banking import CoreBankingSystem
 from models.post_disbursement_modules import ExpectedStructure, ActualStructure, PostDisbursementModule
+from models.post_disbursement_workflows import WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowHistory, WorkflowTransition
 from utils.decorators import admin_required
 from extensions import db
 import mysql.connector
@@ -147,15 +148,33 @@ def get_loans_for_impact():
             cursor.execute(query)
             loans = cursor.fetchall()
             
-            # Add impact assessment status to each loan
+            # Add impact assessment status and workflow information to each loan
             for loan in loans:
                 loan_impact = LoanImpact.query.filter_by(loan_id=loan['LoanID']).first()
                 if loan_impact:
                     loan['has_impact'] = True
                     loan['impact_status'] = loan_impact.verification_status
+                    
+                    # Add workflow information if available
+                    if loan_impact.workflow_instance_id:
+                        workflow_instance = WorkflowInstance.query.get(loan_impact.workflow_instance_id)
+                        if workflow_instance:
+                            current_step = WorkflowStep.query.get(workflow_instance.current_step_id)
+                            loan['workflow_instance_id'] = workflow_instance.id
+                            loan['workflow_status'] = current_step.name if current_step else 'Unknown'
+                            
+                            # Get available transitions for this step
+                            transitions = WorkflowTransition.query.filter_by(
+                                workflow_id=workflow_instance.workflow_id,
+                                from_step_id=workflow_instance.current_step_id
+                            ).first()
+                            
+                            if transitions:
+                                loan['transition_id'] = transitions.id
                 else:
                     loan['has_impact'] = False
                     loan['impact_status'] = 'Not Submitted'
+                    loan['workflow_status'] = None
             
             return jsonify({'data': loans})
         except Exception as e:
@@ -309,7 +328,47 @@ def submit_impact_assessment():
                     )
                     db.session.add(evidence)
         
-        db.session.commit()
+        # Create or update workflow instance for this impact assessment
+        workflow_def = WorkflowDefinition.query.filter_by(name='Impact Assessment Verification').first()
+        
+        if workflow_def:
+            # Check if there's an existing workflow instance
+            if loan_impact.workflow_instance_id:
+                # Existing workflow - we could reset it here if needed
+                current_app.logger.info(f"Existing workflow instance found for loan impact {loan_impact.id}")
+            else:
+                # Create new workflow instance
+                start_step = WorkflowStep.query.filter_by(workflow_id=workflow_def.id, is_start_step=True).first()
+                
+                if start_step:
+                    # Create workflow instance
+                    workflow_instance = WorkflowInstance(
+                        workflow_id=workflow_def.id,
+                        current_step_id=start_step.id,
+                        entity_type='loan_impact',
+                        entity_id=loan_impact.id,
+                        status='active',
+                        created_by=current_user.id
+                    )
+                    db.session.add(workflow_instance)
+                    db.session.commit()
+                    
+                    # Update loan impact with workflow instance ID
+                    loan_impact.workflow_instance_id = workflow_instance.id
+                    
+                    # Create initial history entry
+                    history_entry = WorkflowHistory(
+                        instance_id=workflow_instance.id,
+                        step_id=start_step.id,
+                        action='created',
+                        comments='Impact assessment submitted for verification',
+                        performed_by=current_user.id
+                    )
+                    db.session.add(history_entry)
+                    db.session.commit()
+                    
+                    current_app.logger.info(f"Created workflow instance {workflow_instance.id} for loan impact {loan_impact.id}")
+        
         return jsonify({'success': True, 'message': 'Impact assessment submitted successfully'})
     except Exception as e:
         db.session.rollback()
@@ -336,49 +395,172 @@ def get_impact_evidence(filename):
     from flask import send_file
     return send_file(file_path, mimetype=mimetype)
 
+@impact_assessment_bp.route('/impact_assessment/transition', methods=['POST'])
+def transition_workflow():
+    # Get form data
+    transition_id = request.form.get('transition_id')
+    workflow_instance_id = request.form.get('workflow_instance_id')
+    loan_id = request.form.get('loan_id')
+    comments = request.form.get('comments', '')
+    
+    if not transition_id or not workflow_instance_id or not loan_id:
+        flash('Missing required parameters for workflow transition', 'error')
+        return redirect(url_for('impact_assessment.view_impact_assessment', loan_id=loan_id))
+    
+    try:
+        # Get the workflow instance
+        workflow_instance = WorkflowInstance.query.get_or_404(workflow_instance_id)
+        
+        # Get the transition
+        transition = WorkflowTransition.query.get_or_404(transition_id)
+        
+        # Get the target step
+        target_step = WorkflowStep.query.get_or_404(transition.to_step_id)
+        
+        # Update the workflow instance
+        workflow_instance.current_step_id = target_step.id
+        
+        # Create a workflow history entry
+        history_entry = WorkflowHistory(
+            instance_id=workflow_instance.id,
+            step_id=target_step.id,
+            transition_id=transition.id,
+            action=transition.transition_name,
+            performed_by=current_user.id,
+            comments=comments
+        )
+        
+        # Save changes to database
+        db.session.add(history_entry)
+        db.session.commit()
+        
+        flash(f'Successfully moved to {target_step.name} step', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error in workflow transition: {str(e)}')
+        flash(f'Error processing workflow transition: {str(e)}', 'error')
+    
+    return redirect(url_for('impact_assessment.view_impact_assessment', loan_id=loan_id))
+
 @impact_assessment_bp.route('/user/impact_assessment/view/<int:loan_id>', methods=['GET'])
 @login_required
 def view_impact_assessment(loan_id):
     """View impact assessment for a specific loan"""
-    # Get the loan impact record
-    loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first_or_404()
+    try:
+        # Get the loan impact record
+        loan_impact = LoanImpact.query.filter_by(loan_id=loan_id).first_or_404()
+        
+        # Get the impact category
+        category = ImpactCategory.query.get(loan_impact.impact_category_id)
+        
+        # Get the metrics for this category
+        metrics = ImpactMetric.query.filter_by(impact_category_id=category.id).all()
+        
+        # Get the impact values for this loan impact
+        impact_values = ImpactValue.query.filter_by(loan_impact_id=loan_impact.id).all()
+        
+        # Create a dictionary of metric values for easy access
+        metric_values = {}
+        for value in impact_values:
+            metric_values[value.impact_metric_id] = value.value
+        
+        # Get the evidence files
+        evidence_files = ImpactEvidence.query.filter_by(loan_impact_id=loan_impact.id).all()
+        
+        # Get the staff who submitted and verified
+        submitted_by = Staff.query.get(loan_impact.submitted_by)
+        verified_by = None
+        if loan_impact.verified_by:
+            verified_by = Staff.query.get(loan_impact.verified_by)
+        
+        # Get visible modules for sidebar
+        visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
+        
+        # Get workflow information if available
+        workflow_info = None
+        next_possible_steps = []
+        workflow_history = []  # Initialize to empty list to avoid reference errors
+        
+        # Debug output
+        current_app.logger.info(f'Loan impact ID: {loan_impact.id}, workflow_instance_id: {loan_impact.workflow_instance_id}')
+        
+        if loan_impact.workflow_instance_id:
+            try:
+                current_app.logger.info(f'Looking up workflow instance with ID: {loan_impact.workflow_instance_id}')
+                workflow_instance = WorkflowInstance.query.get(loan_impact.workflow_instance_id)
+                current_app.logger.info(f'Found workflow instance: {workflow_instance is not None}')
+                
+                if workflow_instance:
+                    current_step = WorkflowStep.query.get(workflow_instance.current_step_id)
+                    # Use instance_id instead of workflow_instance_id based on the database schema
+                    workflow_history = WorkflowHistory.query.filter_by(instance_id=workflow_instance.id).order_by(WorkflowHistory.performed_at.desc()).all()
+                    
+                    # Get staff information for each history entry
+                    for entry in workflow_history:
+                        if entry.performed_by:
+                            entry.performer = Staff.query.get(entry.performed_by)
+                        if entry.step_id:
+                            entry.step = WorkflowStep.query.get(entry.step_id)
+                    
+                    # Get possible transitions from current step
+                    possible_transitions = WorkflowTransition.query.filter_by(
+                        workflow_id=workflow_instance.workflow_id,
+                        from_step_id=current_step.id
+                    ).all()
+                    
+                    # Check if current user has permission for each transition
+                    current_app.logger.info(f'Current user role_id: {current_user.role_id}')
+                    current_app.logger.info(f'Found {len(possible_transitions)} possible transitions')
+                    
+                    for transition in possible_transitions:
+                        to_step = WorkflowStep.query.get(transition.to_step_id)
+                        current_app.logger.info(f'Transition: {transition.transition_name}, to_step_id: {transition.to_step_id}, to_step_role_id: {to_step.role_id if to_step else None}')
+                        
+                        # Always allow admins (role_id=1) to perform any transition
+                        if current_user.role_id == 1:
+                            current_app.logger.info(f'Admin user can perform transition: {transition.transition_name}')
+                            next_possible_steps.append({
+                                'transition_id': transition.id,
+                                'transition_name': transition.transition_name,
+                                'step_name': to_step.name if to_step else 'Unknown'
+                            })
+                        # For non-admins, check if their role matches the current step's role
+                        elif current_step.role_id == current_user.role_id:
+                            current_app.logger.info(f'User with role {current_user.role_id} can perform transition: {transition.transition_name}')
+                            next_possible_steps.append({
+                                'transition_id': transition.id,
+                                'transition_name': transition.transition_name,
+                                'step_name': to_step.name if to_step else 'Unknown'
+                            })
+                        else:
+                            current_app.logger.info(f'User with role {current_user.role_id} CANNOT perform transition: {transition.transition_name}')
+                    
+                    workflow_info = {
+                        'instance': workflow_instance,
+                        'definition': workflow_def,
+                        'current_step': current_step,
+                        'status': workflow_instance.status
+                    }
+            except Exception as workflow_error:
+                current_app.logger.error(f"Error retrieving workflow information: {str(workflow_error)}")
+                # Continue without workflow info if there's an error
     
-    # Get the impact category
-    category = ImpactCategory.query.get(loan_impact.impact_category_id)
-    
-    # Get the metrics for this category
-    metrics = ImpactMetric.query.filter_by(impact_category_id=category.id).all()
-    
-    # Get the impact values for this loan impact
-    impact_values = ImpactValue.query.filter_by(loan_impact_id=loan_impact.id).all()
-    
-    # Create a dictionary of metric values for easy access
-    metric_values = {}
-    for value in impact_values:
-        metric_values[value.impact_metric_id] = value.value
-    
-    # Get the evidence files
-    evidence_files = ImpactEvidence.query.filter_by(loan_impact_id=loan_impact.id).all()
-    
-    # Get the staff who submitted and verified
-    submitted_by = Staff.query.get(loan_impact.submitted_by)
-    verified_by = None
-    if loan_impact.verified_by:
-        verified_by = Staff.query.get(loan_impact.verified_by)
-    
-    # Get visible modules for sidebar
-    visible_modules = PostDisbursementModule.query.filter_by(hidden=False).order_by(PostDisbursementModule.order).all()
-    
-    return render_template('user/impact/view_assessment.html',
-                           loan_id=loan_id,
-                           loan_impact=loan_impact,
-                           category=category,
-                           metrics=metrics,
-                           metric_values=metric_values,
-                           evidence_files=evidence_files,
-                           submitted_by=submitted_by,
-                           verified_by=verified_by,
-                           visible_modules=visible_modules)
+        return render_template('user/impact/view_assessment.html',
+                               loan_id=loan_id,
+                               loan_impact=loan_impact,
+                               category=category,
+                               metrics=metrics,
+                               metric_values=metric_values,
+                               evidence_files=evidence_files,
+                               submitted_by=submitted_by,
+                               verified_by=verified_by,
+                               visible_modules=visible_modules,
+                               workflow_info=workflow_info,
+                               workflow_history=workflow_history,
+                               next_possible_steps=next_possible_steps)
+    except Exception as e:
+        current_app.logger.error(f"Error viewing impact assessment: {str(e)}")
+        return render_template('error.html', error_message="An error occurred while viewing the impact assessment. Please try again later."), 500
 
 @impact_assessment_bp.route('/admin/impact/verify/<int:loan_impact_id>', methods=['POST'])
 @login_required

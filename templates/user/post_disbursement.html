@@ -320,7 +320,6 @@
             </div>
         </div>
     </div>
-    {% include 'user/chat.html' %}
 </div>
 
 <!-- Removed unwanted loan details modal -->
@@ -644,84 +643,111 @@
             }
         }
 
+        // Keep track of the chart instance
+        let classificationChart = null;
+        
         function initializeClassificationChart() {
-            const ctx = document.getElementById('classificationChart').getContext('2d');
-            const chartData = {{ overdue_loans|tojson }};
-            const labels = Object.entries(chartData).map(([category, data]) => `${category} (${data.description})`);
-            const percentages = Object.values(chartData).map(data => data.percentage);
-            
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: percentages,
-                        backgroundColor: [
-                            'rgba(34, 197, 94, 0.8)',  // Green for NORMAL
-                            'rgba(234, 179, 8, 0.8)',  // Yellow for WATCH
-                            'rgba(249, 115, 22, 0.8)', // Orange for SUBSTANDARD
-                            'rgba(239, 68, 68, 0.8)',  // Red for DOUBTFUL
-                            'rgba(147, 51, 234, 0.8)'  // Purple for LOSS
-                        ],
-                        borderColor: [
-                            'rgba(34, 197, 94, 1)',
-                            'rgba(234, 179, 8, 1)',
-                            'rgba(249, 115, 22, 1)',
-                            'rgba(239, 68, 68, 1)',
-                            'rgba(147, 51, 234, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                color: document.documentElement.classList.contains('dark') ? '#fff' : '#000',
-                                generateLabels: function(chart) {
-                                    const data = chart.data;
-                                    if (data.labels.length && data.datasets.length) {
-                                        return data.labels.map(function(label, i) {
-                                            const meta = chart.getDatasetMeta(0);
-                                            const style = meta.controller.getStyle(i);
-                                            const value = chart.data.datasets[0].data[i];
-                                            const amount = Object.values(chartData)[i].amount;
-                                            
-                                            return {
-                                                text: `${label} (${value.toFixed(1)}%)`,
-                                                fillStyle: style.backgroundColor,
-                                                strokeStyle: style.borderColor,
-                                                lineWidth: style.borderWidth,
-                                                hidden: isNaN(value) || meta.data[i].hidden,
-                                                index: i
-                                            };
-                                        });
+            try {
+                const ctx = document.getElementById('classificationChart');
+                if (!ctx) return;  // Exit if element not found
+                
+                // Destroy existing chart instance if it exists
+                if (window.classificationChartInstance) {
+                    window.classificationChartInstance.destroy();
+                }
+                
+                const ctx2d = ctx.getContext('2d');
+                if (!ctx2d) return;  // Exit if 2D context not available
+                
+                // Safely parse the JSON data
+                let chartData;
+                try {
+                    chartData = JSON.parse('{{ overdue_loans|tojson|safe }}');
+                } catch (e) {
+                    console.error('Error parsing chart data:', e);
+                    return;
+                }
+                
+                if (!chartData) return;  // Exit if no data
+                
+                const labels = Object.entries(chartData).map(([category, data]) => `${category} (${data.description})`);
+                const percentages = Object.values(chartData).map(data => data.percentage);
+                
+                // Store the chart instance in a global variable
+                window.classificationChartInstance = new Chart(ctx2d, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: percentages,
+                            backgroundColor: [
+                                'rgba(34, 197, 94, 0.8)',  // Green for NORMAL
+                                'rgba(234, 179, 8, 0.8)',  // Yellow for WATCH
+                                'rgba(249, 115, 22, 0.8)', // Orange for SUBSTANDARD
+                                'rgba(239, 68, 68, 0.8)',  // Red for DOUBTFUL
+                                'rgba(147, 51, 234, 0.8)'  // Purple for LOSS
+                            ],
+                            borderColor: [
+                                'rgba(34, 197, 94, 1)',
+                                'rgba(234, 179, 8, 1)',
+                                'rgba(249, 115, 22, 1)',
+                                'rgba(239, 68, 68, 1)',
+                                'rgba(147, 51, 234, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: '#1F2937',
+                                    font: {
+                                        family: 'Inter, system-ui, -apple-system, sans-serif',
+                                        size: 12
+                                    },
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1F2937',
+                                titleFont: {
+                                    family: 'Inter, system-ui, -apple-system, sans-serif',
+                                    size: 12
+                                },
+                                bodyFont: {
+                                    family: 'Inter, system-ui, -apple-system, sans-serif',
+                                    size: 12
+                                },
+                                padding: 12,
+                                cornerRadius: 6,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: ${value}%`;
                                     }
-                                    return [];
                                 }
                             }
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.raw;
-                                    const amount = Object.values(chartData)[context.dataIndex].amount;
-                                    return [
-                                        `Percentage: ${value.toFixed(1)}%`,
-                                        `Amount: ${formatNumber(amount, 2)}`
-                                    ];
-                                }
-                            }
+                        cutout: '70%',
+                        animation: {
+                            animateScale: true,
+                            animateRotate: true
                         }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.error('Error initializing chart:', error);
+            }
         }
-    </script>
-    <script>
+    
         // Function to load loan details
         async function loadLoanDetails() {
             try {
@@ -780,7 +806,15 @@
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'text-red-500 text-center p-4';
                 errorDiv.textContent = 'Failed to load loan data. Please try again.';
-                document.querySelector('.bg-white.dark:bg-gray-700.shadow.rounded-lg.p-6.mb-6').insertBefore(errorDiv, document.querySelector('#loan-table'));
+                
+                // Find the loan table container more reliably
+                const loanTable = document.getElementById('loan-table');
+                if (loanTable) {
+                    loanTable.parentNode.insertBefore(errorDiv, loanTable);
+                } else {
+                    // Fallback to appending to body if the table isn't found
+                    document.body.prepend(errorDiv);
+                }
             }
         }
 
@@ -830,14 +864,30 @@
             }
         }
         
+        // Helper function to format numbers with commas and decimals
+        function formatNumber(value, decimals = 2) {
+            if (value === null || value === undefined) return '0.00';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '0.00';
+            return num.toLocaleString(undefined, {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
         // Initialize when document is loaded
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the classification chart
+            initializeClassificationChart();
+            
             // Load initial data
             loadLoanDetails();
             
             // Set up refresh interval (every 5 minutes)
             setInterval(loadLoanDetails, 5 * 60 * 1000);
             
+            // Set up metrics update interval (every 1 minute)
+            initializeMetricsUpdate();
         });
     </script>
 {% endblock %}

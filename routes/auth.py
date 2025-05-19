@@ -23,7 +23,7 @@ def login():
     if current_user.is_authenticated:
         if current_user.role.name.lower() == 'admin':
             return redirect(url_for('main.admin_dashboard'))
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('user.dashboard'))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -42,7 +42,7 @@ def login():
                 if staff.role.name.lower() == 'admin':
                     next_page = url_for('main.admin_dashboard')
                 else:
-                    next_page = url_for('main.dashboard')
+                    next_page = url_for('user.dashboard')
             return redirect(next_page)
         flash('Invalid email or password', 'error')
     return render_template('auth/login.html', form=form)

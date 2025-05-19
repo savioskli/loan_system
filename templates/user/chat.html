@@ -795,9 +795,14 @@ async function clearAllHistory() {
   }
 
   try {
-    console.log('Clearing all chat history for user:', currentUserId);
+    const userId = window.currentUserId || '{{ current_user.id|default("") }}';
+    if (!userId) {
+      throw new Error('User ID not found');
+    }
+    
+    console.log('Clearing all chat history for user:', userId);
     // Get CSRF token from meta tag
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     const response = await fetch('/user/clear_chat_history', {
       method: 'POST',
@@ -806,7 +811,7 @@ async function clearAllHistory() {
         'X-CSRFToken': csrfToken
       },
       body: JSON.stringify({
-        user_id: currentUserId
+        user_id: userId
       })
     });
 
@@ -924,10 +929,16 @@ function showNotification(message, type = 'success') {
   }, 3000);
 }
 
-// Get current user ID from template
-const currentUserId = '{{ user_id|default("") }}';
+// Initialize chat only if not already initialized
+if (typeof window.chatInitialized === 'undefined') {
+    window.chatInitialized = true;
+    
+    // Set current user ID as a global variable
+    window.currentUserId = '{{ current_user.id|default("") }}';
 
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Use the global currentUserId
+        const currentUserId = window.currentUserId;
   if (!currentUserId) {
     console.error('User ID not found');
     return;
@@ -1815,4 +1826,6 @@ document.addEventListener('DOMContentLoaded', function() {
       addMessage('Welcome to the Loan System Chat! How can I help you today?', 'bot');
   }
 });
+
+} // Close the if (typeof window.chatInitialized === 'undefined') block
 </script>

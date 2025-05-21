@@ -337,11 +337,60 @@
             </div>
         </nav>
 
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    {% for category, message in messages %}
+                        {% set alert_class = 'bg-green-100 border-green-500 text-green-700' if category == 'success' else 'bg-red-100 border-red-500 text-red-700' if category == 'error' else 'bg-blue-100 border-blue-500 text-blue-700' %}
+                        {% set icon_class = 'fa-check-circle' if category == 'success' else 'fa-exclamation-circle' if category == 'error' else 'fa-info-circle' %}
+                        <div class="{{ alert_class }} border-l-4 p-4 mb-4 rounded-md shadow-sm" role="alert">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas {{ icon_class }}"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm">{{ message }}</p>
+                                </div>
+                                <div class="ml-auto pl-3">
+                                    <div class="-mx-1.5 -my-1.5">
+                                        <button type="button" 
+                                                class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 {{ 'text-green-500 hover:bg-green-200 focus:ring-green-600' if category == 'success' else 'text-red-500 hover:bg-red-200 focus:ring-red-600' if category == 'error' else 'text-blue-500 hover:bg-blue-200 focus:ring-blue-600' }}" 
+                                                onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">
+                                            <span class="sr-only">Dismiss</span>
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
 
     {% block extra_js %}{% endblock %}
     {% block scripts %}{% endblock %}
+    
+    <!-- Flash Message Auto-hide -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-hide flash messages after 5 seconds
+            setTimeout(function() {
+                const flashMessages = document.querySelectorAll('.flash-messages .border-l-4');
+                flashMessages.forEach(function(message) {
+                    message.style.transition = 'opacity 0.5s ease-out';
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 500);
+                });
+            }, 5000);
+        });
+    </script>
     
     <!-- AI Chat Widget -->
     {% if current_user.is_authenticated %}

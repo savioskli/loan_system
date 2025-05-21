@@ -23,18 +23,15 @@ def new_branch():
     if form.validate_on_submit():
         try:
             branch = Branch(
-                branch_code=form.branch_code.data,
-                branch_name=form.branch_name.data,
-                lower_limit=form.lower_limit.data,
-                upper_limit=form.upper_limit.data,
-                is_active=form.is_active.data,
-                created_by=current_user.id,
-                updated_by=current_user.id
+                code=form.code.data,
+                name=form.name.data,
+                address=form.address.data if hasattr(form, 'address') else None,
+                created_by=current_user.id
             )
             db.session.add(branch)
             db.session.commit()
-            logger.info(f"Branch {branch.branch_name} created by {current_user.username}")
-            flash('Branch created successfully.', 'success')
+            logger.info(f"Branch {branch.name} created by {current_user.username}")
+            flash(f'Branch {branch.name} created successfully.', 'success')
             return redirect(url_for('branch.manage_branches'))
         except Exception as e:
             db.session.rollback()
@@ -52,10 +49,14 @@ def edit_branch(branch_id):
     
     if form.validate_on_submit():
         try:
-            form.populate_obj(branch)
+            branch.code = form.code.data
+            branch.name = form.name.data
+            branch.address = form.address.data
+            branch.is_active = form.is_active.data
             branch.updated_by = current_user.id
+            
             db.session.commit()
-            logger.info(f"Branch {branch.branch_name} updated by {current_user.username}")
+            logger.info(f"Branch {branch.name} updated by {current_user.username}")
             flash('Branch updated successfully.', 'success')
             return redirect(url_for('branch.manage_branches'))
         except Exception as e:
@@ -70,14 +71,20 @@ def edit_branch(branch_id):
 def delete_branch(branch_id):
     """Delete a branch."""
     branch = Branch.query.get_or_404(branch_id)
+    branch_name = branch.name
     try:
+        # Check if there are any staff members assigned to this branch
+        if branch.staff_members:
+            flash('Cannot delete branch with assigned staff members. Please reassign or remove staff members first.', 'error')
+            return redirect(url_for('branch.manage_branches'))
+            
         db.session.delete(branch)
         db.session.commit()
-        logger.info(f"Branch {branch.branch_name} deleted by {current_user.username}")
+        logger.info(f"Branch {branch_name} deleted by {current_user.username}")
         flash('Branch deleted successfully.', 'success')
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting branch: {str(e)}")
-        flash('An error occurred while deleting the branch.', 'error')
+        flash('An error occurred while deleting the branch. Please try again.', 'error')
     
     return redirect(url_for('branch.manage_branches'))

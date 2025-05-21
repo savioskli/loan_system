@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header Section -->
+        <div class="mb-8">
+            <div class="md:flex md:items-center md:justify-between">
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-3xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                        New Branch Limit
+                    </h2>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Set disbursement limits for a branch
+                    </p>
+                </div>
+                <div class="mt-4 flex md:mt-0 md:ml-4">
+                    <a href="{{ url_for('branch_limit.manage_branch_limits') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Branch Limits
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="p-8">
+                <form method="POST" class="space-y-8">
+                    {{ form.csrf_token }}
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Branch Selection -->
+                        <div class="space-y-2">
+                            <label for="branch_id" class="block text-sm font-semibold text-gray-700">Branch</label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-building text-gray-400"></i>
+                                </div>
+                                {{ form.branch_id(class="pl-10 block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md h-10") }}
+                            </div>
+                            {% if form.branch_id.errors %}
+                            <p class="mt-2 text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>{{ form.branch_id.errors[0] }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Min Amount -->
+                        <div class="space-y-2">
+                            <label for="min_amount" class="block text-sm font-semibold text-gray-700">Minimum Amount</label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-money-bill-wave text-gray-400"></i>
+                                </div>
+                                {{ form.min_amount(class="pl-10 block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md h-10", placeholder="Enter minimum amount") }}
+                            </div>
+                            {% if form.min_amount.errors %}
+                            <p class="mt-2 text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>{{ form.min_amount.errors[0] }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Max Amount -->
+                        <div class="space-y-2">
+                            <label for="max_amount" class="block text-sm font-semibold text-gray-700">Maximum Amount</label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-money-bill-wave text-gray-400"></i>
+                                </div>
+                                {{ form.max_amount(class="pl-10 block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md h-10", placeholder="Enter maximum amount") }}
+                            </div>
+                            {% if form.max_amount.errors %}
+                            <p class="mt-2 text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>{{ form.max_amount.errors[0] }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Is Active -->
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                {{ form.is_active(class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
+                                <label for="is_active" class="ml-2 block text-sm font-semibold text-gray-700">Active</label>
+                            </div>
+                            {% if form.is_active.errors %}
+                            <p class="mt-2 text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>{{ form.is_active.errors[0] }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="pt-6 mt-6 border-t border-gray-200">
+                        <div class="flex justify-end space-x-3">
+                            <a href="{{ url_for('branch_limit.manage_branch_limits') }}" 
+                               class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Cancel
+                            </a>
+                            {{ form.submit(class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

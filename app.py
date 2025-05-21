@@ -41,6 +41,7 @@ from models.loan_impact import LoanImpact, ImpactValue, ImpactEvidence
 
 # Import routes
 from routes.branch_routes import branch_bp
+from routes.branch_limit_routes import branch_limit_bp
 from routes.client_types import client_types_bp
 from routes.main import main_bp
 from routes.auth import auth_bp
@@ -162,6 +163,7 @@ def create_app():
     app.register_blueprint(integrations_bp)
     app.register_blueprint(correspondence_bp)
     app.register_blueprint(branch_bp)
+    app.register_blueprint(branch_limit_bp)
     app.register_blueprint(client_types_bp)
     app.register_blueprint(collection_schedule_bp)
     app.register_blueprint(core_banking_bp)

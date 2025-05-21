@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Edit County{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Edit County
+                </h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Modify county details
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('location.manage_counties') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Counties
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form method="POST" class="space-y-6">
+                {{ form.csrf_token }}
+
+                <!-- County Name -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">
+                        County Name
+                    </label>
+                    <div class="mt-1">
+                        {{ form.name(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2") }}
+                    </div>
+                    {% if form.name.errors %}
+                        {% for error in form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            </p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- County Code -->
+                <div>
+                    <label for="code" class="block text-sm font-medium text-gray-700">
+                        County Code
+                    </label>
+                    <div class="mt-1">
+                        {{ form.code(class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md px-4 py-2") }}
+                    </div>
+                    {% if form.code.errors %}
+                        {% for error in form.code.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            </p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('location.manage_counties') }}"
+                       class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        Cancel
+                    </a>
+                    {{ form.submit(class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

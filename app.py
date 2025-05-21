@@ -42,6 +42,7 @@ from models.loan_impact import LoanImpact, ImpactValue, ImpactEvidence
 # Import routes
 from routes.branch_routes import branch_bp
 from routes.branch_limit_routes import branch_limit_bp
+from routes.location_routes import location_bp
 from routes.client_types import client_types_bp
 from routes.main import main_bp
 from routes.auth import auth_bp
@@ -86,6 +87,9 @@ csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
+
+    # Add min function to Jinja2 environment
+    app.jinja_env.globals.update(min=min)
 
     # Configuration
     app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -164,6 +168,7 @@ def create_app():
     app.register_blueprint(correspondence_bp)
     app.register_blueprint(branch_bp)
     app.register_blueprint(branch_limit_bp)
+    app.register_blueprint(location_bp)
     app.register_blueprint(client_types_bp)
     app.register_blueprint(collection_schedule_bp)
     app.register_blueprint(core_banking_bp)

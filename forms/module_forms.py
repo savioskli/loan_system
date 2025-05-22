@@ -12,6 +12,10 @@ class ModuleForm(FlaskForm):
     description = TextAreaField('Description', validators=[Optional()])
     parent_id = SelectField('Parent Module', coerce=int, validators=[Optional()])
     is_active = BooleanField('Active', default=True)
+    create_table = SelectField('Create Database Table', choices=[
+        ('no', 'No'),
+        ('yes', 'Yes')
+    ], default='no')
 
     def __init__(self, *args, **kwargs):
         super(ModuleForm, self).__init__(*args, **kwargs)

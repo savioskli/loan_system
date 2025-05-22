@@ -8,6 +8,7 @@ from extensions import db
 from models.role import Role
 from utils.module_utils import generate_module_code
 from utils.dynamic_tables import create_or_update_module_table
+from utils.table_utils import create_module_table
 import json
 import traceback
 from datetime import datetime
@@ -89,26 +90,42 @@ def create():
             # Generate the module code
             code = generate_module_code(form.name.data, form.parent_id.data)
             
+            # Create the module first
             module = Module(
                 name=form.name.data,
-                code=generate_module_code(form.name.data),
+                code=code,
                 description=form.description.data,
                 parent_id=form.parent_id.data,
                 organization_id=1,  # TODO: Get from current user's organization
                 is_system=False  # Ensure new modules are not system modules
             )
+            
+            # Create database table if requested
+            if form.create_table.data == 'yes':
+                try:
+                    table_name = create_module_table(form.name.data)
+                    print(f"Created table: {table_name}")
+                    flash(f'Database table {table_name} created successfully!', 'success')
+                except Exception as e:
+                    print(f"Error creating table: {str(e)}")
+                    flash(f'Error creating database table: {str(e)}', 'error')
+                    return render_template('admin/modules/form.html', form=form, title='Create Module')
+            
             print(f"Module created: {module}")
             db.session.add(module)
             db.session.commit()
             print("Module saved to database")
             
-            # Create the dynamic form data table
-            if create_or_update_module_table(code):
-                print(f"Created dynamic form data table for module {code}")
-                flash('Module and form data table created successfully.', 'success')
+            # Only create form data table if not creating a custom table
+            if form.create_table.data != 'yes':
+                if create_or_update_module_table(code):
+                    print(f"Created dynamic form data table for module {code}")
+                    flash('Module created successfully with form data table.', 'success')
+                else:
+                    print(f"Failed to create dynamic form data table for module {code}")
+                    flash('Warning: Module created but form data table creation failed.', 'warning')
             else:
-                print(f"Failed to create dynamic form data table for module {code}")
-                flash('Module created but form data table creation failed.', 'error')
+                flash('Module created successfully with custom database table.', 'success')
             
             return redirect(url_for('modules.index'))
         except Exception as e:

@@ -25,15 +25,15 @@
                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"></textarea>
                 </div>
 
-                <!-- Module Type -->
+                <!-- Create Table Option -->
                 <div>
-                    <label for="module_type" class="block text-sm font-medium text-gray-700">Module Type</label>
-                    <select name="module_type" id="module_type" required
+                    <label for="create_table" class="block text-sm font-medium text-gray-700">Create Database Table</label>
+                    <select name="create_table" id="create_table"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
-                        <option value="">Select a type...</option>
-                        <option value="client">Client Management</option>
-                        <option value="loan">Loan Management</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
                     </select>
+                    <p class="mt-1 text-sm text-gray-500">Select 'Yes' to create a database table for this module</p>
                 </div>
 
                 <!-- Parent Module -->

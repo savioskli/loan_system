@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from utils.decorators import admin_required
 import traceback
 from forms.general_settings import GeneralSettingsForm
+from utils.db import get_db_connection
+from extensions import db
 from services.settings_service import SettingsService
 from extensions import db
 from utils.dynamic_tables import create_or_update_module_table
@@ -124,18 +126,23 @@ def add_field():
 @login_required
 @admin_required
 def form_sections():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT fs.*, m.name as module_name 
-        FROM form_sections fs
-        JOIN modules m ON fs.module_id = m.id
-        ORDER BY fs.order, fs.name
-    """)
-    sections = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('admin/sections/index.html', sections=sections)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT fs.*, m.name as module_name 
+            FROM form_sections fs
+            JOIN modules m ON fs.module_id = m.id
+            ORDER BY fs.order, fs.name
+        """)
+        sections = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return render_template('admin/sections/index.html', sections=sections)
+    except Exception as e:
+        current_app.logger.error(f"Error in form_sections: {str(e)}")
+        flash('Error loading form sections', 'error')
+        return redirect(url_for('admin.dashboard'))
 
 @admin_bp.route('/form-sections/add', methods=['GET', 'POST'])
 @login_required

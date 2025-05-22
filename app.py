@@ -162,7 +162,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(client_attachment_bp)
     app.register_blueprint(client_management_bp)
-    app.register_blueprint(modules_bp)
+    app.register_blueprint(modules_bp, url_prefix='/modules')
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(products_bp)
     app.register_blueprint(sections_bp)

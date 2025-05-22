@@ -67,6 +67,8 @@ from routes.collection_schedule import collection_schedule_bp
 from routes.core_banking import bp as core_banking_bp
 from routes.api import api_bp
 from routes.audit import audit_bp
+from routes.client_attachment_routes import client_attachment_bp
+from routes.client_management import client_management_bp
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -158,6 +160,8 @@ def create_app():
     app.register_blueprint(user_management_bp)
     app.register_blueprint(role_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(client_attachment_bp)
+    app.register_blueprint(client_management_bp)
     app.register_blueprint(modules_bp)
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(products_bp)

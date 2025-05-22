@@ -1,0 +1,127 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="bg-primary rounded-full p-3">
+                <i class="fas fa-plus text-white text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Add Client Attachment</h2>
+                <p class="text-gray-600 dark:text-gray-300">Create a new client document requirement</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <div class="p-6">
+            <form method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="client_type_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client Type</label>
+                        <div class="mt-1 relative">
+                            <select id="client_type_id" name="client_type_id" required class="block w-full pl-3 pr-10 py-3 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm rounded-md appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="">Select Client Type</option>
+                                {% for type in client_types %}
+                                <option value="{{ type.id }}">{{ type.client_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-500 hidden">Please select a client type.</p>
+                    </div>
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Attachment Name</label>
+                        <input type="text" id="name" name="name" required class="mt-1 block w-full px-3 py-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500">
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-500 hidden">Please provide an attachment name.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="attachment_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Attachment Type</label>
+                        <div class="mt-1 relative">
+                            <select id="attachment_type" name="attachment_type" required class="block w-full pl-3 pr-10 py-3 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm rounded-md appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="" class="py-2">Select Type</option>
+                                <option value="pdf" class="py-2">PDF</option>
+                                <option value="image" class="py-2">Image</option>
+                                <option value="doc" class="py-2">Document</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-500 hidden">Please select an attachment type.</p>
+                    </div>
+
+                    <div>
+                        <label for="size_limit" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Size Limit (in bytes)</label>
+                        <input type="number" id="size_limit" name="size_limit" class="mt-1 block w-full px-3 py-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500">
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-500 hidden">Please provide a valid size limit.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <div class="mt-1 relative">
+                            <select id="status" name="status" required class="block w-full pl-3 pr-10 py-3 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm rounded-md appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" id="is_mandatory" name="is_mandatory" value="true" class="focus:ring-primary h-4 w-4 text-primary border-gray-300 dark:border-gray-600 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="is_mandatory" class="font-medium text-gray-700 dark:text-gray-300">Is Mandatory</label>
+                            <p class="text-gray-500 dark:text-gray-400">Check this if the attachment is required for all clients of this type</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('client_attachments.index') }}" class="inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        <i class="fas fa-times mr-2"></i> Cancel
+                    </a>
+                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        <i class="fas fa-save mr-2"></i> Save Attachment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+})()
+</script>
+{% endblock %}

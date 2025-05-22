@@ -19,6 +19,7 @@ from services.core_banking_service import CoreBankingService
 from database.db_manager import DatabaseManager
 import json
 from models.letter_template import LetterType, LetterTemplate
+from models.organization import Organization
 from forms.letter_template_forms import LetterTypeForm, LetterTemplateForm
 from sqlalchemy.orm import joinedload
 from models.credit_bureau import CreditBureau
@@ -54,6 +55,146 @@ def system_settings():
     form = GeneralSettingsForm()
     current_logo = None
     settings = None
+
+@admin_bp.route('/organization-management', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def organization_management():
+    # Get organization statistics
+    from models.module import Module
+    from models.staff import Staff
+    from models.organization import Organization
+    
+    module_count = Module.query.count()
+    staff_count = Staff.query.count()
+    
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            
+            # Create new organization
+            organization = Organization(
+                name=data['name'],
+                code=data['code'],
+                description=data.get('description', '')
+            )
+            
+            db.session.add(organization)
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Organization created successfully',
+                'data': {
+                    'id': organization.id,
+                    'name': organization.name,
+                    'code': organization.code,
+                    'description': organization.description,
+                    'created_at': organization.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 400
+    
+    # Get all organizations
+    organizations = Organization.query.all()
+    return render_template('admin/organization_management.html',
+                         module_count=module_count,
+                         staff_count=staff_count,
+                         organizations=organizations)
+
+@admin_bp.route('/test_org/<int:id>', methods=['GET'])
+def test_org(id):
+    org = Organization.query.get(id)
+    if org:
+        return jsonify({
+            'id': org.id,
+            'name': org.name,
+            'code': org.code
+        })
+    return jsonify({'error': f'Organization {id} not found'}), 404
+
+@admin_bp.route('/organizations/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+@admin_required
+def organization_detail(id):
+    organization = Organization.query.get(id)
+    
+    if not organization:
+        return jsonify({
+            'status': 'error',
+            'message': f'Organization with ID {id} not found'
+        }), 404
+    
+    if request.method == 'GET':
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'id': organization.id,
+                'name': organization.name,
+                'code': organization.code,
+                'description': organization.description
+            }
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            # Update organization
+            organization.name = data['name']
+            organization.code = data['code']
+            organization.description = data.get('description', '')
+            
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Organization updated successfully',
+                'data': {
+                    'id': organization.id,
+                    'name': organization.name,
+                    'code': organization.code,
+                    'description': organization.description,
+                    'updated_at': organization.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 400
+    
+    elif request.method == 'DELETE':
+        try:
+            # Delete organization
+            db.session.delete(organization)
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Organization deleted successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 400
+    
+    organizations = Organization.query.all()
+    return render_template('admin/organization_management.html',
+                         module_count=module_count,
+                         staff_count=staff_count,
+                         organizations=organizations)
     
     try:
         # Get current settings

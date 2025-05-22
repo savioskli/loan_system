@@ -1,5 +1,6 @@
 from extensions import db
 from datetime import datetime
+from models.organization import Organization
 
 class Module(db.Model):
     __tablename__ = 'modules'
@@ -8,6 +9,7 @@ class Module(db.Model):
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(50), nullable=False, unique=True)
     description = db.Column(db.Text)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='CASCADE'))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -20,6 +22,9 @@ class Module(db.Model):
                                             lazy='dynamic',
                                             cascade='all, delete-orphan',
                                             passive_deletes=True))
+    
+    # Relationship with organization
+    organization = db.relationship('Organization', back_populates='modules')
     
     # Relationship with form fields
     form_fields = db.relationship('FormField', 
@@ -38,6 +43,7 @@ class FormField(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     module_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
     section_id = db.Column(db.Integer, db.ForeignKey('form_sections.id', ondelete='CASCADE'))
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     field_name = db.Column(db.String(100), nullable=False)
     field_label = db.Column(db.String(100), nullable=False)
     field_placeholder = db.Column(db.String(200))
@@ -51,6 +57,9 @@ class FormField(db.Model):
     depends_on = db.Column(db.String(50))  # Name of the field this field depends on
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    organization = db.relationship('Organization', back_populates='form_fields')
     
     def __repr__(self):
         return f'<FormField {self.field_name}>'

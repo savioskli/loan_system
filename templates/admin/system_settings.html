@@ -1,0 +1,76 @@
+{% extends 'admin/base.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">System Settings</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">System Settings</li>
+    </ol>
+    
+    <div class="row">
+        
+        <!-- Modules Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <i class="fas fa-puzzle-piece fa-2x me-2"></i>
+                            Modules
+                        </div>
+                        <div class="flex-shrink-0">
+                            <h4 class="mb-0">{{ module_count }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('modules.index') }}">Manage Modules</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Management Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <i class="fas fa-users fa-2x me-2"></i>
+                            Staff
+                        </div>
+                        <div class="flex-shrink-0">
+                            <h4 class="mb-0">{{ staff_count }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('staff.index') }}">Manage Staff</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Roles & Permissions Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <i class="fas fa-user-shield fa-2x me-2"></i>
+                            Roles
+                        </div>
+                        <div class="flex-shrink-0">
+                            <h4 class="mb-0">{{ role_count }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('roles.index') }}">Manage Roles</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

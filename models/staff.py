@@ -2,6 +2,7 @@ from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from models.organization import Organization
 
 class Staff(UserMixin, db.Model):
     __tablename__ = 'staff'
@@ -15,6 +16,7 @@ class Staff(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     status = db.Column(db.String(20), default='active')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -27,6 +29,7 @@ class Staff(UserMixin, db.Model):
     approved_by = db.relationship('Staff', remote_side=[id], backref='approved_staff')
     role = db.relationship('Role', foreign_keys=[role_id])
     branch = db.relationship('Branch', foreign_keys=[branch_id])
+    organization = db.relationship('Organization', back_populates='staff_members')
     
     @property
     def full_name(self):

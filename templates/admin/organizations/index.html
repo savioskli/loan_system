@@ -1,0 +1,98 @@
+{% extends 'admin/base.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Organizations</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Organizations</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-building me-1"></i>
+                Organizations
+            </div>
+            <a href="{{ url_for('organizations.create') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i> Add Organization
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in organizations %}
+                        <tr>
+                            <td>{{ org.name }}</td>
+                            <td>{{ org.code }}</td>
+                            <td>{{ org.description or '' }}</td>
+                            <td>
+                                {% if org.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('organizations.edit', id=org.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        data-id="{{ org.id }}" data-name="{{ org.name }}" onclick="confirmDelete(this.dataset.id, this.dataset.name)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">No organizations found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete organization "<span id="orgName"></span>"?
+            </div>
+            <div class="modal-footer">
+                <form id="deleteForm" method="POST">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('deleteForm').action = "{{ url_for('organizations.delete', id=0) }}".replace('0', id);
+    document.getElementById('orgName').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

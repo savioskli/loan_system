@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models.module import Module, FormField
 from models.client_type import ClientType
+from models.form_submission import FormSubmission
 from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
 from models.role import Role
@@ -44,33 +45,57 @@ def index():
                 tree.append(module)
         return tree
 
-    all_modules = Module.query.order_by(Module.name).all()
-    modules = build_module_tree(all_modules)
+    # Get system modules first (these are root nodes)
+    system_modules = Module.query.filter_by(is_system=True, is_active=True, organization_id=1).order_by(Module.name).all()
+    
+    # Get all non-system modules
+    regular_modules = Module.query.filter_by(is_system=False, organization_id=1).order_by(Module.name).all()
+    
+    # Build the tree starting with system modules
+    modules = build_module_tree(system_modules + regular_modules)
+    
+    print(f"Found {len(system_modules)} system modules and {len(regular_modules)} regular modules")
     return render_template('admin/modules/index.html', modules=modules)
 
 @modules_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create():
-    if not current_user.role or current_user.role.name.lower() != 'admin':
-        flash('Access denied.', 'error')
+    if not current_user.is_admin:
+        flash('You do not have permission to create modules.', 'error')
         return redirect(url_for('main.index'))
         
     form = ModuleForm()
-    print("Form created")
+    
+    # Only allow Client Management and Loan Management as parent modules
+    system_modules = Module.query.filter_by(is_system=True, is_active=True, organization_id=1).all()
+    form.parent_id.choices = [(m.id, m.name) for m in system_modules]
+    print(f"Available parent modules: {[m.name for m in system_modules]}")
     
     if form.validate_on_submit():
         try:
             print("Form validated")
+            
+            # Ensure a parent module is selected
+            if not form.parent_id.data:
+                flash('You must select either Client Management or Loan Management as the parent module.', 'error')
+                return render_template('admin/modules/create.html', form=form)
+                
+            # Verify parent is a system module
+            parent = Module.query.get(form.parent_id.data)
+            if not parent or not parent.is_system:
+                flash('Invalid parent module selected. You can only create modules under Client Management or Loan Management.', 'error')
+                return render_template('admin/modules/create.html', form=form)
+            
             # Generate the module code
-            parent_id = form.parent_id.data if form.parent_id.data != 0 else None
-            code = generate_module_code(form.name.data, parent_id)
+            code = generate_module_code(form.name.data, form.parent_id.data)
             
             module = Module(
                 name=form.name.data,
-                code=code,
+                code=generate_module_code(form.name.data),
                 description=form.description.data,
-                parent_id=parent_id,
-                is_active=form.is_active.data
+                parent_id=form.parent_id.data,
+                organization_id=1,  # TODO: Get from current user's organization
+                is_system=False  # Ensure new modules are not system modules
             )
             print(f"Module created: {module}")
             db.session.add(module)
@@ -103,10 +128,25 @@ def edit(id):
         return redirect(url_for('main.index'))
         
     module = Module.query.get_or_404(id)
+    # Get all active modules for parent selection
+    # Only allow Client Management and Loan Management as parent modules
+    system_modules = Module.query.filter_by(is_system=True, is_active=True).all()
     form = ModuleForm(obj=module)
+    form.parent_id.choices = [(m.id, m.name) for m in system_modules]
     
     if form.validate_on_submit():
         try:
+            # Ensure a parent module is selected
+            if not form.parent_id.data:
+                flash('You must select either Client Management or Loan Management as the parent module.', 'error')
+                return render_template('admin/modules/form.html', form=form, title='Edit Module')
+                
+            # Verify parent is a system module
+            parent = Module.query.get(form.parent_id.data)
+            if not parent or not parent.is_system:
+                flash('Invalid parent module selected. You can only create modules under Client Management or Loan Management.', 'error')
+                return render_template('admin/modules/form.html', form=form, title='Edit Module')
+            
             # Update basic info
             module.name = form.name.data
             module.description = form.description.data
@@ -532,8 +572,6 @@ def delete_field(id, field_id):
 def delete(id):
     print(f"\n=== Starting module deletion process ===")
     print(f"Delete request received for module ID: {id}")
-    print(f"Request method: {request.method}")
-    print(f"Request headers: {dict(request.headers)}")
     
     if not current_user.is_admin:
         print(f"Permission denied for user: {current_user}")
@@ -563,22 +601,30 @@ def delete(id):
         
         print(f"Found {child_form_fields} child form fields, {main_form_fields} main form fields, {child_modules} child modules")
         
-        # Delete form fields first
-        print("1. Deleting form fields...")
+        # Start with form submissions
+        print("1. Deleting form submissions...")
+        # First delete submissions for child modules
+        child_modules_ids = [m.id for m in Module.query.filter_by(parent_id=id).all()]
+        if child_modules_ids:
+            FormSubmission.query.filter(FormSubmission.module_id.in_(child_modules_ids)).delete(synchronize_session=False)
+        # Then delete submissions for the main module
+        FormSubmission.query.filter_by(module_id=id).delete(synchronize_session=False)
+        
+        # Delete form fields
+        print("2. Deleting form fields...")
         FormField.query.filter_by(module_id=id).delete(synchronize_session=False)
         
         # Delete child form fields
-        print("2. Deleting child form fields...")
-        child_modules_ids = [m.id for m in Module.query.filter_by(parent_id=id).all()]
+        print("3. Deleting child form fields...")
         if child_modules_ids:
             FormField.query.filter(FormField.module_id.in_(child_modules_ids)).delete(synchronize_session=False)
         
         # Delete child modules
-        print("3. Deleting child modules...")
+        print("4. Deleting child modules...")
         Module.query.filter_by(parent_id=id).delete(synchronize_session=False)
         
         # Finally delete the main module
-        print("4. Deleting main module...")
+        print("5. Deleting main module...")
         db.session.delete(module)
         
         # Commit the transaction

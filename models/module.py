@@ -12,6 +12,7 @@ class Module(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='CASCADE'))
     is_active = db.Column(db.Boolean, default=True)
+    is_system = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

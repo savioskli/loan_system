@@ -277,14 +277,12 @@
                         <!-- Client Type Restrictions -->
                         <div class="space-y-2">
                             {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                            
+
                             <div class="relative rounded-md shadow-sm">
-                                <select name="client_type_restrictions" id="client_type_restrictions" multiple class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    <!-- Hardcoded client types from database -->
-                                    <option value="1">Individual Client</option>
-                                    <option value="2">Limited Liability Company</option>
-                                    <!-- Dynamic options from form -->
-                                    {% for choice in form.client_type_restrictions.choices %}
-                                    <option value="{{ choice[0] }}" {% if field and choice[0] in field.client_type_restrictions %}selected{% endif %}>{{ choice[1] }}</option>
+                                <select name="client_type_restrictions" id="client_type_restrictions" class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" multiple="multiple">
+                                    {% for value, label in form.client_type_restrictions.choices %}
+                                    <option value="{{ value }}"{% if value in form.client_type_restrictions.data %} selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                                 <p class="mt-1 text-sm text-gray-500 help-text">{{ form.client_type_restrictions.description }}</p>
@@ -303,16 +301,16 @@
                             {% endif %}
                         </div>
 
-                        <!-- Section ID -->
+                        <!-- Section -->
                         <div class="space-y-2">
                             {{ form.section_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
-                                <select name="section_id" id="section_id" class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    {% for choice in form.section_id.choices %}
-                                    <option value="{{ choice[0] }}" {% if field and field.section_id == choice[0] %}selected{% endif %}>{{ choice[1] }}</option>
+                                <select name="section_id" id="section_id" class="choices-select input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    {% for value, label in form.section_id.choices %}
+                                    <option value="{{ value }}"{% if value == form.section_id.data %} selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
-                                <p class="mt-1 text-sm text-gray-500 help-text">Choose which section this field belongs to.</p>
+                                <p class="mt-1 text-sm text-gray-500 help-text">Select which section this field belongs to</p>
                             </div>
                             {% if form.section_id.errors %}
                             <div class="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -483,34 +481,9 @@
         const clientTypeSelect = document.getElementById('client_type_restrictions');
         const sectionSelect = document.getElementById('section_id');
 
+        // Initialize field type select first
         if (fieldTypeSelect) {
             new Choices(fieldTypeSelect, {
-                searchEnabled: false,
-                itemSelectText: '',
-                classNames: {
-                    containerOuter: 'choices'
-                }
-            });
-        }
-
-        if (clientTypeSelect) {
-            // Log client type options for debugging
-            console.log('Client type options:', Array.from(clientTypeSelect.options).map(opt => ({value: opt.value, text: opt.text})));
-            
-            new Choices(clientTypeSelect, {
-                searchEnabled: true,
-                searchPlaceholderValue: 'Search client types...',
-                itemSelectText: '',
-                removeItemButton: true,
-                placeholderValue: 'Select client types...',
-                classNames: {
-                    containerOuter: 'choices'
-                }
-            });
-        }
-
-        if (sectionSelect) {
-            new Choices(sectionSelect, {
                 searchEnabled: false,
                 itemSelectText: '',
                 classNames: {
@@ -527,9 +500,9 @@
             fieldTypeInput.addEventListener('change', function() {
                 const showOptionsTypes = ['select', 'radio', 'checkbox'];
                 if (showOptionsTypes.includes(this.value)) {
-                    optionsSection?.classList.remove('hidden');
+                    if (optionsSection) optionsSection.classList.remove('hidden');
                 } else {
-                    optionsSection?.classList.add('hidden');
+                    if (optionsSection) optionsSection.classList.add('hidden');
                 }
             });
         }
@@ -556,6 +529,8 @@
     // Function to add a new option row
     function addOptionRow() {
         const container = document.getElementById('options-container');
+        if (!container) return;
+        
         const optionCount = container.getElementsByClassName('option-row').length;
         
         const newRow = document.createElement('div');
@@ -590,69 +565,109 @@
     // Function to update option indices after deletion
     function updateOptionIndices() {
         const container = document.getElementById('options-container');
+        if (!container) return;
+        
         const optionRows = container.getElementsByClassName('option-row');
         
         Array.from(optionRows).forEach((row, index) => {
             const labelInput = row.querySelector('input[name^="options-"][name$="-label"]');
             const valueInput = row.querySelector('input[name^="options-"][name$="-value"]');
             
-            labelInput.name = `options-${index}-label`;
-            valueInput.name = `options-${index}-value`;
+            if (labelInput) labelInput.name = `options-${index}-label`;
+            if (valueInput) valueInput.name = `options-${index}-value`;
         });
     }
 </script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Choices.js for select elements
-        const choicesElements = document.querySelectorAll('.choices-select');
-        choicesElements.forEach(element => {
-            new Choices(element, {
-                removeItemButton: true,
-                searchEnabled: true,
-                searchPlaceholderValue: 'Type to search...',
-                placeholder: true,
-                placeholderValue: '-- Select --'
+        // Wait for the DOM to be fully loaded before initializing Choices.js
+        setTimeout(function() {
+            // Initialize field type select first
+            const fieldTypeSelect = document.getElementById('field_type');
+            if (fieldTypeSelect && !window.fieldTypeChoices) {
+                window.fieldTypeChoices = new Choices(fieldTypeSelect, {
+                    searchEnabled: false,
+                    itemSelectText: '',
+                    classNames: {
+                        containerOuter: 'choices'
+                    }
+                });
+            }
+            
+            // Initialize client type restrictions select
+            const clientTypeSelect = document.getElementById('client_type_restrictions');
+            if (clientTypeSelect && !window.clientTypeChoices) {
+                console.log('Initializing client type select with options:', clientTypeSelect.options);
+                window.clientTypeChoices = new Choices(clientTypeSelect, {
+                    searchEnabled: true,
+                    removeItemButton: true,
+                    itemSelectText: '',
+                    searchPlaceholderValue: 'Search client types...',
+                    placeholderValue: 'Select client types...',
+                    classNames: {
+                        containerOuter: 'choices'
+                    }
+                });
+            }
+            
+            // Initialize section select
+            const sectionSelect = document.getElementById('section_id');
+            if (sectionSelect && !window.sectionChoices) {
+                console.log('Initializing section select with options:', sectionSelect.options);
+                window.sectionChoices = new Choices(sectionSelect, {
+                    searchEnabled: false,
+                    itemSelectText: '',
+                    classNames: {
+                        containerOuter: 'choices'
+                    }
+                });
+            }
+            
+            // Initialize other select elements
+            document.querySelectorAll('.choices-select:not(#field_type):not(#client_type_restrictions):not(#section_id)').forEach(element => {
+                if (!element.classList.contains('choices__input')) {
+                    new Choices(element, {
+                        removeItemButton: true,
+                        searchEnabled: true,
+                        searchPlaceholderValue: 'Type to search...',
+                        placeholder: true,
+                        placeholderValue: '-- Select --'
+                    });
+                }
             });
-        });
-
+        }, 100); // Small delay to ensure DOM is ready
+        
         // Handle field type changes
-        const fieldTypeSelect = document.querySelector('[name="field_type"]');
+        // Use the already defined fieldTypeSelect from above
         const validationRulesSection = document.getElementById('validation-rules-section');
-        const textValidations = document.querySelector('.text-field-validations');
-        const numberValidations = document.querySelector('.number-validations');
-        const dateValidations = document.querySelector('.date-validations');
-        const patternValidation = document.querySelector('.pattern-validation');
+        const textValidations = document.getElementById('text-validations');
+        const numberValidations = document.getElementById('number-validations');
+        const dateValidations = document.getElementById('date-validations');
 
         function updateValidationFields() {
+            if (!fieldTypeSelect) return;
             const fieldType = fieldTypeSelect.value;
             
-            // Hide all validation sections first
-            textValidations.classList.add('hidden');
-            numberValidations.classList.add('hidden');
-            dateValidations.classList.add('hidden');
-            patternValidation.classList.add('hidden');
+            // Safety check for validation sections
+            if (textValidations) textValidations.classList.add('hidden');
+            if (numberValidations) numberValidations.classList.add('hidden');
+            if (dateValidations) dateValidations.classList.add('hidden');
 
             // Show relevant validation sections based on field type
             switch(fieldType) {
                 case 'text':
                 case 'textarea':
-                    textValidations.classList.remove('hidden');
-                    patternValidation.classList.remove('hidden');
-                    break;
                 case 'email':
-                    textValidations.classList.remove('hidden');
-                    break;
                 case 'tel':
-                    textValidations.classList.remove('hidden');
-                    patternValidation.classList.remove('hidden');
+                    if (textValidations) textValidations.classList.remove('hidden');
                     break;
                 case 'number':
                 case 'decimal':
-                    numberValidations.classList.remove('hidden');
+                    if (numberValidations) numberValidations.classList.remove('hidden');
                     break;
                 case 'date':
-                    dateValidations.classList.remove('hidden');
+                    if (dateValidations) dateValidations.classList.remove('hidden');
                     break;
             }
         }

@@ -233,6 +233,20 @@ def create_field(id):
         if request.method == 'GET':
             form = FormFieldForm(module_id=id)
             
+            # Explicitly load client types for the form
+            from models.client_type import ClientType
+            client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+            current_app.logger.info(f"Explicitly loading {len(client_types)} client types")
+            
+            # Create choices list and log each client type
+            choices = []
+            for ct in client_types:
+                current_app.logger.info(f"Adding client type: {ct.client_name} (ID: {ct.id}, Status: {ct.status})")
+                choices.append((ct.id, ct.client_name))
+            
+            form.client_type_restrictions.choices = choices
+            current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
+            
             # Get sections using raw SQL
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
@@ -444,6 +458,20 @@ def edit_field(id, field_id):
         
         if request.method == 'GET':
             form = FormFieldForm(obj=field, module_id=id)
+            
+            # Explicitly load client types for the form
+            from models.client_type import ClientType
+            client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+            current_app.logger.info(f"Explicitly loading {len(client_types)} client types for edit form")
+            
+            # Create choices list and log each client type
+            choices = []
+            for ct in client_types:
+                current_app.logger.info(f"Adding client type: {ct.client_name} (ID: {ct.id}, Status: {ct.status})")
+                choices.append((ct.id, ct.client_name))
+            
+            form.client_type_restrictions.choices = choices
+            current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
             
             # Populate validation rules if they exist
             if field.validation_rules:

@@ -9,6 +9,7 @@ from models.role import Role
 from utils.module_utils import generate_module_code
 from utils.dynamic_tables import create_or_update_module_table
 from utils.table_utils import create_module_table
+from utils.db import get_db_connection
 import json
 import traceback
 from datetime import datetime
@@ -227,9 +228,43 @@ def create_field(id):
     
     try:
         module = Module.query.get_or_404(id)
+        current_app.logger.info(f"Creating field for module ID: {id}")
         
         if request.method == 'GET':
             form = FormFieldForm(module_id=id)
+            
+            # Get sections using raw SQL
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # First check if this is a submodule
+            cursor.execute("""
+                SELECT parent_id 
+                FROM modules 
+                WHERE id = %s
+            """, (id,))
+            module_data = cursor.fetchone()
+            
+            # Determine the correct module_id to use
+            target_module_id = module_data['parent_id'] if module_data and module_data['parent_id'] else id
+            current_app.logger.info(f"Using module_id: {target_module_id} for sections query")
+            
+            # Get sections for the correct module
+            cursor.execute("""
+                SELECT id, name 
+                FROM form_sections 
+                WHERE module_id = %s AND is_active = 1
+                ORDER BY `order`, name
+            """, (target_module_id,))
+            sections = cursor.fetchall()
+            current_app.logger.info(f"Found sections: {sections}")
+            cursor.close()
+            conn.close()
+            
+            # Update section choices
+            form.section_id.choices = [(0, 'None')] + [(s['id'], s['name']) for s in sections]
+            current_app.logger.info(f"Section choices: {form.section_id.choices}")
+            
             return render_template('admin/modules/field_form.html', form=form, module=module)
         
         field_type = request.form.get('field_type', '')
@@ -327,19 +362,51 @@ def create_field(id):
         # Get the highest current order
         max_order = db.session.query(db.func.max(FormField.field_order)).filter_by(module_id=id).scalar() or 0
         
+        # Add the field to the module's database table if it exists
+        from utils.table_utils import add_field_to_table
+        
+        # Debug logging
+        current_app.logger.info(f"Module ID: {id}")
+        current_app.logger.info(f"Module name: {module.name}")
+        current_app.logger.info(f"Module table_name: {getattr(module, 'table_name', None)}")
+        current_app.logger.info(f"Field data: {field_data}")
+        current_app.logger.info(f"Field type: {field_type}")
+        current_app.logger.info(f"Validation rules: {validation_rules}")
+        
+        # Check if module has a table_name
+        table_name = getattr(module, 'table_name', None)
+        if table_name:
+            success = add_field_to_table(
+                table_name=table_name,
+                field_name=field_data['field_name'],
+                field_type=field_type,
+                validation_rules=validation_rules,
+                is_required=field_data['is_required']
+            )
+            
+            if not success:
+                flash('Error adding field to database table. Please try again.', 'error')
+                form = FormFieldForm(data=field_data, module_id=id)
+                return render_template('admin/modules/field_form.html', form=form, module=module)
+
         # Create new field
+        section_id = field_data.get('section_id')
+        if section_id == 0:  # Convert 0 to None for section_id
+            section_id = None
+            
         field = FormField(
             module_id=id,
+            organization_id=module.organization_id,  # Get organization_id from the module
             field_name=field_data['field_name'],
             field_label=field_data['field_label'],
-            field_placeholder=field_data['field_placeholder'],
-            field_type=field_data['field_type'],
-            validation_text=field_data['validation_text'],
+            field_type=field_type,
+            field_placeholder=field_data.get('field_placeholder'),
+            validation_text=field_data.get('validation_text'),
+            validation_rules=validation_rules,
             is_required=field_data['is_required'],
-            field_order=max_order + 1,
-            client_type_restrictions=[int(x) for x in field_data['client_type_restrictions']],
-            section_id=field_data['section_id'] if field_data['section_id'] != 0 else None,
-            validation_rules=validation_rules
+            section_id=section_id,
+            client_type_restrictions=field_data.get('client_type_restrictions', []),
+            field_order=max_order + 1
         )
         
         if field_type in ['select', 'radio', 'checkbox']:

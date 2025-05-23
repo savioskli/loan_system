@@ -278,7 +278,15 @@
                         <div class="space-y-2">
                             {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
-                                {{ form.client_type_restrictions(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                                <select name="client_type_restrictions" id="client_type_restrictions" multiple class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <!-- Hardcoded client types from database -->
+                                    <option value="1">Individual Client</option>
+                                    <option value="2">Limited Liability Company</option>
+                                    <!-- Dynamic options from form -->
+                                    {% for choice in form.client_type_restrictions.choices %}
+                                    <option value="{{ choice[0] }}" {% if field and choice[0] in field.client_type_restrictions %}selected{% endif %}>{{ choice[1] }}</option>
+                                    {% endfor %}
+                                </select>
                                 <p class="mt-1 text-sm text-gray-500 help-text">{{ form.client_type_restrictions.description }}</p>
                             </div>
                             {% if form.client_type_restrictions.errors %}
@@ -299,7 +307,11 @@
                         <div class="space-y-2">
                             {{ form.section_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
-                                {{ form.section_id(class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white") }}
+                                <select name="section_id" id="section_id" class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    {% for choice in form.section_id.choices %}
+                                    <option value="{{ choice[0] }}" {% if field and field.section_id == choice[0] %}selected{% endif %}>{{ choice[1] }}</option>
+                                    {% endfor %}
+                                </select>
                                 <p class="mt-1 text-sm text-gray-500 help-text">Choose which section this field belongs to.</p>
                             </div>
                             {% if form.section_id.errors %}
@@ -482,10 +494,15 @@
         }
 
         if (clientTypeSelect) {
+            // Log client type options for debugging
+            console.log('Client type options:', Array.from(clientTypeSelect.options).map(opt => ({value: opt.value, text: opt.text})));
+            
             new Choices(clientTypeSelect, {
-                searchEnabled: false,
+                searchEnabled: true,
+                searchPlaceholderValue: 'Search client types...',
                 itemSelectText: '',
                 removeItemButton: true,
+                placeholderValue: 'Select client types...',
                 classNames: {
                     containerOuter: 'choices'
                 }

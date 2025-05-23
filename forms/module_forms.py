@@ -4,6 +4,7 @@ from wtforms.validators import DataRequired, Length, Optional
 from models.module import Module
 from models.client_type import ClientType
 from models.form_section import FormSection
+from extensions import db
 from flask import current_app
 import traceback
 
@@ -81,8 +82,16 @@ class FormFieldForm(FlaskForm):
         try:
             # Populate section choices if module_id is provided
             if module_id:
-                sections = FormSection.query.filter_by(module_id=module_id, is_active=True).order_by(FormSection.order).all()
+                sections = FormSection.query.filter(
+                    FormSection.is_active == True,
+                    db.or_(
+                        FormSection.module_id == module_id,
+                        FormSection.submodule_id == module_id
+                    )
+                ).order_by(FormSection.order).all()
+                current_app.logger.info(f"Found sections: {sections}")
                 self.section_id.choices = [(0, 'None')] + [(s.id, s.name) for s in sections]
+                current_app.logger.info(f"Section choices set to: {self.section_id.choices}")
             else:
                 self.section_id.choices = [(0, 'None')]
 
@@ -93,11 +102,11 @@ class FormFieldForm(FlaskForm):
             # Create choices list and log each client type
             choices = []
             for ct in client_types:
-                current_app.logger.info(f"Processing client type: ID={ct.id}, Name={ct.client_name}, Status={ct.status}")
+                current_app.logger.info(f"Adding client type: {ct.client_name} (ID: {ct.id}, Status: {ct.status})")
                 choices.append((ct.id, ct.client_name))
             
             self.client_type_restrictions.choices = choices
-            current_app.logger.info(f"Final choices set: {self.client_type_restrictions.choices}")
+            current_app.logger.info(f"Client type choices set to: {self.client_type_restrictions.choices}")
 
             # Initialize data if not set
             if self.client_type_restrictions.data is None:

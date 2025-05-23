@@ -15,6 +15,7 @@ class Module(db.Model):
     is_system = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    table_name = db.Column(db.String(100))
     
     # Self-referential relationship for hierarchical structure
     parent = db.relationship('Module', 

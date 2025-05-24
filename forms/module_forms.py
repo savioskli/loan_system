@@ -74,26 +74,29 @@ class FormFieldForm(FlaskForm):
 
     def __init__(self, *args, module_id=None, **kwargs):
         # Initialize validation rules from data if present
-        data = kwargs.get('data', {})
+        data = kwargs.get('data', {}) 
         validation_rules = data.pop('validation_rules', {}) if isinstance(data, dict) else {}
         
         super(FormFieldForm, self).__init__(*args, **kwargs)
         
         try:
-            # Populate section choices if module_id is provided
+            # Always initialize section_id choices with at least the None option
+            self.section_id.choices = [(0, 'None')]
+            
+            # Populate additional section choices if module_id is provided
             if module_id:
-                sections = FormSection.query.filter(
-                    FormSection.is_active == True,
-                    db.or_(
-                        FormSection.module_id == module_id,
-                        FormSection.submodule_id == module_id
-                    )
-                ).order_by(FormSection.order).all()
-                current_app.logger.info(f"Found sections: {sections}")
-                self.section_id.choices = [(0, 'None')] + [(s.id, s.name) for s in sections]
-                current_app.logger.info(f"Section choices set to: {self.section_id.choices}")
-            else:
-                self.section_id.choices = [(0, 'None')]
+                try:
+                    sections = FormSection.query.filter(
+                        FormSection.is_active == True,
+                        FormSection.module_id == module_id
+                    ).order_by(FormSection.order).all()
+                    
+                    if sections:
+                        self.section_id.choices.extend([(s.id, s.name) for s in sections])
+                        current_app.logger.info(f"Found sections: {sections}")
+                        current_app.logger.info(f"Section choices set to: {self.section_id.choices}")
+                except Exception as e:
+                    current_app.logger.error(f"Error loading sections: {str(e)}")
 
             # Populate client type choices
             client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()

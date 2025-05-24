@@ -307,7 +307,7 @@
                             <div class="relative rounded-md shadow-sm">
                                 <select name="section_id" id="section_id" class="choices-select input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                     {% for value, label in form.section_id.choices %}
-                                    <option value="{{ value }}"{% if value == form.section_id.data %} selected{% endif %}>{{ label }}</option>
+                                    <option value="{{ value }}"{% if value|int == form.section_id.data|int or (value == 0 and form.section_id.data is none) %} selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                                 <p class="mt-1 text-sm text-gray-500 help-text">Select which section this field belongs to</p>
@@ -581,53 +581,74 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Function to initialize Choices.js for a select element
+        function initializeChoices(element, options) {
+            if (element && !element.choicesInstance) {
+                console.log(`Initializing ${element.id} with options:`, element.options);
+                element.choicesInstance = new Choices(element, options);
+                return element.choicesInstance;
+            }
+            return null;
+        }
+
         // Wait for the DOM to be fully loaded before initializing Choices.js
-        setTimeout(function() {
+        window.requestAnimationFrame(function() {
             // Initialize field type select first
             const fieldTypeSelect = document.getElementById('field_type');
-            if (fieldTypeSelect && !window.fieldTypeChoices) {
-                window.fieldTypeChoices = new Choices(fieldTypeSelect, {
-                    searchEnabled: false,
-                    itemSelectText: '',
-                    classNames: {
-                        containerOuter: 'choices'
-                    }
-                });
-            }
+            window.fieldTypeChoices = initializeChoices(fieldTypeSelect, {
+                searchEnabled: false,
+                itemSelectText: '',
+                classNames: {
+                    containerOuter: 'choices'
+                }
+            });
             
             // Initialize client type restrictions select
             const clientTypeSelect = document.getElementById('client_type_restrictions');
-            if (clientTypeSelect && !window.clientTypeChoices) {
-                console.log('Initializing client type select with options:', clientTypeSelect.options);
-                window.clientTypeChoices = new Choices(clientTypeSelect, {
-                    searchEnabled: true,
-                    removeItemButton: true,
-                    itemSelectText: '',
-                    searchPlaceholderValue: 'Search client types...',
-                    placeholderValue: 'Select client types...',
-                    classNames: {
-                        containerOuter: 'choices'
-                    }
-                });
-            }
+            window.clientTypeChoices = initializeChoices(clientTypeSelect, {
+                searchEnabled: true,
+                removeItemButton: true,
+                itemSelectText: '',
+                searchPlaceholderValue: 'Search client types...',
+                placeholderValue: 'Select client types...',
+                classNames: {
+                    containerOuter: 'choices'
+                }
+            });
             
             // Initialize section select
             const sectionSelect = document.getElementById('section_id');
-            if (sectionSelect && !window.sectionChoices) {
-                console.log('Initializing section select with options:', sectionSelect.options);
-                window.sectionChoices = new Choices(sectionSelect, {
+            if (sectionSelect) {
+                // Find the selected option before initializing Choices
+                const selectedOption = Array.from(sectionSelect.options).find(option => option.selected);
+                const selectedValue = selectedOption ? selectedOption.value : null;
+                
+                // Initialize Choices.js for the section select
+                window.sectionChoices = initializeChoices(sectionSelect, {
                     searchEnabled: false,
                     itemSelectText: '',
                     classNames: {
                         containerOuter: 'choices'
                     }
                 });
+                
+                // If there was a selected value, make sure it's still selected
+                if (selectedValue && window.sectionChoices) {
+                    try {
+                        // Force a small delay to ensure Choices.js has fully initialized
+                        setTimeout(() => {
+                            window.sectionChoices.setChoiceByValue(selectedValue);
+                        }, 50);
+                    } catch (e) {
+                        console.error('Error setting section choice:', e);
+                    }
+                }
             }
             
             // Initialize other select elements
             document.querySelectorAll('.choices-select:not(#field_type):not(#client_type_restrictions):not(#section_id)').forEach(element => {
                 if (!element.classList.contains('choices__input')) {
-                    new Choices(element, {
+                    initializeChoices(element, {
                         removeItemButton: true,
                         searchEnabled: true,
                         searchPlaceholderValue: 'Type to search...',
@@ -636,7 +657,7 @@
                     });
                 }
             });
-        }, 100); // Small delay to ensure DOM is ready
+        });
         
         // Handle field type changes
         // Use the already defined fieldTypeSelect from above

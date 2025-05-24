@@ -86,15 +86,35 @@ class FormFieldForm(FlaskForm):
             # Populate additional section choices if module_id is provided
             if module_id:
                 try:
+                    # Get the current module to check for parent
+                    from models.module import Module
+                    current_module = Module.query.get(module_id)
+                    module_ids = [module_id]  # Start with current module
+                    
+                    # Include parent module if it exists
+                    if current_module and current_module.parent_id:
+                        module_ids.append(current_module.parent_id)
+                        current_app.logger.info(f"Including parent module {current_module.parent_id} for sections")
+                    
+                    # Query sections from both current and parent modules
                     sections = FormSection.query.filter(
                         FormSection.is_active == True,
-                        FormSection.module_id == module_id
+                        FormSection.module_id.in_(module_ids)
                     ).order_by(FormSection.order).all()
                     
                     if sections:
                         self.section_id.choices.extend([(s.id, s.name) for s in sections])
-                        current_app.logger.info(f"Found sections: {sections}")
-                        current_app.logger.info(f"Section choices set to: {self.section_id.choices}")
+                        
+                        # If this is an edit form (obj is provided) and section_id exists
+                        obj = kwargs.get('obj')
+                        if obj and hasattr(obj, 'section_id'):
+                            # Ensure section_id is set correctly, even if it's None
+                            if obj.section_id is None:
+                                self.section_id.data = 0  # Set to 'None' option
+                                current_app.logger.info(f"Setting section_id to None (0)")
+                            else:
+                                self.section_id.data = obj.section_id
+                                current_app.logger.info(f"Setting section_id from obj: {obj.section_id}")
                 except Exception as e:
                     current_app.logger.error(f"Error loading sections: {str(e)}")
 

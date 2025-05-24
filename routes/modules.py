@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models.module import Module, FormField
 from models.client_type import ClientType
+from models.form_section import FormSection
 from models.form_submission import FormSubmission
 from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
@@ -457,6 +458,7 @@ def edit_field(id, field_id):
         field = FormField.query.get_or_404(field_id)
         
         if request.method == 'GET':
+            # Initialize form with field data and module_id
             form = FormFieldForm(obj=field, module_id=id)
             
             # Explicitly load client types for the form
@@ -472,6 +474,18 @@ def edit_field(id, field_id):
             
             form.client_type_restrictions.choices = choices
             current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
+            
+            # Set the selected section
+            # Log the field's section_id
+            current_app.logger.info(f"Setting form with section_id: {field.section_id}")
+            
+            # Handle section_id explicitly
+            if field.section_id is None:
+                form.section_id.data = 0  # Set to 'None' option
+                current_app.logger.info(f"Setting selected section to None (0)")
+            else:
+                form.section_id.data = field.section_id
+                current_app.logger.info(f"Setting selected section to: {field.section_id}")
             
             # Populate validation rules if they exist
             if field.validation_rules:

@@ -248,6 +248,10 @@ def create_field(id):
             form.client_type_restrictions.choices = choices
             current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
             
+            # Get database connection
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
             # Get system reference fields for the dropdown
             cursor.execute("""
                 SELECT id, name 
@@ -257,10 +261,6 @@ def create_field(id):
             """)
             system_reference_fields = cursor.fetchall()
             form.system_reference_field_id.choices = [(0, 'None')] + [(f['id'], f['name']) for f in system_reference_fields]
-            
-            # Get sections using raw SQL
-            conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
             
             # First check if this is a submodule
             cursor.execute("""

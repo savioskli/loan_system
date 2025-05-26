@@ -248,6 +248,16 @@ def create_field(id):
             form.client_type_restrictions.choices = choices
             current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
             
+            # Get system reference fields for the dropdown
+            cursor.execute("""
+                SELECT id, name 
+                FROM system_reference_fields 
+                WHERE is_active = 1 
+                ORDER BY name
+            """)
+            system_reference_fields = cursor.fetchall()
+            form.system_reference_field_id.choices = [(0, 'None')] + [(f['id'], f['name']) for f in system_reference_fields]
+            
             # Get sections using raw SQL
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
@@ -291,7 +301,9 @@ def create_field(id):
             'validation_text': request.form.get('validation_text'),
             'is_required': request.form.get('is_required') == 'y',
             'client_type_restrictions': request.form.getlist('client_type_restrictions') if request.form.getlist('client_type_restrictions') else [],
-            'section_id': request.form.get('section_id', type=int)
+            'section_id': request.form.get('section_id', type=int),
+            'is_system': request.form.get('is_system') == 'y',
+            'system_reference_field_id': request.form.get('system_reference_field_id', type=int) if request.form.get('is_system') == 'y' else None
         }
         
         # Process validation rules based on field type

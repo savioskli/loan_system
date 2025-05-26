@@ -42,8 +42,16 @@ class FormFieldForm(FlaskForm):
         ('email', 'Email Input'),
         ('tel', 'Phone Input'),
         ('password', 'Password Input'),
-        ('file', 'File Upload')
+        ('file', 'File Upload'),
+        ('system_reference', 'System Reference')
     ], validators=[DataRequired()], coerce=str)
+    
+    is_system = BooleanField('Is System Field', default=False,
+                          description='If checked, this field will be linked to a system reference field')
+    system_reference_field_id = SelectField('System Reference Field', 
+                                        coerce=int,
+                                        validators=[Optional()],
+                                        description='Select the system reference field to link to')
     is_required = BooleanField('Required Field', default=False)
     section_id = SelectField('Form Section', coerce=int, validators=[Optional()], 
                            description='Select the section this field belongs to')

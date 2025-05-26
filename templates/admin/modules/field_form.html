@@ -274,6 +274,28 @@
                             </div>
                         </div>
 
+                        <!-- Is System Field -->
+                        <div class="space-y-2">
+                            {{ form.is_system.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                            <div class="relative rounded-md">
+                                {{ form.is_system(class="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out") }}
+                                {% if form.is_system.description %}
+                                <p class="mt-1 text-sm text-gray-500">{{ form.is_system.description }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- System Reference Field -->
+                        <div id="system-reference-field" class="space-y-2 {% if not form.is_system.data %}hidden{% endif %}">
+                            {{ form.system_reference_field_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                            <div class="relative rounded-md shadow-sm">
+                                {{ form.system_reference_field_id(class="input-field block w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200") }}
+                                {% if form.system_reference_field_id.description %}
+                                <p class="mt-1 text-sm text-gray-500">{{ form.system_reference_field_id.description }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <!-- Client Type Restrictions -->
                         <div class="space-y-2">
                             {{ form.client_type_restrictions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
@@ -508,30 +530,30 @@
         }
 
         {% if field %}
-        // Add hidden input fields for IDs
-        const fieldIdInput = document.createElement('input');
-        fieldIdInput.type = 'hidden';
-        fieldIdInput.id = 'field-id';
-        fieldIdInput.value = '{{ field.id }}';
-        document.body.appendChild(fieldIdInput);
+            // Add hidden input fields for IDs
+            const fieldIdInput = document.createElement('input');
+            fieldIdInput.type = 'hidden';
+            fieldIdInput.id = 'field-id';
+            fieldIdInput.value = '{{ field.id }}';
+            document.body.appendChild(fieldIdInput);
 
-        const moduleIdInput = document.createElement('input');
-        moduleIdInput.type = 'hidden';
-        moduleIdInput.id = 'module-id';
-        moduleIdInput.value = '{{ module.id }}';
-        document.body.appendChild(moduleIdInput);
+            const moduleIdInput = document.createElement('input');
+            moduleIdInput.type = 'hidden';
+            moduleIdInput.id = 'module-id';
+            moduleIdInput.value = '{{ module.id }}';
+            document.body.appendChild(moduleIdInput);
 
-        // Initialize the dependency manager
-        const dependencyManager = new FieldDependencyManager({{ field.id }}, {{ module.id }});
+            // Initialize the dependency manager
+            const dependencyManager = new FieldDependencyManager({{ field.id }}, {{ module.id }});
         {% endif %}
     });
 
     // Function to add a new option row
     function addOptionRow() {
-        const container = document.getElementById('options-container');
-        if (!container) return;
+        const optionsContainer = document.getElementById('options-container');
+        if (!optionsContainer) return;
         
-        const optionCount = container.getElementsByClassName('option-row').length;
+        const optionCount = optionsContainer.getElementsByClassName('option-row').length;
         
         const newRow = document.createElement('div');
         newRow.className = 'option-row grid grid-cols-2 gap-4';
@@ -559,7 +581,7 @@
             </div>
         `;
         
-        container.appendChild(newRow);
+        optionsContainer.appendChild(newRow);
     }
 
     // Function to update option indices after deletion
@@ -605,17 +627,34 @@
             
             // Initialize client type restrictions select
             const clientTypeSelect = document.getElementById('client_type_restrictions');
-            window.clientTypeChoices = initializeChoices(clientTypeSelect, {
-                searchEnabled: true,
-                removeItemButton: true,
-                itemSelectText: '',
-                searchPlaceholderValue: 'Search client types...',
-                placeholderValue: 'Select client types...',
-                classNames: {
-                    containerOuter: 'choices'
-                }
-            });
-            
+            if (clientTypeSelect) {
+                initializeChoices(clientTypeSelect, {
+                    removeItemButton: true,
+                    maxItemCount: -1,
+                    searchEnabled: true,
+                    searchPlaceholderValue: 'Search client types...'
+                });
+            }
+
+            // Initialize system reference field select
+            const systemRefSelect = document.getElementById('system_reference_field_id');
+            if (systemRefSelect) {
+                initializeChoices(systemRefSelect, {
+                    removeItemButton: false,
+                    searchEnabled: true,
+                    searchPlaceholderValue: 'Search system fields...'
+                });
+            }
+
+            // Handle is_system checkbox change
+            const isSystemCheckbox = document.getElementById('is_system');
+            const systemRefField = document.getElementById('system-reference-field');
+            if (isSystemCheckbox && systemRefField) {
+                isSystemCheckbox.addEventListener('change', function() {
+                    systemRefField.classList.toggle('hidden', !this.checked);
+                });
+            }
+
             // Initialize section select
             const sectionSelect = document.getElementById('section_id');
             if (sectionSelect) {

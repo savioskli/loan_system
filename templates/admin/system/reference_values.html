@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}{{ field.name }} - Reference Values{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .value-row {
+        transition: all 0.2s ease;
+    }
+    .value-row:hover {
+        background-color: rgba(99, 102, 241, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('system_reference_admin.reference_fields') }}" class="text-gray-500 hover:text-gray-700">
+                    System References
+                </a>
+            </li>
+            <li class="flex items-center">
+                <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-gray-500">{{ field.name }}</span>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">{{ field.name }} Values</h1>
+            <p class="text-sm text-gray-500 mt-1">Code: {{ field.code }}</p>
+        </div>
+        <button onclick="showAddValueModal()" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            Add New Value
+        </button>
+    </div>
+
+    <!-- Values Table -->
+    <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for value in values %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ value.value }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ value.label }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if value.parent_label %}
+                            <span class="text-gray-700">{{ value.parent_label }}</span>
+                        {% else %}
+                            <span class="text-gray-400">None</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              {% if value.is_active %}
+                              bg-green-100 text-green-800
+                              {% else %}
+                              bg-red-100 text-red-800
+                              {% endif %}">
+                            {{ 'Active' if value.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button type="button" 
+                                data-value-id="{{ value.id }}"
+                                class="edit-btn inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit
+                        </button>
+                        <button type="button" 
+                                data-value-id="{{ value.id }}"
+                                class="toggle-btn inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 {% if value.is_active %}text-red-700 bg-red-100 hover:bg-red-200 focus:ring-red-500{% else %}text-green-700 bg-green-100 hover:bg-green-200 focus:ring-green-500{% endif %}">
+                            {% if value.is_active %}
+                            <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                            Deactivate
+                            {% else %}
+                            <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Activate
+                            {% endif %}
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Value Modal -->
+<div id="valueModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4">
+            <!-- Modal Header -->
+            <div class="px-8 py-6 border-b border-gray-200">
+                <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Add Value</h2>
+                <p class="mt-1 text-sm text-gray-500">Add a new value for the reference field '{{ field.name }}'</p>
+            </div>
+            
+            <!-- Modal Form -->
+            <form id="valueForm" class="p-8">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="value_id">
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Value</label>
+                        <input type="text" name="value" required placeholder="Enter value code"
+                               class="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm
+                                      focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50
+                                      transition duration-150 ease-in-out">
+                        <p class="mt-1 text-sm text-gray-500">A unique identifier for this value</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Label</label>
+                        <input type="text" name="label" required placeholder="Enter display label"
+                               class="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm
+                                      focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50
+                                      transition duration-150 ease-in-out">
+                        <p class="mt-1 text-sm text-gray-500">The text that will be displayed to users</p>
+                    </div>
+                    
+                    {% if parent_values %}
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Parent Value</label>
+                        <select name="parent_value_id"
+                                class="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm
+                                       focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50
+                                       transition duration-150 ease-in-out bg-white">
+                            <option value="">None</option>
+                            {% for parent in parent_values %}
+                            <option value="{{ parent.id }}">{{ parent.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Optional parent value for hierarchical relationships</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-6">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" name="is_active" class="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300
+                                   focus:ring-indigo-500 focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="border-t border-gray-200 px-8 py-6 bg-gray-50 rounded-b-xl">
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" onclick="hideValueModal()"
+                                class="px-6 py-3 text-sm font-medium text-gray-700 hover:text-gray-500
+                                       bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50
+                                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                                       transition duration-150 ease-in-out">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="px-6 py-3 text-sm font-medium text-white bg-indigo-600 rounded-lg
+                                       hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2
+                                       focus:ring-indigo-500 shadow-sm transition duration-150 ease-in-out">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentValueId = null;
+    
+    function showAddValueModal() {
+        currentValueId = null;
+        document.getElementById('modalTitle').textContent = 'Add Value';
+        document.getElementById('valueForm').reset();
+        document.getElementById('valueModal').classList.remove('hidden');
+    }
+    
+    const handleEditValue = (valueId) => {
+        currentValueId = valueId;
+        document.getElementById('modalTitle').textContent = 'Edit Value';
+        
+        // Fetch the current value's data
+        fetch(`/admin/system/values/${valueId}`, {
+            'method': 'GET',
+            'headers': {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.querySelector('input[name="value_id"]').value = data.id;
+            document.querySelector('input[name="value"]').value = data.value;
+            document.querySelector('input[name="label"]').value = data.label;
+            document.querySelector('input[name="is_active"]').checked = data.is_active;
+            
+            const parentSelect = document.querySelector('select[name="parent_value_id"]');
+            if (parentSelect) {
+                parentSelect.value = data.parent_value_id || '';
+            }
+            
+            document.getElementById('valueModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while loading the value data.');
+        });
+    };
+
+    const hideValueModal = () => {
+        document.getElementById('valueModal').classList.add('hidden');
+        document.getElementById('valueForm').reset();
+        currentValueId = null;
+    };
+
+    const handleToggleStatus = (valueId) => {
+        if (!confirm('Are you sure you want to change this value\'s status?')) {
+            return;
+        }
+
+        fetch(`/admin/system/values/${valueId}/toggle`, {
+            'method': 'POST',
+            'headers': {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while toggling the value status.');
+        });
+    };
+    
+    // Add event listeners for edit and toggle buttons
+    document.querySelectorAll('.edit-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const valueId = this.getAttribute('data-value-id');
+            handleEditValue(parseInt(valueId));
+        });
+    });
+
+    document.querySelectorAll('.toggle-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const valueId = this.getAttribute('data-value-id');
+            handleToggleStatus(parseInt(valueId));
+        });
+    });
+
+    document.getElementById('valueForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            'value': document.querySelector('input[name="value"]').value,
+            'label': document.querySelector('input[name="label"]').value,
+            'parent_value_id': document.querySelector('select[name="parent_value_id"]')?.value || null,
+            'is_active': document.querySelector('input[name="is_active"]').checked,
+            'csrf_token': document.querySelector('input[name="csrf_token"]').value
+        };
+
+        const valueId = document.querySelector('input[name="value_id"]').value;
+        const method = valueId ? 'PUT' : 'POST';
+        const url = valueId 
+            ? `/admin/system/values/${valueId}`
+            : `/admin/system/values`;
+
+        fetch(url, {
+            'method': method,
+            'headers': {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': formData.csrf_token
+            },
+            'body': JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            window.location.reload();
+            hideValueModal();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the value.');
+        });
+    });
+</script>
+{% endblock %}

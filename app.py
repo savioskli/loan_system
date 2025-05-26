@@ -49,6 +49,8 @@ from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
 from routes.admin import admin_bp
+from routes.client_attachment_routes import client_attachment_bp
+from routes.client_management import client_management_bp
 from routes.modules import modules_bp
 from routes.user import user_bp
 from routes.products import products_bp
@@ -62,6 +64,7 @@ from routes.settings import settings_bp
 from routes.field_dependencies import dependencies_bp
 from routes.integrations import integrations_bp
 from routes.correspondence import correspondence_bp
+from routes.system import bp as system_bp
 from routes.thresholds import thresholds_bp
 from routes.collection_schedule import collection_schedule_bp
 from routes.core_banking import bp as core_banking_bp
@@ -183,6 +186,7 @@ def create_app():
     app.register_blueprint(audit_bp)  # Register the Audit blueprint
     app.register_blueprint(impact_bp)  # Register the Impact blueprint
     app.register_blueprint(impact_assessment_bp)  # Register the Impact Assessment blueprint
+    app.register_blueprint(system_bp)  # Register the System References Admin blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

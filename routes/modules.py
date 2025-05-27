@@ -433,14 +433,24 @@ def create_field(id):
             is_required=field_data['is_required'],
             section_id=section_id,
             client_type_restrictions=field_data.get('client_type_restrictions', []),
-            field_order=max_order + 1
+            field_order=max_order + 1,
+            is_system=is_system,
+            system_reference_field_id=system_reference_field_id,
+            reference_field_code=reference_field_code
         )
         
         if field_type in ['select', 'radio', 'checkbox']:
             field.options = options
         
+        # Debug logging before commit
+        current_app.logger.info(f"Before commit - New field, is_system: {field.is_system}, system_reference_field_id: {field.system_reference_field_id}, reference_field_code: {field.reference_field_code}")
+        
         db.session.add(field)
         db.session.commit()
+        
+        # Refresh the field from the database to verify changes were saved
+        db.session.refresh(field)
+        current_app.logger.info(f"After commit - Field ID: {field.id}, is_system: {field.is_system}, system_reference_field_id: {field.system_reference_field_id}, reference_field_code: {field.reference_field_code}")
         
         # Update the module's table schema
         current_app.logger.info(f"Updating table schema for module {module.code}")
@@ -487,10 +497,23 @@ def edit_field(id, field_id):
             form.client_type_restrictions.choices = choices
             current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
             
-            # Initialize system reference field choices with all fields
-            # Since is_system column doesn't exist, we'll use all fields as potential system references
-            system_fields = FormField.query.all()
-            form.system_reference_field_id.choices = [(0, 'None')] + [(f.id, f.field_name) for f in system_fields]
+            # Initialize system reference field choices from the system_reference_fields table
+            # This matches the approach used in the create_field route
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # Get system reference fields for the dropdown
+            cursor.execute("""
+                SELECT id, name 
+                FROM system_reference_fields 
+                WHERE is_active = 1 
+                ORDER BY name
+            """)
+            system_reference_fields = cursor.fetchall()
+            form.system_reference_field_id.choices = [(0, 'None')] + [(f['id'], f['name']) for f in system_reference_fields]
+            cursor.close()
+            conn.close()
+            
             current_app.logger.info(f"System reference field choices set to: {len(form.system_reference_field_id.choices)} options")
             
             # Set the selected section
@@ -596,19 +619,34 @@ def edit_field(id, field_id):
         
         # If is_system is checked, clear the system_reference_field_id and set reference_field_code
         # If not checked, set the system_reference_field_id from the form and clear reference_field_code
-        if field.is_system:
-            # This field IS a system field, so it can't reference another system field
+        is_system = request.form.get('is_system') == 'y'
+        current_app.logger.info(f"Is system field from form: {is_system}, raw value: {request.form.get('is_system')}")
+        
+        system_reference_field_id = None
+        reference_field_code = None
+        
+        # If this is a system field, generate a reference code
+        if is_system:
+            reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
+            current_app.logger.info(f"Creating system field with code: {reference_field_code}")
+            # System fields cannot reference other system fields
+            system_reference_field_id = None
+            
+            # Update the field object
+            field.is_system = True
+            field.reference_field_code = reference_field_code
             field.system_reference_field_id = None
-            # Generate a reference field code if not already set
-            if not field.reference_field_code:
-                field.reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
-            current_app.logger.info(f"Set as system field with code: {field.reference_field_code}")
         else:
-            # This field is NOT a system field, so it can reference a system field
-            system_ref_id = request.form.get('system_reference_field_id', type=int)
-            field.system_reference_field_id = system_ref_id if system_ref_id != 0 else None
+            # If not a system field, it might reference a system field
+            system_reference_field_id = request.form.get('system_reference_field_id', type=int)
+            if system_reference_field_id == 0:
+                system_reference_field_id = None
+            current_app.logger.info(f"Setting system reference field ID to: {system_reference_field_id}")
+            
+            # Update the field object
+            field.is_system = False
             field.reference_field_code = None
-            current_app.logger.info(f"Set system reference field ID to: {field.system_reference_field_id}")
+            field.system_reference_field_id = system_reference_field_id
         
         # Update options if field type requires them
         if field_type in ['select', 'radio', 'checkbox']:
@@ -653,8 +691,15 @@ def edit_field(id, field_id):
         else:
             field.options = None
         
+        # Debug logging before commit
+        current_app.logger.info(f"Before commit - Field ID: {field.id}, is_system: {field.is_system}, system_reference_field_id: {field.system_reference_field_id}, reference_field_code: {field.reference_field_code}")
+        
         # Update the database
         db.session.commit()
+        
+        # Refresh the field from the database to verify changes were saved
+        db.session.refresh(field)
+        current_app.logger.info(f"After commit - Field ID: {field.id}, is_system: {field.is_system}, system_reference_field_id: {field.system_reference_field_id}, reference_field_code: {field.reference_field_code}")
         
         # Update the module's table schema
         if not create_or_update_module_table(module.code):
@@ -670,9 +715,21 @@ def edit_field(id, field_id):
         form = FormFieldForm(obj=field, module_id=id)
         
         # Re-initialize system reference field choices for error case
-        # Since is_system column doesn't exist, we'll use all fields as potential system references
-        system_fields = FormField.query.all()
-        form.system_reference_field_id.choices = [(0, 'None')] + [(f.id, f.field_name) for f in system_fields]
+        # Use the same approach as in the GET request
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get system reference fields for the dropdown
+        cursor.execute("""
+            SELECT id, name 
+            FROM system_reference_fields 
+            WHERE is_active = 1 
+            ORDER BY name
+        """)
+        system_reference_fields = cursor.fetchall()
+        form.system_reference_field_id.choices = [(0, 'None')] + [(f['id'], f['name']) for f in system_reference_fields]
+        cursor.close()
+        conn.close()
         
         # Re-initialize client type choices
         from models.client_type import ClientType

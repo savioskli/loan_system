@@ -286,7 +286,7 @@
                         </div>
 
                         <!-- System Reference Field -->
-                        <div id="system-reference-field" class="space-y-2 {% if not form.is_system.data %}hidden{% endif %}">
+                        <div id="system-reference-field" class="space-y-2 hidden">
                             {{ form.system_reference_field_id.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
                             <div class="relative rounded-md shadow-sm">
                                 <select name="system_reference_field_id" id="system_reference_field_id" class="input-field block w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none transition-all duration-200 text-gray-900 placeholder-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -658,14 +658,26 @@
             const isSystemCheckbox = document.getElementById('is_system');
             const systemRefField = document.getElementById('system-reference-field');
             if (isSystemCheckbox && systemRefField) {
+                // Add change event listener
                 isSystemCheckbox.addEventListener('change', function() {
-                    // When is_system is checked, hide the system reference field (since the field itself becomes a system field)
-                    // When is_system is unchecked, show the system reference field (to allow linking to a system field)
-                    systemRefField.classList.toggle('hidden', this.checked);
+                    // Logic: 
+                    // - When is_system is checked (this field IS a system field), SHOW the system reference dropdown
+                    // - When is_system is unchecked (this field is NOT a system field), HIDE the system reference dropdown
+                    if (this.checked) {
+                        // If checked, show the system reference field
+                        systemRefField.classList.remove('hidden');
+                    } else {
+                        // If unchecked, hide the system reference field
+                        systemRefField.classList.add('hidden');
+                    }
                 });
                 
-                // Set initial state
-                systemRefField.classList.toggle('hidden', isSystemCheckbox.checked);
+                // Set initial state on page load
+                if (isSystemCheckbox.checked) {
+                    systemRefField.classList.remove('hidden');
+                } else {
+                    systemRefField.classList.add('hidden');
+                }
             }
 
             // Initialize section select

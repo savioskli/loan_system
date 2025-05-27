@@ -590,6 +590,21 @@ def edit_field(id, field_id):
         field.section_id = request.form.get('section_id', type=int) if request.form.get('section_id', type=int) != 0 else None
         field.validation_rules = validation_rules
         
+        # Update system reference field information
+        field.is_system = request.form.get('is_system') == 'y'
+        
+        # If is_system is checked, clear the system_reference_field_id
+        # If not checked, set the system_reference_field_id from the form
+        if field.is_system:
+            field.system_reference_field_id = None
+            # Generate a reference field code if not already set
+            if not field.reference_field_code:
+                field.reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
+        else:
+            system_ref_id = request.form.get('system_reference_field_id', type=int)
+            field.system_reference_field_id = system_ref_id if system_ref_id != 0 else None
+            field.reference_field_code = None
+        
         # Update options if field type requires them
         if field_type in ['select', 'radio', 'checkbox']:
             options = []

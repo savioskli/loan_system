@@ -659,8 +659,13 @@
             const systemRefField = document.getElementById('system-reference-field');
             if (isSystemCheckbox && systemRefField) {
                 isSystemCheckbox.addEventListener('change', function() {
-                    systemRefField.classList.toggle('hidden', !this.checked);
+                    // When is_system is checked, hide the system reference field (since the field itself becomes a system field)
+                    // When is_system is unchecked, show the system reference field (to allow linking to a system field)
+                    systemRefField.classList.toggle('hidden', this.checked);
                 });
+                
+                // Set initial state
+                systemRefField.classList.toggle('hidden', isSystemCheckbox.checked);
             }
 
             // Initialize section select

@@ -25,6 +25,7 @@
             <table class="min-w-full leading-normal">
                 <thead>
                     <tr>
+                        <th class="px-2 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider" style="width:40px;">Sort</th>
                         <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Name
                         </th>
@@ -45,6 +46,11 @@
                 <tbody>
                     {% macro render_module(module, level=0) %}
                     <tr class="hover:bg-gray-50" data-module-id="{{ module.id }}">
+    <td class="px-2 py-5 border-b border-gray-200 bg-white text-sm drag-cell" style="width:40px;">
+        <span class="drag-handle flex items-center justify-center text-blue-600 hover:text-blue-800 cursor-grab" style="font-size: 1.5rem; min-width: 2rem;">
+            <i class="fas fa-grip-vertical"></i>
+        </span>
+    </td>
                         <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                             <div class="flex items-center">
                                 <div class="ml-{{ level * 6 }}">
@@ -113,6 +119,48 @@
     </div>
 </div>
 
+<!-- Drag-and-drop sorting for modules -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+<script>
+console.log('MODULE INDEX SCRIPT LOADED');
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.querySelector('table tbody');
+    if (tbody) {
+        new Sortable(tbody, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'bg-gray-100',
+            draggable: 'tr',
+            onEnd: function(evt) {
+                const rows = Array.from(tbody.querySelectorAll('tr[data-module-id]'));
+                const updates = rows.map((row, index) => ({
+                    id: row.getAttribute('data-module-id'),
+                    order: index + 1
+                }));
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                fetch('/modules/reorder-main', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                    },
+                    body: JSON.stringify({ modules: updates })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Failed to update module order');
+                    }
+                    console.log('Reorder response:', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        });
+    }
+});
+</script>
 <script>
 async function deleteModule(moduleId) {
     console.log(`Attempting to delete module: ${moduleId}`);

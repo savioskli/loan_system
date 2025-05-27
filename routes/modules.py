@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
+from sqlalchemy.exc import SQLAlchemyError
 from flask_login import login_required, current_user
 from models.module import Module, FormField
 from models.client_type import ClientType
@@ -16,6 +17,36 @@ import traceback
 from datetime import datetime
 
 modules_bp = Blueprint('modules', __name__)
+
+@modules_bp.route('/reorder-main', methods=['POST'])
+@login_required
+def reorder_main_modules():
+    print("=== REORDER MAIN MODULES ENDPOINT HIT ===")
+    """Reorder main modules (not post-disbursement) based on drag-and-drop."""
+    try:
+        data = request.get_json(force=True, silent=True)
+        print('Received reorder_main_modules payload:', data)
+        if not data or 'modules' not in data:
+            print('Malformed payload:', data)
+            return jsonify({'success': False, 'message': 'Malformed payload', 'received': data}), 400
+        modules = data.get('modules', [])
+        if not isinstance(modules, list):
+            print('Modules is not a list:', modules)
+            return jsonify({'success': False, 'message': 'Modules should be a list', 'received': modules}), 400
+        for mod in modules:
+            module = Module.query.get(mod['id'])
+            if module:
+                module.order = mod['order']
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Main module order updated successfully'})
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print('SQLAlchemy error:', e)
+        return jsonify({'success': False, 'message': str(e)}), 500
+    except Exception as e:
+        print('General exception:', e)
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @modules_bp.route('/')
 @login_required
@@ -37,22 +68,21 @@ def index():
         return redirect(url_for('main.index'))
     
     # Get all modules and organize them hierarchically
-    def build_module_tree(modules, parent_id=None):
-        tree = []
-        for module in modules:
-            if module.parent_id == parent_id:
-                # Get all children for this module
-                children = build_module_tree(modules, module.id)
-                if children:
-                    module.children = children
-                tree.append(module)
-        return tree
+    def build_module_tree(modules, parent_id=None, level=0):
+        # Only children of this parent
+        children = [m for m in modules if m.parent_id == parent_id]
+        # Sort children by their 'order' (ascending, fallback to 0)
+        children.sort(key=lambda m: m.order if m.order is not None else 0)
+        for child in children:
+            print('  ' * level + f"order={child.order}, id={child.id}, name={child.name}, parent_id={child.parent_id}")
+            child.children = build_module_tree(modules, child.id, level+1)
+        return children
 
     # Get system modules first (these are root nodes)
-    system_modules = Module.query.filter_by(is_system=True, is_active=True, organization_id=1).order_by(Module.name).all()
+    system_modules = Module.query.filter_by(is_system=True, is_active=True, organization_id=1).order_by(Module.parent_id, Module.order).all()
     
     # Get all non-system modules
-    regular_modules = Module.query.filter_by(is_system=False, organization_id=1).order_by(Module.name).all()
+    regular_modules = Module.query.filter_by(is_system=False, organization_id=1).order_by(Module.parent_id, Module.order).all()
     
     # Build the tree starting with system modules
     modules = build_module_tree(system_modules + regular_modules)

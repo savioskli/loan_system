@@ -30,7 +30,7 @@ class ModuleService:
 
     @staticmethod
     def get_modules_by_type(module_type: str) -> List[Module]:
-        return Module.query.filter_by(module_type=module_type, is_active=True).all()
+        return Module.query.filter_by(module_type=module_type, is_active=True).order_by(Module.parent_id, Module.order).all()
 
     @staticmethod
     def get_root_modules() -> List[Module]:

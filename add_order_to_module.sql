@@ -1,0 +1,1 @@
+ALTER TABLE modules ADD COLUMN `order` INT DEFAULT 0;

@@ -130,13 +130,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 // Send the updates to the server
-                fetch(`{{ url_for('modules.reorder_fields', id=module.id) }}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ fields: updates })
-                })
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+fetch(`{{ url_for('modules.reorder_fields', id=module.id) }}`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({ fields: updates })
+})
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {

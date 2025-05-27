@@ -487,6 +487,12 @@ def edit_field(id, field_id):
             form.client_type_restrictions.choices = choices
             current_app.logger.info(f"Client type choices explicitly set to: {form.client_type_restrictions.choices}")
             
+            # Initialize system reference field choices with all fields
+            # Since is_system column doesn't exist, we'll use all fields as potential system references
+            system_fields = FormField.query.all()
+            form.system_reference_field_id.choices = [(0, 'None')] + [(f.id, f.field_name) for f in system_fields]
+            current_app.logger.info(f"System reference field choices set to: {len(form.system_reference_field_id.choices)} options")
+            
             # Set the selected section
             # Log the field's section_id
             current_app.logger.info(f"Setting form with section_id: {field.section_id}")
@@ -609,6 +615,18 @@ def edit_field(id, field_id):
             if not options:
                 flash('Please add at least one option for this field type.', 'error')
                 form = FormFieldForm(obj=field, module_id=id)
+                
+                # Initialize system reference field choices
+                # Since is_system column doesn't exist, we'll use all fields as potential system references
+                system_fields = FormField.query.all()
+                form.system_reference_field_id.choices = [(0, 'None')] + [(f.id, f.field_name) for f in system_fields]
+                
+                # Initialize client type choices
+                from models.client_type import ClientType
+                client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+                choices = [(ct.id, ct.client_name) for ct in client_types]
+                form.client_type_restrictions.choices = choices
+                
                 return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
             
             field.options = options
@@ -630,6 +648,18 @@ def edit_field(id, field_id):
         current_app.logger.error(f"Error updating field: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while updating the field', 'error')
         form = FormFieldForm(obj=field, module_id=id)
+        
+        # Re-initialize system reference field choices for error case
+        # Since is_system column doesn't exist, we'll use all fields as potential system references
+        system_fields = FormField.query.all()
+        form.system_reference_field_id.choices = [(0, 'None')] + [(f.id, f.field_name) for f in system_fields]
+        
+        # Re-initialize client type choices
+        from models.client_type import ClientType
+        client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+        choices = [(ct.id, ct.client_name) for ct in client_types]
+        form.client_type_restrictions.choices = choices
+        
         return render_template('admin/modules/field_form.html', form=form, module=module, field=field)
 
 @modules_bp.route('/<int:id>/fields/reorder', methods=['POST'])

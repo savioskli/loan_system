@@ -4,7 +4,7 @@ import re
 import sqlparse
 import traceback
 import mimetypes
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text, func, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
@@ -28,6 +28,7 @@ from models.client_type import ClientType
 from models.guarantor import Guarantor
 from models.field_visit import FieldVisit, FieldVisitStatusHistory, FieldVisitAttachment
 from models.legal_case import LegalCase, LegalCaseAttachment
+from models.loan import Loan
 from services.guarantor_service import GuarantorService
 from extensions import db, csrf
 from flask_wtf import FlaskForm
@@ -84,39 +85,115 @@ user_bp.register_blueprint(crb_bp)
 @user_bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Get client management modules (only child modules)
-    client_modules = Module.query.filter(
-        and_(
-            Module.code.like('CLM%'),
-            Module.code != 'CLM00',  # Exclude parent module
-            Module.is_active == True
-        )
-    ).order_by(Module.code).all()
-    
-    # Get loan management modules (only child modules)
-    loan_modules = Module.query.filter(
-        and_(
-            Module.code.like('LN%'),
-            ~Module.code.endswith('00'),  # Exclude parent modules
-            Module.is_active == True
-        )
-    ).order_by(Module.code).all()
-    
-    # Get parent modules for organization
-    client_parent = Module.query.filter_by(code='CLM00', is_active=True).first()
-    loan_parent = Module.query.filter(
-        and_(
-            Module.code.like('LN%'),
-            Module.code.endswith('00'),
-            Module.is_active == True
-        )
-    ).first()
-    
-    return render_with_modules('user/dashboard.html',
-                         client_modules=client_modules,
-                         loan_modules=loan_modules,
-                         client_parent=client_parent,
-                         loan_parent=loan_parent)
+    try:
+        # Get client management modules (only child modules)
+        client_modules = Module.query.filter(
+            and_(
+                Module.code.like('CLM%'),
+                Module.code != 'CLM00',  # Exclude parent module
+                Module.is_active == True
+            )
+        ).order_by(Module.code).all()
+        
+        # Get loan management modules (only child modules)
+        loan_modules = Module.query.filter(
+            and_(
+                Module.code.like('LN%'),
+                ~Module.code.endswith('00'),  # Exclude parent modules
+                Module.is_active == True
+            )
+        ).order_by(Module.code).all()
+        
+        # Get parent modules for organization
+        client_parent = Module.query.filter_by(code='CLM00', is_active=True).first()
+        loan_parent = Module.query.filter(
+            and_(
+                Module.code.like('LN%'),
+                Module.code.endswith('00'),
+                Module.is_active == True
+            )
+        ).first()
+        
+        # Global system statistics
+        total_clients = db.session.query(func.count(Client.id)).scalar() or 0
+        active_clients = db.session.query(func.count(Client.id)).filter(Client.status == 'Active').scalar() or 0
+        
+        # Get loan statistics
+        total_loans = db.session.query(func.count(Loan.id)).scalar() or 0
+        active_loans = db.session.query(func.count(Loan.id)).filter(Loan.status == 'active').scalar() or 0
+        total_portfolio = db.session.query(func.sum(Loan.amount)).filter(Loan.status == 'active').scalar() or 0
+        total_outstanding = db.session.query(func.sum(Loan.outstanding_balance)).filter(Loan.status == 'active').scalar() or 0
+        total_in_arrears = db.session.query(func.sum(Loan.total_in_arrears)).filter(Loan.status == 'active').scalar() or 0
+        
+        # Calculate PAR30 (Portfolio at Risk > 30 days)
+        par30_loans = db.session.query(func.sum(Loan.outstanding_balance)).filter(
+            Loan.status == 'active',
+            Loan.days_in_arrears > 30
+        ).scalar() or 0
+        par30_ratio = (par30_loans / total_outstanding * 100) if total_outstanding else 0
+        
+        # User-specific statistics
+        user_pending_clients = db.session.query(func.count(Client.id)).filter(
+            Client.status == 'Pending',
+            Client.created_by == current_user.id
+        ).scalar() or 0
+        
+        user_pending_loans = db.session.query(func.count(Loan.id)).filter(
+            Loan.status == 'pending',
+            Loan.created_by == current_user.id
+        ).scalar() or 0
+        
+        user_approved_loans = db.session.query(func.count(Loan.id)).filter(
+            Loan.status == 'active',
+            Loan.created_by == current_user.id
+        ).scalar() or 0
+        
+        user_rejected_loans = db.session.query(func.count(Loan.id)).filter(
+            Loan.status == 'rejected',
+            Loan.created_by == current_user.id
+        ).scalar() or 0
+        
+        user_portfolio_value = db.session.query(func.sum(Loan.outstanding_balance)).filter(
+            Loan.status == 'active',
+            Loan.created_by == current_user.id
+        ).scalar() or 0
+        
+        # Convert values to appropriate types
+        total_portfolio = float(total_portfolio) if total_portfolio else 0
+        total_outstanding = float(total_outstanding) if total_outstanding else 0
+        total_in_arrears = float(total_in_arrears) if total_in_arrears else 0
+        user_portfolio_value = float(user_portfolio_value) if user_portfolio_value else 0
+        
+        # Format currency values
+        total_portfolio_formatted = '{:,.2f}'.format(total_portfolio)
+        total_outstanding_formatted = '{:,.2f}'.format(total_outstanding)
+        total_in_arrears_formatted = '{:,.2f}'.format(total_in_arrears)
+        user_portfolio_formatted = '{:,.2f}'.format(user_portfolio_value)
+        
+        return render_with_modules('user/dashboard.html',
+                            client_modules=client_modules,
+                            loan_modules=loan_modules,
+                            client_parent=client_parent,
+                            loan_parent=loan_parent,
+                            # Global statistics
+                            total_clients=total_clients,
+                            active_clients=active_clients,
+                            total_loans=total_loans,
+                            active_loans=active_loans,
+                            total_portfolio=total_portfolio_formatted,
+                            total_outstanding=total_outstanding_formatted,
+                            total_in_arrears=total_in_arrears_formatted,
+                            par30_ratio=round(par30_ratio, 2),
+                            # User statistics
+                            pending_clients=user_pending_clients,
+                            pending_loans=user_pending_loans,
+                            approved_loans=user_approved_loans,
+                            rejected_loans=user_rejected_loans,
+                            portfolio_value=user_portfolio_formatted)
+    except Exception as e:
+        current_app.logger.error(f"Error in dashboard route: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while loading the dashboard.', 'error')
+        return redirect(url_for('main.index'))
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions

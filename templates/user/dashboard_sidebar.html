@@ -17,88 +17,46 @@
                 </a>
             </li>
             
-            <!-- Client Management -->
+            <!-- Dynamically generated modules -->
+            {% for module in sidebar_modules %}
             <li class="my-3">
                 <hr class="border-gray-200 dark:border-gray-700">
             </li>
+            
+            {% if module.active_children|length > 0 %}
+            <!-- Module with children -->
             <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="client-menu">
+                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="{{ module.code|lower }}-menu">
                     <div class="flex items-center">
-                        <i class="fas fa-users w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Client Management</span>
+                        <i class="fas fa-folder w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
+                        <span class="ml-2 text-sm">{{ module.name }}</span>
                     </div>
                     <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
                 </button>
                 
-                <ul id="client-menu" class="hidden py-2 space-y-1">
+                <ul id="{{ module.code|lower }}-menu" class="hidden py-2 space-y-1">
+                    {% for child in module.active_children %}
                     <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-user-plus w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">New Client</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-search w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Search Clients</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
+                        <a href="{{ url_for('user.manage_module', module_code=child.code) }}" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
                             <i class="fas fa-file-alt w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Client Reports</span>
+                            <span class="ml-2">{{ child.name }}</span>
                         </a>
                     </li>
+                    {% endfor %}
                 </ul>
             </li>
-            
-            <!-- Loan Management -->
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-            <li class="menu-item">
-                <button type="button" class="flex items-center justify-between w-full p-2.5 text-left text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200" data-collapse-toggle="loan-menu">
-                    <div class="flex items-center">
-                        <i class="fas fa-file-invoice-dollar w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                        <span class="ml-2 text-sm">Loan Management</span>
-                    </div>
-                    <i class="fas fa-chevron-down w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200"></i>
-                </button>
-                
-                <ul id="loan-menu" class="hidden py-2 space-y-1">
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-plus-circle w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">New Loan</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-search w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Search Loans</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-chart-bar w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Loan Reports</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            
-            <!-- Post Disbursement -->
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
+            {% else %}
+            <!-- Module without children -->
             <li>
-                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                    <i class="fas fa-tasks w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"></i>
-                    <span class="ms-3">Post Disbursement</span>
+                <a href="{{ url_for('user.manage_module', module_code=module.code) }}" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                    <i class="fas fa-file w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"></i>
+                    <span class="ms-3">{{ module.name }}</span>
                 </a>
             </li>
+            {% endif %}
+            {% endfor %}
             
-            <!-- Reports -->
+            <!-- Reports - Always visible -->
             <li class="my-3">
                 <hr class="border-gray-200 dark:border-gray-700">
             </li>
@@ -124,24 +82,7 @@
                             <span class="ml-2">Portfolio Analysis</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="#" class="flex items-center w-full p-2 pl-8 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors duration-200">
-                            <i class="fas fa-exclamation-triangle w-3 h-3 text-gray-500 dark:text-gray-400 group-hover:text-primary"></i>
-                            <span class="ml-2">Risk Assessment</span>
-                        </a>
-                    </li>
                 </ul>
-            </li>
-            
-            <!-- Impact Assessment -->
-            <li class="my-3">
-                <hr class="border-gray-200 dark:border-gray-700">
-            </li>
-            <li>
-                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                    <i class="fas fa-seedling w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"></i>
-                    <span class="ms-3">Impact Assessment</span>
-                </a>
             </li>
         </ul>
     </div>

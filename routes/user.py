@@ -114,6 +114,23 @@ def dashboard():
             )
         ).first()
         
+        # Get all active modules for the sidebar
+        sidebar_modules = Module.query.filter(
+            and_(
+                Module.is_active == True,
+                Module.parent_id == None  # Only get top-level modules
+            )
+        ).order_by(Module.name).all()
+        
+        # For each parent module, get its active children
+        for module in sidebar_modules:
+            module.active_children = Module.query.filter(
+                and_(
+                    Module.parent_id == module.id,
+                    Module.is_active == True
+                )
+            ).order_by(Module.name).all()
+        
         # Global system statistics
         total_clients = db.session.query(func.count(Client.id)).scalar() or 0
         active_clients = db.session.query(func.count(Client.id)).filter(Client.status == 'Active').scalar() or 0
@@ -175,7 +192,6 @@ def dashboard():
                             loan_modules=loan_modules,
                             client_parent=client_parent,
                             loan_parent=loan_parent,
-                            # Global statistics
                             total_clients=total_clients,
                             active_clients=active_clients,
                             total_loans=total_loans,
@@ -184,12 +200,12 @@ def dashboard():
                             total_outstanding=total_outstanding_formatted,
                             total_in_arrears=total_in_arrears_formatted,
                             par30_ratio=round(par30_ratio, 2),
-                            # User statistics
                             pending_clients=user_pending_clients,
                             pending_loans=user_pending_loans,
                             approved_loans=user_approved_loans,
                             rejected_loans=user_rejected_loans,
-                            portfolio_value=user_portfolio_formatted)
+                            portfolio_value=user_portfolio_formatted,
+                            sidebar_modules=sidebar_modules)
     except Exception as e:
         current_app.logger.error(f"Error in dashboard route: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading the dashboard.', 'error')

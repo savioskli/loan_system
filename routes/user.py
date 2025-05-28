@@ -86,12 +86,62 @@ user_bp.register_blueprint(crb_bp)
 @login_required
 def dashboard():
     try:
+        from utils.module_permissions import get_accessible_modules
+        
+        # Get all active modules that the user has read access to
+        accessible_module_ids = get_accessible_modules('read')
+        
+        # Get all active modules
+        modules = Module.query.filter(
+            Module.is_active == True,
+            Module.id.in_(accessible_module_ids)
+        ).all()
+        
+        # Organize modules into a sidebar structure
+        sidebar_modules = []
+        for module in modules:
+            # Only process root modules (no parent)
+            if not module.parent_id:
+                module_data = {
+                    'id': module.id,
+                    'name': module.name,
+                    'code': module.code,
+                    'icon': 'fa-folder',  # Default icon since the field doesn't exist in the model
+                    'url': module.url if hasattr(module, 'url') else None,
+                    'active_children': []
+                }
+                
+                # Get active child modules that user has access to
+                children = Module.query.filter(
+                    Module.is_active == True,
+                    Module.parent_id == module.id,
+                    Module.id.in_(accessible_module_ids)
+                ).order_by(Module.name).all()
+                
+                for child in children:
+                    child_data = {
+                        'id': child.id,
+                        'name': child.name,
+                        'code': child.code,
+                        'icon': 'fa-file',  # Default icon since the field doesn't exist in the model
+                        'url': getattr(child, 'url', None) or url_for('user.manage_module', module_code=child.code)
+                    }
+                    module_data['active_children'].append(child_data)
+                
+                # Only add modules that either have children or their own URL
+                if module_data['active_children'] or module_data['url']:
+                    sidebar_modules.append(module_data)
+        
+        # Sort sidebar modules by name
+        sidebar_modules.sort(key=lambda x: x['name'])
+        
         # Get client management modules (only child modules)
         client_modules = Module.query.filter(
             and_(
                 Module.code.like('CLM%'),
                 Module.code != 'CLM00',  # Exclude parent module
-                Module.is_active == True
+                Module.is_active == True,
+                Module.id.in_(accessible_module_ids)
             )
         ).order_by(Module.code).all()
         
@@ -100,116 +150,39 @@ def dashboard():
             and_(
                 Module.code.like('LN%'),
                 ~Module.code.endswith('00'),  # Exclude parent modules
-                Module.is_active == True
+                Module.is_active == True,
+                Module.id.in_(accessible_module_ids)
             )
         ).order_by(Module.code).all()
         
-        # Get parent modules for organization
-        client_parent = Module.query.filter_by(code='CLM00', is_active=True).first()
+        # Get parent modules for organization (only if user has access)
+        client_parent = Module.query.filter(
+            and_(
+                Module.code == 'CLM00',
+                Module.is_active == True,
+                Module.id.in_(accessible_module_ids)
+            )
+        ).first()
+        
         loan_parent = Module.query.filter(
             and_(
                 Module.code.like('LN%'),
                 Module.code.endswith('00'),
-                Module.is_active == True
+                Module.is_active == True,
+                Module.id.in_(accessible_module_ids)
             )
         ).first()
         
-        # Get all active modules for the sidebar
-        sidebar_modules = Module.query.filter(
-            and_(
-                Module.is_active == True,
-                Module.parent_id == None  # Only get top-level modules
-            )
-        ).order_by(Module.name).all()
-        
-        # For each parent module, get its active children
-        for module in sidebar_modules:
-            module.active_children = Module.query.filter(
-                and_(
-                    Module.parent_id == module.id,
-                    Module.is_active == True
-                )
-            ).order_by(Module.name).all()
-        
-        # Global system statistics
-        total_clients = db.session.query(func.count(Client.id)).scalar() or 0
-        active_clients = db.session.query(func.count(Client.id)).filter(Client.status == 'Active').scalar() or 0
-        
-        # Get loan statistics
-        total_loans = db.session.query(func.count(Loan.id)).scalar() or 0
-        active_loans = db.session.query(func.count(Loan.id)).filter(Loan.status == 'active').scalar() or 0
-        total_portfolio = db.session.query(func.sum(Loan.amount)).filter(Loan.status == 'active').scalar() or 0
-        total_outstanding = db.session.query(func.sum(Loan.outstanding_balance)).filter(Loan.status == 'active').scalar() or 0
-        total_in_arrears = db.session.query(func.sum(Loan.total_in_arrears)).filter(Loan.status == 'active').scalar() or 0
-        
-        # Calculate PAR30 (Portfolio at Risk > 30 days)
-        par30_loans = db.session.query(func.sum(Loan.outstanding_balance)).filter(
-            Loan.status == 'active',
-            Loan.days_in_arrears > 30
-        ).scalar() or 0
-        par30_ratio = (par30_loans / total_outstanding * 100) if total_outstanding else 0
-        
-        # User-specific statistics
-        user_pending_clients = db.session.query(func.count(Client.id)).filter(
-            Client.status == 'Pending',
-            Client.created_by == current_user.id
-        ).scalar() or 0
-        
-        user_pending_loans = db.session.query(func.count(Loan.id)).filter(
-            Loan.status == 'pending',
-            Loan.created_by == current_user.id
-        ).scalar() or 0
-        
-        user_approved_loans = db.session.query(func.count(Loan.id)).filter(
-            Loan.status == 'active',
-            Loan.created_by == current_user.id
-        ).scalar() or 0
-        
-        user_rejected_loans = db.session.query(func.count(Loan.id)).filter(
-            Loan.status == 'rejected',
-            Loan.created_by == current_user.id
-        ).scalar() or 0
-        
-        user_portfolio_value = db.session.query(func.sum(Loan.outstanding_balance)).filter(
-            Loan.status == 'active',
-            Loan.created_by == current_user.id
-        ).scalar() or 0
-        
-        # Convert values to appropriate types
-        total_portfolio = float(total_portfolio) if total_portfolio else 0
-        total_outstanding = float(total_outstanding) if total_outstanding else 0
-        total_in_arrears = float(total_in_arrears) if total_in_arrears else 0
-        user_portfolio_value = float(user_portfolio_value) if user_portfolio_value else 0
-        
-        # Format currency values
-        total_portfolio_formatted = '{:,.2f}'.format(total_portfolio)
-        total_outstanding_formatted = '{:,.2f}'.format(total_outstanding)
-        total_in_arrears_formatted = '{:,.2f}'.format(total_in_arrears)
-        user_portfolio_formatted = '{:,.2f}'.format(user_portfolio_value)
-        
         return render_with_modules('user/dashboard.html',
+                            sidebar_modules=sidebar_modules,
                             client_modules=client_modules,
                             loan_modules=loan_modules,
                             client_parent=client_parent,
-                            loan_parent=loan_parent,
-                            total_clients=total_clients,
-                            active_clients=active_clients,
-                            total_loans=total_loans,
-                            active_loans=active_loans,
-                            total_portfolio=total_portfolio_formatted,
-                            total_outstanding=total_outstanding_formatted,
-                            total_in_arrears=total_in_arrears_formatted,
-                            par30_ratio=round(par30_ratio, 2),
-                            pending_clients=user_pending_clients,
-                            pending_loans=user_pending_loans,
-                            approved_loans=user_approved_loans,
-                            rejected_loans=user_rejected_loans,
-                            portfolio_value=user_portfolio_formatted,
-                            sidebar_modules=sidebar_modules)
+                            loan_parent=loan_parent)
     except Exception as e:
         current_app.logger.error(f"Error in dashboard route: {str(e)}\n{traceback.format_exc()}")
         flash('An error occurred while loading the dashboard.', 'error')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('user.dashboard'))
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -218,8 +191,14 @@ def allowed_file(filename, allowed_extensions):
 @login_required
 def dynamic_form(module_code):
     try:
-        # Get the module
+        # Get the module and check permissions
+        from utils.module_permissions import check_module_access
         module = Module.query.filter_by(code=module_code).first_or_404()
+        
+        # Check if user has write access to this module
+        if not check_module_access(module.id, 'write'):
+            flash('You do not have permission to submit forms for this module.', 'error')
+            return redirect(url_for('user.dashboard'))
         
         # Get module sections with fields
         sections = FormSection.query.filter_by(
@@ -358,8 +337,14 @@ def submit_form(module_code):
             flash('Client type is required', 'error')
             return redirect(url_for('user.dynamic_form', module_code=module_code))
         
-        # Get the module
+        # Get the module and check permissions
+        from utils.module_permissions import check_module_access
         module = Module.query.filter_by(code=module_code).first_or_404()
+        
+        # Check if user has write access to this module
+        if not check_module_access(module.id, 'write'):
+            flash('You do not have permission to submit forms for this module.', 'error')
+            return redirect(url_for('user.dashboard'))
         
         # Create new submission
         submission = FormSubmission(
@@ -396,8 +381,15 @@ def manage_module(module_code):
         # Debug logs
         print(f"Accessing manage_module with module_code: {module_code}")
         
+        # Get the module and check permissions
+        from utils.module_permissions import check_module_access
         module = Module.query.filter_by(code=module_code).first_or_404()
         print(f"Found module: {module.name}")
+        
+        # Check if user has read access to this module
+        if not check_module_access(module.id, 'read'):
+            flash('You do not have permission to access this module.', 'error')
+            return redirect(url_for('user.dashboard'))
         
         # Get all client types for filtering
         client_types = ClientType.query.filter_by(status=True).all()
@@ -474,7 +466,14 @@ def get_submission(submission_id):
 def delete_submission(submission_id):
     """Delete a submission."""
     try:
+        # Get submission and check permissions
+        from utils.module_permissions import check_module_access
         submission = FormSubmission.query.get_or_404(submission_id)
+        
+        # Check if user has write access to this module
+        if not check_module_access(submission.module_id, 'write'):
+            flash('You do not have permission to delete submissions for this module.', 'error')
+            return redirect(url_for('user.dashboard'))
         db.session.delete(submission)
         db.session.commit()
         return jsonify({'success': True})
@@ -486,7 +485,15 @@ def delete_submission(submission_id):
 @login_required
 def edit_submission(submission_id):
     """Edit a submission."""
+    # Get submission and check permissions
+    from utils.module_permissions import check_module_access
     submission = FormSubmission.query.get_or_404(submission_id)
+    
+    # Check if user has write access to this module
+    if not check_module_access(submission.module_id, 'write'):
+        flash('You do not have permission to edit submissions for this module.', 'error')
+        return redirect(url_for('user.dashboard'))
+        
     return redirect(url_for('user.dynamic_form', 
                           module_code=submission.module.code,
                           submission_id=submission.id))

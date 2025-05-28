@@ -124,7 +124,7 @@ def dashboard():
                         'name': child.name,
                         'code': child.code,
                         'icon': 'fa-file',  # Default icon since the field doesn't exist in the model
-                        'url': getattr(child, 'url', None) or url_for('user.manage_module', module_code=child.code)
+                        'url': getattr(child, 'url', None) or url_for('user.manage_module', module_id=child.id)
                     }
                     module_data['active_children'].append(child_data)
                 
@@ -187,13 +187,15 @@ def dashboard():
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-@user_bp.route('/dynamic_form/<module_code>', methods=['GET', 'POST'])
+@user_bp.route('/dynamic_form/<int:module_id>', methods=['GET', 'POST'])
 @login_required
-def dynamic_form(module_code):
+def dynamic_form(module_id):
     try:
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
-        module = Module.query.filter_by(code=module_code).first_or_404()
+        
+        # Find the module by ID
+        module = Module.query.get_or_404(module_id)
         
         # Check if user has write access to this module
         if not check_module_access(module.id, 'write'):
@@ -323,9 +325,9 @@ def get_postal_towns(county):
             'message': f'Server error: {str(e)}'
         }), 500
 
-@user_bp.route('/submit_form/<module_code>', methods=['POST'])
+@user_bp.route('/submit_form/<int:module_id>', methods=['POST'])
 @login_required
-def submit_form(module_code):
+def submit_form(module_id):
     """Handle form submission."""
     try:
         # Get form data
@@ -335,12 +337,14 @@ def submit_form(module_code):
         client_type_id = form_data.get('client_type')
         if not client_type_id:
             flash('Client type is required', 'error')
-            return redirect(url_for('user.dynamic_form', module_code=module_code))
+            return redirect(url_for('user.dynamic_form', module_id=module_id))
         
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
-        module = Module.query.filter_by(code=module_code).first_or_404()
         
+        # Find the module by ID
+        module = Module.query.get_or_404(module_id)
+            
         # Check if user has write access to this module
         if not check_module_access(module.id, 'write'):
             flash('You do not have permission to submit forms for this module.', 'error')
@@ -355,8 +359,8 @@ def submit_form(module_code):
             status='pending'
         )
         
-        # If this is a direct client registration (CLM02), mark it as approved and converted
-        if module_code == 'CLM02':
+        # If this is a direct client registration module, mark it as approved and converted
+        if module.code.startswith(('CLM02', 'CLT_M02')):
             submission.status = 'approved'
             submission.is_converted = True
         
@@ -364,27 +368,27 @@ def submit_form(module_code):
         db.session.commit()
         
         flash('Form submitted successfully!', 'success')
-        return redirect(url_for('user.manage_module', module_code=module_code))
+        return redirect(url_for('user.manage_module', module_id=module.id))
         
     except Exception as e:
         print(f"Error submitting form: {str(e)}")
         print(traceback.format_exc())
         db.session.rollback()
         flash(f'Error submitting form: {str(e)}', 'error')
-        return redirect(url_for('user.dynamic_form', module_code=module_code))
+        return redirect(url_for('user.dynamic_form', module_id=module_id))
 
-@user_bp.route('/manage/<module_code>')
+@user_bp.route('/manage/<int:module_id>')
 @login_required
-def manage_module(module_code):
+def manage_module(module_id):
     """Manage submissions for a specific module."""
     try:
         # Debug logs
-        print(f"Accessing manage_module with module_code: {module_code}")
+        print(f"Accessing manage_module with module_id: {module_id}")
         
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
-        module = Module.query.filter_by(code=module_code).first_or_404()
-        print(f"Found module: {module.name}")
+        module = Module.query.get_or_404(module_id)
+        print(f"Found module: {module.name} (ID: {module.id}, Code: {module.code})")
         
         # Check if user has read access to this module
         if not check_module_access(module.id, 'read'):
@@ -403,38 +407,57 @@ def manage_module(module_code):
         selected_type = request.args.get('client_type', 'all')
         print(f"Selected client type: {selected_type}")
         
-        # Base query with explicit joins
-        try:
-            if module_code == 'CLM02':  # Clients module
-                # For CLM02, get all converted prospects regardless of original module
-                submissions = db.session.query(FormSubmission).\
-                    join(ClientType, FormSubmission.client_type_id == ClientType.id).\
-                    filter(FormSubmission.is_converted == True)
-            else:
-                # For other modules, filter by module and conversion status
-                submissions = db.session.query(FormSubmission).\
-                    join(Module, FormSubmission.module_id == Module.id).\
-                    join(ClientType, FormSubmission.client_type_id == ClientType.id).\
-                    filter(Module.code == module_code)
+        # Check if this is a prospect registration module
+        if module.code.startswith(('CLM01', 'CLT_M01')):  # Prospect registration modules
+            from models.prospect_registration import ProspectRegistration
+            
+            # Start with base query
+            query = ProspectRegistration.query
+            
+            # Apply client type filter if specified
+            if selected_type != 'all':
+                query = query.join(ClientType, ProspectRegistration.client_type_id == ClientType.id).\
+                    filter(ClientType.client_code == selected_type)
+            
+            # Get submissions from prospect_registration_data table
+            submissions = query.order_by(ProspectRegistration.created_at.desc()).all()
+            print(f"Found {len(submissions)} prospect submissions")
+            
+        # Check if this is a client registration module
+        elif module.code.startswith(('CLM02', 'CLT_M02')):  # Client registration modules
+            # Get all converted prospects regardless of original module
+            submissions = db.session.query(FormSubmission).\
+                join(ClientType, FormSubmission.client_type_id == ClientType.id).\
+                filter(FormSubmission.is_converted == True)
                 
-                if module_code == 'CLM01':  # Prospects module
-                    submissions = submissions.filter(FormSubmission.is_converted == False)
+            # Apply client type filter if specified
+            if selected_type != 'all':
+                submissions = submissions.filter(ClientType.client_code == selected_type)
+                
+            submissions = submissions.order_by(FormSubmission.created_at.desc()).all()
+            print(f"Found {len(submissions)} client submissions")
+        
+        # Handle other modules
+        else:
+            # For other modules, filter by module ID
+            submissions = db.session.query(FormSubmission).\
+                join(ClientType, FormSubmission.client_type_id == ClientType.id).\
+                filter(FormSubmission.module_id == module_id)
             
             # Apply client type filter if specified
             if selected_type != 'all':
                 submissions = submissions.filter(ClientType.client_code == selected_type)
             
-            # Execute query
             submissions = submissions.order_by(FormSubmission.created_at.desc()).all()
-            print(f"Found {len(submissions)} submissions")
-            print("Submission details:")
-            for sub in submissions:
-                print(f"ID: {sub.id}, Status: {sub.status}, Converted: {sub.is_converted}")
-            
-        except Exception as db_error:
-            print(f"Database error: {str(db_error)}")
-            print(f"Full traceback: {traceback.format_exc()}")
-            raise
+            print(f"Found {len(submissions)} submissions for module {module.name} (ID: {module_id})")
+        
+        # Debug log submission details
+        print("Submission details:")
+        for sub in submissions[:5]:  # Only log first 5 to avoid cluttering logs
+            print(f"ID: {getattr(sub, 'id', 'N/A')}, Status: {getattr(sub, 'status', 'N/A')}, "
+                  f"Converted: {getattr(sub, 'is_converted', 'N/A')}")
+        if len(submissions) > 5:
+            print(f"... and {len(submissions) - 5} more")
         
         return render_with_modules('user/manage_module.html',
                              module=module,
@@ -442,6 +465,7 @@ def manage_module(module_code):
                              client_types=client_types,
                              products=products,
                              selected_type=selected_type)
+                             
                              
     except Exception as e:
         print(f"Error in manage_module: {str(e)}")
@@ -474,50 +498,46 @@ def delete_submission(submission_id):
         if not check_module_access(submission.module_id, 'write'):
             flash('You do not have permission to delete submissions for this module.', 'error')
             return redirect(url_for('user.dashboard'))
+        
+        module_id = submission.module_id
         db.session.delete(submission)
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        current_app.logger.error(f'Error deleting submission {submission_id}: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@user_bp.route('/edit_submission/<int:submission_id>')
-@login_required
-def edit_submission(submission_id):
-    """Edit a submission."""
-    # Get submission and check permissions
-    from utils.module_permissions import check_module_access
-    submission = FormSubmission.query.get_or_404(submission_id)
-    
-    # Check if user has write access to this module
-    if not check_module_access(submission.module_id, 'write'):
-        flash('You do not have permission to edit submissions for this module.', 'error')
-        return redirect(url_for('user.dashboard'))
-        
-    return redirect(url_for('user.dynamic_form', 
-                          module_code=submission.module.code,
-                          submission_id=submission.id))
-
-@user_bp.route('/prospect/<int:submission_id>')
+@user_bp.route('/prospect/<int:prospect_id>')
 @login_required
 @csrf.exempt
-def view_prospect(submission_id):
+def view_prospect(prospect_id):
     """View prospect details."""
     try:
-        submission = FormSubmission.query.get_or_404(submission_id)
+        # Get the prospect from the dedicated table
+        from models.prospect_registration import ProspectRegistration
+        prospect = ProspectRegistration.query.get_or_404(prospect_id)
+        
+        # Get the prospect module (CLM01)
+        module = Module.query.filter_by(code='CLM01').first()
+        if not module:
+            flash('Prospect module not found.', 'error')
+            return redirect(url_for('user.dashboard'))
+        
+        # Get all active products
         products = Product.query.filter_by(status='Active').all()
+        
+        # Get all client types
         client_types = ClientType.query.filter_by(status=True).all()
         
         # Get module sections with fields
         sections = FormSection.query.filter_by(
-            module_id=submission.module.id,
+            module_id=module.id,
             is_active=True
         ).order_by(FormSection.order).all()
 
         # Process fields to ensure proper client type restrictions
         individual_fields = ['first_name', 'middle_name', 'last_name', 'gender', 'id_type', 'serial_number']
-        print("Form Data:", submission.form_data)
-        print("ID Type from form data:", submission.form_data.get('id_type'))
         for section in sections:
             for field in section.fields:
                 # Set client type restrictions for individual fields
@@ -534,7 +554,7 @@ def view_prospect(submission_id):
 
         # Get purpose of visit field options
         purpose_field = FormField.query.filter_by(
-            module_id=submission.module.id,
+            module_id=module.id,
             field_name='purpose_of_visit'
         ).first()
         
@@ -548,8 +568,6 @@ def view_prospect(submission_id):
         ]
         
         purpose_options = purpose_field.options if purpose_field and purpose_field.options else default_purpose_options
-        print("Purpose Options:", purpose_options)
-        print("Selected Purpose:", submission.form_data.get('purpose_of_visit'))
         
         # ID types configuration
         ID_TYPES = [
@@ -559,41 +577,123 @@ def view_prospect(submission_id):
             {'value': 'Military ID', 'label': 'Military ID'}
         ]
         
-        print("ID Types:", ID_TYPES)
-        print("Form Data:", submission.form_data)
-        print("ID Type from form data:", submission.form_data.get('id_type'))
+        # Convert prospect to form data format
+        form_data = {
+            'first_name': prospect.first_name,
+            'middle_name': prospect.middle_name,
+            'last_name': prospect.last_name,
+            'id_type': prospect.id_type,
+            'id_number': prospect.id_number,
+            'email': prospect.email,
+            'phone': prospect.phone,
+            'date_of_birth': prospect.date_of_birth.strftime('%Y-%m-%d') if prospect.date_of_birth else '',
+            'gender': prospect.gender,
+            'marital_status': prospect.marital_status,
+            'nationality': prospect.nationality,
+            'county': prospect.county,
+            'sub_county': prospect.sub_county,
+            'ward': prospect.ward,
+            'postal_code': prospect.postal_code,
+            'postal_town': prospect.postal_town,
+            'estate': prospect.estate,
+            'house_number': prospect.house_number,
+            'occupation': prospect.occupation,
+            'employer_name': prospect.employer_name,
+            'employment_type': prospect.employment_type,
+            'monthly_income': float(prospect.monthly_income) if prospect.monthly_income else 0,
+            'other_income': float(prospect.other_income) if prospect.other_income else 0,
+            'income_source': prospect.income_source,
+            'next_of_kin_name': prospect.next_of_kin_name,
+            'next_of_kin_phone': prospect.next_of_kin_phone,
+            'next_of_kin_relationship': prospect.next_of_kin_relationship,
+            'next_of_kin_id': prospect.next_of_kin_id,
+            'purpose_of_visit': prospect.purpose_of_visit,
+            'purpose_description': prospect.purpose_description,
+            'product': prospect.product_id,
+            'status': prospect.status,
+            'is_converted': prospect.is_converted,
+            'client_type_id': prospect.client_type_id,
+            'created_at': prospect.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': prospect.updated_at.strftime('%Y-%m-%d %H:%M:%S') if prospect.updated_at else ''
+        }
+        
+        # Get the creator's name
+        creator = Staff.query.get(prospect.created_by)
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
+        
+        # Get the current user's role for permission checks
+        current_user_role = current_user.role.name if current_user.role else None
+        
+        # Check if the current user can approve/reject
+        can_approve_reject = current_user_role in ['admin', 'manager', 'supervisor']
+        
+        # Check if the current user can convert to client
+        can_convert = (current_user_role in ['admin', 'manager', 'officer'] and 
+                      prospect.status == 'approved' and 
+                      not prospect.is_converted)
+        
+        # Get product details if available
+        product = Product.query.get(prospect.product_id) if prospect.product_id else None
+        
+        # Get client type
+        client_type = ClientType.query.get(prospect.client_type_id)
         
         return render_with_modules('user/view_prospect.html',
-                             submission=submission,
+                             submission=prospect,
+                             form_data=form_data,
                              sections=sections,
                              products=products,
+                             product=product,
                              client_types=client_types,
+                             client_type=client_type,
                              id_types=ID_TYPES,
                              counties=[],
-                             purpose_options=purpose_options)
+                             purpose_options=purpose_options,
+                             creator_name=creator_name,
+                             can_approve_reject=can_approve_reject,
+                             can_convert=can_convert)
     except Exception as e:
         flash(f'Error viewing prospect: {str(e)}', 'error')
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/prospect/<int:submission_id>/edit', methods=['GET', 'POST'])
+@user_bp.route('/prospect/<int:prospect_id>/edit', methods=['GET', 'POST'])
 @login_required
-def edit_prospect(submission_id):
-    """Edit a prospect details."""
+def edit_prospect(prospect_id):
+    """Edit a prospect's details."""
     try:
-        submission = FormSubmission.query.get_or_404(submission_id)
+        from models.prospect_registration import ProspectRegistration
+        prospect = ProspectRegistration.query.get_or_404(prospect_id)
+        
+        # Get the prospect module (CLM01)
+        module = Module.query.filter_by(code='CLM01').first()
+        if not module:
+            flash('Prospect module not found.', 'error')
+            return redirect(url_for('user.dashboard'))
+            
+        # Check if user has permission to edit
+        if not check_module_access(module.id, 'write'):
+            flash('You do not have permission to edit this prospect.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Check if prospect can be edited
+        if prospect.status == 'approved' and prospect.is_converted:
+            flash('This prospect has already been converted to a client and cannot be edited.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Get all active products
         products = Product.query.filter_by(status='Active').all()
+        
+        # Get all client types
         client_types = ClientType.query.filter_by(status=True).all()
         
         # Get module sections with fields
         sections = FormSection.query.filter_by(
-            module_id=submission.module.id,
+            module_id=module.id,
             is_active=True
         ).order_by(FormSection.order).all()
 
         # Process fields to ensure proper client type restrictions
         individual_fields = ['first_name', 'middle_name', 'last_name', 'gender', 'id_type', 'serial_number']
-        print("Form Data:", submission.form_data)
-        print("ID Type from form data:", submission.form_data.get('id_type'))
         for section in sections:
             for field in section.fields:
                 # Set client type restrictions for individual fields
@@ -607,11 +707,10 @@ def edit_prospect(submission_id):
                         {'value': 'Male', 'label': 'Male'},
                         {'value': 'Female', 'label': 'Female'}
                     ]
-                    print(f"Gender value in database: {submission.form_data.get('gender')}")
 
         # Get purpose of visit field options
         purpose_field = FormField.query.filter_by(
-            module_id=submission.module.id,
+            module_id=module.id,
             field_name='purpose_of_visit'
         ).first()
         
@@ -625,8 +724,6 @@ def edit_prospect(submission_id):
         ]
         
         purpose_options = purpose_field.options if purpose_field and purpose_field.options else default_purpose_options
-        print("Purpose Options:", purpose_options)
-        print("Selected Purpose:", submission.form_data.get('purpose_of_visit'))
         
         # ID types configuration
         ID_TYPES = [
@@ -635,10 +732,6 @@ def edit_prospect(submission_id):
             {'value': 'Alien ID', 'label': 'Alien ID'},
             {'value': 'Military ID', 'label': 'Military ID'}
         ]
-        
-        print("ID Types:", ID_TYPES)
-        print("Form Data:", submission.form_data)
-        print("ID Type from form data:", submission.form_data.get('id_type'))
         
         # Postal towns list
         POSTAL_TOWNS = [
@@ -662,134 +755,360 @@ def edit_prospect(submission_id):
         ]
         
         if request.method == 'POST':
-            # Update submission data
-            form_data = request.form.to_dict()
-            submission.form_data = form_data
-            submission.status = request.form.get('status', submission.status)
-            submission.updated_at = datetime.utcnow()
-            
-            db.session.commit()
-            flash('Prospect updated successfully', 'success')
-            return redirect(url_for('user.manage_module', module_code=submission.module.code))
-            
-        return render_with_modules('user/edit_prospect.html', 
-                             submission=submission,
-                             products=products,
-                             client_types=client_types,
+            try:
+                # Update prospect fields from form data
+                prospect.first_name = request.form.get('first_name', '').strip()
+                prospect.middle_name = request.form.get('middle_name', '').strip()
+                prospect.last_name = request.form.get('last_name', '').strip()
+                prospect.id_type = request.form.get('id_type', '').strip()
+                prospect.id_number = request.form.get('id_number', '').strip()
+                prospect.email = request.form.get('email', '').strip()
+                prospect.phone = request.form.get('phone', '').strip()
+                
+                # Handle date fields
+                dob = request.form.get('date_of_birth')
+                if dob:
+                    try:
+                        prospect.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        prospect.date_of_birth = None
+                
+                prospect.gender = request.form.get('gender', '').strip()
+                prospect.marital_status = request.form.get('marital_status', '').strip()
+                prospect.nationality = request.form.get('nationality', '').strip()
+                
+                # Address information
+                prospect.county = request.form.get('county', '').strip()
+                prospect.sub_county = request.form.get('sub_county', '').strip()
+                prospect.ward = request.form.get('ward', '').strip()
+                prospect.postal_code = request.form.get('postal_code', '').strip()
+                prospect.postal_town = request.form.get('postal_town', '').strip()
+                prospect.estate = request.form.get('estate', '').strip()
+                prospect.house_number = request.form.get('house_number', '').strip()
+                
+                # Employment information
+                prospect.occupation = request.form.get('occupation', '').strip()
+                prospect.employer_name = request.form.get('employer_name', '').strip()
+                prospect.employment_type = request.form.get('employment_type', '').strip()
+                
+                # Income information
+                try:
+                    prospect.monthly_income = float(request.form.get('monthly_income', 0))
+                except (ValueError, TypeError):
+                    prospect.monthly_income = 0
+                    
+                try:
+                    prospect.other_income = float(request.form.get('other_income', 0))
+                except (ValueError, TypeError):
+                    prospect.other_income = 0
+                    
+                prospect.income_source = request.form.get('income_source', '').strip()
+                
+                # Next of kin information
+                prospect.next_of_kin_name = request.form.get('next_of_kin_name', '').strip()
+                prospect.next_of_kin_phone = request.form.get('next_of_kin_phone', '').strip()
+                prospect.next_of_kin_relationship = request.form.get('next_of_kin_relationship', '').strip()
+                prospect.next_of_kin_id = request.form.get('next_of_kin_id', '').strip()
+                
+                # Purpose of visit
+                prospect.purpose_of_visit = request.form.get('purpose_of_visit', '').strip()
+                prospect.purpose_description = request.form.get('purpose_description', '').strip()
+                
+                # Product and client type
+                try:
+                    product_id = int(request.form.get('product_id', 0))
+                    if product_id > 0:
+                        prospect.product_id = product_id
+                except (ValueError, TypeError):
+                    pass
+                    
+                try:
+                    client_type_id = int(request.form.get('client_type_id', 0))
+                    if client_type_id > 0:
+                        prospect.client_type_id = client_type_id
+                except (ValueError, TypeError):
+                    pass
+                
+                # Handle file uploads if any
+                if 'id_copy' in request.files and request.files['id_copy'].filename != '':
+                    file = request.files['id_copy']
+                    if file and allowed_file(file.filename, ALLOWED_EXTENSIONS):
+                        filename = secure_filename(file.filename)
+                        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'prospects', str(prospect.id))
+                        os.makedirs(file_path, exist_ok=True)
+                        file.save(os.path.join(file_path, filename))
+                        prospect.id_copy_path = f"prospects/{prospect.id}/{filename}"
+                
+                # Update timestamps
+                prospect.updated_at = datetime.utcnow()
+                prospect.updated_by = current_user.id
+                
+                db.session.commit()
+                
+                flash('Prospect details updated successfully!', 'success')
+                return redirect(url_for('user.view_prospect', prospect_id=prospect.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error updating prospect: {str(e)}', 'error')
+                current_app.logger.error(f"Error updating prospect {prospect_id}: {str(e)}\n{traceback.format_exc()}")
+        
+        # Convert prospect to form data format for the template
+        form_data = {
+            'first_name': prospect.first_name,
+            'middle_name': prospect.middle_name,
+            'last_name': prospect.last_name,
+            'id_type': prospect.id_type,
+            'id_number': prospect.id_number,
+            'email': prospect.email,
+            'phone': prospect.phone,
+            'date_of_birth': prospect.date_of_birth.strftime('%Y-%m-%d') if prospect.date_of_birth else '',
+            'gender': prospect.gender,
+            'marital_status': prospect.marital_status,
+            'nationality': prospect.nationality,
+            'county': prospect.county,
+            'sub_county': prospect.sub_county,
+            'ward': prospect.ward,
+            'postal_code': prospect.postal_code,
+            'postal_town': prospect.postal_town,
+            'estate': prospect.estate,
+            'house_number': prospect.house_number,
+            'occupation': prospect.occupation,
+            'employer_name': prospect.employer_name,
+            'employment_type': prospect.employment_type,
+            'monthly_income': float(prospect.monthly_income) if prospect.monthly_income else 0,
+            'other_income': float(prospect.other_income) if prospect.other_income else 0,
+            'income_source': prospect.income_source,
+            'next_of_kin_name': prospect.next_of_kin_name,
+            'next_of_kin_phone': prospect.next_of_kin_phone,
+            'next_of_kin_relationship': prospect.next_of_kin_relationship,
+            'next_of_kin_id': prospect.next_of_kin_id,
+            'purpose_of_visit': prospect.purpose_of_visit,
+            'purpose_description': prospect.purpose_description,
+            'product_id': prospect.product_id,
+            'client_type_id': prospect.client_type_id,
+            'status': prospect.status
+        }
+        
+        # Get the current user's role for permission checks
+        current_user_role = current_user.role.name if current_user.role else None
+        
+        # Check if the current user can approve/reject
+        can_approve_reject = current_user_role in ['admin', 'manager', 'supervisor']
+        
+        # Check if the current user can convert to client
+        can_convert = (current_user_role in ['admin', 'manager', 'officer'] and 
+                      prospect.status == 'approved' and 
+                      not prospect.is_converted)
+        
+        # Get the creator's name
+        creator = Staff.query.get(prospect.created_by)
+        creator_name = f"{creator.first_name} {creator.last_name}" if creator else "Unknown"
+        
+        # Get product details if available
+        product = Product.query.get(prospect.product_id) if prospect.product_id else None
+        
+        # Get client type
+        client_type = ClientType.query.get(prospect.client_type_id)
+        
+        return render_with_modules('user/edit_prospect.html',
+                             prospect=prospect,
+                             form_data=form_data,
                              sections=sections,
-                             counties=[],
-                             postal_towns=sorted(POSTAL_TOWNS),
-                             ID_TYPES=ID_TYPES,
-                             purpose_options=purpose_options)
+                             products=products,
+                             product=product,
+                             client_types=client_types,
+                             client_type=client_type,
+                             id_types=ID_TYPES,
+                             postal_towns=POSTAL_TOWNS,
+                             purpose_options=purpose_options,
+                             creator_name=creator_name,
+                             can_approve_reject=can_approve_reject,
+                             can_convert=can_convert)
+                             
     except Exception as e:
-        flash(f'Error editing prospect: {str(e)}', 'error')
+        db.session.rollback()
+        flash(f'Error loading prospect edit form: {str(e)}', 'error')
+        current_app.logger.error(f"Error in edit_prospect: {str(e)}\n{traceback.format_exc()}")
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/prospect/<int:submission_id>/delete')
+@user_bp.route('/prospect/<int:prospect_id>/delete')
 @login_required
-def delete_prospect(submission_id):
+def delete_prospect(prospect_id):
     """Delete a prospect."""
     try:
-        submission = FormSubmission.query.get_or_404(submission_id)
-        module_code = submission.module.code
+        from models.prospect_registration import ProspectRegistration
+        prospect = ProspectRegistration.query.get_or_404(prospect_id)
         
-        db.session.delete(submission)
+        # Check if user has permission to delete
+        if not check_module_access(1, 'delete'):  # Assuming 1 is the ID for prospect module
+            flash('You do not have permission to delete this prospect.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Check if prospect can be deleted
+        if prospect.status == 'approved' and prospect.is_converted:
+            flash('This prospect has already been converted to a client and cannot be deleted.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Delete the prospect
+        db.session.delete(prospect)
         db.session.commit()
         
         flash('Prospect deleted successfully', 'success')
-        return redirect(url_for('user.manage_module', module_code=module_code))
+        return redirect(url_for('user.manage_module', module_code='CLM01'))
+        
     except Exception as e:
+        db.session.rollback()
         flash(f'Error deleting prospect: {str(e)}', 'error')
+        current_app.logger.error(f"Error deleting prospect {prospect_id}: {str(e)}\n{traceback.format_exc()}")
         return redirect(url_for('user.dashboard'))
 
-@user_bp.route('/convert_to_client/<submission_id>', methods=['GET', 'POST'])
+@user_bp.route('/convert_to_client/<int:prospect_id>', methods=['GET', 'POST'])
 @login_required
-def convert_to_client(submission_id):
+def convert_to_client(prospect_id):
     """Convert an approved prospect to a client."""
     try:
-        # Get the submission
-        submission = FormSubmission.query.get_or_404(submission_id)
+        from models.prospect_registration import ProspectRegistration
+        from models.client import Client
+        from models.next_of_kin import NextOfKin
         
-        # Get CLM02 module
+        # Get the prospect
+        prospect = ProspectRegistration.query.get_or_404(prospect_id)
+        
+        # Check if user has permission to convert
+        current_user_role = current_user.role.name if current_user.role else None
+        if current_user_role not in ['admin', 'manager', 'officer']:
+            flash('You do not have permission to convert prospects to clients.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Check if prospect is approved and not already converted
+        if prospect.status != 'approved':
+            flash('Only approved prospects can be converted to clients.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+            
+        if prospect.is_converted:
+            flash('This prospect has already been converted to a client.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # Get CLM02 module (Client Management)
         clm02_module = Module.query.filter_by(code='CLM02').first_or_404()
         
-        if request.method == 'GET':
-            # Check if the submission is approved
-            if submission.status != 'approved':
-                flash('Only approved prospects can be converted to clients', 'error')
-                return redirect(url_for('user.manage_module', module_code='CLM01'))
-                
-            # Check if already converted
-            if submission.is_converted:
-                flash('This prospect has already been converted to a client', 'error')
-                return redirect(url_for('user.manage_module', module_code='CLM01'))
-            
-            # Get CLM02 sections with fields
-            sections = FormSection.query.filter_by(
-                module_id=clm02_module.id,
-                is_active=True
-            ).order_by(FormSection.order).all()
-            
-            # Get client types and products
-            client_types = ClientType.query.filter_by(status=True).all()
-            products = Product.query.filter_by(status='Active').all()
-
-            # Pre-fill form data from the prospect submission
-            form_data = submission.form_data
-            
-            # Render the conversion form
-            return render_with_modules('user/convert_form.html',
-                                submission=submission,
-                                module=clm02_module,
-                                sections=sections,
-                                client_types=client_types,
-                                products=products,
-                                counties=[],
-                                form_data=form_data)
+        # Check if client with same ID number already exists
+        existing_client = Client.query.filter_by(id_number=prospect.id_number).first()
+        if existing_client:
+            flash(f'A client with ID number {prospect.id_number} already exists.', 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
         
-        elif request.method == 'POST':
-            # Check if the submission is approved
-            if submission.status != 'approved':
-                return jsonify({
-                    'success': False,
-                    'message': 'Only approved prospects can be converted to clients'
-                }), 400
-                
-            # Check if already converted
-            if submission.is_converted:
-                return jsonify({
-                    'success': False,
-                    'message': 'This prospect has already been converted to a client'
-                }), 400
+        if request.method == 'GET':
+            # Get all active branches for the form
+            branches = Branch.query.filter_by(status=True).all()
+            client_types = ClientType.query.filter_by(status=True).all()
             
-            # Get form data
-            form_data = request.form.to_dict()
+            # Get the original client type if available
+            client_type = ClientType.query.get(prospect.client_type_id)
             
-            # Update the submission with CLM02 data and mark as converted
-            submission.form_data.update(form_data)  # Merge new form data with existing data
-            submission.is_converted = True
-            submission.updated_at = datetime.utcnow()
-            
-            # Commit the changes
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Successfully converted prospect to client'
-            })
-            
-    except Exception as e:
-        print(f"Error converting prospect to client: {str(e)}")
-        print(traceback.format_exc())
-        db.session.rollback()
+            return render_with_modules('user/convert_to_client.html',
+                                 prospect=prospect,
+                                 branches=branches,
+                                 client_types=client_types,
+                                 client_type=client_type,
+                                 module=clm02_module)
+        
+        # Handle POST request
         if request.method == 'POST':
-            return jsonify({
-                'success': False,
-                'message': f'Error converting prospect to client: {str(e)}'
-            }), 500
-        else:
-            flash(f'Error loading conversion form: {str(e)}', 'error')
-            return redirect(url_for('user.manage_module', module_code='CLM01'))
+            try:
+                # Get form data
+                branch_id = request.form.get('branch_id')
+                client_type_id = request.form.get('client_type_id', prospect.client_type_id)
+                
+                # Validate branch
+                branch = Branch.query.get(branch_id)
+                if not branch or not branch.status:
+                    flash('Please select a valid branch', 'error')
+                    return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
+                
+                # Validate client type
+                client_type = ClientType.query.get(client_type_id)
+                if not client_type or not client_type.status:
+                    flash('Please select a valid client type', 'error')
+                    return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
+                
+                # Create client data from prospect
+                client_data = {
+                    'first_name': prospect.first_name,
+                    'middle_name': prospect.middle_name,
+                    'last_name': prospect.last_name,
+                    'id_type': prospect.id_type,
+                    'id_number': prospect.id_number,
+                    'date_of_birth': prospect.date_of_birth,
+                    'gender': prospect.gender,
+                    'marital_status': prospect.marital_status,
+                    'nationality': prospect.nationality or 'Kenyan',
+                    'email': prospect.email,
+                    'phone': prospect.phone,
+                    'branch_id': branch_id,
+                    'client_type_id': client_type_id,
+                    'registration_date': datetime.utcnow().date(),
+                    'status': 'Active',
+                    'created_by': current_user.id,
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow(),
+                    'occupation': prospect.occupation,
+                    'employer_name': prospect.employer_name,
+                    'employment_type': prospect.employment_type,
+                    'monthly_income': prospect.monthly_income,
+                    'other_income': prospect.other_income,
+                    'income_source': prospect.income_source,
+                    'county': prospect.county,
+                    'sub_county': prospect.sub_county,
+                    'ward': prospect.ward,
+                    'postal_code': prospect.postal_code,
+                    'postal_town': prospect.postal_town,
+                    'estate': prospect.estate,
+                    'house_number': prospect.house_number
+                }
+                
+                # Create new client
+                new_client = Client(**client_data)
+                db.session.add(new_client)
+                
+                # Add next of kin if available
+                if prospect.next_of_kin_name:
+                    next_of_kin = NextOfKin(
+                        client=new_client,
+                        full_name=prospect.next_of_kin_name,
+                        relationship=prospect.next_of_kin_relationship,
+                        id_number=prospect.next_of_kin_id,
+                        phone=prospect.next_of_kin_phone,
+                        created_by=current_user.id,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
+                    db.session.add(next_of_kin)
+                
+                # Mark the prospect as converted
+                prospect.is_converted = True
+                prospect.converted_at = datetime.utcnow()
+                prospect.converted_by = current_user.id
+                prospect.client_id = new_client.id
+                prospect.updated_at = datetime.utcnow()
+                
+                db.session.commit()
+                
+                flash('Prospect successfully converted to client', 'success')
+                return redirect(url_for('user.view_client', client_id=new_client.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error converting prospect to client: {str(e)}', 'error')
+                current_app.logger.error(f"Error converting prospect {prospect_id} to client: {str(e)}\n{traceback.format_exc()}")
+                return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
+                
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing conversion: {str(e)}', 'error')
+        current_app.logger.error(f"Error in convert_to_client for prospect {prospect_id}: {str(e)}\n{traceback.format_exc()}")
+        return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
 
 @user_bp.route('/register_client/<submission_id>', methods=['GET', 'POST'])
 @login_required

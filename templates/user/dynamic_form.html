@@ -25,7 +25,7 @@
 
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_code=module.code) }}" class="divide-y divide-gray-200">
+            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" class="divide-y divide-gray-200">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 {% for section in sections %}

@@ -13,6 +13,7 @@ from .calendar_event import CalendarEvent
 from .guarantor import Guarantor
 from .collection_schedule import CollectionSchedule, CollectionScheduleProgress
 from .workflow import Workflow, CollectionWorkflowStep
+from .prospect_registration import ProspectRegistration
 
 __all__ = [
     'db',
@@ -30,5 +31,6 @@ __all__ = [
     'CollectionSchedule',
     'CollectionScheduleProgress',
     'Workflow',
-    'CollectionWorkflowStep'
+    'CollectionWorkflowStep',
+    'ProspectRegistration'
 ]

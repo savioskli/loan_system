@@ -95,6 +95,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
@@ -107,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     role_id: roleId,
@@ -115,18 +117,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     has_access: hasAccess
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (!data.success) {
                     // Revert the checkbox if the update failed
                     this.checked = !hasAccess;
-                    alert('Failed to update access settings: ' + (data.error || 'Unknown error'));
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Update Failed',
+                        text: data.error || 'Unknown error occurred'
+                    });
+                } else {
+                    // Show success toast
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    Toast.fire({
+                        icon: 'success',
+                        title: 'Access updated successfully'
+                    });
                 }
             })
             .catch(error => {
                 // Revert the checkbox if there was an error
                 this.checked = !hasAccess;
-                alert('Error updating access settings: ' + error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to update access settings: ' + error.message
+                });
             });
         });
     });

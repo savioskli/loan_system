@@ -22,6 +22,8 @@ modules_bp = Blueprint('modules', __name__)
 @modules_bp.route('/manage-role-access', methods=['GET', 'POST'])
 @login_required
 def manage_role_access():
+    if request.method == 'POST' and not request.is_json:
+        return jsonify({'success': False, 'error': 'Invalid content type'}), 400
     roles = Role.query.all()
     modules = Module.query.all()
     

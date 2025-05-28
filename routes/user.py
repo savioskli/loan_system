@@ -111,12 +111,12 @@ def dashboard():
                     'active_children': []
                 }
                 
-                # Get active child modules that user has access to
+                # Get active child modules that user has access to, ordered by order and then name
                 children = Module.query.filter(
                     Module.is_active == True,
                     Module.parent_id == module.id,
                     Module.id.in_(accessible_module_ids)
-                ).order_by(Module.name).all()
+                ).order_by(Module.order, Module.name).all()
                 
                 for child in children:
                     child_data = {
@@ -132,8 +132,8 @@ def dashboard():
                 if module_data['active_children'] or module_data['url']:
                     sidebar_modules.append(module_data)
         
-        # Sort sidebar modules by name
-        sidebar_modules.sort(key=lambda x: x['name'])
+        # Sort sidebar modules by order (if available) and then by name
+        sidebar_modules.sort(key=lambda x: (x.get('order', float('inf')), x['name']))
         
         # Get client management modules (only child modules)
         client_modules = Module.query.filter(

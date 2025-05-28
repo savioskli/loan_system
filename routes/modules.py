@@ -8,6 +8,7 @@ from models.form_submission import FormSubmission
 from forms.module_forms import ModuleForm, FormFieldForm, DynamicFormFieldForm
 from extensions import db
 from models.role import Role
+from models.module_role_access import ModuleRoleAccess
 from utils.module_utils import generate_module_code
 from utils.dynamic_tables import create_or_update_module_table
 from utils.table_utils import create_module_table
@@ -17,6 +18,71 @@ import traceback
 from datetime import datetime
 
 modules_bp = Blueprint('modules', __name__)
+
+@modules_bp.route('/manage-role-access', methods=['GET', 'POST'])
+@login_required
+def manage_role_access():
+    roles = Role.query.all()
+    modules = Module.query.all()
+    
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            role_id = data.get('role_id')
+            module_id = data.get('module_id')
+            access_type = data.get('access_type')  # 'create', 'read', 'update', or 'delete'
+            has_access = data.get('has_access', False)
+            
+            access = ModuleRoleAccess.query.filter_by(
+                role_id=role_id,
+                module_id=module_id
+            ).first()
+            
+            if not access:
+                access = ModuleRoleAccess(
+                    role_id=role_id,
+                    module_id=module_id,
+                    can_create=False,
+                    can_read=False,
+                    can_update=False,
+                    can_delete=False
+                )
+                db.session.add(access)
+            
+            # Update the specific access type
+            if access_type == 'create':
+                access.can_create = has_access
+            elif access_type == 'read':
+                access.can_read = has_access
+            elif access_type == 'update':
+                access.can_update = has_access
+            elif access_type == 'delete':
+                access.can_delete = has_access
+            
+            db.session.commit()
+            return jsonify({'success': True})
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+    
+    # Get existing access settings
+    access_settings = {}
+    for access in ModuleRoleAccess.query.all():
+        key = f"{access.role_id}-{access.module_id}"
+        access_settings[key] = {
+            'create': access.can_create,
+            'read': access.can_read,
+            'update': access.can_update,
+            'delete': access.can_delete
+        }
+    
+    return render_template(
+        'admin/modules/role_access.html',
+        roles=roles,
+        modules=modules,
+        access_settings=access_settings
+    )
 
 @modules_bp.route('/reorder-main', methods=['POST'])
 @login_required

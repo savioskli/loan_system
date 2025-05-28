@@ -7,10 +7,16 @@
     <div class="px-4 py-6 sm:px-0">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-semibold text-gray-900">Module Management</h1>
-            <a href="{{ url_for('modules.create_module') }}" 
-               class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded">
-                Create New Module
-            </a>
+            <div class="flex space-x-4">
+                <a href="{{ url_for('modules.create_module') }}" 
+                   class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded">
+                    Create New Module
+                </a>
+                <a href="{{ url_for('modules.manage_role_access') }}" 
+                   class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded">
+                    Manage Role Access
+                </a>
+            </div>
         </div>
 
         <!-- Client Modules Section -->

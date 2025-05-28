@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Module Role Access{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <div class="mb-6">
+            <h1 class="text-2xl font-semibold text-gray-900">Manage Module Role Access</h1>
+            <p class="mt-2 text-sm text-gray-600">Configure CRUD permissions for each role and module combination.</p>
+        </div>
+
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Module / Role
+                                </th>
+                                {% for role in roles %}
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {{ role.name }}
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for module in modules %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ module.name }}
+                                </td>
+                                {% for role in roles %}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div class="space-y-2">
+                                        {% set key = role.id|string + '-' + module.id|string %}
+                                        {% set access = access_settings.get(key, {}) %}
+                                        
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" 
+                                                   class="form-checkbox h-4 w-4 text-primary"
+                                                   data-role="{{ role.id }}"
+                                                   data-module="{{ module.id }}"
+                                                   data-access-type="create"
+                                                   {% if access.get('create', false) %}checked{% endif %}>
+                                            <span>Create</span>
+                                        </label>
+                                        
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" 
+                                                   class="form-checkbox h-4 w-4 text-primary"
+                                                   data-role="{{ role.id }}"
+                                                   data-module="{{ module.id }}"
+                                                   data-access-type="read"
+                                                   {% if access.get('read', false) %}checked{% endif %}>
+                                            <span>Read</span>
+                                        </label>
+                                        
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" 
+                                                   class="form-checkbox h-4 w-4 text-primary"
+                                                   data-role="{{ role.id }}"
+                                                   data-module="{{ module.id }}"
+                                                   data-access-type="update"
+                                                   {% if access.get('update', false) %}checked{% endif %}>
+                                            <span>Update</span>
+                                        </label>
+                                        
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" 
+                                                   class="form-checkbox h-4 w-4 text-primary"
+                                                   data-role="{{ role.id }}"
+                                                   data-module="{{ module.id }}"
+                                                   data-access-type="delete"
+                                                   {% if access.get('delete', false) %}checked{% endif %}>
+                                            <span>Delete</span>
+                                        </label>
+                                    </div>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const roleId = this.dataset.role;
+            const moduleId = this.dataset.module;
+            const accessType = this.dataset.accessType;
+            const hasAccess = this.checked;
+            
+            fetch('{{ url_for("modules.manage_role_access") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    role_id: roleId,
+                    module_id: moduleId,
+                    access_type: accessType,
+                    has_access: hasAccess
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert the checkbox if the update failed
+                    this.checked = !hasAccess;
+                    alert('Failed to update access settings: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert the checkbox if there was an error
+                this.checked = !hasAccess;
+                alert('Error updating access settings: ' + error);
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

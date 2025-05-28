@@ -139,6 +139,7 @@ def index():
             'description': module.description,
             'parent_id': module.parent_id,
             'order': module.order if module.order is not None else float('inf'),
+            'is_active': bool(module.is_active) if module.is_active is not None else False,
             'children': []
         })
     

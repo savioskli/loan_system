@@ -119,44 +119,52 @@ def reorder_main_modules():
 @modules_bp.route('/')
 @login_required
 def index():
-    print(f"Current user: {current_user.username}")
-    print(f"Current user role ID: {current_user.role_id}")
-    print(f"Current user role: {current_user.role}")
-    if current_user.role:
-        print(f"Role name: {current_user.role.name}")
-    
-    # List all roles
-    all_roles = Role.query.all()
-    print("Available roles:")
-    for role in all_roles:
-        print(f"- {role.name} (ID: {role.id})")
-    
     if not current_user.role or current_user.role.name.lower() != 'admin':
         flash('Access denied.', 'error')
         return redirect(url_for('main.index'))
     
-    # Get all modules and organize them hierarchically
-    def build_module_tree(modules, parent_id=None, level=0):
-        # Only children of this parent
-        children = [m for m in modules if m.parent_id == parent_id]
-        # Sort children by their 'order' (ascending, fallback to 0)
-        children.sort(key=lambda m: m.order if m.order is not None else 0)
-        for child in children:
-            print('  ' * level + f"order={child.order}, id={child.id}, name={child.name}, parent_id={child.parent_id}")
-            child.children = build_module_tree(modules, child.id, level+1)
-        return children
-
-    # Get system modules first (these are root nodes)
-    system_modules = Module.query.filter_by(is_system=True, is_active=True, organization_id=1).order_by(Module.parent_id, Module.order).all()
+    # Get all active modules for the current organization
+    all_modules = Module.query.filter_by(
+        organization_id=1,
+        is_active=True
+    ).all()
     
-    # Get all non-system modules
-    regular_modules = Module.query.filter_by(is_system=False, organization_id=1).order_by(Module.parent_id, Module.order).all()
+    # Convert to a list of dictionaries to avoid SQLAlchemy relationship issues
+    modules_data = []
+    for module in all_modules:
+        modules_data.append({
+            'id': module.id,
+            'name': module.name,
+            'code': module.code,
+            'description': module.description,
+            'parent_id': module.parent_id,
+            'order': module.order if module.order is not None else float('inf'),
+            'children': []
+        })
     
-    # Build the tree starting with system modules
-    modules = build_module_tree(system_modules + regular_modules)
+    # Organize modules into a dictionary by parent_id
+    modules_by_parent = {}
+    for module in modules_data:
+        parent_id = module['parent_id'] if module['parent_id'] is not None else 'root'
+        if parent_id not in modules_by_parent:
+            modules_by_parent[parent_id] = []
+        modules_by_parent[parent_id].append(module)
     
-    print(f"Found {len(system_modules)} system modules and {len(regular_modules)} regular modules")
-    return render_template('admin/modules/index.html', modules=modules)
+    # Get root modules (modules with no parent)
+    root_modules = modules_by_parent.get('root', [])
+    
+    # For each root module, add its children and sort them
+    for module in root_modules:
+        children = modules_by_parent.get(module['id'], [])
+        # Sort children by order, then by name
+        module['children'] = sorted(children, key=lambda x: (x['order'], x['name']))
+    
+    # Sort root modules by order, then by name
+    root_modules = sorted(root_modules, key=lambda x: (x['order'], x['name']))
+    
+    return render_template('admin/modules/index.html', 
+                         modules=root_modules,
+                         modules_by_parent=modules_by_parent)
 
 @modules_bp.route('/create', methods=['GET', 'POST'])
 @login_required

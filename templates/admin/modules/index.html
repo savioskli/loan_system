@@ -33,7 +33,7 @@
                             Code
                         </th>
                         <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Parent
+                            Order
                         </th>
                         <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Status
@@ -45,74 +45,75 @@
                 </thead>
                 <tbody>
                     {% macro render_module(module, level=0) %}
-                    <tr class="hover:bg-gray-50" data-module-id="{{ module.id }}">
-    <td class="px-2 py-5 border-b border-gray-200 bg-white text-sm drag-cell" style="width:40px;">
-        <span class="drag-handle flex items-center justify-center text-blue-600 hover:text-blue-800 cursor-grab" style="font-size: 1.5rem; min-width: 2rem;">
-            <i class="fas fa-grip-vertical"></i>
-        </span>
-    </td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <div class="flex items-center">
-                                <div class="ml-{{ level * 6 }}">
-                                    <p class="text-gray-900 whitespace-no-wrap flex items-center">
-                                        {% if level > 0 %}
-                                            <span class="text-gray-400 mr-2">└─</span>
-                                        {% endif %}
-                                        {{ module.name }}
-                                    </p>
+                        <tr class="hover:bg-gray-50" data-module-id="{{ module['id'] }}">
+                            <td class="px-2 py-5 border-b border-gray-200 bg-white text-sm drag-cell" style="width:40px;">
+                                <span class="drag-handle flex items-center justify-center text-blue-600 hover:text-blue-800 cursor-grab" style="font-size: 1.5rem; min-width: 2rem;">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </span>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <div class="flex items-center">
+                                    <div class="ml-{{ level * 6 }}">
+                                        <p class="text-gray-900 whitespace-nowrap flex items-center">
+                                            {% if level > 0 %}
+                                                <span class="text-gray-400 mr-2">
+                                                    {% for i in range(level) %}&nbsp;&nbsp;{% endfor %}└─
+                                                </span>
+                                            {% endif %}
+                                            {{ module['name'] }}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <p class="text-gray-900 whitespace-no-wrap">{{ module.code }}</p>
-                        </td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <p class="text-gray-900 whitespace-no-wrap">
-                                {{ module.parent.name if module.parent else '-' }}
-                            </p>
-                        </td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <span class="relative inline-block px-3 py-1 font-semibold {% if module.is_active %}text-green-900{% else %}text-red-900{% endif %} leading-tight">
-                                <span aria-hidden class="absolute inset-0 {% if module.is_active %}bg-green-200{% else %}bg-red-200{% endif %} opacity-50 rounded-full"></span>
-                                <span class="relative">{{ 'Active' if module.is_active else 'Inactive' }}</span>
-                            </span>
-                        </td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <div class="flex space-x-3">
-                                <a href="{{ url_for('modules.list_fields', id=module.id) }}" 
-                                   class="text-indigo-600 hover:text-indigo-900" title="Manage Fields">
-                                    <i class="fas fa-list-ul"></i>
-                                </a>
-                                <a href="{{ url_for('modules.edit', id=module.id) }}" 
-                                   class="text-blue-600 hover:text-blue-900" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button onclick="deleteModule({{ module.id }})"
-                                        class="text-red-600 hover:text-red-900 border-none bg-transparent cursor-pointer" 
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <p class="text-gray-900 whitespace-nowrap">{{ module['code'] }}</p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <p class="text-gray-900 whitespace-nowrap">
+                                    {{ module['order'] | default(0) }}
+                                </p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <span class="relative inline-block px-3 py-1 font-semibold {% if module['is_active'] %}text-green-900{% else %}text-red-900{% endif %} leading-tight">
+                                    <span aria-hidden class="absolute inset-0 {% if module['is_active'] %}bg-green-200{% else %}bg-red-200{% endif %} opacity-50 rounded-full"></span>
+                                    <span class="relative">{{ 'Active' if module['is_active'] else 'Inactive' }}</span>
+                                </span>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <div class="flex space-x-3">
+                                    <a href="{{ url_for('modules.list_fields', id=module['id']) }}" 
+                                       class="text-indigo-600 hover:text-indigo-900" title="Manage Fields">
+                                        <i class="fas fa-list-ul"></i>
+                                    </a>
+                                    <a href="{{ url_for('modules.edit', id=module['id']) }}" 
+                                       class="text-blue-600 hover:text-blue-900" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button 
+                                        onclick="deleteModule({{ module['id'] }})"
+                                        class="text-red-600 hover:text-red-900 border-none bg-transparent cursor-pointer"
                                         title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% if module.children %}
-                        {% for child in module.children %}
-                            {{ render_module(child, level + 1) }}
-                        {% endfor %}
-                    {% endif %}
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% if module['children'] %}
+                            {% for child in module['children'] %}
+                                {{ render_module(child, level + 1) }}
+                            {% endfor %}
+                        {% endif %}
                     {% endmacro %}
 
-                    {% if modules %}
-                        {% for module in modules %}
-                            {{ render_module(module) }}
-                        {% endfor %}
+                    {% for module in modules %}
+                        {{ render_module(module) }}
                     {% else %}
-                    <tr>
-                        <td colspan="5" class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
-                            No modules found.
-                        </td>
-                    </tr>
-                    {% endif %}
+                        <tr>
+                            <td colspan="6" class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                                No modules found.
+                            </td>
+                        </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -122,39 +123,40 @@
 <!-- Drag-and-drop sorting for modules -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 <script>
-console.log('MODULE INDEX SCRIPT LOADED');
 document.addEventListener('DOMContentLoaded', function() {
-    const tbody = document.querySelector('table tbody');
+    const tbody = document.querySelector('tbody');
     if (tbody) {
         new Sortable(tbody, {
-            animation: 150,
             handle: '.drag-handle',
-            ghostClass: 'bg-gray-100',
-            draggable: 'tr',
+            animation: 150,
             onEnd: function(evt) {
-                const rows = Array.from(tbody.querySelectorAll('tr[data-module-id]'));
-                const updates = rows.map((row, index) => ({
-                    id: row.getAttribute('data-module-id'),
-                    order: index + 1
-                }));
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                fetch('/modules/reorder-main', {
+                const modules = [];
+                tbody.querySelectorAll('tr[data-module-id]').forEach((row, index) => {
+                    modules.push({
+                        id: row.getAttribute('data-module-id'),
+                        order: index + 1
+                    });
+                });
+
+                fetch('{{ url_for("modules.reorder_main_modules") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                        'X-CSRFToken': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ modules: updates })
+                    body: JSON.stringify({ modules: modules })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (!data.success) {
-                        alert('Failed to update module order');
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to update module order: ' + (data.message || 'Unknown error'));
                     }
-                    console.log('Reorder response:', data);
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    alert('An error occurred while updating the module order.');
                 });
             }
         });
@@ -162,66 +164,33 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script>
-async function deleteModule(moduleId) {
-    console.log(`Attempting to delete module: ${moduleId}`);
-    
-    if (!confirm('Are you sure you want to delete this module and all its dependencies? This action cannot be undone.')) {
-        console.log('Delete cancelled by user');
-        return;
-    }
-    
-    console.log('Delete confirmed, sending request...');
-    
-    try {
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        
-        const response = await fetch(`/modules/delete/${moduleId}`, {
-            method: 'POST',
+function deleteModule(moduleId) {
+    if (confirm('Are you sure you want to delete this module? This action cannot be undone.')) {
+        fetch(`/modules/${moduleId}`, {
+            method: 'DELETE',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin'
-        });
-        
-        console.log('Response status:', response.status);
-        
-        // Try to parse the response as JSON
-        let data;
-        try {
-            const responseText = await response.text();
-            console.log('Response text:', responseText);
-            
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.log('Failed to parse response as JSON:', parseError);
-                throw new Error('Server returned an invalid response. Please try again or contact support.');
+                'X-CSRFToken': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
             }
-        } catch (error) {
-            console.log('Error reading response:', error);
-            throw new Error('Failed to read server response. Please try again.');
-        }
-        
-        if (!response.ok) {
-            throw new Error(data.message || `Server returned ${response.status}`);
-        }
-        
-        // Show success message
-        showAlert('success', data.message);
-        
-        // Remove the module row from the table
-        const row = document.querySelector(`tr[data-module-id="${moduleId}"]`);
-        if (row) {
-            row.remove();
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showAlert('error', error.message || 'Failed to delete module. Please try again.');
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the module row from the table
+                const row = document.querySelector(`tr[data-module-id="${moduleId}"]`);
+                if (row) {
+                    row.remove();
+                }
+                // Show success message
+                showAlert('success', 'Module deleted successfully');
+            } else {
+                showAlert('error', 'Failed to delete module: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'An error occurred while deleting the module.');
+        });
     }
 }
 

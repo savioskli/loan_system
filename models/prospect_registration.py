@@ -28,9 +28,8 @@ class ProspectRegistration(db.Model):
     county = db.Column(db.String(100))
     status = db.Column(db.String(255))
     
-    # Client type relationship
-    client_type_id = db.Column(db.Integer, db.ForeignKey('client_types.id'), nullable=True)
-    client_type = db.relationship('ClientType', backref='prospects')
+    # Client type (stored as string in the database)
+    client_type = db.Column(db.String(255), nullable=True)
     
     # Product relationship
     # product = db.relationship('Product', backref='prospects')

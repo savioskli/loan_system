@@ -28,8 +28,11 @@ class ProspectRegistration(db.Model):
     county = db.Column(db.String(100))
     status = db.Column(db.String(255))
     
-    # Relationships (only add if the foreign keys exist in the database)
-    # client_type = db.relationship('ClientType', backref='prospects')
+    # Client type relationship
+    client_type_id = db.Column(db.Integer, db.ForeignKey('client_types.id'), nullable=True)
+    client_type = db.relationship('ClientType', backref='prospects')
+    
+    # Product relationship
     # product = db.relationship('Product', backref='prospects')
     
     # Note: The following columns are commented out as they don't exist in the database

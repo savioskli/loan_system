@@ -1,5 +1,6 @@
 from app import create_app
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 from extensions import db
 
 def add_form_field(module_id, field_name, field_label, field_type, is_required=False, field_placeholder='', options=None, max_order=0):

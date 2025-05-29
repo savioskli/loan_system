@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 from flask_login import login_required, current_user
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 from models.client_type import ClientType
 from models.form_section import FormSection
 from models.form_submission import FormSubmission
@@ -528,23 +529,59 @@ def create_field(id):
         if section_id == 0:  # Convert 0 to None for section_id
             section_id = None
             
-        field = FormField(
-            module_id=id,
-            organization_id=module.organization_id,  # Get organization_id from the module
-            field_name=field_data['field_name'],
-            field_label=field_data['field_label'],
-            field_type=field_type,
-            field_placeholder=field_data.get('field_placeholder'),
-            validation_text=field_data.get('validation_text'),
-            validation_rules=validation_rules,
-            is_required=field_data['is_required'],
-            section_id=section_id,
-            client_type_restrictions=field_data.get('client_type_restrictions', []),
-            field_order=max_order + 1,
-            is_system=is_system,
-            system_reference_field_id=system_reference_field_id,
-            reference_field_code=reference_field_code
-        )
+        # Get system field properties from form data
+        is_system = field_data.get('is_system', False)
+        system_reference_field_id = field_data.get('system_reference_field_id')
+        reference_field_code = None  # This should be set based on your requirements
+        
+        # Get the current organization ID from the session or request
+        from flask import session
+        organization_id = session.get('organization_id', 1)  # Default to 1 if not set
+        
+        # Prepare field data with all required fields
+        field_attrs = {
+            'module_id': id,
+            'organization_id': organization_id,
+            'field_name': field_data['field_name'],
+            'field_label': field_data['field_label'],
+            'field_type': field_type,
+            'field_order': max_order + 1,
+            'is_required': field_data.get('is_required', False),
+            'section_id': section_id,
+            'is_system': is_system,
+            'validation_rules': validation_rules or {}
+        }
+        
+        # Add optional fields if they exist and are not None
+        optional_fields = [
+            'field_placeholder', 'validation_text', 'client_type_restrictions',
+            'reference_field_code', 'validation_rules'
+        ]
+        
+        for field_name in optional_fields:
+            if field_data.get(field_name) is not None:
+                field_attrs[field_name] = field_data[field_name]
+        
+        # Handle special cases
+        if system_reference_field_id:
+            field_attrs['system_reference_field_id'] = system_reference_field_id
+            
+        if field_type in ['select', 'radio', 'checkbox'] and options:
+            field_attrs['options'] = options
+            
+        if validation_rules and 'depends_on' in validation_rules and 'field' in validation_rules['depends_on']:
+            field_attrs['depends_on'] = validation_rules['depends_on']['field']
+        
+        try:
+            # Create the field with all the prepared data
+            field = FormField(**field_attrs)
+            db.session.add(field)
+            db.session.commit()
+            current_app.logger.info(f"Field {field.field_name} created successfully")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating field: {str(e)}")
+            raise
         
         if field_type in ['select', 'radio', 'checkbox']:
             field.options = options

@@ -30,7 +30,8 @@ from models.system_settings import SystemSettings
 from models.activity_log import ActivityLog
 from models.branch import Branch
 from models.role import Role
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 from models.sms_template import SMSTemplate, TemplateType
 from models.email_template import EmailTemplate, EmailTemplateType
 from models.sms_log import SMSLog
@@ -215,7 +216,8 @@ def create_app():
             from models.system_settings import SystemSettings
             from models.staff import Staff
             from models.role import Role
-            from models.module import Module, FormField
+            from models.module import Module
+            from models.form_field import FormField
             from models.sms_template import SMSTemplate, TemplateType
             from models.email_template import EmailTemplate, EmailTemplateType
             from models.sms_log import SMSLog

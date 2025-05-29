@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from models.field_dependency import FieldDependency
-from models.module import FormField
+from models.form_field import FormField
 from extensions import db
 from flask_login import login_required, current_user
 

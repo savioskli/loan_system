@@ -14,7 +14,8 @@ from flask import Blueprint, render_template, request, jsonify, current_app, red
 import uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 from models.crb_report import CRBReport
 from models.credit_bureau import CreditBureau
 from models.staff import Staff
@@ -365,6 +366,34 @@ def submit_form(module_id):
             submission.is_converted = True
         
         db.session.add(submission)
+        
+        # If this is a prospect registration module (CLM01), create a ProspectRegistration record
+        if module.code == 'CLM01':
+            from models.prospect_registration import ProspectRegistration
+            
+            # Create a new ProspectRegistration record
+            prospect = ProspectRegistration(
+                first_name=form_data.get('first_name', ''),
+                middle_name=form_data.get('middle_name', ''),
+                last_name=form_data.get('last_name', ''),
+                gender=form_data.get('gender', ''),
+                identification_type=form_data.get('id_type', ''),
+                identification_number=form_data.get('id_number', ''),
+                serial_number=form_data.get('serial_number', ''),
+                birth_date=form_data.get('date_of_birth'),
+                mobile_number=form_data.get('mobile_number', ''),
+                email_address=form_data.get('email_address', ''),
+                postal_address=form_data.get('postal_address', ''),
+                postal_code=form_data.get('postal_code', ''),
+                postal_town=form_data.get('postal_town', ''),
+                county=form_data.get('county', ''),
+                status='pending',
+                client_type_id=client_type_id,
+                created_by=current_user.id
+            )
+            
+            db.session.add(prospect)
+        
         db.session.commit()
         
         flash('Form submitted successfully!', 'success')
@@ -416,8 +445,10 @@ def manage_module(module_id):
             
             # Apply client type filter if specified
             if selected_type != 'all':
-                query = query.join(ClientType, ProspectRegistration.client_type_id == ClientType.id).\
-                    filter(ClientType.client_code == selected_type)
+                # First get the client type ID from the code
+                client_type = ClientType.query.filter_by(client_code=selected_type).first()
+                if client_type:
+                    query = query.filter(ProspectRegistration.client_type_id == client_type.id)
             
             # Get submissions from prospect_registration_data table
             submissions = query.order_by(ProspectRegistration.created_at.desc()).all()

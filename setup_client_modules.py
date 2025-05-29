@@ -1,6 +1,7 @@
 from flask import Flask
 from extensions import db
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 from models.staff import Staff
 from models.role import Role
 from models.form_section import FormSection

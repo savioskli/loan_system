@@ -1,7 +1,8 @@
 from flask import current_app
 from extensions import db
 from sqlalchemy import text, MetaData, Table, Column, Integer, String, DateTime, Boolean, Float, ForeignKey
-from models.module import Module, FormField
+from models.module import Module
+from models.form_field import FormField
 import logging
 import traceback
 

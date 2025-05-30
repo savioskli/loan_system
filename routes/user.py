@@ -210,8 +210,8 @@ def dynamic_form(module_id):
             flash('No model found for this module. Please check the module configuration.', 'error')
             return redirect(url_for('user.dashboard'))
         
-        # Get form fields from the model structure
-        form_fields = get_form_fields_from_model(model_class)
+        # Get form fields from the form_fields table for this module
+        form_fields = get_form_fields_from_model(model_class, module_id=module_id)
         
         # Group fields into a single section for now
         # You can enhance this to use actual sections from the database if needed

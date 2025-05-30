@@ -53,61 +53,67 @@ def get_table_structure(model_class):
     
     return structure
 
-def get_form_fields_from_model(model_class):
+def get_form_fields_from_model(model_class, module_id=None):
     """
-    Convert a SQLAlchemy model structure into form field definitions.
+    Fetch form field definitions from the form_fields table for a given module.
+    
+    Args:
+        model_class: The SQLAlchemy model class (unused, kept for backward compatibility)
+        module_id: The ID of the module to fetch fields for
+        
+    Returns:
+        List of form field definitions
     """
-    structure = get_table_structure(model_class)
-    if not structure:
+    from models.form_field import FormField
+    from models.form_section import FormSection
+    
+    if not module_id:
         return []
+    
+    # Get all active sections for this module, ordered by section order
+    sections = FormSection.query.filter_by(
+        module_id=module_id,
+        is_active=True
+    ).order_by(FormSection.order.asc()).all()
     
     form_fields = []
     
-    # Skip these standard columns as they're typically not needed in forms
-    skip_columns = {'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'}
+    # Get all fields for this module, ordered by field_order
+    query = FormField.query.filter_by(
+        module_id=module_id
+    ).order_by(FormField.field_order.asc())
     
-    for column in structure['columns']:
-        if column['name'] in skip_columns:
-            continue
-            
-        field = {
-            'field_name': column['name'],
-            'field_label': ' '.join(word.capitalize() for word in column['name'].split('_')),
-            'field_type': 'text',  # Default type
-            'is_required': not column['nullable'],
-            'default_value': column['default']
+    fields = query.all()
+    
+    # Convert FormField objects to dictionary format expected by the template
+    for field in fields:
+        field_dict = {
+            'id': field.id,
+            'field_name': field.field_name,
+            'field_label': field.field_label,
+            'field_placeholder': field.field_placeholder,
+            'field_type': field.field_type,
+            'is_required': field.is_required,
+            'field_order': field.field_order,
+            'section_id': field.section_id,
+            'section_name': field.section.name if field.section else None,
+            'options': field.options or [],
+            'validation_rules': field.validation_rules or {},
+            'client_type_restrictions': field.client_type_restrictions or [],
+            'depends_on': field.depends_on,
+            'reference_field_code': field.reference_field_code,
+            'is_cascading': field.is_cascading,
+            'parent_field_id': field.parent_field_id,
+            'is_system': field.is_system,
+            'system_reference_field_id': field.system_reference_field_id
         }
         
-        # Map SQL types to form field types
-        column_type = column['type'].lower()
-        if 'varchar' in column_type or 'char' in column_type or 'text' in column_type:
-            field['field_type'] = 'text'
-            if 'email' in column['name']:
-                field['field_type'] = 'email'
-            elif 'phone' in column['name'] or 'mobile' in column['name'] or 'tel' in column['name']:
-                field['field_type'] = 'tel'
-                field['validation'] = {'pattern': '[0-9]{10,}'}
-                field['hint'] = 'Format: 07XXXXXXXX or +254XXXXXXXXX'
-        elif 'int' in column_type or 'decimal' in column_type or 'float' in column_type or 'numeric' in column_type:
-            field['field_type'] = 'number'
-            if 'decimal' in column_type or 'numeric' in column_type or 'float' in column_type:
-                field['step'] = '0.01'
-        elif 'date' in column_type or 'time' in column_type:
-            field['field_type'] = 'date'
-        elif 'boolean' in column_type:
-            field['field_type'] = 'checkbox'
-        elif 'enum' in column_type:
-            field['field_type'] = 'select'
-            # Extract enum values
-            enum_values = column_type.replace('enum(', '').replace(')', '').replace("'", '').split(',')
-            field['options'] = [{'value': v, 'label': v.replace('_', ' ').title()} for v in enum_values]
+        # Add validation attributes if they exist
+        if field.validation_rules:
+            for rule, value in field.validation_rules.items():
+                field_dict[rule] = value
         
-        # Handle foreign keys as select fields
-        if column['foreign_key']:
-            field['field_type'] = 'select'
-            field['related_model'] = column['foreign_key']['target_table']
-            
-        form_fields.append(field)
+        form_fields.append(field_dict)
     
     return form_fields
 

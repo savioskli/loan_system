@@ -194,6 +194,7 @@ def dynamic_form(module_id):
     try:
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
+        from utils.table_inspector import get_model_by_module_id, get_form_fields_from_model
         
         # Find the module by ID
         module = Module.query.get_or_404(module_id)
@@ -203,54 +204,39 @@ def dynamic_form(module_id):
             flash('You do not have permission to submit forms for this module.', 'error')
             return redirect(url_for('user.dashboard'))
         
-        # Get module sections with fields
-        sections = FormSection.query.filter_by(
-            module_id=module.id,
-            is_active=True
-        ).order_by(FormSection.order).all()
+        # Get the model class for this module
+        model_class = get_model_by_module_id(module_id)
+        if not model_class:
+            flash('No model found for this module. Please check the module configuration.', 'error')
+            return redirect(url_for('user.dashboard'))
         
-        # Get client types and products
-        client_types = ClientType.query.filter_by(status=True).all()
-        products = Product.query.filter_by(status='Active').all()
-
-        # ID types configuration
-        ID_TYPES = [
-            {'value': 'National ID', 'label': 'National ID'},
-            {'value': 'Passport', 'label': 'Passport'},
-            {'value': 'Alien ID', 'label': 'Alien ID'},
-            {'value': 'Military ID', 'label': 'Military ID'}
-        ]
-
-        # Postal towns list - Comprehensive list of Kenya's major postal towns
-        POSTAL_TOWNS = [
-            'Baringo', 'Bomet', 'Bondo', 'Bungoma', 'Busia', 'Butere',
-            'Chogoria', 'Chuka', 'Dandora', 'Eastleigh', 'Eldama Ravine', 'Eldoret', 
-            'Emali', 'Embu', 'Garissa', 'Gatundu', 'Gede', 'Gilgil', 'Githunguri',
-            'Hola', 'Homabay', 'Industrial Area', 'Isiolo', 'Kabarnet', 'Kajiado',
-            'Kakamega', 'Kakuma', 'Kaloleni', 'Kandara', 'Kangema', 'Kangundo', 'Karen',
-            'Karatina', 'Kericho', 'Keroka', 'Kerugoya', 'Kiambu', 'Kibwezi', 'Kilifi',
-            'Kimilili', 'Kinango', 'Kipkelion', 'Kisii', 'Kisumu', 'Kitale', 'Kitengela',
-            'Kitui', 'Kwale', 'Lamu', 'Langata', 'Lare', 'Limuru', 'Lodwar', 'Lokichoggio',
-            'Londiani', 'Luanda', 'Lugari', 'Machakos', 'Makindu', 'Malaba', 'Malindi',
-            'Maragoli', 'Maralal', 'Mariakani', 'Maseno', 'Maua', 'Mbale', 'Meru',
-            'Migori', 'Mombasa', 'Moyale', 'Mpeketoni', 'Mtito Andei', 'Muhoroni',
-            'Mumias', 'Muranga', 'Mwatate', 'Mwingi', 'Nairobi GPO', 'Naivasha',
-            'Nakuru', 'Namanga', 'Nandi Hills', 'Nanyuki', 'Narok', 'Ngong',
-            'Nyahururu', 'Nyamira', 'Nyeri', 'Olenguruone', 'Oyugis', 'Parklands',
-            'Rongo', 'Ruiru', 'Sagana', 'Sarit Centre', 'Shimoni', 'Siaya', 'Sidindi',
-            'Suba', 'Taveta', 'Thika', 'Timau', 'Ukunda', 'Vihiga', 'Voi', 'Wajir',
-            'Watamu', 'Webuye', 'Westlands', 'Witu', 'Wote', 'Wundanyi', 'Yala'
-        ]
+        # Get form fields from the model structure
+        form_fields = get_form_fields_from_model(model_class)
         
-        # Render the form template
+        # Group fields into a single section for now
+        # You can enhance this to use actual sections from the database if needed
+        sections = [{
+            'id': 1,
+            'name': 'General Information',
+            'description': 'Please fill in the following details',
+            'order': 1,
+            'fields': form_fields
+        }]
+        
+        # Get current date for date fields
+        from datetime import datetime
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        
+        # Render the form template with only the dynamic sections
         return render_with_modules('user/dynamic_form.html',
                             module=module,
                             sections=sections,
-                            client_types=client_types,
-                            products=products,
+                            current_date=current_date,
+                            # All other data will be loaded dynamically via AJAX if needed
+                            client_types=[],
+                            products=[],
                             counties=[],
-                            id_types=ID_TYPES,
-                            postal_towns=sorted(POSTAL_TOWNS))  # Sort alphabetically
+                            id_types=[])
                             
     except Exception as e:
         current_app.logger.error(f"Error loading form: {str(e)}\n{traceback.format_exc()}")

@@ -25,7 +25,7 @@
 
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" class="divide-y divide-gray-200">
+            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" class="divide-y divide-gray-200" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 {% for section in sections %}
@@ -54,7 +54,9 @@
                                             class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
                                         <option value="">Select Client Type</option>
                                         {% for client_type in client_types %}
-                                        <option value="{{ client_type.id }}">{{ client_type.client_name }}</option>
+                                        <option value="{{ client_type.id }}" {% if field_value and field_value|int == client_type.id|int %}selected{% endif %}>
+                                            {{ client_type.client_name }}
+                                        </option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -63,12 +65,9 @@
                             
                             {% for field in section.fields %}
                             {% if field.field_name != 'client_type' %}
-                            <div class="form-group {% if field.field_type == 'textarea' %}sm:col-span-2{% endif %}"
+                            <div class="form-group {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}"
                                  data-field-name="{{ field.field_name }}"
-                                 {% if field.client_type_restrictions %}
-                                 data-client-types='{{ field.client_type_restrictions|tojson }}'
-                                 {% endif %}
-                                 style="display: {% if field.client_type_restrictions %}none{% else %}block{% endif %};">
+                                 style="display: block;">
                                 <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
                                     {{ field.field_label }}
                                     {% if field.is_required %}
@@ -76,7 +75,8 @@
                                     {% endif %}
                                 </label>
                                 
-                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'password', 'date'] %}
+                                <!-- Text, Email, Tel, Number, Date, Password -->
+                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
                                     <div class="relative rounded-md shadow-sm">
                                         <input type="{{ field.field_type }}"
                                                id="{{ field.field_name }}"
@@ -85,88 +85,117 @@
                                                {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                                {% if field.is_required %}required{% endif %}
                                                {% if field.field_type == 'tel' %}pattern="[0-9]{10,}"{% endif %}
-                                               {% if field.field_type == 'number' %}step="any"{% endif %}
-                                               {% if field.field_type == 'date' %}max="{{ '2024-12-11' }}"{% endif %}
-                                               {% if field.field_name == 'id_number' %}maxlength="8"{% endif %}
-                                               aria-describedby="{{ field.field_name }}-description">
-                                    {% if field.field_type == 'tel' %}
-                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
-                                        Format: +254XXXXXXXXX or 07XXXXXXXX
+                                               {% if field.field_type == 'number' and field.get('step') %}step="{{ field.step }}"{% endif %}
+                                               {% if field.field_type == 'date' %}max="{{ current_date }}"{% endif %}
+                                               value="{{ field.value or '' }}"
+                                               {% if field.get('hint') %}aria-describedby="{{ field.field_name }}-hint"{% endif %}
+                                               {% if field.get('readonly') %}readonly{% endif %}>
+                                        
+                                        {% if field.get('hint') %}
+                                        <p id="{{ field.field_name }}-hint" class="mt-2 text-sm text-gray-500">
+                                            {{ field.hint }}
+                                        </p>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
-                                </div>
                                 
+                                <!-- Textarea -->
                                 {% elif field.field_type == 'textarea' %}
                                     <div class="relative rounded-md shadow-sm">
                                         <textarea id="{{ field.field_name }}"
                                                   name="{{ field.field_name }}"
-                                                  rows="4"
+                                                  rows="{{ field.rows|default(4) }}"
                                                   class="block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                   {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                                   {% if field.is_required %}required{% endif %}
-                                                  aria-describedby="{{ field.field_name }}-description"></textarea>
-                                    {% if field.field_name == 'address' %}
-                                    <div id="{{ field.field_name }}-description" class="text-sm text-gray-500 mt-1">
-                                        Enter complete physical address including landmarks
+                                                  {% if field.get('readonly') %}readonly{% endif %}>{{ field.value or '' }}</textarea>
                                     </div>
-                                    {% endif %}
-                                </div>
                                 
+                                <!-- Select Dropdown -->
                                 {% elif field.field_type == 'select' %}
                                     <div class="relative rounded-md shadow-sm">
                                         <select id="{{ field.field_name }}"
                                                 name="{{ field.field_name }}"
-                                                {% if field.depends_on %}
-                                                data-depends-on="{{ field.depends_on }}"
-                                                data-options='{{ field.options|tojson }}'
-                                                {% endif %}
                                                 class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                                {% if field.is_required %}required{% endif %}>
-                                            <option value="">{{ field.field_placeholder or 'Select an option' }}</option>
-                                            {% if not field.depends_on %}
-                                                {% for option in field.options %}
-                                                <option value="{{ option.value }}"
-                                                        {% if option.client_types %}data-client-types='{{ option.client_types|tojson }}'{% endif %}>
-                                                    {{ option.label }}
-                                                </option>
-                                                {% endfor %}
+                                                {% if field.is_required %}required{% endif %}
+                                                {% if field.get('multiple') %}multiple{% endif %}
+                                                {% if field.get('readonly') %}disabled{% endif %}>
+                                            {% if not field.get('multiple') %}
+                                            <option value="">Select {{ field.field_label }}</option>
                                             {% endif %}
+                                            
+                                            {% for option in field.options %}
+                                            <option value="{{ option.value }}" 
+                                                    {% if field.value == option.value %}selected{% endif %}>
+                                                {{ option.label }}
+                                            </option>
+                                            {% endfor %}
                                         </select>
                                     </div>
                                 
+                                <!-- Checkbox -->
+                                {% elif field.field_type == 'checkbox' %}
+                                    <div class="flex items-center">
+                                        <input type="checkbox"
+                                               id="{{ field.field_name }}"
+                                               name="{{ field.field_name }}"
+                                               value="1"
+                                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                               {% if field.value %}checked{% endif %}
+                                               {% if field.is_required %}required{% endif %}
+                                               {% if field.get('readonly') %}readonly disabled{% endif %}>
+                                        <label for="{{ field.field_name }}" class="ml-2 block text-sm text-gray-700">
+                                            {{ field.field_placeholder|default('') }}
+                                        </label>
+                                    </div>
+                                
+                                <!-- Radio Buttons -->
                                 {% elif field.field_type == 'radio' %}
-                                    <div class="mt-1 space-y-2">
-                                        <div class="bg-gray-50 px-4 py-3 rounded-md border border-gray-200">
-                                            <div class="flex flex-wrap gap-8">
-                                                {% if field.field_name == 'gender' %}
-                                                    <div class="flex items-center">
-                                                        <input type="radio" 
-                                                               id="{{ field.field_name }}_male" 
-                                                               name="{{ field.field_name }}" 
-                                                               value="Male"
-                                                               class="h-4 w-4 text-primary border-gray-300 focus:ring-primary transition-colors duration-200"
-                                                               {% if field.is_required %}required{% endif %}>
-                                                        <label for="{{ field.field_name }}_male" 
-                                                               class="ml-3 block text-sm font-medium text-gray-700">Male</label>
-                                                    </div>
-                                                    <div class="flex items-center">
-                                                        <input type="radio" 
-                                                               id="{{ field.field_name }}_female" 
-                                                               name="{{ field.field_name }}" 
-                                                               value="Female"
-                                                               class="h-4 w-4 text-primary border-gray-300 focus:ring-primary transition-colors duration-200"
-                                                               {% if field.is_required %}required{% endif %}>
-                                                        <label for="{{ field.field_name }}_female" 
-                                                               class="ml-3 block text-sm font-medium text-gray-700">Female</label>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
+                                    <div class="space-y-2">
+                                        {% for option in field.options %}
+                                        <div class="flex items-center">
+                                            <input type="radio"
+                                                   id="{{ field.field_name }}_{{ loop.index }}"
+                                                   name="{{ field.field_name }}"
+                                                   value="{{ option.value }}"
+                                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                                                   {% if field.value == option.value %}checked{% endif %}
+                                                   {% if field.is_required %}required{% endif %}
+                                                   {% if field.get('readonly') %}readonly disabled{% endif %}>
+                                            <label for="{{ field.field_name }}_{{ loop.index }}" class="ml-2 block text-sm text-gray-700">
+                                                {{ option.label }}
+                                            </label>
                                         </div>
+                                        {% endfor %}
+                                    </div>
+                                
+                                <!-- File Upload -->
+                                {% elif field.field_type == 'file' %}
+                                    <div class="relative rounded-md shadow-sm">
+                                        <div class="mt-1 flex items-center">
+                                            <label for="{{ field.field_name }}" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none">
+                                                <span>Upload file</span>
+                                                <input id="{{ field.field_name }}" 
+                                                       name="{{ field.field_name }}" 
+                                                       type="file" 
+                                                       class="sr-only"
+                                                       {% if field.is_required and not form_data.get(field.field_name) %}required{% endif %}
+                                                       {% if field.get('accept') %}accept="{{ field.accept }}"{% endif %}>
+                                            </label>
+                                            <p class="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p class="mt-1 text-xs text-gray-500">
+                                            {{ field.field_placeholder|default('') }}
+                                        </p>
+                                        {% if field.value %}
+                                        <p class="mt-2 text-sm text-gray-600">
+                                            Current file: {{ field.value }}
+                                        </p>
+                                        {% endif %}
                                     </div>
                                 {% endif %}
                                 
-                                {% if field.validation_text %}
-                                    <p class="mt-2 text-sm text-gray-500">{{ field.validation_text }}</p>
+                                {% if field.get('help_text') %}
+                                <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
                                 {% endif %}
                             </div>
                             {% endif %}

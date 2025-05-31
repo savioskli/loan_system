@@ -769,28 +769,22 @@ def edit_field(id, field_id):
         system_reference_field_id = None
         reference_field_code = None
         
-        # If this is a system field, generate a reference code
+        # Handle system field properties
         if is_system:
             reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
             current_app.logger.info(f"Creating system field with code: {reference_field_code}")
-            # System fields cannot reference other system fields
-            system_reference_field_id = None
-            
-            # Update the field object
             field.is_system = True
             field.reference_field_code = reference_field_code
-            field.system_reference_field_id = None
         else:
-            # If not a system field, it might reference a system field
-            system_reference_field_id = request.form.get('system_reference_field_id', type=int)
-            if system_reference_field_id == 0:
-                system_reference_field_id = None
-            current_app.logger.info(f"Setting system reference field ID to: {system_reference_field_id}")
-            
-            # Update the field object
             field.is_system = False
             field.reference_field_code = None
-            field.system_reference_field_id = system_reference_field_id
+        
+        # Handle system reference field (can be set for both system and non-system fields)
+        system_reference_field_id = request.form.get('system_reference_field_id', type=int)
+        if system_reference_field_id == 0:
+            system_reference_field_id = None
+        current_app.logger.info(f"Setting system reference field ID to: {system_reference_field_id}")
+        field.system_reference_field_id = system_reference_field_id
         
         # Update options if field type requires them
         if field_type in ['select', 'radio', 'checkbox']:

@@ -9,6 +9,62 @@
         /* outline: 1px solid rgba(255,0,0,0.1) !important; */
     }
     
+    /* Style for system reference dropdowns */
+    .form-group {
+        position: relative;
+        z-index: 1;
+    }
+    
+    select[data-reference-id] {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-color: white;
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        padding: 0.5rem 2.5rem 0.5rem 1rem;
+        width: 100%;
+        min-height: 2.75rem;
+        line-height: 1.5;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    /* Ensure proper stacking context */
+    select[data-reference-id] {
+        position: relative;
+        z-index: 2;
+    }
+    
+    /* Dropdown options styling */
+    select[data-reference-id] option {
+        padding: 0.5rem 1rem;
+        background: white;
+    }
+    
+    /* Focus state */
+    select[data-reference-id]:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    
+    /* Hover state */
+    select[data-reference-id]:not(:disabled):hover {
+        border-color: #9ca3af;
+    }
+    
+    /* Disabled state */
+    select[data-reference-id]:disabled {
+        background-color: #f3f4f6;
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
     /* Form Actions Styling */
     #form-actions {
         position: fixed;

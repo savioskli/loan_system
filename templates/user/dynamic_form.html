@@ -3,7 +3,139 @@
 {% block title %}{{ module.name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-12">
+<style>
+    /* Debug styles */
+    * {
+        /* outline: 1px solid rgba(255,0,0,0.1) !important; */
+    }
+    
+    /* Form Actions Styling */
+    #form-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 1rem 0;
+        z-index: 1000;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Ensure buttons are visible and properly styled */
+    #form-actions button {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin: 0 0.25rem;
+    }
+    
+    /* Form action buttons container */
+    .form-actions-left,
+    .form-actions-right {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    /* Base button style */
+    .form-action-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 120px;
+        border: 1px solid transparent;
+    }
+    
+    /* Force button visibility states */
+    #prevBtn[style*="display: none"],
+    #nextBtn[style*="display: none"],
+    #submitBtn[style*="display: none"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+    
+    /* Button specific styles */
+    .form-action-prev {
+        background: white;
+        border-color: #d1d5db;
+        color: #374151;
+    }
+    
+    .form-action-next {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    
+    .form-action-save {
+        background: #fef3c7;
+        border-color: #fcd34d;
+        color: #92400e;
+    }
+    
+    .form-action-submit {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+    
+    /* Hover states */
+    .form-action-prev:hover {
+        background: #f3f4f6;
+    }
+    
+    .form-action-next:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+    }
+    
+    .form-action-save:hover {
+        background: #fde68a;
+        border-color: #fbbf24;
+    }
+    
+    .form-action-submit:hover {
+        background: #059669;
+        border-color: #059669;
+    }
+    
+    /* Make sure buttons are visible */
+    #form-actions button {
+        display: inline-flex !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    
+    /* Responsive button container */
+    .button-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    @media (min-width: 640px) {
+        .button-container {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+</style>
+
+<div class="min-h-screen bg-gray-50 pb-24">
     <div class="max-w-5xl mx-auto px-6 lg:px-8">
         <!-- Form Header -->
         <div class="md:flex md:items-center md:justify-between mb-10">
@@ -23,57 +155,81 @@
             </div>
         </div>
 
+        <!-- Wizard Navigation -->
+        <div class="mb-8">
+            <div class="text-center">
+                <p class="text-sm font-medium text-gray-700 mb-2">
+                    Step <span id="current-step">1</span> of <span id="total-steps">{{ sections|length }}</span>
+                </p>
+                <div class="flex items-center justify-center space-x-2 overflow-x-auto pb-2">
+                    {% for section in sections %}
+                    <div class="step-indicator flex-shrink-0 flex items-center">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full {% if loop.first %}bg-primary text-white{% else %}bg-gray-200 text-gray-700{% endif %} text-sm font-medium transition-colors duration-200">
+                            {{ loop.index }}
+                        </span>
+                        <span class="ml-2 text-sm font-medium text-gray-700 whitespace-nowrap">
+                            {{ section.name }}
+                        </span>
+                        {% if not loop.last %}
+                        <span class="mx-2 text-gray-400">›</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
             <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" class="divide-y divide-gray-200" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 {% for section in sections %}
-                <div class="px-8 py-6">
-                    <div class="space-y-8">
-                        <!-- Section Header -->
-                        <div class="border-b border-gray-200 pb-4">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
-                            {% if section.description %}
-                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Form Fields Grid -->
-                        <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
-                            {% if loop.first %}
-                            <!-- Client Type Selection (only in first section) -->
-                            <div class="form-group">
-                                <label for="client_type" class="block text-sm font-medium text-gray-900 mb-1">
-                                    Client Type <span class="text-red-500">*</span>
-                                </label>
-                                <div class="relative rounded-md shadow-sm">
-                                    <select id="client_type" 
-                                            name="client_type" 
-                                            required
-                                            class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
-                                        <option value="">Select Client Type</option>
-                                        {% for client_type in client_types %}
-                                        <option value="{{ client_type.id }}" {% if field_value and field_value|int == client_type.id|int %}selected{% endif %}>
-                                            {{ client_type.client_name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                <div class="section-container {% if not loop.first %}hidden{% endif %}" data-section="{{ loop.index }}">
+                    <div class="px-8 py-6">
+                        <div class="space-y-8">
+                            <!-- Section Header -->
+                            <div class="border-b border-gray-200 pb-4">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
+                                {% if section.description %}
+                                <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                                {% endif %}
                             </div>
-                            {% endif %}
                             
-                            {% for field in section.fields %}
-                            {% if field.field_name != 'client_type' %}
-                            <div class="form-group {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}"
-                                 data-field-name="{{ field.field_name }}"
-                                 style="display: block;">
-                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
-                                    {{ field.field_label }}
-                                    {% if field.is_required %}
-                                    <span class="text-red-500">*</span>
-                                    {% endif %}
-                                </label>
+                            <!-- Form Fields Grid -->
+                            <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
+                                {% if loop.first %}
+                                <!-- Client Type Selection (only in first section) -->
+                                <div class="form-group">
+                                    <label for="client_type" class="block text-sm font-medium text-gray-900 mb-1">
+                                        Client Type <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative rounded-md shadow-sm">
+                                        <select id="client_type" 
+                                                name="client_type" 
+                                                required
+                                                class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200">
+                                            <option value="">Select Client Type</option>
+                                            {% for client_type in client_types %}
+                                            <option value="{{ client_type.id }}" {% if field_value and field_value|int == client_type.id|int %}selected{% endif %}>
+                                                {{ client_type.client_name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% for field in section.fields %}
+                                {% if field.field_name != 'client_type' %}
+                                <div class="form-group {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}"
+                                     data-field-name="{{ field.field_name }}">
+                                    <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
+                                        {{ field.field_label }}
+                                        {% if field.is_required %}
+                                        <span class="text-red-500">*</span>
+                                        {% endif %}
+                                    </label>
                                 
                                 <!-- Text, Email, Tel, Number, Date, Password -->
                                 {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
@@ -204,47 +360,312 @@
                     </div>
                 </div>
                 {% endfor %}
-                
-                <!-- Form Actions -->
-                <div class="px-8 py-4 bg-gray-50 sm:px-8">
-                    <div class="flex justify-between items-center">
-                        <a href="{{ url_for('user.dashboard') }}" 
-                           class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                            <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
-                            </svg>
-                            Back
-                        </a>
-                        <div class="flex space-x-3">
-                            <button type="reset" 
-                                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                                Clear Form
-                            </button>
-                            <button type="submit" 
-                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                </svg>
-                                Submit
-                            </button>
-                        </div>
+                <!-- Spacer to prevent content from being hidden behind fixed buttons -->
+                <div style="height: 100px;"></div>
+            </form>
+        </div>
+        
+        <!-- Form Actions - Outside Form -->
+        <div id="form-actions" style="
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 1rem 0;
+            z-index: 1000;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+        ">
+            <div style="max-width: 1200px; margin: 0 auto; padding: 0 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <!-- Left side buttons -->
+                    <div class="form-actions-left">
+                        <button type="button" id="prevBtn" class="form-action-btn form-action-prev">
+                            ← Previous
+                        </button>
+                        <button type="button" id="saveDraftBtn" class="form-action-btn form-action-save">
+                            💾 Save as Draft
+                        </button>
+                    </div>
+                    
+                    <!-- Right side buttons -->
+                    <div class="form-actions-right">
+                        <button type="button" id="nextBtn" class="form-action-btn form-action-next">
+                            Next →
+                        </button>
+                        <button type="submit" id="submitBtn" class="form-action-btn form-action-submit">
+                            Submit Application
+                        </button>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Ensure form actions are hidden initially -->
+<script>
+// Hide form actions immediately when this script loads
+document.addEventListener('DOMContentLoaded', function() {
+    const formActions = document.getElementById('form-actions');
+    if (formActions) {
+        formActions.style.display = 'none';
+        console.log('Form actions hidden initially');
+    } else {
+        console.error('Could not find form-actions element');
+    }
+});
+</script>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize form validation
-    initFormValidation();
+// Debug: Log all styles for an element
+function debugStyles(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) {
+        console.error('Element not found:', elementId);
+        return;
+    }
     
-    // Initialize location fields
-    initLocationFields();
+    console.group('Debug styles for:', elementId);
+    console.log('Computed display:', window.getComputedStyle(el).display);
+    console.log('Computed visibility:', window.getComputedStyle(el).visibility);
+    console.log('Computed opacity:', window.getComputedStyle(el).opacity);
+    console.log('Inline styles:', el.style.cssText);
+    console.groupEnd();
+}
+
+// Wait for everything to be fully loaded
+window.addEventListener('load', function() {
+    console.log('Page fully loaded');
+    
+    // Get form and buttons
+    const form = document.getElementById('dynamicForm');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const sections = document.querySelectorAll('.section-container');
+    const totalSections = sections.length;
+    let currentSection = 0;
+    
+    // Debug: Log all elements
+    console.log('Form elements:', { 
+        form: !!form, 
+        prevBtn: !!prevBtn, 
+        nextBtn: !!nextBtn, 
+        saveDraftBtn: !!saveDraftBtn, 
+        submitBtn: !!submitBtn,
+        sections: sections.length
+    });
+    
+    // Initialize form
+    function initForm() {
+        console.log('Initializing form with', totalSections, 'sections');
+        
+        // Make sure form actions are visible
+        const formActions = document.getElementById('form-actions');
+        if (formActions) {
+            formActions.style.display = 'block';
+            formActions.style.visibility = 'visible';
+            console.log('Form actions shown');
+        }
+        
+        // Hide all sections except the first one
+        sections.forEach((section, index) => {
+            if (index === 0) {
+                section.style.display = 'block';
+                console.log('Showing section', index);
+            } else {
+                section.style.display = 'none';
+                console.log('Hiding section', index);
+            }
+        });
+        
+        // Update button states
+        updateButtonStates();
+        
+        // Add a small delay to ensure all styles are applied
+        setTimeout(updateButtonStates, 50);
+    }
+    
+    // Update button states based on current section
+    function updateButtonStates() {
+        console.log('\n--- Updating button states for section:', currentSection, 'of', totalSections - 1);
+        
+        // Previous button
+        if (prevBtn) {
+            const showPrev = currentSection > 0;
+            prevBtn.style.setProperty('display', showPrev ? 'inline-flex' : 'none', 'important');
+            prevBtn.style.setProperty('visibility', showPrev ? 'visible' : 'hidden', 'important');
+            console.log('Previous button:', showPrev ? 'SHOWN' : 'HIDDEN');
+        }
+        
+        // Next button
+        if (nextBtn) {
+            const showNext = currentSection < totalSections - 1;
+            nextBtn.style.setProperty('display', showNext ? 'inline-flex' : 'none', 'important');
+            nextBtn.style.setProperty('visibility', showNext ? 'visible' : 'hidden', 'important');
+            console.log('Next button:    ', showNext ? 'SHOWN' : 'HIDDEN');
+        }
+        
+        // Submit button
+        if (submitBtn) {
+            const showSubmit = currentSection === totalSections - 1;
+            submitBtn.style.setProperty('display', showSubmit ? 'inline-flex' : 'none', 'important');
+            submitBtn.style.setProperty('visibility', showSubmit ? 'visible' : 'hidden', 'important');
+            console.log('Submit button:  ', showSubmit ? 'SHOWN' : 'HIDDEN');
+        }
+        
+        // Save Draft button - always visible
+        if (saveDraftBtn) {
+            saveDraftBtn.style.setProperty('display', 'inline-flex', 'important');
+            saveDraftBtn.style.setProperty('visibility', 'visible', 'important');
+            console.log('Save button:    ALWAYS VISIBLE');
+        }
+        
+        // Update step indicator
+        const currentStepElement = document.getElementById('current-step');
+        if (currentStepElement) {
+            currentStepElement.textContent = currentSection + 1;
+        }
+        
+        // Debug styles after update
+        if (prevBtn) debugStyles('prevBtn');
+        if (nextBtn) debugStyles('nextBtn');
+        if (submitBtn) debugStyles('submitBtn');
+        if (saveDraftBtn) debugStyles('saveDraftBtn');
+        
+        console.log('--- Button states updated ---');
+    }
+    
+    // Navigate to a specific section
+    function goToSection(index) {
+        console.log('Attempting to navigate to section', index);
+        
+        if (index < 0 || index >= totalSections) {
+            console.log('Invalid section index:', index);
+            return;
+        }
+        
+        // Hide current section
+        if (sections[currentSection]) {
+            sections[currentSection].style.display = 'none';
+            console.log('Hiding section', currentSection);
+        }
+        
+        // Update current section and show new one
+        currentSection = index;
+        sections[currentSection].style.display = 'block';
+        console.log('Showing section', currentSection);
+        
+        // Force update button states
+        updateButtonStates();
+        
+        // Scroll to top of form
+        window.scrollTo(0, 0);
+        
+        // Force another update after a short delay
+        setTimeout(updateButtonStates, 50);
+    }
+    
+    // Handle form submission
+    if (submitBtn && form) {
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (validateCurrentSection()) {
+                form.submit();
+            }
+        });
+    }
+    
+    // Add click handlers for navigation buttons
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+            if (validateCurrentSection()) {
+                goToSection(currentSection - 1);
+            }
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            if (validateCurrentSection()) {
+                goToSection(currentSection + 1);
+            }
+        });
+    }
+    
+    // Validate current section
+    function validateCurrentSection() {
+        const currentSectionElement = sections[currentSection];
+        const requiredFields = currentSectionElement.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('border-red-500');
+                // Add error message if not already present
+                if (!field.nextElementSibling || !field.nextElementSibling.classList.contains('error-message')) {
+                    const errorMsg = document.createElement('p');
+                    errorMsg.className = 'mt-1 text-sm text-red-600 error-message';
+                    errorMsg.textContent = 'This field is required';
+                    field.parentNode.insertBefore(errorMsg, field.nextSibling);
+                }
+            } else {
+                field.classList.remove('border-red-500');
+                const errorMsg = field.nextElementSibling;
+                if (errorMsg && errorMsg.classList.contains('error-message')) {
+                    errorMsg.remove();
+                }
+            }
+        });
+        
+        return isValid;
+    }
+    
+    // Save draft functionality
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', async function() {
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(`/user/save_draft/${MODULE_ID}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
+                    }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Draft saved successfully!');
+                } else {
+                    alert('Failed to save draft: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                alert('Error saving draft. Please try again.');
+            }
+        });
+    }
+    
+    // Initialize the form
+    initForm();
+    
+    // Debug: Log initial state
+    console.log('Form initialized');
+    console.log('Current section:', currentSection);
+    console.log('Total sections:', totalSections);
 });
+</script>
+
+<!-- Add a small inline script to verify script execution -->
+<script>
+console.log('Script block executed');
 </script>
 {% endblock %}

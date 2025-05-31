@@ -10,12 +10,13 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session, current_app
 import uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from models.module import Module
 from models.form_field import FormField
+from models.form_section import FormSection
 from models.crb_report import CRBReport
 from models.credit_bureau import CreditBureau
 from models.staff import Staff
@@ -195,6 +196,7 @@ def dynamic_form(module_id):
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
         from utils.table_inspector import get_model_by_module_id, get_form_fields_from_model
+        from models.form_section import FormSection
         
         # Find the module by ID
         module = Module.query.get_or_404(module_id)
@@ -210,27 +212,98 @@ def dynamic_form(module_id):
             flash('No model found for this module. Please check the module configuration.', 'error')
             return redirect(url_for('user.dashboard'))
         
-        # Get form fields from the form_fields table for this module
-        form_fields = get_form_fields_from_model(model_class, module_id=module_id)
+        from models.form_field import FormField
         
-        # Group fields into a single section for now
-        # You can enhance this to use actual sections from the database if needed
-        sections = [{
-            'id': 1,
-            'name': 'General Information',
-            'description': 'Please fill in the following details',
-            'order': 1,
-            'fields': form_fields
-        }]
+        # Get all sections for this specific module ID
+        sections = FormSection.query.filter(
+            FormSection.module_id == module_id
+        ).order_by(FormSection.order.asc()).all()
+        
+        print(f"Found {len(sections)} sections for module {module_id}")
+        
+        # Get section IDs to ensure we only get fields for these sections
+        section_ids = [s.id for s in sections]
+        
+        # Get all fields for these sections
+        fields = []
+        if section_ids:  # Only query if we have sections
+            fields = FormField.query.filter(
+                FormField.section_id.in_(section_ids)
+            ).order_by(
+                FormField.section_id.asc(),
+                FormField.field_order.asc()
+            ).all()
+            
+        print(f"Found {len(fields)} fields for module {module_id}")
+        
+        # Create a dictionary to hold sections and their fields
+        sections_dict = {}
+        
+        # Process sections first
+        for section in sections:
+            sections_dict[section.id] = {
+                'id': section.id,
+                'name': section.name or f'Section {section.id}',
+                'description': section.description or '',
+                'order': section.order or 0,
+                'fields': []
+            }
+        
+        # Process all fields
+        for field in fields:
+            section_id = field.section_id
+            
+            # If field has no section, skip it (or create a default section if needed)
+            if not section_id:
+                continue
+                
+            # Create section if it doesn't exist in our dict
+            if section_id not in sections_dict:
+                sections_dict[section_id] = {
+                    'id': section_id,
+                    'name': f'Section {section_id}',
+                    'description': '',
+                    'order': 999,  # Default to end
+                    'fields': []
+                }
+            
+            # Add field to its section
+            field_data = {
+                'id': field.id,
+                'field_name': field.field_name,
+                'field_label': field.field_label or field.field_name.replace('_', ' ').title(),
+                'field_placeholder': field.field_placeholder or '',
+                'field_type': field.field_type or 'text',
+                'is_required': bool(field.is_required),
+                'field_order': field.field_order or 0,
+                'section_id': section_id,
+                'section_name': sections_dict[section_id]['name'],
+                'options': field.options or [],
+                'validation_rules': field.validation_rules or {},
+                'default_value': getattr(field, 'default_value', None)
+            }
+            sections_dict[section_id]['fields'].append(field_data)
+        
+        # Convert to list and sort by section order
+        sections_data = sorted(
+            [s for s in sections_dict.values() if s['fields'] or s['name'] != 'General Information'],
+            key=lambda x: (x['order'], x['id'])
+        )
+        
+        # Convert the dictionary to a list and sort by section order
+        sections_data = sorted(
+            sections_dict.values(),
+            key=lambda x: x['order']
+        )
         
         # Get current date for date fields
         from datetime import datetime
         current_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Render the form template with only the dynamic sections
+        # Render the form template with the sections and fields
         return render_with_modules('user/dynamic_form.html',
                             module=module,
-                            sections=sections,
+                            sections=sections_data,
                             current_date=current_date,
                             # All other data will be loaded dynamically via AJAX if needed
                             client_types=[],
@@ -311,6 +384,70 @@ def get_postal_towns(county):
             'success': False,
             'message': f'Server error: {str(e)}'
         }), 500
+
+@user_bp.route('/save_draft/<int:module_id>', methods=['POST'])
+@login_required
+def save_draft(module_id):
+    """
+    Save a form as a draft.
+    
+    Args:
+        module_id (int): The ID of the module the form belongs to
+        
+    Returns:
+        JSON response with success status and message
+    """
+    try:
+        # Get form data
+        form_data = request.form.to_dict()
+        files = request.files
+        
+        # Get the module
+        module = Module.query.get_or_404(module_id)
+        
+        # Create a new form submission record
+        submission = FormSubmission(
+            module_id=module_id,
+            submitted_by=current_user.id,
+            status='draft',
+            form_data=json.dumps(form_data, default=str)
+        )
+        
+        # Handle file uploads if any
+        if files:
+            file_data = {}
+            for file_key, file in files.items():
+                if file and file.filename != '':
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    file_data[file_key] = {
+                        'filename': filename,
+                        'path': file_path,
+                        'content_type': file.content_type
+                    }
+            
+            if file_data:
+                submission.file_data = json.dumps(file_data, default=str)
+        
+        # Save to database
+        db.session.add(submission)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Draft saved successfully',
+            'submission_id': submission.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving draft: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to save draft: {str(e)}'
+        }), 500
+
 
 @user_bp.route('/submit_form/<int:module_id>', methods=['POST'])
 @login_required

@@ -769,20 +769,42 @@ def edit_field(id, field_id):
         system_reference_field_id = None
         reference_field_code = None
         
-        # Handle system field properties
-        if is_system:
-            reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
-            current_app.logger.info(f"Creating system field with code: {reference_field_code}")
-            field.is_system = True
-            field.reference_field_code = reference_field_code
-        else:
-            field.is_system = False
-            field.reference_field_code = None
-        
         # Handle system reference field (can be set for both system and non-system fields)
         system_reference_field_id = request.form.get('system_reference_field_id', type=int)
         if system_reference_field_id == 0:
             system_reference_field_id = None
+        
+        # Handle system field properties
+        if is_system:
+            # Get the reference code from system_reference_fields table
+            if system_reference_field_id:
+                conn = get_db_connection()
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT code 
+                    FROM system_reference_fields 
+                    WHERE id = %s AND is_active = 1
+                """, (system_reference_field_id,))
+                ref_field = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if ref_field:
+                    reference_field_code = ref_field['code']
+                else:
+                    reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
+                    current_app.logger.warning(f"System reference field {system_reference_field_id} not found, using generated code: {reference_field_code}")
+            else:
+                reference_field_code = f'SYS_{field.field_name.upper().replace(" ", "_")}'
+                current_app.logger.info(f"No system reference field selected, using generated code: {reference_field_code}")
+            
+            field.is_system = True
+            field.reference_field_code = reference_field_code
+            current_app.logger.info(f"Setting system field with code: {reference_field_code}")
+        else:
+            field.is_system = False
+            field.reference_field_code = None
+        
         current_app.logger.info(f"Setting system reference field ID to: {system_reference_field_id}")
         field.system_reference_field_id = system_reference_field_id
         

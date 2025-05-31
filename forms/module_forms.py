@@ -52,6 +52,8 @@ class FormFieldForm(FlaskForm):
                                         coerce=int,
                                         validators=[Optional()],
                                         description='Select the system reference field to link to')
+    is_visible = BooleanField('Visible in Form', default=True,
+                           description='If unchecked, this field will be hidden in the user form but can still be set by the system')
     is_required = BooleanField('Required Field', default=False)
     section_id = SelectField('Form Section', coerce=int, validators=[Optional()], 
                            description='Select the section this field belongs to')

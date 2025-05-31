@@ -532,7 +532,39 @@ def create_field(id):
         # Get system field properties from form data
         is_system = field_data.get('is_system', False)
         system_reference_field_id = field_data.get('system_reference_field_id')
-        reference_field_code = None  # This should be set based on your requirements
+        reference_field_code = None
+        
+        # Handle system reference field (can be set for both system and non-system fields)
+        if system_reference_field_id == 0:
+            system_reference_field_id = None
+        
+        # If this is a system field, get or generate the reference code
+        if is_system:
+            # Get the reference code from system_reference_fields table if a reference is selected
+            if system_reference_field_id:
+                conn = get_db_connection()
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT code 
+                    FROM system_reference_fields 
+                    WHERE id = %s AND is_active = 1
+                """, (system_reference_field_id,))
+                ref_field = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if ref_field:
+                    reference_field_code = ref_field['code']
+                else:
+                    reference_field_code = f'SYS_{field_data["field_name"].upper().replace(" ", "_")}'
+                    current_app.logger.warning(f"System reference field {system_reference_field_id} not found, using generated code: {reference_field_code}")
+            else:
+                reference_field_code = f'SYS_{field_data["field_name"].upper().replace(" ", "_")}'
+                current_app.logger.info(f"No system reference field selected, using generated code: {reference_field_code}")
+            
+            current_app.logger.info(f"Setting system field with code: {reference_field_code}")
+        else:
+            reference_field_code = None
         
         # Get the current organization ID from the session or request
         from flask import session
@@ -555,7 +587,7 @@ def create_field(id):
         # Add optional fields if they exist and are not None
         optional_fields = [
             'field_placeholder', 'validation_text', 'client_type_restrictions',
-            'reference_field_code', 'validation_rules'
+            'validation_rules'
         ]
         
         for field_name in optional_fields:
@@ -563,8 +595,8 @@ def create_field(id):
                 field_attrs[field_name] = field_data[field_name]
         
         # Handle special cases
-        if system_reference_field_id:
-            field_attrs['system_reference_field_id'] = system_reference_field_id
+        field_attrs['system_reference_field_id'] = system_reference_field_id
+        field_attrs['reference_field_code'] = reference_field_code
             
         if field_type in ['select', 'radio', 'checkbox'] and options:
             field_attrs['options'] = options
@@ -576,8 +608,9 @@ def create_field(id):
             # Create the field with all the prepared data
             field = FormField(**field_attrs)
             db.session.add(field)
-            db.session.commit()
-            current_app.logger.info(f"Field {field.field_name} created successfully")
+            db.session.flush()  # Flush to get the field ID without committing
+            current_app.logger.info(f"Field {field.field_name} created successfully with ID {field.id}")
+            current_app.logger.info(f"Field details - is_system: {field.is_system}, system_reference_field_id: {field.system_reference_field_id}, reference_field_code: {field.reference_field_code}")
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error creating field: {str(e)}")
@@ -746,6 +779,20 @@ def edit_field(id, field_id):
         if custom_message:
             validation_rules['custom_message'] = custom_message
         
+        # Get system field information first
+        is_system = request.form.get('is_system') == 'y'
+        current_app.logger.info(f"Is system field: {is_system}")
+        field.is_system = is_system
+        current_app.logger.info(f"Is system field from form: {is_system}, raw value: {request.form.get('is_system')}")
+        
+        # Handle system reference field (can be set for both system and non-system fields)
+        system_reference_field_id = request.form.get('system_reference_field_id', type=int)
+        if system_reference_field_id == 0:
+            system_reference_field_id = None
+        
+        # Set is_visible - default to True if not a system reference field
+        field.is_visible = request.form.get('is_visible') == 'y' if is_system and system_reference_field_id else True
+        
         # Update field with new data
         field.field_name = request.form.get('field_name')
         field.field_label = request.form.get('field_label')
@@ -757,22 +804,7 @@ def edit_field(id, field_id):
         field.section_id = request.form.get('section_id', type=int) if request.form.get('section_id', type=int) != 0 else None
         field.validation_rules = validation_rules
         
-        # Update system reference field information
-        field.is_system = request.form.get('is_system') == 'y'
-        current_app.logger.info(f"Is system field: {field.is_system}")
-        
-        # If is_system is checked, clear the system_reference_field_id and set reference_field_code
-        # If not checked, set the system_reference_field_id from the form and clear reference_field_code
-        is_system = request.form.get('is_system') == 'y'
-        current_app.logger.info(f"Is system field from form: {is_system}, raw value: {request.form.get('is_system')}")
-        
-        system_reference_field_id = None
         reference_field_code = None
-        
-        # Handle system reference field (can be set for both system and non-system fields)
-        system_reference_field_id = request.form.get('system_reference_field_id', type=int)
-        if system_reference_field_id == 0:
-            system_reference_field_id = None
         
         # Handle system field properties
         if is_system:

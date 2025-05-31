@@ -30,6 +30,7 @@ class FormField(db.Model):
     parent_field_id = db.Column(db.Integer, db.ForeignKey('form_fields.id', ondelete='SET NULL'), nullable=True)
     is_system = db.Column(db.Boolean, default=False, nullable=False)
     system_reference_field_id = db.Column(db.Integer, db.ForeignKey('form_fields.id', ondelete='SET NULL'), nullable=True)
+    is_visible = db.Column(db.Boolean, default=True, nullable=False, server_default='1')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -48,6 +49,7 @@ class FormField(db.Model):
     def __init__(self, **kwargs):
         # Set default values for required fields
         self.is_system = kwargs.pop('is_system', False)
+        self.is_visible = kwargs.pop('is_visible', True)
         
         # Let SQLAlchemy handle the rest
         for key, value in kwargs.items():

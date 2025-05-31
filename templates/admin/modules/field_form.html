@@ -302,6 +302,19 @@
                                 <p class="mt-1 text-sm text-gray-500">{{ form.system_reference_field_id.description }}</p>
                                 {% endif %}
                             </div>
+                            
+                            <!-- Field Visibility Toggle -->
+                            <div id="field-visibility" class="mt-4 space-y-2">
+                                <div class="flex items-center">
+                                    {{ form.is_visible(class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded") }}
+                                    <label for="is_visible" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ form.is_visible.label.text }}
+                                    </label>
+                                </div>
+                                {% if form.is_visible.description %}
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.is_visible.description }}</p>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <!-- Client Type Restrictions -->
@@ -646,8 +659,9 @@
 
             // Initialize system reference field select
             const systemRefSelect = document.getElementById('system_reference_field_id');
+            let systemRefChoices = null;
             if (systemRefSelect) {
-                initializeChoices(systemRefSelect, {
+                systemRefChoices = initializeChoices(systemRefSelect, {
                     removeItemButton: false,
                     searchEnabled: true,
                     searchPlaceholderValue: 'Search system fields...'
@@ -657,27 +671,45 @@
             // Handle is_system checkbox change
             const isSystemCheckbox = document.getElementById('is_system');
             const systemRefField = document.getElementById('system-reference-field');
-            if (isSystemCheckbox && systemRefField) {
-                // Add change event listener
-                isSystemCheckbox.addEventListener('change', function() {
-                    // Logic: 
-                    // - When is_system is checked (this field IS a system field), SHOW the system reference dropdown
-                    // - When is_system is unchecked (this field is NOT a system field), HIDE the system reference dropdown
-                    if (this.checked) {
-                        // If checked, show the system reference field
-                        systemRefField.classList.remove('hidden');
-                    } else {
-                        // If unchecked, hide the system reference field
-                        systemRefField.classList.add('hidden');
-                    }
-                });
+            const fieldVisibility = document.getElementById('field-visibility');
+            const systemRefSelectEl = document.getElementById('system_reference_field_id');
+            
+            function updateFieldVisibility() {
+                const isSystemField = isSystemCheckbox.checked;
+                const hasSystemRef = systemRefSelectEl && systemRefSelectEl.value && systemRefSelectEl.value !== '0';
                 
-                // Set initial state on page load
-                if (isSystemCheckbox.checked) {
+                // Show/hide system reference field based on is_system checkbox
+                if (isSystemField) {
                     systemRefField.classList.remove('hidden');
                 } else {
                     systemRefField.classList.add('hidden');
                 }
+                
+                // Show/hide visibility toggle based on whether a system reference is selected
+                if (hasSystemRef && isSystemField) {
+                    fieldVisibility.classList.remove('hidden');
+                } else {
+                    fieldVisibility.classList.add('hidden');
+                }
+            }
+            
+            // Set up event listeners
+            if (isSystemCheckbox && systemRefField && fieldVisibility) {
+                // Handle is_system checkbox changes
+                isSystemCheckbox.addEventListener('change', updateFieldVisibility);
+                
+                // Handle system reference field selection changes
+                if (systemRefSelectEl) {
+                    systemRefSelectEl.addEventListener('change', updateFieldVisibility);
+                    
+                    // Also listen for Choices.js selection changes if it's a Choices instance
+                    if (systemRefSelectEl.choicesInstance) {
+                        systemRefSelectEl.choicesInstance.passedElement.element.addEventListener('change', updateFieldVisibility);
+                    }
+                }
+                
+                // Set initial state on page load
+                updateFieldVisibility();
             }
 
             // Initialize section select

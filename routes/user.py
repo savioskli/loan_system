@@ -10,7 +10,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session, current_app
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session, current_app, g
 import uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
@@ -76,6 +76,148 @@ def render_with_modules(template, **kwargs):
     return render_template(template, **kwargs)
 
 user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/system_field/<int:field_id>', methods=['GET'])
+@login_required
+def get_system_field_value(field_id):
+    """
+    Get the value of a system reference field
+    
+    Args:
+        field_id (int): The ID of the system reference field
+        
+    Returns:
+        JSON: The field value or an error message
+    """
+    from models.system_reference_field import SystemReferenceField
+    from models.form_field import FormField
+    from models.form_submission import FormSubmission
+    from models.client import Client
+    
+    try:
+        current_app.logger.info(f'[API] Fetching system reference field with ID: {field_id}')
+        
+        # Get the system reference field
+        ref_field = SystemReferenceField.query.get(field_id)
+        if not ref_field:
+            current_app.logger.error(f'[API] System reference field not found with ID: {field_id}')
+            return jsonify({
+                'success': False,
+                'error': 'System reference field not found',
+                'debug': {'field_id': field_id}
+            }), 404
+        
+        current_app.logger.info(f'[API] Found system reference field: {ref_field.reference_code} (ID: {ref_field.id})')
+        
+        # Get all form fields that reference this system field
+        form_fields = FormField.query.filter_by(
+            system_reference_field_id=field_id
+        ).all()
+        
+        if not form_fields:
+            current_app.logger.error(f'[API] No form fields reference system field with ID: {field_id}')
+            return jsonify({
+                'success': False,
+                'error': 'No form fields reference this system field',
+                'debug': {'field_id': field_id, 'reference_code': ref_field.reference_code}
+            }), 400
+        
+        current_app.logger.info(f'[API] Found {len(form_fields)} form fields referencing this system field')
+        
+        # Get the client for the current user
+        client = Client.query.filter_by(user_id=current_user.id).first()
+        if not client:
+            current_app.logger.warning(f'[API] No client found for user ID: {current_user.id}')
+            return jsonify({
+                'success': False,
+                'message': 'No client found for current user',
+                'debug': {'user_id': current_user.id}
+            })
+        
+        current_app.logger.info(f'[API] Found client ID: {client.id} for user ID: {current_user.id}')
+        
+        # Get all submissions for this client and module
+        submissions = FormSubmission.query.filter_by(
+            client_id=client.id,
+            module_id=ref_field.module_id
+        ).order_by(FormSubmission.submitted_at.desc()).all()
+        
+        current_app.logger.info(f'[API] Found {len(submissions)} submissions for client {client.id} and module {ref_field.module_id}')
+        
+        if not submissions:
+            current_app.logger.warning('[API] No submissions found')
+            return jsonify({
+                'success': False,
+                'message': 'No submission found',
+                'debug': {
+                    'client_id': client.id,
+                    'module_id': ref_field.module_id,
+                    'submission_count': 0
+                }
+            })
+        
+        # Get values from all submissions for debugging
+        all_values = []
+        for submission in submissions:
+            submission_data = submission.data or {}
+            for form_field in form_fields:
+                field_value = submission_data.get(form_field.field_name)
+                if field_value is not None:
+                    all_values.append({
+                        'submission_id': submission.id,
+                        'submitted_at': submission.submitted_at.isoformat(),
+                        'field_name': form_field.field_name,
+                        'field_label': form_field.field_label,
+                        'value': field_value
+                    })
+        
+        current_app.logger.info(f'[API] Found {len(all_values)} field values across all submissions')
+        
+        # Get the latest value from the most recent submission
+        latest_submission = submissions[0]
+        submission_data = latest_submission.data or {}
+        
+        # Collect all values from the latest submission
+        latest_values = []
+        for form_field in form_fields:
+            field_value = submission_data.get(form_field.field_name)
+            latest_values.append({
+                'field_name': form_field.field_name,
+                'field_label': form_field.field_label,
+                'value': field_value
+            })
+        
+        current_app.logger.info(f'[API] Latest submission values: {latest_values}')
+        
+        # For backward compatibility, return the first field's value as the main value
+        main_value = latest_values[0]['value'] if latest_values else None
+        
+        response_data = {
+            'success': True,
+            'field_id': field_id,
+            'reference_code': ref_field.reference_code,
+            'data_type': ref_field.data_type,
+            'value': main_value,
+            'values': latest_values,
+            'all_values': all_values,
+            'debug': {
+                'client_id': client.id,
+                'module_id': ref_field.module_id,
+                'submission_count': len(submissions),
+                'latest_submission_id': latest_submission.id,
+                'latest_submission_date': latest_submission.submitted_at.isoformat(),
+                'form_fields_count': len(form_fields),
+                'form_field_names': [f.field_name for f in form_fields]
+            }
+        }
+        
+        current_app.logger.info(f'[API] Returning response for field {field_id} ({ref_field.reference_code}): {main_value}')
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting system field value: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching the field value'}), 500
 
 # Register collection schedule blueprint without additional prefix
 try:
@@ -280,7 +422,11 @@ def dynamic_form(module_id):
                 'section_name': sections_dict[section_id]['name'],
                 'options': field.options or [],
                 'validation_rules': field.validation_rules or {},
-                'default_value': getattr(field, 'default_value', None)
+                'default_value': getattr(field, 'default_value', None),
+                'is_system': field.is_system,
+                'system_reference_field_id': field.system_reference_field_id,
+                'reference_field_code': field.reference_field_code,
+                'is_visible': field.is_visible if hasattr(field, 'is_visible') else True
             }
             sections_dict[section_id]['fields'].append(field_data)
         

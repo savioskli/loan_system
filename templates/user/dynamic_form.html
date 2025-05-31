@@ -198,10 +198,7 @@
                             
                             <!-- Form Fields Grid -->
                             <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
-                                {# Client type selection has been removed as requested #}
-                                
                                 {% for field in section.fields %}
-                                {% if field.field_name != 'client_type' %}
                                 <div class="form-group {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}"
                                      data-field-name="{{ field.field_name }}">
                                     <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
@@ -247,25 +244,40 @@
                                     </div>
                                 
                                 <!-- Select Dropdown -->
-                                {% elif field.field_type == 'select' %}
+                                {% elif field.field_type == 'select' or field.field_type == 'system_reference' %}
                                     <div class="relative rounded-md shadow-sm">
                                         <select id="{{ field.field_name }}"
                                                 name="{{ field.field_name }}"
                                                 class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
                                                 {% if field.is_required %}required{% endif %}
-                                                {% if field.get('multiple') %}multiple{% endif %}
-                                                {% if field.get('readonly') %}disabled{% endif %}>
-                                            {% if not field.get('multiple') %}
+                                                {% if field.get('readonly') or field.field_type == 'system_reference' %}disabled{% endif %}
+                                                data-field-type="{{ field.field_type }}"
+                                                {% if field.system_reference_field_id %}
+                                                    data-reference-id="{{ field.system_reference_field_id }}"
+                                                    data-reference-code="{{ field.reference_field_code }}"
+                                                    data-is-system-field="true"
+                                                    data-field-type="system_reference"
+                                                {% endif %}
+                                                {% if field.is_system is defined %}
+                                                    data-is-system="{{ 'true' if field.is_system else 'false' }}"
+                                                {% endif %}>
                                             <option value="">Select {{ field.field_label }}</option>
+                                            {% if field.options %}
+                                                {% for option in field.options %}
+                                                    <option value="{{ option.value }}" 
+                                                            {% if field.value == option.value or field.default_value == option.value %}selected{% endif %}>
+                                                        {{ option.label }}
+                                                    </option>
+                                                {% endfor %}
                                             {% endif %}
-                                            
-                                            {% for option in field.options %}
-                                            <option value="{{ option.value }}" 
-                                                    {% if field.value == option.value %}selected{% endif %}>
-                                                {{ option.label }}
-                                            </option>
-                                            {% endfor %}
                                         </select>
+                                        {% if field.field_type == 'system_reference' or field.system_reference_field_id %}
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 
                                 <!-- Checkbox -->
@@ -314,19 +326,22 @@
                                                        name="{{ field.field_name }}" 
                                                        type="file" 
                                                        class="sr-only"
-                                                       {% if field.is_required and not form_data.get(field.field_name) %}required{% endif %}
-                                                       {% if field.get('accept') %}accept="{{ field.accept }}"{% endif %}>
+                                                       {% if field.is_required %}required{% endif %}
+                                                       {% if field.system_reference_field_id %}
+                                                           data-system-reference="{{ field.field_name }}"
+                                                           data-reference-id="{{ field.system_reference_field_id }}"
+                                                           data-visible="{{ 'true' if field.is_visible else 'false' }}"
+                                                       {% endif %}>
                                             </label>
-                                            <p class="pl-1">or drag and drop</p>
+                                            <p class="pl-1 text-sm text-gray-500">or drag and drop</p>
                                         </div>
-                                        <p class="mt-1 text-xs text-gray-500">
-                                            {{ field.field_placeholder|default('') }}
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            {% if field.validation_rules and 'file_types' in field.validation_rules %}
+                                                {{ field.validation_rules.file_types|join(', ') }} up to {{ (field.validation_rules.max_size / 1024 / 1024)|round(2) }}MB
+                                            {% else %}
+                                                Any file up to 5MB
+                                            {% endif %}
                                         </p>
-                                        {% if field.value %}
-                                        <p class="mt-2 text-sm text-gray-600">
-                                            Current file: {{ field.value }}
-                                        </p>
-                                        {% endif %}
                                     </div>
                                 {% endif %}
                                 
@@ -334,7 +349,6 @@
                                 <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
                                 {% endif %}
                             </div>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -465,6 +479,23 @@ window.addEventListener('load', function() {
             }
         });
         
+        // Add click handlers for navigation buttons
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                if (validateCurrentSection()) {
+                    goToSection(currentSection - 1);
+                }
+            });
+        }
+        
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                if (validateCurrentSection()) {
+                    goToSection(currentSection + 1);
+                }
+            });
+        }
+        
         // Update button states
         updateButtonStates();
         
@@ -522,7 +553,7 @@ window.addEventListener('load', function() {
         console.log('--- Button states updated ---');
     }
     
-    // Navigate to a specific section
+    // Function to navigate to a specific section
     function goToSection(index) {
         console.log('Attempting to navigate to section', index);
         
@@ -532,51 +563,20 @@ window.addEventListener('load', function() {
         }
         
         // Hide current section
-        if (sections[currentSection]) {
-            sections[currentSection].style.display = 'none';
-            console.log('Hiding section', currentSection);
+        document.querySelectorAll('.section-container').forEach(section => {
+            section.classList.add('hidden');
+        });
+        
+        // Show the selected section
+        const targetSection = document.querySelector(`.section-container[data-section="${index + 1}"]`);
+        if (targetSection) {
+            targetSection.classList.remove('hidden');
+            currentSection = index;
+            updateButtonStates();
+            
+            // Initialize system reference fields when navigating to a new section
+            setTimeout(initializeSystemReferenceFields, 100);
         }
-        
-        // Update current section and show new one
-        currentSection = index;
-        sections[currentSection].style.display = 'block';
-        console.log('Showing section', currentSection);
-        
-        // Force update button states
-        updateButtonStates();
-        
-        // Scroll to top of form
-        window.scrollTo(0, 0);
-        
-        // Force another update after a short delay
-        setTimeout(updateButtonStates, 50);
-    }
-    
-    // Handle form submission
-    if (submitBtn && form) {
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (validateCurrentSection()) {
-                form.submit();
-            }
-        });
-    }
-    
-    // Add click handlers for navigation buttons
-    if (prevBtn) {
-        prevBtn.addEventListener('click', function() {
-            if (validateCurrentSection()) {
-                goToSection(currentSection - 1);
-            }
-        });
-    }
-    
-    if (nextBtn) {
-        nextBtn.addEventListener('click', function() {
-            if (validateCurrentSection()) {
-                goToSection(currentSection + 1);
-            }
-        });
     }
     
     // Validate current section
@@ -606,6 +606,428 @@ window.addEventListener('load', function() {
         });
         
         return isValid;
+    }
+    
+    // Function to log system reference field information
+    function logSystemFieldInfo(field, referenceId, index) {
+        const fieldInfo = {
+            index: index + 1,
+            id: field.id || 'none',
+            name: field.name || 'none',
+            type: field.type || field.tagName,
+            referenceId: referenceId || 'none',
+            isVisible: field.getAttribute('data-visible') !== 'false',
+            isSystemField: field.hasAttribute('data-is-system-field'),
+            formGroup: field.closest('.form-group') ? 'found' : 'not found',
+            options: field.tagName === 'SELECT' ? 
+                Array.from(field.options).map(opt => ({
+                    value: opt.value,
+                    text: opt.text,
+                    selected: opt.selected
+                })) : 'N/A',
+            currentValue: field.value || 'empty',
+            attributes: {}
+        };
+        
+        // Get all data attributes
+        Array.from(field.attributes).forEach(attr => {
+            if (attr.name.startsWith('data-')) {
+                fieldInfo.attributes[attr.name] = attr.value;
+            }
+        });
+        
+        console.group(`🔍 System Field #${fieldInfo.index}: ${fieldInfo.id || fieldInfo.name}`);
+        console.log('📋 Field Info:', fieldInfo);
+        console.groupEnd();
+        
+        return fieldInfo;
+    }
+
+    // Track which fields have been initialized to prevent duplicates
+    const initializedFields = new Set();
+
+    // Function to handle system reference fields
+    function handleSystemReferenceFields() {
+        console.log('🚀 Initializing system reference fields');
+        
+        // Debug: Log all elements with data-reference-id
+        const allRefFields = document.querySelectorAll('[data-reference-id]');
+        console.log('All elements with data-reference-id:', allRefFields);
+        
+        // Find all potential system reference fields in the document
+        const potentialFields = Array.from(document.querySelectorAll('select[data-reference-id]'));
+        
+        console.log(`🔍 Found ${potentialFields.length} potential system reference fields in document`);
+        
+        // Debug: Log all potential fields
+        potentialFields.forEach((field, index) => {
+            console.log(`Field ${index + 1}:`, {
+                id: field.id,
+                name: field.name,
+                tagName: field.tagName,
+                referenceId: field.getAttribute('data-reference-id'),
+                referenceCode: field.getAttribute('data-reference-code'),
+                fieldType: field.getAttribute('data-field-type'),
+                parentElement: field.parentElement ? field.parentElement.tagName : 'none',
+                form: field.form ? 'has form' : 'no form'
+            });
+        });
+        
+        // Filter out already initialized fields and ensure they have an ID and reference ID
+        const systemFields = [];
+        const seenIds = new Set();
+        
+        potentialFields.forEach(field => {
+            const id = field.id || field.name;
+            const refId = field.getAttribute('data-reference-id');
+            
+            if (!id || !refId) {
+                console.log('Skipping field - missing id or referenceId:', { id, refId });
+                return;
+            }
+            
+            if (initializedFields.has(id)) {
+                console.log('Skipping already initialized field:', id);
+                return;
+            }
+            
+            if (seenIds.has(id)) {
+                console.log('Skipping duplicate field ID:', id);
+                return;
+            }
+            
+            seenIds.add(id);
+            systemFields.push(field);
+        });
+        
+        console.log(`✅ Found ${systemFields.length} valid system reference fields to initialize`);
+        
+        if (systemFields.length === 0) {
+            console.log('No new system reference fields to initialize');
+            return;
+        }
+        
+        // Debug: Log all found fields
+        systemFields.forEach((field, index) => {
+            console.log(`Field ${index + 1}:`, {
+                id: field.id,
+                name: field.name,
+                tagName: field.tagName,
+                referenceId: field.getAttribute('data-reference-id'),
+                referenceCode: field.getAttribute('data-reference-code'),
+                fieldType: field.getAttribute('data-field-type'),
+                outerHTML: field.outerHTML.substring(0, 200) + '...'
+            });
+        });
+        
+        systemFields.forEach((field, index) => {
+            const referenceId = field.getAttribute('data-reference-id');
+            const referenceCode = field.getAttribute('data-reference-code');
+            
+            // Mark as initialized early to prevent duplicate processing
+            if (field.id) {
+                initializedFields.add(field.id);
+            }
+            
+            console.group(`📝 Field ${index + 1}: ${field.name || field.id}`);
+            console.log('Reference ID:', referenceId);
+            console.log('Reference code:', referenceCode);
+            
+            if (!referenceId && !referenceCode) {
+                console.warn('⚠️ No reference ID or code found. Skipping...');
+                console.groupEnd();
+                return;
+            }
+            
+            // Always use reference ID if available
+            if (!referenceId) {
+                console.error('No reference ID found for field');
+                console.groupEnd();
+                return;
+            }
+            
+            // Use the reference ID in the API URL
+            // The /api prefix is required as per the blueprint registration in app.py
+            const apiUrl = `/api/system-references/by-id/${encodeURIComponent(referenceId)}`;
+            
+            console.log('Fetching reference values from:', apiUrl);
+            
+            // Create a new select element to replace the existing one
+            const newSelect = document.createElement('select');
+            
+            // Copy all attributes from the original field except those that affect state
+            Array.from(field.attributes).forEach(attr => {
+                if (!['disabled', 'readonly', 'style', 'data-initialized'].includes(attr.name)) {
+                    newSelect.setAttribute(attr.name, attr.value);
+                }
+            });
+            
+            // Mark as initialized to prevent re-processing
+            newSelect.setAttribute('data-initialized', 'true');
+            
+            // Add a default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select ' + (field.getAttribute('placeholder') || 'an option');
+            newSelect.appendChild(defaultOption);
+            
+            // Show loading state
+            const loadingOption = document.createElement('option');
+            loadingOption.value = '';
+            loadingOption.textContent = 'Loading options...';
+            loadingOption.disabled = true;
+            newSelect.appendChild(loadingOption);
+            
+            // Replace the field immediately to prevent duplicate processing
+            field.parentNode.replaceChild(newSelect, field);
+            
+            console.log('Making API request to:', apiUrl);
+            
+            // Make the API call to fetch reference values
+            fetch(apiUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                credentials: 'same-origin',
+                cache: 'no-store',
+                // Add a timeout to prevent hanging
+                signal: AbortSignal.timeout(5000)
+            }).catch(error => {
+                if (error.name === 'TimeoutError') {
+                    throw new Error('Request timed out');
+                }
+                throw error; // Re-throw other errors
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('API Error Response:', text);
+                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!Array.isArray(data)) {
+                    throw new Error('Invalid data format received from API');
+                }
+                
+                console.log(`Fetched ${data.length} reference values`);
+                
+                // Clear existing options except the first one
+                while (newSelect.options.length > 1) {
+                    newSelect.remove(1);
+                }
+                
+                // Add the actual options
+                if (data.length > 0) {
+                    data.forEach((item, idx) => {
+                        const option = document.createElement('option');
+                        option.value = item.value || item.id || item.code || idx;
+                        option.textContent = item.label || item.name || item.value || `Option ${idx + 1}`;
+                        newSelect.appendChild(option);
+                    });
+                    
+                    // Set the value if it exists
+                    if (field.dataset.value) {
+                        newSelect.value = field.dataset.value;
+                    }
+                    
+                    console.log('✅ Successfully initialized system reference field');
+                } else {
+                    console.warn('No options returned from API');
+                    const noOptions = document.createElement('option');
+                    noOptions.value = '';
+                    noOptions.textContent = 'No options available';
+                    noOptions.disabled = true;
+                    newSelect.appendChild(noOptions);
+                }
+                
+                // Enable the field
+                newSelect.disabled = false;
+                newSelect.style.removeProperty('background-color');
+                newSelect.style.removeProperty('cursor');
+            })
+            .catch(error => {
+                console.error('Error loading reference values:', error);
+                
+                // Clear loading message
+                while (newSelect.options.length > 1) {
+                    newSelect.remove(1);
+                }
+                
+                // Show detailed error message
+                const errorMessage = error.message || 'Error loading options';
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = errorMessage.length > 50 ? 'Error loading options' : errorMessage;
+                errorOption.title = errorMessage; // Show full message on hover
+                errorOption.disabled = true;
+                newSelect.appendChild(errorOption);
+                
+                // Enable the field but show it's in an error state
+                newSelect.disabled = false;
+                newSelect.style.borderColor = '#f87171';
+                newSelect.style.backgroundColor = '#fef2f2';
+                
+                // Add a retry button
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'mt-1 flex flex-col space-y-1';
+                
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'text-sm text-blue-600 hover:underline text-left';
+                retryButton.textContent = '🔄 Retry loading options';
+                retryButton.onclick = () => {
+                    // Remove the error state and retry
+                    newSelect.style.borderColor = '';
+                    newSelect.style.backgroundColor = '';
+                    const container = newSelect.nextElementSibling;
+                    if (container && container.classList.contains('mt-1')) {
+                        container.remove();
+                    }
+                    // Re-run initialization for this field
+                    if (field.id) {
+                        initializedFields.delete(field.id);
+                    }
+                    handleSystemReferenceFields();
+                };
+                
+                // Add a button to show more details
+                const detailsButton = document.createElement('button');
+                detailsButton.type = 'button';
+                detailsButton.className = 'text-xs text-gray-500 hover:underline text-left';
+                detailsButton.textContent = 'Show error details';
+                detailsButton.onclick = (e) => {
+                    e.preventDefault();
+                    alert(`Error loading options for ${field.name || field.id}:\n\n${errorMessage}\n\nURL: ${apiUrl}`);
+                };
+                
+                buttonContainer.appendChild(retryButton);
+                buttonContainer.appendChild(detailsButton);
+                
+                // Add the buttons after the select
+                newSelect.parentNode.insertBefore(buttonContainer, newSelect.nextSibling);
+            })
+            .finally(() => {
+                console.groupEnd();
+            });
+        });
+    }
+    function initializeSystemReferenceFields() {
+        const form = document.getElementById('dynamicForm');
+        if (!form) {
+            console.error('Form element not found for system reference fields');
+            return;
+        }
+
+        console.log('🚀 Initializing system reference fields...');
+
+        // Initial call to handle system reference fields
+        const updateSystemFields = () => {
+            console.log('🔄 Updating system reference fields...');
+            try {
+                handleSystemReferenceFields();
+                console.log('✅ System reference fields updated successfully');
+                
+                // Debug: Log all system reference fields
+                const systemFields = document.querySelectorAll('[data-system-reference]');
+                console.log(`🔍 Found ${systemFields.length} system reference fields in the DOM`);
+                systemFields.forEach((field, index) => {
+                    console.log(`Field ${index + 1}:`, {
+                        id: field.id,
+                        name: field.name,
+                        tagName: field.tagName,
+                        referenceId: field.getAttribute('data-reference-id'),
+                        isSystemField: field.hasAttribute('data-is-system-field'),
+                        value: field.value
+                    });
+                });
+            } catch (error) {
+                console.error('❌ Error updating system reference fields:', error);
+            }
+        };
+
+        // Initial update after a short delay to ensure DOM is ready
+        setTimeout(updateSystemFields, 100);
+
+        // Set up MutationObserver to detect dynamic changes
+        const observer = new MutationObserver((mutations) => {
+            const shouldUpdate = mutations.some(mutation => 
+                mutation.addedNodes && mutation.addedNodes.length > 0 ||
+                (mutation.type === 'attributes' && 
+                 mutation.target.hasAttribute('data-system-reference'))
+            );
+            
+            if (shouldUpdate) {
+                console.log('🔄 DOM changes detected, updating system reference fields...');
+                updateSystemFields();
+            }
+        });
+
+        // Start observing the form for changes
+        observer.observe(form, { 
+            childList: true, 
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['data-system-reference', 'data-reference-id']
+        });
+
+        // Handle changes to system reference fields
+        form.addEventListener('change', (event) => {
+            const field = event.target;
+            if (field.hasAttribute('data-reference-id')) {
+                const referenceId = field.getAttribute('data-reference-id');
+                const isChecked = field.type === 'checkbox' ? field.checked : true;
+                
+                console.log('System reference field changed:', {
+                    field: field,
+                    referenceId: referenceId,
+                    value: field.value,
+                    isChecked: isChecked
+                });
+                
+                // Update visibility of related fields
+                document.querySelectorAll(`[data-reference-id="${referenceId}"]`).forEach(targetField => {
+                    const targetGroup = targetField.closest('.field-group') || targetField.closest('.form-group');
+                    if (targetGroup) {
+                        targetGroup.style.display = isChecked ? 'block' : 'none';
+                        console.log('Updated visibility for field group:', targetGroup);
+                    }
+                });
+            }
+        });
+
+        console.log('✅ System reference field initialization complete');
+    }
+
+    // Initialize system reference fields after a short delay to ensure all elements are in the DOM
+    function initializeForm() {
+        console.log('Initializing form...');
+        
+        // Initialize the main form first
+        initForm();
+        
+        // Then initialize system reference fields
+        console.log('Initializing system reference fields...');
+        initializeSystemReferenceFields();
+        
+        // One more check after a short delay to catch any dynamically added fields
+        setTimeout(() => {
+            console.log('Running final check for system reference fields...');
+            handleSystemReferenceFields();
+        }, 500);
+    }
+    
+    // Start initialization when the DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeForm);
+    } else {
+        // If the document is already loaded, run immediately
+        setTimeout(initializeForm, 0);
     }
     
     // Save draft functionality

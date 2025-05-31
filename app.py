@@ -59,6 +59,7 @@ from routes.impact_assessment import impact_assessment_bp
 from routes.section_routes import sections_bp
 from routes.impact import impact_bp
 from routes.post_disbursement_modules import post_disbursement_modules_bp
+from routes.system_references import bp as system_references_bp
 from routes.post_disbursement_workflows import post_disbursement_workflows_bp
 from routes.progress_update import progress_update_bp
 from routes.settings import settings_bp
@@ -188,6 +189,7 @@ def create_app():
     app.register_blueprint(impact_bp)  # Register the Impact blueprint
     app.register_blueprint(impact_assessment_bp)  # Register the Impact Assessment blueprint
     app.register_blueprint(system_bp)  # Register the System References Admin blueprint
+    app.register_blueprint(system_references_bp, url_prefix='/api')  # Register the System References API blueprint
 
     # Import and register SMS templates blueprint after all models are loaded
     from routes.sms_templates import sms_templates_bp

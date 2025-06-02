@@ -69,6 +69,7 @@
                         <!-- Form Fields -->
                         <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
                             {% for field in section.fields %}
+                            {% if field.field_type != 'system_reference' or field.is_visible %}
                             <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
                                 <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
                                     {{ field.field_label }}
@@ -141,6 +142,7 @@
                                 <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
                                 {% endif %}
                             </div>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>

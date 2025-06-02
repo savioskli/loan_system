@@ -14,7 +14,7 @@ class SystemReferenceHandler {
 
         // Create dropdown container
         const dropdown = document.createElement('div');
-        dropdown.className = 'absolute z-50 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-1 max-h-60 overflow-auto hidden';
+        dropdown.className = 'absolute z-50 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto hidden';
         wrapper.appendChild(dropdown);
 
         // Create search input
@@ -57,6 +57,25 @@ class SystemReferenceHandler {
             });
         };
 
+        // Position dropdown based on available space
+        const positionDropdown = () => {
+            const selectRect = select.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - selectRect.bottom;
+            const spaceAbove = selectRect.top;
+            const dropdownHeight = Math.min(300, options.length * 40 + 60); // Approximate height
+
+            // Reset classes
+            dropdown.classList.remove('bottom-full', 'top-full', 'mb-1', 'mt-1');
+
+            if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                // Show above
+                dropdown.classList.add('bottom-full', 'mb-1');
+            } else {
+                // Show below
+                dropdown.classList.add('top-full', 'mt-1');
+            }
+        };
+
         // Show dropdown on select click
         select.addEventListener('mousedown', (e) => {
             e.preventDefault();
@@ -65,6 +84,7 @@ class SystemReferenceHandler {
             }
             dropdown.classList.toggle('hidden');
             if (!dropdown.classList.contains('hidden')) {
+                positionDropdown();
                 this.activeDropdown = dropdown;
                 searchInput.value = '';
                 createOptions();
@@ -73,6 +93,13 @@ class SystemReferenceHandler {
                 this.activeDropdown = null;
             }
         });
+
+        // Update position on scroll
+        window.addEventListener('scroll', () => {
+            if (!dropdown.classList.contains('hidden')) {
+                positionDropdown();
+            }
+        }, true);
 
         // Filter options on search
         searchInput.addEventListener('input', () => {

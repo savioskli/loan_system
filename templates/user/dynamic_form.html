@@ -527,10 +527,10 @@ window.addEventListener('load', function() {
         // Hide all sections except the first one
         sections.forEach((section, index) => {
             if (index === 0) {
-                section.style.display = 'block';
+                section.classList.remove('hidden');
                 console.log('Showing section', index);
             } else {
-                section.style.display = 'none';
+                section.classList.add('hidden');
                 console.log('Hiding section', index);
             }
         });
@@ -629,6 +629,9 @@ window.addEventListener('load', function() {
             targetSection.classList.remove('hidden');
             currentSection = index;
             updateButtonStates();
+            
+            // Scroll to top of the form
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             
             // Initialize system reference fields when navigating to a new section
             setTimeout(initializeSystemReferenceFields, 100);

@@ -420,7 +420,6 @@ def dynamic_form(module_id):
                 'field_order': field.field_order or 0,
                 'section_id': section_id,
                 'section_name': sections_dict[section_id]['name'],
-                'options': field.options or [],
                 'validation_rules': field.validation_rules or {},
                 'default_value': getattr(field, 'default_value', None),
                 'is_system': field.is_system,
@@ -428,6 +427,17 @@ def dynamic_form(module_id):
                 'reference_field_code': field.reference_field_code,
                 'is_visible': field.is_visible if hasattr(field, 'is_visible') else True
             }
+            
+            # For client type field, get options from client_types table
+            if field.field_name == 'client_type':
+                from models.client_type import ClientType
+                client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+                field_data['options'] = [{
+                    'value': ct.client_code,
+                    'label': ct.client_name
+                } for ct in client_types]
+            else:
+                field_data['options'] = field.options or []
             sections_dict[section_id]['fields'].append(field_data)
         
         # Convert to list and sort by section order

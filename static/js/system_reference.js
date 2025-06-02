@@ -2,6 +2,92 @@
 class SystemReferenceHandler {
     constructor() {
         this.loadedFields = new Set();
+        this.activeDropdown = null;
+    }
+
+    makeSearchable(select) {
+        // Create wrapper div
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+
+        // Create dropdown container
+        const dropdown = document.createElement('div');
+        dropdown.className = 'absolute z-50 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-1 max-h-60 overflow-auto hidden';
+        wrapper.appendChild(dropdown);
+
+        // Create search input
+        const searchDiv = document.createElement('div');
+        searchDiv.className = 'p-2 border-b border-gray-200 sticky top-0 bg-white';
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Type to search...';
+        searchInput.className = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        searchDiv.appendChild(searchInput);
+        dropdown.appendChild(searchDiv);
+
+        // Create options container
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'py-1';
+        dropdown.appendChild(optionsDiv);
+
+        // Store original options
+        const options = Array.from(select.options).slice(1); // Skip placeholder
+
+        // Create custom options
+        const createOptions = (filterText = '') => {
+            optionsDiv.innerHTML = '';
+            options.forEach(option => {
+                if (!filterText || option.text.toLowerCase().includes(filterText.toLowerCase())) {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'px-4 py-2 hover:bg-blue-50 cursor-pointer';
+                    optionDiv.textContent = option.text;
+                    optionDiv.dataset.value = option.value;
+                    if (option.value === select.value) {
+                        optionDiv.classList.add('bg-blue-50');
+                    }
+                    optionDiv.addEventListener('click', () => {
+                        select.value = option.value;
+                        dropdown.classList.add('hidden');
+                        this.activeDropdown = null;
+                    });
+                    optionsDiv.appendChild(optionDiv);
+                }
+            });
+        };
+
+        // Show dropdown on select click
+        select.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            if (this.activeDropdown && this.activeDropdown !== dropdown) {
+                this.activeDropdown.classList.add('hidden');
+            }
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) {
+                this.activeDropdown = dropdown;
+                searchInput.value = '';
+                createOptions();
+                searchInput.focus();
+            } else {
+                this.activeDropdown = null;
+            }
+        });
+
+        // Filter options on search
+        searchInput.addEventListener('input', () => {
+            createOptions(searchInput.value);
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                if (this.activeDropdown === dropdown) {
+                    this.activeDropdown = null;
+                }
+            }
+        });
     }
 
     async loadFieldOptions(field) {
@@ -39,6 +125,9 @@ class SystemReferenceHandler {
                 field.value = previousValue;
             }
 
+            // Make the select searchable
+            this.makeSearchable(field);
+
         } catch (error) {
             console.error('Error loading system reference data:', error);
             // Add an error option
@@ -63,6 +152,13 @@ class SystemReferenceHandler {
             
             // Load the options
             this.loadFieldOptions(field);
+        });
+
+        // Make all select fields searchable
+        document.querySelectorAll('select.form-control:not([data-is-system-field="true"])').forEach(select => {
+            if (select.options.length > 10) { // Only add search for selects with many options
+                this.makeSearchable(select);
+            }
         });
     }
 }

@@ -4,6 +4,12 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/system_reference.js') }}"></script>
+<script src="{{ url_for('static', filename='js/client_type_handler.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        new ClientTypeHandler();
+    });
+</script>
 {% endblock %}
 
 {% block content %}
@@ -59,12 +65,17 @@
                 <div class="section-container p-8" data-section="{{ loop.index }}">
                     <div class="space-y-6">
                         <!-- Section Header -->
-                        <div class="border-b border-gray-200 pb-4">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
-                            {% if section.description %}
-                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
-                            {% endif %}
+                        <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg flex justify-between items-center">
+                            <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
+                            <button type="button" 
+                                    class="save-draft-btn inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    data-section-id="{{ section.id }}">
+                                Save as Draft
+                            </button>
                         </div>
+                        {% if section.description %}
+                        <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                        {% endif %}
                         
                         <!-- Form Fields -->
                         <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
@@ -87,7 +98,9 @@
                                            value="{{ field.value or '' }}"
                                            {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                            {% if field.is_required %}required{% endif %}
-                                           {% if field.get('readonly') %}readonly{% endif %}>
+                                           {% if field.get('readonly') %}readonly{% endif %}
+                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                           data-is-required="{{ field.is_required|tojson }}">
                                 </div>
 
                                 {% elif field.field_type == 'textarea' %}
@@ -98,7 +111,9 @@
                                               class="form-control"
                                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                               {% if field.is_required %}required{% endif %}
-                                              {% if field.get('readonly') %}readonly{% endif %}>{{ field.value or '' }}</textarea>
+                                              {% if field.get('readonly') %}readonly{% endif %}
+                                              data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                              data-is-required="{{ field.is_required|tojson }}">{{ field.value or '' }}</textarea>
                                 </div>
 
                                 {% elif field.field_type in ['select', 'system_reference'] %}
@@ -112,7 +127,9 @@
                                                 data-reference-id="{{ field.system_reference_field_id }}"
                                                 data-is-system-field="true"
                                                 data-previous-value="{{ field.value or '' }}"
-                                            {% endif %}>
+                                            {% endif %}
+                                            data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                            data-is-required="{{ field.is_required|tojson }}">
                                         <option value="">Select {{ field.field_label }}</option>
                                         {% if field.options %}
                                             {% for option in field.options %}
@@ -131,7 +148,9 @@
                                            name="{{ field.field_name }}"
                                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                            accept="{{ field.accept or '.pdf,.doc,.docx' }}"
-                                           {% if field.is_required %}required{% endif %}>
+                                           {% if field.is_required %}required{% endif %}
+                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                           data-is-required="{{ field.is_required|tojson }}">
                                     {% if field.value %}
                                     <p class="mt-2 text-sm text-gray-500">Current file: {{ field.value }}</p>
                                     {% endif %}

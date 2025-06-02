@@ -425,7 +425,8 @@ def dynamic_form(module_id):
                 'is_system': field.is_system,
                 'system_reference_field_id': field.system_reference_field_id,
                 'reference_field_code': field.reference_field_code,
-                'is_visible': field.is_visible if hasattr(field, 'is_visible') else True
+                'is_visible': field.is_visible if hasattr(field, 'is_visible') else True,
+                'client_type_restrictions': field.client_type_restrictions or []  # Add client type restrictions
             }
             
             # For client type field, get options from client_types table
@@ -433,7 +434,7 @@ def dynamic_form(module_id):
                 from models.client_type import ClientType
                 client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
                 field_data['options'] = [{
-                    'value': ct.client_code,
+                    'value': str(ct.id),  # Use ID instead of client_code
                     'label': ct.client_name
                 } for ct in client_types]
             else:

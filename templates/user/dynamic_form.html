@@ -2,195 +2,43 @@
 
 {% block title %}{{ module.name }}{% endblock %}
 
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/system_reference.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <style>
-    /* Debug styles */
-    * {
-        /* outline: 1px solid rgba(255,0,0,0.1) !important; */
-    }
-    
-    /* Style for system reference dropdowns */
-    .form-group {
-        position: relative;
-        z-index: 1;
-    }
-    
-    select[data-reference-id] {
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        background-color: white;
-        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 1.25rem;
-        padding: 0.5rem 2.5rem 0.5rem 1rem;
+    /* Form input styles */
+    .form-control {
+        padding: 0.5rem 0.75rem;
         width: 100%;
-        min-height: 2.75rem;
-        line-height: 1.5;
-        border: 1px solid #d1d5db;
         border-radius: 0.375rem;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        border: 1px solid #d1d5db;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
     }
-    
-    /* Ensure proper stacking context */
-    select[data-reference-id] {
-        position: relative;
-        z-index: 2;
-    }
-    
-    /* Dropdown options styling */
-    select[data-reference-id] option {
-        padding: 0.5rem 1rem;
-        background: white;
-    }
-    
-    /* Focus state */
-    select[data-reference-id]:focus {
+
+    .form-control:focus {
         outline: none;
         border-color: #3b82f6;
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
     }
-    
-    /* Hover state */
-    select[data-reference-id]:not(:disabled):hover {
-        border-color: #9ca3af;
+
+    select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 2.5rem;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1rem;
     }
-    
-    /* Disabled state */
-    select[data-reference-id]:disabled {
-        background-color: #f3f4f6;
-        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-        cursor: not-allowed;
-        opacity: 0.7;
-    }
-    
-    /* Form Actions Styling */
-    #form-actions {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: white;
-        padding: 1rem 0;
-        z-index: 1000;
-        border-top: 1px solid #e5e7eb;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    }
-    
-    /* Ensure buttons are visible and properly styled */
-    #form-actions button {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        margin: 0 0.25rem;
-    }
-    
-    /* Form action buttons container */
-    .form-actions-left,
-    .form-actions-right {
-        display: flex;
-        gap: 1rem;
-    }
-    
-    /* Base button style */
-    .form-action-btn {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem 1.25rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        min-width: 120px;
-        border: 1px solid transparent;
-    }
-    
-    /* Force button visibility states */
-    #prevBtn[style*="display: none"],
-    #nextBtn[style*="display: none"],
-    #submitBtn[style*="display: none"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-    
-    /* Button specific styles */
-    .form-action-prev {
-        background: white;
-        border-color: #d1d5db;
-        color: #374151;
-    }
-    
-    .form-action-next {
-        background: #3b82f6;
-        border-color: #3b82f6;
-        color: white;
-    }
-    
-    .form-action-save {
-        background: #fef3c7;
-        border-color: #fcd34d;
-        color: #92400e;
-    }
-    
-    .form-action-submit {
-        background: #10b981;
-        border-color: #10b981;
-        color: white;
-    }
-    
-    /* Hover states */
-    .form-action-prev:hover {
-        background: #f3f4f6;
-    }
-    
-    .form-action-next:hover {
-        background: #2563eb;
-        border-color: #2563eb;
-    }
-    
-    .form-action-save:hover {
-        background: #fde68a;
-        border-color: #fbbf24;
-    }
-    
-    .form-action-submit:hover {
-        background: #059669;
-        border-color: #059669;
-    }
-    
-    /* Make sure buttons are visible */
-    #form-actions button {
-        display: inline-flex !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-    
-    /* Responsive button container */
-    .button-container {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    @media (min-width: 640px) {
-        .button-container {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-        }
+
+    textarea.form-control {
+        min-height: 6rem;
     }
 </style>
-
 <div class="min-h-screen bg-gray-50 pb-24">
     <div class="max-w-5xl mx-auto px-6 lg:px-8">
         <!-- Form Header -->
@@ -199,209 +47,97 @@
                 <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
                     {{ module.name }}
                 </h2>
-                <p class="mt-2 text-sm text-gray-500">
-                    Please fill in all required fields marked with an asterisk (*).
-                </p>
-            </div>
-            <div class="mt-4 flex md:mt-0 md:ml-4">
-                <a href="{{ url_for('user.dashboard') }}" 
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Back to Dashboard
-                </a>
-            </div>
-        </div>
-
-        <!-- Wizard Navigation -->
-        <div class="mb-8">
-            <div class="text-center">
-                <p class="text-sm font-medium text-gray-700 mb-2">
-                    Step <span id="current-step">1</span> of <span id="total-steps">{{ sections|length }}</span>
-                </p>
-                <div class="flex items-center justify-center space-x-2 overflow-x-auto pb-2">
-                    {% for section in sections %}
-                    <div class="step-indicator flex-shrink-0 flex items-center">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-full {% if loop.first %}bg-primary text-white{% else %}bg-gray-200 text-gray-700{% endif %} text-sm font-medium transition-colors duration-200">
-                            {{ loop.index }}
-                        </span>
-                        <span class="ml-2 text-sm font-medium text-gray-700 whitespace-nowrap">
-                            {{ section.name }}
-                        </span>
-                        {% if not loop.last %}
-                        <span class="mx-2 text-gray-400">›</span>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
         </div>
 
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" class="divide-y divide-gray-200" enctype="multipart/form-data">
+            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" enctype="multipart/form-data" class="divide-y divide-gray-200">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+                
                 {% for section in sections %}
-                <div class="section-container {% if not loop.first %}hidden{% endif %}" data-section="{{ loop.index }}">
-                    <div class="px-8 py-6">
-                        <div class="space-y-8">
-                            <!-- Section Header -->
-                            <div class="border-b border-gray-200 pb-4">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
-                                {% if section.description %}
-                                <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Form Fields Grid -->
-                            <div class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2">
-                                {% for field in section.fields %}
-                                <div class="form-group {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}"
-                                     data-field-name="{{ field.field_name }}">
-                                    <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-900 mb-1">
-                                        {{ field.field_label }}
-                                        {% if field.is_required %}
-                                        <span class="text-red-500">*</span>
-                                        {% endif %}
-                                    </label>
-                                
-                                <!-- Text, Email, Tel, Number, Date, Password -->
+                <div class="section-container p-8" data-section="{{ loop.index }}">
+                    <div class="space-y-6">
+                        <!-- Section Header -->
+                        <div class="border-b border-gray-200 pb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ section.name }}</h3>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Form Fields -->
+                        <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
+                            {% for field in section.fields %}
+                            <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
+                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
+                                    {{ field.field_label }}
+                                    {% if field.is_required %}
+                                    <span class="text-red-500">*</span>
+                                    {% endif %}
+                                </label>
+
                                 {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
-                                    <div class="relative rounded-md shadow-sm">
-                                        <input type="{{ field.field_type }}"
-                                               id="{{ field.field_name }}"
-                                               name="{{ field.field_name }}"
-                                               class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                               {% if field.is_required %}required{% endif %}
-                                               {% if field.field_type == 'tel' %}pattern="[0-9]{10,}"{% endif %}
-                                               {% if field.field_type == 'number' and field.get('step') %}step="{{ field.step }}"{% endif %}
-                                               {% if field.field_type == 'date' %}max="{{ current_date }}"{% endif %}
-                                               value="{{ field.value or '' }}"
-                                               {% if field.get('hint') %}aria-describedby="{{ field.field_name }}-hint"{% endif %}
-                                               {% if field.get('readonly') %}readonly{% endif %}>
-                                        
-                                        {% if field.get('hint') %}
-                                        <p id="{{ field.field_name }}-hint" class="mt-2 text-sm text-gray-500">
-                                            {{ field.hint }}
-                                        </p>
-                                        {% endif %}
-                                    </div>
-                                
-                                <!-- Textarea -->
+                                <div class="mt-1">
+                                    <input type="{{ field.field_type }}"
+                                           id="{{ field.field_name }}"
+                                           name="{{ field.field_name }}"
+                                           class="form-control"
+                                           value="{{ field.value or '' }}"
+                                           {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                           {% if field.is_required %}required{% endif %}
+                                           {% if field.get('readonly') %}readonly{% endif %}>
+                                </div>
+
                                 {% elif field.field_type == 'textarea' %}
-                                    <div class="relative rounded-md shadow-sm">
-                                        <textarea id="{{ field.field_name }}"
-                                                  name="{{ field.field_name }}"
-                                                  rows="{{ field.rows|default(4) }}"
-                                                  class="block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                                  {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                                  {% if field.is_required %}required{% endif %}
-                                                  {% if field.get('readonly') %}readonly{% endif %}>{{ field.value or '' }}</textarea>
-                                    </div>
-                                
-                                <!-- Select Dropdown -->
-                                {% elif field.field_type == 'select' or field.field_type == 'system_reference' %}
-                                    <div class="relative rounded-md shadow-sm">
-                                        <select id="{{ field.field_name }}"
-                                                name="{{ field.field_name }}"
-                                                class="block w-full px-4 py-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm transition-colors duration-200"
-                                                {% if field.is_required %}required{% endif %}
-                                                {% if field.get('readonly') or field.field_type == 'system_reference' %}disabled{% endif %}
-                                                data-field-type="{{ field.field_type }}"
-                                                {% if field.system_reference_field_id %}
-                                                    data-reference-id="{{ field.system_reference_field_id }}"
-                                                    data-reference-code="{{ field.reference_field_code }}"
-                                                    data-is-system-field="true"
-                                                    data-field-type="system_reference"
-                                                {% endif %}
-                                                {% if field.is_system is defined %}
-                                                    data-is-system="{{ 'true' if field.is_system else 'false' }}"
-                                                {% endif %}>
-                                            <option value="">Select {{ field.field_label }}</option>
-                                            {% if field.options %}
-                                                {% for option in field.options %}
-                                                    <option value="{{ option.value }}" 
-                                                            {% if field.value == option.value or field.default_value == option.value %}selected{% endif %}>
-                                                        {{ option.label }}
-                                                    </option>
-                                                {% endfor %}
-                                            {% endif %}
-                                        </select>
-                                        {% if field.field_type == 'system_reference' or field.system_reference_field_id %}
-                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                                </svg>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                
-                                <!-- Checkbox -->
-                                {% elif field.field_type == 'checkbox' %}
-                                    <div class="flex items-center">
-                                        <input type="checkbox"
-                                               id="{{ field.field_name }}"
-                                               name="{{ field.field_name }}"
-                                               value="1"
-                                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                                               {% if field.value %}checked{% endif %}
-                                               {% if field.is_required %}required{% endif %}
-                                               {% if field.get('readonly') %}readonly disabled{% endif %}>
-                                        <label for="{{ field.field_name }}" class="ml-2 block text-sm text-gray-700">
-                                            {{ field.field_placeholder|default('') }}
-                                        </label>
-                                    </div>
-                                
-                                <!-- Radio Buttons -->
-                                {% elif field.field_type == 'radio' %}
-                                    <div class="space-y-2">
-                                        {% for option in field.options %}
-                                        <div class="flex items-center">
-                                            <input type="radio"
-                                                   id="{{ field.field_name }}_{{ loop.index }}"
-                                                   name="{{ field.field_name }}"
-                                                   value="{{ option.value }}"
-                                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                                                   {% if field.value == option.value %}checked{% endif %}
-                                                   {% if field.is_required %}required{% endif %}
-                                                   {% if field.get('readonly') %}readonly disabled{% endif %}>
-                                            <label for="{{ field.field_name }}_{{ loop.index }}" class="ml-2 block text-sm text-gray-700">
+                                <div class="mt-1">
+                                    <textarea id="{{ field.field_name }}"
+                                              name="{{ field.field_name }}"
+                                              rows="4"
+                                              class="form-control"
+                                              {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                              {% if field.is_required %}required{% endif %}
+                                              {% if field.get('readonly') %}readonly{% endif %}>{{ field.value or '' }}</textarea>
+                                </div>
+
+                                {% elif field.field_type in ['select', 'system_reference'] %}
+                                <div class="mt-1">
+                                    <select id="{{ field.field_name }}"
+                                            name="{{ field.field_name }}"
+                                            class="form-control"
+                                            {% if field.is_required %}required{% endif %}
+                                            {% if field.get('readonly') or field.field_type == 'system_reference' %}disabled{% endif %}
+                                            {% if field.field_type == 'system_reference' %}
+                                                data-reference-id="{{ field.system_reference_field_id }}"
+                                                data-is-system-field="true"
+                                                data-previous-value="{{ field.value or '' }}"
+                                            {% endif %}>
+                                        <option value="">Select {{ field.field_label }}</option>
+                                        {% if field.options %}
+                                            {% for option in field.options %}
+                                            <option value="{{ option.value }}" {% if field.value == option.value %}selected{% endif %}>
                                                 {{ option.label }}
-                                            </label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                
-                                <!-- File Upload -->
+                                            </option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+
                                 {% elif field.field_type == 'file' %}
-                                    <div class="relative rounded-md shadow-sm">
-                                        <div class="mt-1 flex items-center">
-                                            <label for="{{ field.field_name }}" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none">
-                                                <span>Upload file</span>
-                                                <input id="{{ field.field_name }}" 
-                                                       name="{{ field.field_name }}" 
-                                                       type="file" 
-                                                       class="sr-only"
-                                                       {% if field.is_required %}required{% endif %}
-                                                       {% if field.system_reference_field_id %}
-                                                           data-system-reference="{{ field.field_name }}"
-                                                           data-reference-id="{{ field.system_reference_field_id }}"
-                                                           data-visible="{{ 'true' if field.is_visible else 'false' }}"
-                                                       {% endif %}>
-                                            </label>
-                                            <p class="pl-1 text-sm text-gray-500">or drag and drop</p>
-                                        </div>
-                                        <p class="mt-1 text-sm text-gray-500">
-                                            {% if field.validation_rules and 'file_types' in field.validation_rules %}
-                                                {{ field.validation_rules.file_types|join(', ') }} up to {{ (field.validation_rules.max_size / 1024 / 1024)|round(2) }}MB
-                                            {% else %}
-                                                Any file up to 5MB
-                                            {% endif %}
-                                        </p>
-                                    </div>
+                                <div class="mt-1">
+                                    <input type="file"
+                                           id="{{ field.field_name }}"
+                                           name="{{ field.field_name }}"
+                                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                           accept="{{ field.accept or '.pdf,.doc,.docx' }}"
+                                           {% if field.is_required %}required{% endif %}>
+                                    {% if field.value %}
+                                    <p class="mt-2 text-sm text-gray-500">Current file: {{ field.value }}</p>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
-                                
-                                {% if field.get('help_text') %}
+
+                                {% if field.help_text %}
                                 <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
                                 {% endif %}
                             </div>
@@ -410,723 +146,24 @@
                     </div>
                 </div>
                 {% endfor %}
-                <!-- Spacer to prevent content from being hidden behind fixed buttons -->
-                <div style="height: 100px;"></div>
             </form>
         </div>
-        
-        <!-- Form Actions - Outside Form -->
-        <div id="form-actions" style="
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            padding: 1rem 0;
-            z-index: 1000;
-            border-top: 1px solid #e5e7eb;
-            box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
-        ">
-            <div style="max-width: 1200px; margin: 0 auto; padding: 0 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <!-- Left side buttons -->
-                    <div class="form-actions-left">
-                        <button type="button" id="prevBtn" class="form-action-btn form-action-prev">
-                            ← Previous
-                        </button>
-                        <button type="button" id="saveDraftBtn" class="form-action-btn form-action-save">
-                            💾 Save as Draft
-                        </button>
-                    </div>
-                    
-                    <!-- Right side buttons -->
-                    <div class="form-actions-right">
-                        <button type="button" id="nextBtn" class="form-action-btn form-action-next">
-                            Next →
-                        </button>
-                        <button type="submit" id="submitBtn" class="form-action-btn form-action-submit">
-                            Submit Application
-                        </button>
-                    </div>
-                </div>
+
+        <!-- Form Actions -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4">
+            <div class="max-w-5xl mx-auto flex justify-end space-x-4">
+                <button type="button" 
+                        id="saveDraftBtn"
+                        class="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+                    Save Draft
+                </button>
+                <button type="submit" 
+                        form="dynamicForm"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Submit
+                </button>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Ensure form actions are hidden initially -->
-<script>
-// Hide form actions immediately when this script loads
-document.addEventListener('DOMContentLoaded', function() {
-    const formActions = document.getElementById('form-actions');
-    if (formActions) {
-        formActions.style.display = 'none';
-        console.log('Form actions hidden initially');
-    } else {
-        console.error('Could not find form-actions element');
-    }
-});
-</script>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-// Debug: Log all styles for an element
-function debugStyles(elementId) {
-    const el = document.getElementById(elementId);
-    if (!el) {
-        console.error('Element not found:', elementId);
-        return;
-    }
-    
-    console.group('Debug styles for:', elementId);
-    console.log('Computed display:', window.getComputedStyle(el).display);
-    console.log('Computed visibility:', window.getComputedStyle(el).visibility);
-    console.log('Computed opacity:', window.getComputedStyle(el).opacity);
-    console.log('Inline styles:', el.style.cssText);
-    console.groupEnd();
-}
-
-// Wait for everything to be fully loaded
-window.addEventListener('load', function() {
-    console.log('Page fully loaded');
-    
-    // Get form and buttons
-    const form = document.getElementById('dynamicForm');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const saveDraftBtn = document.getElementById('saveDraftBtn');
-    const submitBtn = document.getElementById('submitBtn');
-    const sections = document.querySelectorAll('.section-container');
-    const totalSections = sections.length;
-    let currentSection = 0;
-    
-    // Debug: Log all elements
-    console.log('Form elements:', { 
-        form: !!form, 
-        prevBtn: !!prevBtn, 
-        nextBtn: !!nextBtn, 
-        saveDraftBtn: !!saveDraftBtn, 
-        submitBtn: !!submitBtn,
-        sections: sections.length
-    });
-    
-    // Initialize form
-    function initForm() {
-        console.log('Initializing form with', totalSections, 'sections');
-        
-        // Make sure form actions are visible
-        const formActions = document.getElementById('form-actions');
-        if (formActions) {
-            formActions.style.display = 'block';
-            formActions.style.visibility = 'visible';
-            console.log('Form actions shown');
-        }
-        
-        // Hide all sections except the first one
-        sections.forEach((section, index) => {
-            if (index === 0) {
-                section.classList.remove('hidden');
-                console.log('Showing section', index);
-            } else {
-                section.classList.add('hidden');
-                console.log('Hiding section', index);
-            }
-        });
-        
-        // Add click handlers for navigation buttons
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function() {
-                if (validateCurrentSection()) {
-                    goToSection(currentSection - 1);
-                }
-            });
-        }
-        
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function() {
-                if (validateCurrentSection()) {
-                    goToSection(currentSection + 1);
-                }
-            });
-        }
-        
-        // Update button states
-        updateButtonStates();
-        
-        // Add a small delay to ensure all styles are applied
-        setTimeout(updateButtonStates, 50);
-    }
-    
-    // Update button states based on current section
-    function updateButtonStates() {
-        console.log('\n--- Updating button states for section:', currentSection, 'of', totalSections - 1);
-        
-        // Previous button
-        if (prevBtn) {
-            const showPrev = currentSection > 0;
-            prevBtn.style.setProperty('display', showPrev ? 'inline-flex' : 'none', 'important');
-            prevBtn.style.setProperty('visibility', showPrev ? 'visible' : 'hidden', 'important');
-            console.log('Previous button:', showPrev ? 'SHOWN' : 'HIDDEN');
-        }
-        
-        // Next button
-        if (nextBtn) {
-            const showNext = currentSection < totalSections - 1;
-            nextBtn.style.setProperty('display', showNext ? 'inline-flex' : 'none', 'important');
-            nextBtn.style.setProperty('visibility', showNext ? 'visible' : 'hidden', 'important');
-            console.log('Next button:    ', showNext ? 'SHOWN' : 'HIDDEN');
-        }
-        
-        // Submit button
-        if (submitBtn) {
-            const showSubmit = currentSection === totalSections - 1;
-            submitBtn.style.setProperty('display', showSubmit ? 'inline-flex' : 'none', 'important');
-            submitBtn.style.setProperty('visibility', showSubmit ? 'visible' : 'hidden', 'important');
-            console.log('Submit button:  ', showSubmit ? 'SHOWN' : 'HIDDEN');
-        }
-        
-        // Save Draft button - always visible
-        if (saveDraftBtn) {
-            saveDraftBtn.style.setProperty('display', 'inline-flex', 'important');
-            saveDraftBtn.style.setProperty('visibility', 'visible', 'important');
-            console.log('Save button:    ALWAYS VISIBLE');
-        }
-        
-        // Update step indicator
-        const currentStepElement = document.getElementById('current-step');
-        if (currentStepElement) {
-            currentStepElement.textContent = currentSection + 1;
-        }
-        
-        // Debug styles after update
-        if (prevBtn) debugStyles('prevBtn');
-        if (nextBtn) debugStyles('nextBtn');
-        if (submitBtn) debugStyles('submitBtn');
-        if (saveDraftBtn) debugStyles('saveDraftBtn');
-        
-        console.log('--- Button states updated ---');
-    }
-    
-    // Function to navigate to a specific section
-    function goToSection(index) {
-        console.log('Attempting to navigate to section', index);
-        
-        if (index < 0 || index >= totalSections) {
-            console.log('Invalid section index:', index);
-            return;
-        }
-        
-        // Hide current section
-        document.querySelectorAll('.section-container').forEach(section => {
-            section.classList.add('hidden');
-        });
-        
-        // Show the selected section
-        const targetSection = document.querySelector(`.section-container[data-section="${index + 1}"]`);
-        if (targetSection) {
-            targetSection.classList.remove('hidden');
-            currentSection = index;
-            updateButtonStates();
-            
-            // Scroll to top of the form
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // Initialize system reference fields when navigating to a new section
-            setTimeout(initializeSystemReferenceFields, 100);
-        }
-    }
-    
-    // Validate current section
-    function validateCurrentSection() {
-        const currentSectionElement = sections[currentSection];
-        const requiredFields = currentSectionElement.querySelectorAll('[required]');
-        let isValid = true;
-        
-        requiredFields.forEach(field => {
-            if (!field.value.trim()) {
-                isValid = false;
-                field.classList.add('border-red-500');
-                // Add error message if not already present
-                if (!field.nextElementSibling || !field.nextElementSibling.classList.contains('error-message')) {
-                    const errorMsg = document.createElement('p');
-                    errorMsg.className = 'mt-1 text-sm text-red-600 error-message';
-                    errorMsg.textContent = 'This field is required';
-                    field.parentNode.insertBefore(errorMsg, field.nextSibling);
-                }
-            } else {
-                field.classList.remove('border-red-500');
-                const errorMsg = field.nextElementSibling;
-                if (errorMsg && errorMsg.classList.contains('error-message')) {
-                    errorMsg.remove();
-                }
-            }
-        });
-        
-        return isValid;
-    }
-    
-    // Function to log system reference field information
-    function logSystemFieldInfo(field, referenceId, index) {
-        const fieldInfo = {
-            index: index + 1,
-            id: field.id || 'none',
-            name: field.name || 'none',
-            type: field.type || field.tagName,
-            referenceId: referenceId || 'none',
-            isVisible: field.getAttribute('data-visible') !== 'false',
-            isSystemField: field.hasAttribute('data-is-system-field'),
-            formGroup: field.closest('.form-group') ? 'found' : 'not found',
-            options: field.tagName === 'SELECT' ? 
-                Array.from(field.options).map(opt => ({
-                    value: opt.value,
-                    text: opt.text,
-                    selected: opt.selected
-                })) : 'N/A',
-            currentValue: field.value || 'empty',
-            attributes: {}
-        };
-        
-        // Get all data attributes
-        Array.from(field.attributes).forEach(attr => {
-            if (attr.name.startsWith('data-')) {
-                fieldInfo.attributes[attr.name] = attr.value;
-            }
-        });
-        
-        console.group(`🔍 System Field #${fieldInfo.index}: ${fieldInfo.id || fieldInfo.name}`);
-        console.log('📋 Field Info:', fieldInfo);
-        console.groupEnd();
-        
-        return fieldInfo;
-    }
-
-    // Track which fields have been initialized to prevent duplicates
-    const initializedFields = new Set();
-
-    // Function to handle system reference fields
-    function handleSystemReferenceFields() {
-        console.log('🚀 Initializing system reference fields');
-        
-        // Debug: Log all elements with data-reference-id
-        const allRefFields = document.querySelectorAll('[data-reference-id]');
-        console.log('All elements with data-reference-id:', allRefFields);
-        
-        // Find all potential system reference fields in the document
-        const potentialFields = Array.from(document.querySelectorAll('select[data-reference-id]'));
-        
-        console.log(`🔍 Found ${potentialFields.length} potential system reference fields in document`);
-        
-        // Debug: Log all potential fields
-        potentialFields.forEach((field, index) => {
-            console.log(`Field ${index + 1}:`, {
-                id: field.id,
-                name: field.name,
-                tagName: field.tagName,
-                referenceId: field.getAttribute('data-reference-id'),
-                referenceCode: field.getAttribute('data-reference-code'),
-                fieldType: field.getAttribute('data-field-type'),
-                parentElement: field.parentElement ? field.parentElement.tagName : 'none',
-                form: field.form ? 'has form' : 'no form'
-            });
-        });
-        
-        // Filter out already initialized fields and ensure they have an ID and reference ID
-        const systemFields = [];
-        const seenIds = new Set();
-        
-        potentialFields.forEach(field => {
-            const id = field.id || field.name;
-            const refId = field.getAttribute('data-reference-id');
-            
-            if (!id || !refId) {
-                console.log('Skipping field - missing id or referenceId:', { id, refId });
-                return;
-            }
-            
-            if (initializedFields.has(id)) {
-                console.log('Skipping already initialized field:', id);
-                return;
-            }
-            
-            if (seenIds.has(id)) {
-                console.log('Skipping duplicate field ID:', id);
-                return;
-            }
-            
-            seenIds.add(id);
-            systemFields.push(field);
-        });
-        
-        console.log(`✅ Found ${systemFields.length} valid system reference fields to initialize`);
-        
-        if (systemFields.length === 0) {
-            console.log('No new system reference fields to initialize');
-            return;
-        }
-        
-        // Debug: Log all found fields
-        systemFields.forEach((field, index) => {
-            console.log(`Field ${index + 1}:`, {
-                id: field.id,
-                name: field.name,
-                tagName: field.tagName,
-                referenceId: field.getAttribute('data-reference-id'),
-                referenceCode: field.getAttribute('data-reference-code'),
-                fieldType: field.getAttribute('data-field-type'),
-                outerHTML: field.outerHTML.substring(0, 200) + '...'
-            });
-        });
-        
-        systemFields.forEach((field, index) => {
-            const referenceId = field.getAttribute('data-reference-id');
-            const referenceCode = field.getAttribute('data-reference-code');
-            
-            // Mark as initialized early to prevent duplicate processing
-            if (field.id) {
-                initializedFields.add(field.id);
-            }
-            
-            console.group(`📝 Field ${index + 1}: ${field.name || field.id}`);
-            console.log('Reference ID:', referenceId);
-            console.log('Reference code:', referenceCode);
-            
-            if (!referenceId && !referenceCode) {
-                console.warn('⚠️ No reference ID or code found. Skipping...');
-                console.groupEnd();
-                return;
-            }
-            
-            // Always use reference ID if available
-            if (!referenceId) {
-                console.error('No reference ID found for field');
-                console.groupEnd();
-                return;
-            }
-            
-            // Use the reference ID in the API URL
-            // The /api prefix is required as per the blueprint registration in app.py
-            const apiUrl = `/api/system-references/by-id/${encodeURIComponent(referenceId)}`;
-            
-            console.log('Fetching reference values from:', apiUrl);
-            
-            // Create a new select element to replace the existing one
-            const newSelect = document.createElement('select');
-            
-            // Copy all attributes from the original field except those that affect state
-            Array.from(field.attributes).forEach(attr => {
-                if (!['disabled', 'readonly', 'style', 'data-initialized'].includes(attr.name)) {
-                    newSelect.setAttribute(attr.name, attr.value);
-                }
-            });
-            
-            // Mark as initialized to prevent re-processing
-            newSelect.setAttribute('data-initialized', 'true');
-            
-            // Add a default option
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'Select ' + (field.getAttribute('placeholder') || 'an option');
-            newSelect.appendChild(defaultOption);
-            
-            // Show loading state
-            const loadingOption = document.createElement('option');
-            loadingOption.value = '';
-            loadingOption.textContent = 'Loading options...';
-            loadingOption.disabled = true;
-            newSelect.appendChild(loadingOption);
-            
-            // Replace the field immediately to prevent duplicate processing
-            field.parentNode.replaceChild(newSelect, field);
-            
-            console.log('Making API request to:', apiUrl);
-            
-            // Make the API call to fetch reference values
-            fetch(apiUrl, {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                },
-                credentials: 'same-origin',
-                cache: 'no-store',
-                // Add a timeout to prevent hanging
-                signal: AbortSignal.timeout(5000)
-            }).catch(error => {
-                if (error.name === 'TimeoutError') {
-                    throw new Error('Request timed out');
-                }
-                throw error; // Re-throw other errors
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        console.error('API Error Response:', text);
-                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!Array.isArray(data)) {
-                    throw new Error('Invalid data format received from API');
-                }
-                
-                console.log(`Fetched ${data.length} reference values`);
-                
-                // Clear existing options except the first one
-                while (newSelect.options.length > 1) {
-                    newSelect.remove(1);
-                }
-                
-                // Add the actual options
-                if (data.length > 0) {
-                    data.forEach((item, idx) => {
-                        const option = document.createElement('option');
-                        option.value = item.value || item.id || item.code || idx;
-                        option.textContent = item.label || item.name || item.value || `Option ${idx + 1}`;
-                        newSelect.appendChild(option);
-                    });
-                    
-                    // Set the value if it exists
-                    if (field.dataset.value) {
-                        newSelect.value = field.dataset.value;
-                    }
-                    
-                    console.log('✅ Successfully initialized system reference field');
-                } else {
-                    console.warn('No options returned from API');
-                    const noOptions = document.createElement('option');
-                    noOptions.value = '';
-                    noOptions.textContent = 'No options available';
-                    noOptions.disabled = true;
-                    newSelect.appendChild(noOptions);
-                }
-                
-                // Enable the field
-                newSelect.disabled = false;
-                newSelect.style.removeProperty('background-color');
-                newSelect.style.removeProperty('cursor');
-            })
-            .catch(error => {
-                console.error('Error loading reference values:', error);
-                
-                // Clear loading message
-                while (newSelect.options.length > 1) {
-                    newSelect.remove(1);
-                }
-                
-                // Show detailed error message
-                const errorMessage = error.message || 'Error loading options';
-                const errorOption = document.createElement('option');
-                errorOption.value = '';
-                errorOption.textContent = errorMessage.length > 50 ? 'Error loading options' : errorMessage;
-                errorOption.title = errorMessage; // Show full message on hover
-                errorOption.disabled = true;
-                newSelect.appendChild(errorOption);
-                
-                // Enable the field but show it's in an error state
-                newSelect.disabled = false;
-                newSelect.style.borderColor = '#f87171';
-                newSelect.style.backgroundColor = '#fef2f2';
-                
-                // Add a retry button
-                const buttonContainer = document.createElement('div');
-                buttonContainer.className = 'mt-1 flex flex-col space-y-1';
-                
-                const retryButton = document.createElement('button');
-                retryButton.type = 'button';
-                retryButton.className = 'text-sm text-blue-600 hover:underline text-left';
-                retryButton.textContent = '🔄 Retry loading options';
-                retryButton.onclick = () => {
-                    // Remove the error state and retry
-                    newSelect.style.borderColor = '';
-                    newSelect.style.backgroundColor = '';
-                    const container = newSelect.nextElementSibling;
-                    if (container && container.classList.contains('mt-1')) {
-                        container.remove();
-                    }
-                    // Re-run initialization for this field
-                    if (field.id) {
-                        initializedFields.delete(field.id);
-                    }
-                    handleSystemReferenceFields();
-                };
-                
-                // Add a button to show more details
-                const detailsButton = document.createElement('button');
-                detailsButton.type = 'button';
-                detailsButton.className = 'text-xs text-gray-500 hover:underline text-left';
-                detailsButton.textContent = 'Show error details';
-                detailsButton.onclick = (e) => {
-                    e.preventDefault();
-                    alert(`Error loading options for ${field.name || field.id}:\n\n${errorMessage}\n\nURL: ${apiUrl}`);
-                };
-                
-                buttonContainer.appendChild(retryButton);
-                buttonContainer.appendChild(detailsButton);
-                
-                // Add the buttons after the select
-                newSelect.parentNode.insertBefore(buttonContainer, newSelect.nextSibling);
-            })
-            .finally(() => {
-                console.groupEnd();
-            });
-        });
-    }
-    function initializeSystemReferenceFields() {
-        const form = document.getElementById('dynamicForm');
-        if (!form) {
-            console.error('Form element not found for system reference fields');
-            return;
-        }
-
-        console.log('🚀 Initializing system reference fields...');
-
-        // Initial call to handle system reference fields
-        const updateSystemFields = () => {
-            console.log('🔄 Updating system reference fields...');
-            try {
-                handleSystemReferenceFields();
-                console.log('✅ System reference fields updated successfully');
-                
-                // Debug: Log all system reference fields
-                const systemFields = document.querySelectorAll('[data-system-reference]');
-                console.log(`🔍 Found ${systemFields.length} system reference fields in the DOM`);
-                systemFields.forEach((field, index) => {
-                    console.log(`Field ${index + 1}:`, {
-                        id: field.id,
-                        name: field.name,
-                        tagName: field.tagName,
-                        referenceId: field.getAttribute('data-reference-id'),
-                        isSystemField: field.hasAttribute('data-is-system-field'),
-                        value: field.value
-                    });
-                });
-            } catch (error) {
-                console.error('❌ Error updating system reference fields:', error);
-            }
-        };
-
-        // Initial update after a short delay to ensure DOM is ready
-        setTimeout(updateSystemFields, 100);
-
-        // Set up MutationObserver to detect dynamic changes
-        const observer = new MutationObserver((mutations) => {
-            const shouldUpdate = mutations.some(mutation => 
-                mutation.addedNodes && mutation.addedNodes.length > 0 ||
-                (mutation.type === 'attributes' && 
-                 mutation.target.hasAttribute('data-system-reference'))
-            );
-            
-            if (shouldUpdate) {
-                console.log('🔄 DOM changes detected, updating system reference fields...');
-                updateSystemFields();
-            }
-        });
-
-        // Start observing the form for changes
-        observer.observe(form, { 
-            childList: true, 
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['data-system-reference', 'data-reference-id']
-        });
-
-        // Handle changes to system reference fields
-        form.addEventListener('change', (event) => {
-            const field = event.target;
-            if (field.hasAttribute('data-reference-id')) {
-                const referenceId = field.getAttribute('data-reference-id');
-                const isChecked = field.type === 'checkbox' ? field.checked : true;
-                
-                console.log('System reference field changed:', {
-                    field: field,
-                    referenceId: referenceId,
-                    value: field.value,
-                    isChecked: isChecked
-                });
-                
-                // Update visibility of related fields
-                document.querySelectorAll(`[data-reference-id="${referenceId}"]`).forEach(targetField => {
-                    const targetGroup = targetField.closest('.field-group') || targetField.closest('.form-group');
-                    if (targetGroup) {
-                        targetGroup.style.display = isChecked ? 'block' : 'none';
-                        console.log('Updated visibility for field group:', targetGroup);
-                    }
-                });
-            }
-        });
-
-        console.log('✅ System reference field initialization complete');
-    }
-
-    // Initialize system reference fields after a short delay to ensure all elements are in the DOM
-    function initializeForm() {
-        console.log('Initializing form...');
-        
-        // Initialize the main form first
-        initForm();
-        
-        // Then initialize system reference fields
-        console.log('Initializing system reference fields...');
-        initializeSystemReferenceFields();
-        
-        // One more check after a short delay to catch any dynamically added fields
-        setTimeout(() => {
-            console.log('Running final check for system reference fields...');
-            handleSystemReferenceFields();
-        }, 500);
-    }
-    
-    // Start initialization when the DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeForm);
-    } else {
-        // If the document is already loaded, run immediately
-        setTimeout(initializeForm, 0);
-    }
-    
-    // Save draft functionality
-    if (saveDraftBtn) {
-        saveDraftBtn.addEventListener('click', async function() {
-            try {
-                const formData = new FormData(form);
-                const response = await fetch(`/user/save_draft/${MODULE_ID}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
-                    }
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('Draft saved successfully!');
-                } else {
-                    alert('Failed to save draft: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error saving draft:', error);
-                alert('Error saving draft. Please try again.');
-            }
-        });
-    }
-    
-    // Initialize the form
-    initForm();
-    
-    // Debug: Log initial state
-    console.log('Form initialized');
-    console.log('Current section:', currentSection);
-    console.log('Total sections:', totalSections);
-});
-</script>
-
-<!-- Add a small inline script to verify script execution -->
-<script>
-console.log('Script block executed');
-</script>
 {% endblock %}

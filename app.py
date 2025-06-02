@@ -49,6 +49,7 @@ from routes.main import main_bp
 from routes.auth import auth_bp
 from routes.user_management import bp as user_management_bp
 from routes.role_routes import bp as role_bp
+from routes.system_reference_routes import system_reference_bp
 from routes.admin import admin_bp
 from routes.client_attachment_routes import client_attachment_bp
 from routes.client_management import client_management_bp
@@ -164,6 +165,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_management_bp)
     app.register_blueprint(role_bp)
+    app.register_blueprint(system_reference_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(client_attachment_bp)
     app.register_blueprint(client_management_bp)

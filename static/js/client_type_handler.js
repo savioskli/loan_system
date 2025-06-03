@@ -6,6 +6,8 @@ class ClientTypeHandler {
         console.log('Client type field:', this.clientTypeField);
         
         if (this.clientTypeField) {
+            // Trigger initial visibility update immediately
+            this.updateFieldVisibility(this.clientTypeField.value);
             this.initializeHandler();
         } else {
             console.error('Client type field not found');

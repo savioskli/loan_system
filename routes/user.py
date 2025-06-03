@@ -437,6 +437,8 @@ def dynamic_form(module_id):
                     'value': str(ct.id),  # Use ID instead of client_code
                     'label': ct.client_name
                 } for ct in client_types]
+                # Set default value to Individual Client (ID: 1)
+                field_data['default_value'] = '1'
             else:
                 field_data['options'] = field.options or []
             sections_dict[section_id]['fields'].append(field_data)

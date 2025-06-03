@@ -110,7 +110,6 @@
                                               rows="4"
                                               class="form-control"
                                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                              {% if field.is_required %}required{% endif %}
                                               {% if field.get('readonly') %}readonly{% endif %}
                                               data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
                                               data-is-required="{{ field.is_required|tojson }}">{{ field.value or '' }}</textarea>
@@ -133,9 +132,7 @@
                                         <option value="">Select {{ field.field_label }}</option>
                                         {% if field.options %}
                                             {% for option in field.options %}
-                                            <option value="{{ option.value }}" {% if field.value == option.value %}selected{% endif %}>
-                                                {{ option.label }}
-                                            </option>
+                                            <option value="{{ option.value }}" {% if option.value == field.value or (not field.value and option.value == field.default_value) %}selected{% endif %}>{{ option.label }}</option>
                                             {% endfor %}
                                         {% endif %}
                                     </select>

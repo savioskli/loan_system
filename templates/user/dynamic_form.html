@@ -65,13 +65,8 @@
                 <div class="section-container p-8" data-section="{{ loop.index }}">
                     <div class="space-y-6">
                         <!-- Section Header -->
-                        <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg flex justify-between items-center">
+                        <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
                             <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
-                            <button type="button" 
-                                    class="save-draft-btn inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                    data-section-id="{{ section.id }}">
-                                Save as Draft
-                            </button>
                         </div>
                         {% if section.description %}
                         <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
@@ -164,24 +159,24 @@
                     </div>
                 </div>
                 {% endfor %}
+                
+                <!-- Form Actions - Non-sticky version -->
+                <div class="mt-8 p-6 bg-gray-50 rounded-b-lg border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <a href="{{ url_for('user.dashboard') }}" 
+                           class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                            Submit Form
+                        </button>
+                    </div>
+                </div>
             </form>
         </div>
 
-        <!-- Form Actions -->
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4">
-            <div class="max-w-5xl mx-auto flex justify-end space-x-4">
-                <button type="button" 
-                        id="saveDraftBtn"
-                        class="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
-                    Save Draft
-                </button>
-                <button type="submit" 
-                        form="dynamicForm"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Submit
-                </button>
-            </div>
-        </div>
+
     </div>
 </div>
 {% endblock %}

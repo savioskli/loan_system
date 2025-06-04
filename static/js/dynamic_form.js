@@ -21,7 +21,7 @@ function debugStyles(elementId) {
 }
 
 // Global variables for form state
-let form, prevBtn, nextBtn, saveDraftBtn, submitBtn, sections, totalSections, currentSection = 0;
+let form, prevBtn, nextBtn, submitBtn, sections, totalSections, currentSection = 0;
 
 // Navigation handlers
 function handlePrevClick() {
@@ -139,14 +139,6 @@ function validateCurrentSection() {
 // Initialize form
 function initForm() {
     console.log('Initializing form with', totalSections, 'sections');
-    
-    // Make sure form actions are visible
-    const formActions = document.getElementById('form-actions');
-    if (formActions) {
-        formActions.style.display = 'block';
-        formActions.style.visibility = 'visible';
-        console.log('Form actions shown');
-    }
     
     // Show first section and hide others
     goToSection(0);
@@ -361,31 +353,7 @@ function initializeForm() {
         handleSystemReferenceFields();
     }, 500);
     
-    // Save draft functionality
-    if (saveDraftBtn) {
-        saveDraftBtn.addEventListener('click', async function() {
-            try {
-                const formData = new FormData(form);
-                const response = await fetch(`/user/save_draft/${MODULE_ID}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
-                    }
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('Draft saved successfully!');
-                } else {
-                    alert('Failed to save draft: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error saving draft:', error);
-                alert('Error saving draft. Please try again.');
-            }
-        });
-    }
+    // System reference fields are initialized above
     
     // Debug: Log initial state
     console.log('Form initialized');

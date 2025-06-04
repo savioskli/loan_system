@@ -16,9 +16,11 @@ class FormSection(db.Model):
     # Add new columns for client type and product dependencies
     client_type_restrictions = db.Column(db.JSON, nullable=True)  # List of client type IDs
     product_restrictions = db.Column(db.JSON, nullable=True)  # List of product IDs
+    submodule_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='SET NULL'), nullable=True)
     
     # Relationships
-    module = db.relationship('Module', backref=db.backref('sections', lazy='dynamic', order_by='FormSection.order'))
+    module = db.relationship('Module', foreign_keys=[module_id], backref=db.backref('sections', lazy='dynamic', order_by='FormSection.order'))
+    submodule = db.relationship('Module', foreign_keys=[submodule_id], backref=db.backref('parent_sections', lazy='dynamic'))
     fields = db.relationship('FormField', 
                            backref='section',
                            lazy='dynamic',

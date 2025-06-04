@@ -357,8 +357,10 @@ def dynamic_form(module_id):
         from models.form_field import FormField
         
         # Get all sections for this specific module ID
+        # Also include sections from parent modules that have this module as a submodule
         sections = FormSection.query.filter(
-            FormSection.module_id == module_id
+            (FormSection.module_id == module_id) | 
+            (FormSection.submodule_id == module_id)
         ).order_by(FormSection.order.asc()).all()
         
         print(f"Found {len(sections)} sections for module {module_id}")
@@ -370,11 +372,23 @@ def dynamic_form(module_id):
         fields = []
         if section_ids:  # Only query if we have sections
             fields = FormField.query.filter(
-                FormField.section_id.in_(section_ids)
+                (FormField.section_id.in_(section_ids)) |
+                (FormField.module_id == module_id)  # Also include fields directly associated with the module
             ).order_by(
                 FormField.section_id.asc(),
                 FormField.field_order.asc()
             ).all()
+            
+        # If we don't have the client_type field, try to find it directly
+        has_client_type = any(field.field_name == 'client_type' for field in fields)
+        if not has_client_type:
+            client_type_field = FormField.query.filter_by(field_name='client_type', module_id=module_id).first()
+            if client_type_field:
+                fields.append(client_type_field)
+                print(f"Added client_type field directly: {client_type_field.id}")
+        
+        # Create a default section for fields without a section
+        default_section_id = -1  # Use a negative ID that won't conflict with real sections
             
         print(f"Found {len(fields)} fields for module {module_id}")
         
@@ -395,19 +409,29 @@ def dynamic_form(module_id):
         for field in fields:
             section_id = field.section_id
             
-            # If field has no section, skip it (or create a default section if needed)
+            # If field has no section, use our default section
             if not section_id:
-                continue
+                section_id = default_section_id
                 
             # Create section if it doesn't exist in our dict
             if section_id not in sections_dict:
-                sections_dict[section_id] = {
-                    'id': section_id,
-                    'name': f'Section {section_id}',
-                    'description': '',
-                    'order': 999,  # Default to end
-                    'fields': []
-                }
+                # For our default section
+                if section_id == default_section_id:
+                    sections_dict[section_id] = {
+                        'id': section_id,
+                        'name': 'General Information',
+                        'description': 'Basic information required for this form',
+                        'order': 0,  # Put at the beginning
+                        'fields': []
+                    }
+                else:
+                    sections_dict[section_id] = {
+                        'id': section_id,
+                        'name': f'Section {section_id}',
+                        'description': '',
+                        'order': 999,  # Default to end
+                        'fields': []
+                    }
             
             # Add field to its section
             field_data = {
@@ -419,7 +443,7 @@ def dynamic_form(module_id):
                 'is_required': bool(field.is_required),
                 'field_order': field.field_order or 0,
                 'section_id': section_id,
-                'section_name': sections_dict[section_id]['name'],
+                'section_name': sections_dict[section_id]['name'] if section_id in sections_dict else 'General Information',
                 'validation_rules': field.validation_rules or {},
                 'default_value': getattr(field, 'default_value', None),
                 'is_system': field.is_system,
@@ -439,6 +463,7 @@ def dynamic_form(module_id):
                 } for ct in client_types]
                 # Set default value to Individual Client (ID: 1)
                 field_data['default_value'] = '1'
+                print(f"Found client_type field: {field.id}, section_id: {field.section_id}, name: {field.field_name}")
             else:
                 field_data['options'] = field.options or []
             sections_dict[section_id]['fields'].append(field_data)

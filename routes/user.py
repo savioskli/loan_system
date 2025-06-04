@@ -727,10 +727,27 @@ def manage_module(module_id):
             
             # Apply client type filter if specified
             if selected_type != 'all':
+                print(f"Filtering by client type code: {selected_type}")
                 # First get the client type ID from the code
                 client_type = ClientType.query.filter_by(client_code=selected_type).first()
                 if client_type:
-                    query = query.filter(ProspectRegistration.client_type_id == client_type.id)
+                    print(f"Found client type: {client_type.client_name} (ID: {client_type.id})")
+                    # Get a sample prospect to check the client_type field format
+                    sample = ProspectRegistration.query.first()
+                    if sample:
+                        print(f"Sample prospect client_type value: {sample.client_type} (type: {type(sample.client_type).__name__})")
+                    
+                    # Try filtering with both string and integer versions of the ID
+                    query = query.filter(
+                        db.or_(
+                            ProspectRegistration.client_type == str(client_type.id),
+                            ProspectRegistration.client_type == client_type.id
+                        )
+                    )
+                else:
+                    print(f"No client type found with code: {selected_type}")
+                    # If no client type found, return empty result
+                    query = query.filter(ProspectRegistration.id < 0)  # This will return no results
             
             # Get submissions from prospect_registration_data table
             submissions = query.order_by(ProspectRegistration.created_at.desc()).all()

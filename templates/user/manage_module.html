@@ -126,55 +126,108 @@
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                {% if submission.client_type.client_code == 'IND' %}
-                                    {% set first_name = submission.form_data.get('first_name', '') %}
-                                    {% set middle_name = submission.form_data.get('middle_name', '') %}
-                                    {% set last_name = submission.form_data.get('last_name', '') %}
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                    {% set first_name = submission.first_name %}
+                                    {% set middle_name = submission.middle_name %}
+                                    {% set last_name = submission.last_name %}
+                                    {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
+                                {% elif submission.client_type.client_code == 'IND' %}
+                                    {% set first_name = submission.form_data.get('first_name', '') if submission.form_data else '' %}
+                                    {% set middle_name = submission.form_data.get('middle_name', '') if submission.form_data else '' %}
+                                    {% set last_name = submission.form_data.get('last_name', '') if submission.form_data else '' %}
                                     {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
                                 {% else %}
-                                    {{ submission.form_data.get('company_name', '') }}
+                                    {{ submission.form_data.get('company_name', '') if submission.form_data else '' }}
                                 {% endif %}
                             </div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">
-                                {{ submission.form_data.get('email', '') }}
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                    {{ submission.email_address }}
+                                {% else %}
+                                    {{ submission.form_data.get('email', '') if submission.form_data else '' }}
+                                {% endif %}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900 dark:text-white">
-                                {% if submission.client_type.client_code == 'IND' %}
-                                    {{ submission.form_data.get('id_number', 'N/A') }}
-                                    {% if submission.form_data.get('id_type') %}
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                    {{ submission.identification_number }}
+                                    <div class="text-xs text-gray-500">
+                                        {{ submission.identification_type|replace('_', ' ')|title }}
+                                    </div>
+                                {% elif submission.client_type.client_code == 'IND' %}
+                                    {{ submission.form_data.get('id_number', 'N/A') if submission.form_data else 'N/A' }}
+                                    {% if submission.form_data and submission.form_data.get('id_type') %}
                                         <div class="text-xs text-gray-500">
                                             {{ submission.form_data.get('id_type')|replace('_', ' ')|title }}
                                         </div>
                                     {% endif %}
                                 {% else %}
-                                    {{ submission.form_data.get('id_number', 'N/A') }}
+                                    {{ submission.form_data.get('id_number', 'N/A') if submission.form_data else 'N/A' }}
                                 {% endif %}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-900 dark:text-white">{{ submission.client_type.client_name }}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            {% set product_id = submission.form_data.get('product')|int %}
                             <div class="text-sm text-gray-900 dark:text-white">
-                                {% for product in products %}
-                                    {% if product.id == product_id %}
-                                        {{ product.name }}
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                    {% if submission.client_type %}
+                                        {{ submission.client_type }}
+                                    {% else %}
+                                        Individual
                                     {% endif %}
-                                {% endfor %}
+                                {% else %}
+                                    {{ submission.client_type.client_name }}
+                                {% endif %}
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            {% set purpose = submission.form_data.get('purpose_of_visit', '') %}
-                            <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                {{ purpose|replace('_', ' ')|title }}
-                            </div>
-                            {% if submission.form_data.get('purpose_description') %}
-                            <div class="text-sm text-gray-500 dark:text-gray-400">
-                                {{ submission.form_data.get('purpose_description', '') }}
-                            </div>
+                            {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                <div class="text-sm text-gray-900 dark:text-white">
+                                    {% if submission.product_id is defined and submission.product_id %}
+                                        {% for product in products %}
+                                            {% if product.id == submission.product_id %}
+                                                {{ product.name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                {% set product_id = submission.form_data.get('product')|int if submission.form_data else 0 %}
+                                <div class="text-sm text-gray-900 dark:text-white">
+                                    {% for product in products %}
+                                        {% if product.id == product_id %}
+                                            {{ product.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                {% if submission.purpose_of_visit is defined and submission.purpose_of_visit %}
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ submission.purpose_of_visit|replace('_', ' ')|title }}
+                                    </div>
+                                    {% if submission.purpose_description is defined and submission.purpose_description %}
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                                        {{ submission.purpose_description }}
+                                    </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">N/A</div>
+                                {% endif %}
+                            {% else %}
+                                {% set purpose = submission.form_data.get('purpose_of_visit', '') if submission.form_data else '' %}
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ purpose|replace('_', ' ')|title }}
+                                </div>
+                                {% if submission.form_data and submission.form_data.get('purpose_description') %}
+                                <div class="text-sm text-gray-500 dark:text-gray-400">
+                                    {{ submission.form_data.get('purpose_description', '') }}
+                                </div>
+                                {% endif %}
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -194,38 +247,68 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                <a href="{{ url_for('user.view_prospect', prospect_id=submission.id) }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                   title="View Details">
+                                {% else %}
                                 <a href="{{ url_for('user.view_prospect', submission_id=submission.id) }}" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="View Details">
+                                {% endif %}
                                     <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                                         <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                                     </svg>
                                 </a>
-                                {% if module.code != 'CLM02' %}
-                                <a href="{{ url_for('user.edit_prospect', submission_id=submission.id) }}"
-                                   class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                <a href="{{ url_for('user.edit_prospect', prospect_id=submission.id) }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="Edit">
+                                {% else %}
+                                <a href="{{ url_for('user.edit_submission', submission_id=submission.id) }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                   title="Edit">
+                                {% endif %}
                                     <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                     </svg>
                                 </a>
-                                <button onclick="deleteSubmission('{{ submission.id }}')"
+                                {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                <button onclick="showDeleteModal('{{ submission.id }}')" 
                                         class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                                         title="Delete">
+                                {% else %}
+                                <button onclick="showDeleteModal('{{ submission.id }}')" 
+                                        class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                        title="Delete">
+                                {% endif %}
                                     <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
-                                {% endif %}
-                                {% if submission.status == 'approved' and not submission.is_converted %}
-                                <button onclick="convertToClient('{{ submission.id }}')"
-                                        class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-3"
-                                        title="Convert to Client">
-                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
+                                {% if module.code.startswith(('CLM01', 'CLT_M01')) %}
+                                    {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                        {% if submission.status == 'approved' and (submission.is_converted is not defined or not submission.is_converted) %}
+                                        <button onclick="showConvertModal('{{ submission.id }}')" 
+                                                class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                title="Convert to Client">
+                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if submission.status == 'approved' and not submission.is_converted %}
+                                        <button onclick="showConvertModal('{{ submission.id }}')" 
+                                                class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                title="Convert to Client">
+                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                        {% endif %}
+                                    {% endif %}
                                 {% endif %}
                                 {% if module.code == 'CLM02' %}
                                 <a href="{{ url_for('user.register_client', submission_id=submission.id) }}"

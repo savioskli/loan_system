@@ -58,7 +58,7 @@
 
         <!-- Main Form -->
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <form id="dynamicForm" method="POST" action="{{ url_for('user.submit_form', module_id=module.id) }}" enctype="multipart/form-data" class="divide-y divide-gray-200">
+            <form id="dynamicForm" method="POST" action="{% if mode == 'edit' %}{{ url_for('user.submit_form', module_id=module.id, prospect_id=prospect_data.id) }}{% else %}{{ url_for('user.submit_form', module_id=module.id) }}{% endif %}" enctype="multipart/form-data" class="divide-y divide-gray-200" {% if mode == 'view' %}onsubmit="return false;"{% endif %}>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 {% for section in sections %}
@@ -106,14 +106,16 @@
                                               class="form-control"
                                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
                                               {% if field.get('readonly') %}readonly{% endif %}
+                                              {% if mode == 'view' %}readonly{% endif %}
                                               data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
-                                              data-is-required="{{ field.is_required|tojson }}">{{ field.value or '' }}</textarea>
+                                              data-is-required="{{ field.is_required|tojson }}">{{ prospect_data[field.field_name] if prospect_data else field.value or '' }}</textarea>
                                 </div>
 
                                 {% elif field.field_type in ['select', 'system_reference'] %}
                                 <div class="mt-1">
                                     <select id="{{ field.field_name }}"
                                             name="{{ field.field_name }}"
+                                            {% if mode == 'view' %}disabled{% endif %}
                                             class="form-control"
                                             {% if field.is_required %}required{% endif %}
                                             {% if field.get('readonly') %}disabled{% endif %}
@@ -167,10 +169,19 @@
                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Cancel
                         </a>
-                        <button type="submit" 
-                                class="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                            Submit Form
+                        {% if mode == 'view' %}
+                        <a href="{{ url_for('user.edit_prospect', prospect_id=prospect_data.id) }}" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Edit
+                        </a>
+                        {% elif mode == 'edit' %}
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Save Changes
                         </button>
+                        {% else %}
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Submit
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </form>

@@ -333,7 +333,13 @@ def allowed_file(filename, allowed_extensions):
 
 @user_bp.route('/dynamic_form/<int:module_id>', methods=['GET', 'POST'])
 @login_required
-def dynamic_form(module_id):
+def dynamic_form(module_id, prospect_id=None, mode='create'):
+    """Render dynamic form for creating, viewing, or editing prospects.
+    Args:
+        module_id: The module ID
+        prospect_id: Optional prospect ID when viewing/editing
+        mode: One of 'create', 'view', or 'edit'
+    """
     try:
         # Get the module and check permissions
         from utils.module_permissions import check_module_access
@@ -680,7 +686,9 @@ def dynamic_form(module_id):
                             client_types=[],
                             products=[],
                             counties=[],
-                            id_types=[])
+                            id_types=[],
+                            prospect_data={},
+                            mode=mode)
                             
     except Exception as e:
         current_app.logger.error(f"Error loading form: {str(e)}\n{traceback.format_exc()}")
@@ -1086,10 +1094,22 @@ def delete_submission(submission_id):
         current_app.logger.error(f'Error deleting submission {submission_id}: {str(e)}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@user_bp.route('/view_prospect/<int:prospect_id>')
+@login_required
+def view_prospect(prospect_id):
+    """View prospect details using dynamic form."""
+    return dynamic_form(module_id=32, prospect_id=prospect_id, mode='view')
+
+@user_bp.route('/edit_prospect/<int:prospect_id>')
+@login_required
+def edit_prospect(prospect_id):
+    """Edit prospect details using dynamic form."""
+    return dynamic_form(module_id=32, prospect_id=prospect_id, mode='edit')
+
 @user_bp.route('/prospect/<int:prospect_id>')
 @login_required
 @csrf.exempt
-def view_prospect(prospect_id):
+def view_prospect_legacy(prospect_id):
     """View prospect details."""
     try:
         # Get the prospect from the dedicated table
@@ -1236,7 +1256,7 @@ def view_prospect(prospect_id):
 
 @user_bp.route('/prospect/<int:prospect_id>/edit', methods=['GET', 'POST'])
 @login_required
-def edit_prospect(prospect_id):
+def edit_prospect_legacy(prospect_id):
     """Edit a prospect's details."""
     try:
         from models.prospect_registration import ProspectRegistration

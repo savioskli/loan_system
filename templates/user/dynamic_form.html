@@ -116,7 +116,7 @@
                                             name="{{ field.field_name }}"
                                             class="form-control"
                                             {% if field.is_required %}required{% endif %}
-                                            {% if field.get('readonly') or field.field_type == 'system_reference' %}disabled{% endif %}
+                                            {% if field.get('readonly') %}disabled{% endif %}
                                             {% if field.field_type == 'system_reference' %}
                                                 data-reference-id="{{ field.system_reference_field_id }}"
                                                 data-is-system-field="true"

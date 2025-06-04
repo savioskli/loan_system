@@ -170,8 +170,8 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900 dark:text-white">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                    {% if submission.client_type %}
-                                        {{ submission.client_type }}
+                                    {% if submission.client_type_ref %}
+                                        {{ submission.client_type_ref.client_name }}
                                     {% else %}
                                         Individual
                                     {% endif %}
@@ -183,12 +183,8 @@
                         <td class="px-6 py-4">
                             {% if submission.__class__.__name__ == 'ProspectRegistration' %}
                                 <div class="text-sm text-gray-900 dark:text-white">
-                                    {% if submission.product_id is defined and submission.product_id %}
-                                        {% for product in products %}
-                                            {% if product.id == submission.product_id %}
-                                                {{ product.name }}
-                                            {% endif %}
-                                        {% endfor %}
+                                    {% if submission.product_ref %}
+                                        {{ submission.product_ref.label }}
                                     {% else %}
                                         N/A
                                     {% endif %}
@@ -206,27 +202,22 @@
                         </td>
                         <td class="px-6 py-4">
                             {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                {% if submission.purpose_of_visit is defined and submission.purpose_of_visit %}
-                                    <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                        {{ submission.purpose_of_visit|replace('_', ' ')|title }}
-                                    </div>
-                                    {% if submission.purpose_description is defined and submission.purpose_description %}
-                                    <div class="text-sm text-gray-500 dark:text-gray-400">
-                                        {{ submission.purpose_description }}
-                                    </div>
+                                <div class="text-sm text-gray-900 dark:text-white">
+                                    {% if submission.purpose_ref %}
+                                        {{ submission.purpose_ref.label }}
+                                    {% else %}
+                                        N/A
                                     {% endif %}
-                                {% else %}
-                                    <div class="text-sm font-medium text-gray-900 dark:text-white">N/A</div>
-                                {% endif %}
+                                </div>
                             {% else %}
                                 {% set purpose = submission.form_data.get('purpose_of_visit', '') if submission.form_data else '' %}
-                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                <div class="text-sm text-gray-900 dark:text-white">
                                     {{ purpose|replace('_', ' ')|title }}
                                 </div>
                                 {% if submission.form_data and submission.form_data.get('purpose_description') %}
-                                <div class="text-sm text-gray-500 dark:text-gray-400">
-                                    {{ submission.form_data.get('purpose_description', '') }}
-                                </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                                        {{ submission.form_data.get('purpose_description', '') }}
+                                    </div>
                                 {% endif %}
                             {% endif %}
                         </td>

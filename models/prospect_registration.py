@@ -1,5 +1,7 @@
-from extensions import db
 from datetime import datetime
+from extensions import db
+from models.system_reference_value import SystemReferenceValue
+from models.client_type import ClientType
 
 class ProspectRegistration(db.Model):
     """Model for prospect registration data"""
@@ -28,11 +30,16 @@ class ProspectRegistration(db.Model):
     county = db.Column(db.String(100))
     status = db.Column(db.String(255))
     
-    # Client type (stored as string in the database)
-    client_type = db.Column(db.String(255), nullable=True)
+    # Client type relationship
+    client_type = db.Column(db.String(255), db.ForeignKey('client_types.id'), nullable=True)
+    client_type_ref = db.relationship('ClientType', foreign_keys=[client_type], lazy='joined')
     
-    # Product relationship
-    # product = db.relationship('Product', backref='prospects')
+    # Purpose and Product fields with relationships to system_reference_value
+    purpose = db.Column(db.Integer, db.ForeignKey('system_reference_values.id'), nullable=True)
+    purpose_ref = db.relationship('SystemReferenceValue', foreign_keys=[purpose], lazy='joined')
+    
+    product = db.Column(db.Integer, db.ForeignKey('system_reference_values.id'), nullable=True)
+    product_ref = db.relationship('SystemReferenceValue', foreign_keys=[product], lazy='joined')
     
     # Note: The following columns are commented out as they don't exist in the database
     # If you need these fields, you'll need to create a database migration to add them
@@ -62,6 +69,8 @@ class ProspectRegistration(db.Model):
         """Convert model to dictionary with only fields that exist in the database"""
         result = {
             'id': self.id,
+            'client_type': self.client_type,
+            'client_type_name': self.client_type_ref.client_name if self.client_type_ref else 'Individual',
             'first_name': self.first_name,
             'middle_name': self.middle_name,
             'last_name': self.last_name,
@@ -81,7 +90,11 @@ class ProspectRegistration(db.Model):
             'is_active': self.is_active,
             'updated_by': self.updated_by,
             'serial_number': self.serial_number,
-            'postal_address': self.postal_address
+            'postal_address': self.postal_address,
+            'purpose': self.purpose,
+            'purpose_name': self.purpose_ref.label if self.purpose_ref else None,
+            'product': self.product,
+            'product_name': self.product_ref.label if self.product_ref else None
         }
         
         # Add optional fields if they exist

@@ -29,6 +29,8 @@ class FormFieldForm(FlaskForm):
     field_name = StringField('Field Name', validators=[DataRequired(), Length(max=100)])
     field_label = StringField('Field Label', validators=[DataRequired(), Length(max=100)])
     field_placeholder = StringField('Placeholder Text', validators=[Optional(), Length(max=200)])
+    column_name = StringField('Database Column Name', validators=[Optional(), Length(max=100)],
+                           description='The database column this field maps to (defaults to field_name in snake_case if empty)')
     validation_text = StringField('Validation Message', validators=[Optional(), Length(max=200)],
                                 description='Message to show when validation fails')
     field_type = SelectField('Field Type', choices=[

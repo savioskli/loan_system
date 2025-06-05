@@ -866,92 +866,144 @@ def submit_form(module_id):
             flash('You do not have permission to submit forms for this module.', 'error')
             return redirect(url_for('user.dashboard'))
         
-        # Create a ProspectRegistration record for module_id 32 (Prospect Registration)
-        if module.id == 32:
-            from models.prospect_registration import ProspectRegistration
-            import json
+        # Create a record based on the module's table_name
+        import json
+        from sqlalchemy import inspect, Table, MetaData, text
+        
+        # Get the table name from the module
+        table_name = module.table_name
+        if not table_name:
+            flash(f'Module {module.name} does not have an associated database table', 'error')
+            return redirect(url_for('user.dynamic_form', module_id=module_id))
             
-            # Debug: Print all form fields
-            print("Form data submitted:")
-            for key, value in form_data.items():
-                print(f"  {key}: {value}")
+        print(f"Using database table: {table_name}")
+        
+        # Get table structure dynamically
+        metadata = MetaData()
+        metadata.reflect(bind=db.engine)
+        
+        if table_name not in metadata.tables:
+            flash(f'Table {table_name} does not exist in the database', 'error')
+            return redirect(url_for('user.dynamic_form', module_id=module_id))
             
-            # Get field names from the form sections
-            from models.form_field import FormField
-            fields = FormField.query.filter_by(module_id=module_id).all()
-            field_names = {field.field_name: field.field_label for field in fields}
-            print(f"Form field names: {field_names}")
+        # Get the table object
+        table = metadata.tables[table_name]
+        
+        # Get column information
+        db_columns = {column.name: column for column in table.columns}
+        print(f"Database columns: {list(db_columns.keys())}")
+        
+        # Get form fields defined for this module
+        from models.form_field import FormField
+        form_fields = FormField.query.filter_by(module_id=module_id).all()
+        
+        # Create a mapping of form field names to database column names and field types
+        # Using the column_name field from the database for explicit mapping
+        field_mapping = {}
+        field_types = {}
+        for field in form_fields:
+            # Use the column_name field from the database
+            db_field_name = field.column_name
+            if not db_field_name:  # Fallback only if column_name is somehow not set
+                db_field_name = field.field_name.lower().replace(' ', '_')
+                print(f"Warning: Missing column_name for field '{field.field_name}', using generated value '{db_field_name}'")
             
-            # Get model columns
-            from sqlalchemy import inspect
-            inspector = inspect(ProspectRegistration)
-            columns = [column.key for column in inspector.mapper.column_attrs]
-            print(f"ProspectRegistration model columns: {columns}")
+            field_mapping[field.field_name] = db_field_name
+            field_types[field.field_name] = field.field_type
+            print(f"Mapping form field '{field.field_name}' ({field.field_type}) to database column '{db_field_name}'")
             
-            # Get the form fields for this module to understand the field mappings
-            from models.form_field import FormField
-            fields = FormField.query.filter_by(module_id=module_id).all()
-            
-            # Create a mapping of form field names to database column names
-            field_mapping = {}
-            for field in fields:
-                print(f"Form field: {field.field_name} -> {field.field_label}")
-                field_mapping[field.field_name] = field.field_label
-            
-            # Create the prospect record with mapped fields
-            # Handle special field types
-            gender_value = form_data.get('Gender', '')
-            if gender_value:
-                try:
-                    # If it's already a JSON string, parse it first
-                    import json
-                    gender_value = json.loads(gender_value)
-                except json.JSONDecodeError:
-                    # If it's not JSON, use the raw value
-                    pass
-            
-            prospect_data = {
-                'first_name': form_data.get('First Name', ''),
-                'middle_name': form_data.get('Middle Name', ''),
-                'last_name': form_data.get('Last Name', ''),
-                'gender': gender_value,  # Use the processed gender value
-                'identification_type': form_data.get('Identification Type', ''),
-                'identification_number': form_data.get('Identification Number', ''),
-                'serial_number': form_data.get('Serial Number', ''),
-                'birth_date': form_data.get('Birth Date') if form_data.get('Birth Date') else None,
-                'mobile_number': form_data.get('Mobile Number', ''),
-                'email_address': form_data.get('Email Address', ''),
-                'postal_address': form_data.get('Postal Address', ''),
-                'postal_code': form_data.get('Postal Code', ''),
-                'postal_town': form_data.get('Postal Town', ''),
-                'county': form_data.get('County', ''),
-                'purpose': int(form_data.get('Purpose')) if form_data.get('Purpose') else None,
-                'product': int(form_data.get('Product')) if form_data.get('Product') else None,
-                'status': 'pending',
-                'client_type': int(client_type_id) if client_type_id else None,
-                'created_by': current_user.id,
-                'is_active': True
-            }
-            
-            # Debug: Print form data and mapped values
-            print("\nForm data received:")
-            for key, value in form_data.items():
-                print(f"  {key}: {value}")
+        print(f"Field mapping: {field_mapping}")
+        print(f"Field types: {field_types}")
+        
+        # Initialize record data with required fields
+        record_data = {
+            'created_by': current_user.id,
+            'is_active': True,
+            'status': 'pending',
+            'client_type': int(client_type_id) if client_type_id else None
+        }
+        
+        # Add created_at if the column exists
+        if 'created_at' in db_columns:
+            record_data['created_at'] = datetime.utcnow()
+        
+        # Process each form field dynamically
+        for field_name, value in form_data.items():
+            if field_name == 'csrf_token' or field_name == 'client_type':
+                continue  # Skip non-data fields
                 
-            print("\nMapped values to save:")
-            for key, value in prospect_data.items():
-                print(f"  {key}: {value}")
+            # Get the corresponding database column name
+            db_field_name = field_mapping.get(field_name)
+            if not db_field_name:
+                print(f"Warning: No mapping found for field '{field_name}', skipping")
+                continue
             
-            # Create the prospect record
-            prospect = ProspectRegistration(**prospect_data)
+            # Get the field type for proper type conversion
+            field_type = field_types.get(field_name)
             
-            db.session.add(prospect)
+            # Check if this field exists in the database table
+            if db_field_name in db_columns:
+                # Process value based on field type
+                if value == '':
+                    # Handle empty strings
+                    value = None
+                elif field_type == 'select':
+                    # Handle JSON fields like gender
+                    try:
+                        value = json.loads(value) if value else None
+                    except json.JSONDecodeError:
+                        value = value  # Keep as is if not valid JSON
+                elif field_type == 'date':
+                    # Handle date fields
+                    try:
+                        value = datetime.strptime(value, '%Y-%m-%d').date() if value else None
+                    except ValueError:
+                        value = None
+                elif field_type == 'number':
+                    # Handle numeric fields
+                    try:
+                        value = int(value) if value else None
+                    except (ValueError, TypeError):
+                        value = None
+                elif field_type == 'decimal':
+                    # Handle decimal fields
+                    try:
+                        value = float(value) if value else None
+                    except (ValueError, TypeError):
+                        value = None
+                
+                # Add the field to the record data
+                record_data[db_field_name] = value
+                print(f"Adding field {db_field_name} ({field_type}) with value {value}")
+            else:
+                print(f"Warning: Field '{db_field_name}' does not exist in database table '{table_name}', skipping")
+            
+        # Debug: Print the final data to be saved
+        print("\nFinal data to save:")
+        for key, value in record_data.items():
+            print(f"  {key}: {value}")
         
-        # Commit changes to database
-        db.session.commit()
-        flash('Form submitted successfully!', 'success')
-        return redirect(url_for('user.manage_module', module_id=module.id))
+        # Insert data directly using the table object
+        insert_stmt = table.insert().values(**record_data)
         
+        try:
+            # Execute the insert statement
+            result = db.session.execute(insert_stmt)
+            record_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
+            print(f"Inserted record with ID: {record_id}")
+            
+            # Commit changes to database
+            db.session.commit()
+            
+            flash(f'Form submitted successfully! Record ID: {record_id}', 'success')
+            return redirect(url_for('user.manage_module', module_id=module.id))
+        except Exception as e:
+            db.session.rollback()
+            error_msg = str(e)
+            print(f"Database error: {error_msg}")
+            flash(f'Error saving data: {error_msg}', 'error')
+            return redirect(url_for('user.dynamic_form', module_id=module_id))
+                
     except Exception as e:
         db.session.rollback()
         flash(f'Error submitting form: {str(e)}', 'error')

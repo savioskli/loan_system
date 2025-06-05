@@ -405,6 +405,7 @@ def create_field(id):
             'field_name': request.form.get('field_name'),
             'field_label': request.form.get('field_label'),
             'field_placeholder': request.form.get('field_placeholder'),
+            'column_name': request.form.get('field_name', '').lower().replace(' ', '_'),
             'field_type': field_type,
             'validation_text': request.form.get('validation_text'),
             'is_required': request.form.get('is_required') == 'y',

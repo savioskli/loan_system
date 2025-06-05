@@ -16,6 +16,7 @@ class FormField(db.Model):
     field_name = db.Column(db.String(100), nullable=False)
     field_label = db.Column(db.String(100), nullable=False)
     field_placeholder = db.Column(db.String(200), nullable=True)
+    column_name = db.Column(db.String(100), nullable=True, comment='Database column name this field maps to')
     field_type = db.Column(db.String(50), nullable=False)
     validation_text = db.Column(db.String(200), nullable=True)
     is_required = db.Column(db.Boolean, default=False, nullable=False)

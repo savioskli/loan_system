@@ -830,9 +830,22 @@ def save_draft(module_id):
 
 @user_bp.route('/submit_form/<int:module_id>', methods=['POST'])
 @login_required
+@csrf.exempt  # Exempt this route from automatic CSRF protection
 def submit_form(module_id):
     """Handle form submission."""
     try:
+        # Manually validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not csrf_token:
+            return jsonify({"error": "The CSRF session token is missing.", "status_code": 400}), 400
+        
+        # Validate the token
+        from flask_wtf.csrf import validate_csrf as flask_validate_csrf
+        try:
+            flask_validate_csrf(csrf_token)
+        except Exception:
+            return jsonify({"error": "Invalid or expired CSRF token.", "status_code": 400}), 400
+            
         # Get form data
         form_data = request.form.to_dict()
         
@@ -905,7 +918,7 @@ def submit_form(module_id):
                 'identification_type': form_data.get('Identification Type', ''),
                 'identification_number': form_data.get('Identification Number', ''),
                 'serial_number': form_data.get('Serial Number', ''),
-                'birth_date': form_data.get('Birth Date'),
+                'birth_date': form_data.get('Birth Date') if form_data.get('Birth Date') else None,
                 'mobile_number': form_data.get('Mobile Number', ''),
                 'email_address': form_data.get('Email Address', ''),
                 'postal_address': form_data.get('Postal Address', ''),

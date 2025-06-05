@@ -127,34 +127,53 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900 dark:text-white">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                    {% set first_name = submission.first_name %}
-                                    {% set middle_name = submission.middle_name %}
-                                    {% set last_name = submission.last_name %}
-                                    {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
+                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
+                                        {% set first_name = submission.first_name %}
+                                        {% set middle_name = submission.middle_name %}
+                                        {% set last_name = submission.last_name %}
+                                        {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
+                                    {% else %}
+                                        <span class="font-bold">{{ submission.corporate_name }}</span>
+                                    {% endif %}
                                 {% elif submission.client_type.client_code == 'IND' %}
                                     {% set first_name = submission.form_data.get('first_name', '') if submission.form_data else '' %}
                                     {% set middle_name = submission.form_data.get('middle_name', '') if submission.form_data else '' %}
                                     {% set last_name = submission.form_data.get('last_name', '') if submission.form_data else '' %}
                                     {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
                                 {% else %}
-                                    {{ submission.form_data.get('company_name', '') if submission.form_data else '' }}
+                                    <span class="font-bold">{{ submission.form_data.get('company_name', '') if submission.form_data else '' }}</span>
                                 {% endif %}
                             </div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                    {{ submission.email_address }}
+                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
+                                        {{ submission.email_address }}
+                                    {% else %}
+                                        {{ submission.email_address }}
+                                    {% endif %}
                                 {% else %}
-                                    {{ submission.form_data.get('email', '') if submission.form_data else '' }}
+                                    {% if submission.client_type.client_code == 'IND' %}
+                                        {{ submission.form_data.get('email', '') if submission.form_data else '' }}
+                                    {% else %}
+                                        {{ submission.form_data.get('email', '') if submission.form_data else '' }}
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900 dark:text-white">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                    {{ submission.identification_number }}
-                                    <div class="text-xs text-gray-500">
-                                        {{ submission.identification_type|replace('_', ' ')|title }}
-                                    </div>
+                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
+                                        {{ submission.identification_number }}
+                                        <div class="text-xs text-gray-500">
+                                            {{ submission.identification_type|replace('_', ' ')|title }}
+                                        </div>
+                                    {% else %}
+                                        {{ submission.corporate_registration_number }}
+                                        <div class="text-xs text-gray-500">
+                                            Corporate Registration
+                                        </div>
+                                    {% endif %}
                                 {% elif submission.client_type.client_code == 'IND' %}
                                     {{ submission.form_data.get('id_number', 'N/A') if submission.form_data else 'N/A' }}
                                     {% if submission.form_data and submission.form_data.get('id_type') %}
@@ -163,7 +182,10 @@
                                         </div>
                                     {% endif %}
                                 {% else %}
-                                    {{ submission.form_data.get('id_number', 'N/A') if submission.form_data else 'N/A' }}
+                                    {{ submission.form_data.get('registration_number', submission.form_data.get('id_number', 'N/A')) if submission.form_data else 'N/A' }}
+                                    <div class="text-xs text-gray-500">
+                                        Corporate Registration
+                                    </div>
                                 {% endif %}
                             </div>
                         </td>

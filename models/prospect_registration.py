@@ -30,6 +30,12 @@ class ProspectRegistration(db.Model):
     county = db.Column(db.String(100))
     status = db.Column(db.String(255))
     
+    # Corporate fields
+    corporate_name = db.Column(db.String(255))
+    corporate_registration_number = db.Column(db.String(255))
+    corporate_registration_date = db.Column(db.Date)
+    number_of_directors_or_members = db.Column(db.Integer)
+    
     # Client type relationship
     client_type = db.Column(db.String(255), db.ForeignKey('client_types.id'), nullable=True)
     client_type_ref = db.relationship('ClientType', foreign_keys=[client_type], lazy='joined')
@@ -94,7 +100,12 @@ class ProspectRegistration(db.Model):
             'purpose': self.purpose,
             'purpose_name': self.purpose_ref.label if self.purpose_ref else None,
             'product': self.product,
-            'product_name': self.product_ref.label if self.product_ref else None
+            'product_name': self.product_ref.label if self.product_ref else None,
+            # Corporate fields
+            'corporate_name': self.corporate_name,
+            'corporate_registration_number': self.corporate_registration_number,
+            'corporate_registration_date': self.corporate_registration_date.isoformat() if self.corporate_registration_date else None,
+            'number_of_directors_or_members': self.number_of_directors_or_members
         }
         
         # Add optional fields if they exist

@@ -379,8 +379,8 @@ def dynamic_form(module_id, prospect_id=None, mode='create'):
         fields = []
         if section_ids:  # Only query if we have sections
             fields = FormField.query.filter(
-                (FormField.section_id.in_(section_ids)) |
-                (FormField.module_id == module_id)  # Also include fields directly associated with the module
+                FormField.module_id == module_id,  # Must be for this module
+                FormField.section_id.in_(section_ids)  # And must be in one of these sections
             ).order_by(
                 FormField.section_id.asc(),
                 FormField.field_order.asc()
@@ -389,7 +389,12 @@ def dynamic_form(module_id, prospect_id=None, mode='create'):
         # If we don't have the client_type field, try to find it directly
         has_client_type = any(field.field_name == 'client_type' for field in fields)
         if not has_client_type:
-            client_type_field = FormField.query.filter_by(field_name='client_type', module_id=module_id).first()
+            # Try to find client_type field that matches both module and section
+            client_type_field = FormField.query.filter(
+                FormField.field_name == 'client_type',
+                FormField.module_id == module_id,
+                FormField.section_id.in_(section_ids)
+            ).first()
             if client_type_field:
                 fields.append(client_type_field)
                 print(f"Added client_type field directly: {client_type_field.id}")

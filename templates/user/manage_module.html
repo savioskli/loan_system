@@ -260,6 +260,13 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
+                                {% if module.id == 32 and submission.__class__.__name__ == 'ProspectRegistration' %}
+                                        <button onclick="showConvertModal('{{ submission.id }}')" 
+                                                class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 px-3 py-1.5 text-sm font-medium border border-green-600 rounded bg-green-50 hover:bg-green-100"
+                                                title="Transition to Client">
+                                            Transition
+                                        </button>
+                                {% endif %}
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
                                 <a href="{{ url_for('user.dynamic_form', module_id=32, prospect_id=submission.id, mode='view') }}" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
@@ -300,29 +307,7 @@
                                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
-                                {% if module.code.startswith(('CLM01', 'CLT_M01')) %}
-                                    {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                        {% if submission.status == 'approved' and (submission.is_converted is not defined or not submission.is_converted) %}
-                                        <button onclick="showConvertModal('{{ submission.id }}')" 
-                                                class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                title="Convert to Client">
-                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                        {% endif %}
-                                    {% else %}
-                                        {% if submission.status == 'approved' and not submission.is_converted %}
-                                        <button onclick="showConvertModal('{{ submission.id }}')" 
-                                                class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                title="Convert to Client">
-                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endif %}
+
                                 {% if module.code == 'CLM02' %}
                                 <a href="{{ url_for('user.register_client', submission_id=submission.id) }}"
                                    class="inline-flex items-center px-2.5 py-1.5 ml-3 border border-transparent text-xs font-medium rounded-full shadow-sm text-green-800 bg-green-100 cursor-pointer"

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ module.name }}{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/system_reference.js') }}"></script>
+<script src="{{ url_for('static', filename='js/client_type_handler.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        new ClientTypeHandler();
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Form input styles */
+    .form-control {
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        border-radius: 0.375rem;
+        border: 1px solid #d1d5db;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+
+    select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 2.5rem;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1rem;
+    }
+
+    textarea.form-control {
+        min-height: 6rem;
+    }
+</style>
+
+<div class="min-h-screen bg-gray-50 pb-24">
+    <div class="max-w-5xl mx-auto px-6 lg:px-8">
+        <!-- Form Header -->
+        <div class="md:flex md:items-center md:justify-between mb-10">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Edit {{ module.name }}
+                </h2>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <form id="editDataForm" method="POST" action="{{ url_for('user.edit_data', module_id=module.id, prospect_id=prospect_data.id) }}" enctype="multipart/form-data" class="divide-y divide-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="module_id" value="{{ module.id }}">
+                
+                {% for section in sections %}
+                <div class="section-container p-8" data-section="{{ loop.index }}">
+                    <div class="space-y-6">
+                        <!-- Section Header -->
+                        <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
+                        </div>
+                        {% if section.description %}
+                        <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                        {% endif %}
+                        
+                        <!-- Form Fields -->
+                        <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
+                            {% for field in section.fields %}
+                            {% if field.field_type != 'system_reference' or field.is_visible %}
+                            <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
+                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
+                                    {{ field.field_label }}
+                                    {% if field.is_required %}
+                                    <span class="text-red-500">*</span>
+                                    {% endif %}
+                                </label>
+
+                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
+                                <div class="mt-1">
+                                    <input type="{{ field.field_type }}"
+                                           id="{{ field.field_name }}"
+                                           name="{{ field.field_name }}"
+                                           class="form-control"
+                                           value="{{ prospect_data[field.field_name] if prospect_data else field.value or '' }}"
+                                           {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                           {% if field.is_required %}required{% endif %}
+                                           {% if field.get('readonly') %}readonly{% endif %}
+                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                           data-is-required="{{ field.is_required|tojson }}">
+                                </div>
+
+                                {% elif field.field_type == 'textarea' %}
+                                <div class="mt-1">
+                                    <textarea id="{{ field.field_name }}"
+                                              name="{{ field.field_name }}"
+                                              rows="4"
+                                              class="form-control"
+                                              {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                              {% if field.get('readonly') %}readonly{% endif %}
+                                              data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                              data-is-required="{{ field.is_required|tojson }}">{{ prospect_data[field.field_name] if prospect_data else field.value or '' }}</textarea>
+                                </div>
+
+                                {% elif field.field_type in ['select', 'system_reference'] %}
+                                <div class="mt-1">
+                                    <select id="{{ field.field_name }}"
+                                            name="{{ field.field_name }}"
+                                            class="form-control"
+                                            {% if field.is_required %}required{% endif %}
+                                            {% if field.get('readonly') %}disabled{% endif %}
+                                            {% if field.field_type == 'system_reference' %}
+                                                data-reference-id="{{ field.system_reference_field_id }}"
+                                                data-is-system-field="true"
+                                                data-previous-value="{{ field.value or '' }}"
+                                            {% endif %}
+                                            data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                            data-is-required="{{ field.is_required|tojson }}">
+                                        <option value="">Select {{ field.field_label }}</option>
+                                        {% if field.options %}
+                                            {% for option in field.options %}
+                                            <option value="{{ option.value }}" {% if option.value == prospect_data[field.field_name] or (not prospect_data and option.value == field.default_value) %}selected{% endif %}>{{ option.label }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+
+                                {% elif field.field_type == 'file' %}
+                                <div class="mt-1">
+                                    <input type="file"
+                                           id="{{ field.field_name }}"
+                                           name="{{ field.field_name }}"
+                                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                           accept="{{ field.accept or '.pdf,.doc,.docx' }}"
+                                           {% if field.is_required %}required{% endif %}
+                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                           data-is-required="{{ field.is_required|tojson }}">
+                                    {% if prospect_data[field.field_name] %}
+                                    <p class="mt-2 text-sm text-gray-500">Current file: {{ prospect_data[field.field_name] }}</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- Form Actions -->
+                <div class="mt-8 p-6 bg-gray-50 rounded-b-lg border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <a href="{{ url_for('user.manage_module', module_id=module.id) }}" 
+                           class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </a>
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

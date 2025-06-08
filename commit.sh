@@ -6,8 +6,13 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-# Add all changes
+# Create database backup
+echo "Creating database backup..."
+mysqldump -u root loan_system > database_backup.sql
+
+# Add all changes including the database backup
 git add .
+git add database_backup.sql
 
 # Commit with the provided message
 git commit -m "$1"
@@ -15,4 +20,4 @@ git commit -m "$1"
 # Push to remote
 git push
 
-echo "Changes committed and pushed successfully!"
+echo "Changes and database backup committed and pushed successfully!"

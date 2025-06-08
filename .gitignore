@@ -47,3 +47,4 @@ instance/
 .Trashes
 ehthumbs.db
 Thumbs.db
+database_backup.sql

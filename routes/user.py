@@ -19,6 +19,7 @@ from models.form_field import FormField
 from models.form_section import FormSection
 from models.crb_report import CRBReport
 from models.credit_bureau import CreditBureau
+from utils.module_permissions import check_module_access, get_accessible_modules
 from models.staff import Staff
 from models.form_submission import FormSubmission
 from models.calendar_event import CalendarEvent
@@ -1110,12 +1111,60 @@ def manage_module(module_id):
         if len(submissions) > 5:
             print(f"... and {len(submissions) - 5} more")
         
+        # Get all active modules that the user has read access to
+        accessible_module_ids = get_accessible_modules('read')
+        
+        # Get all active modules
+        modules = Module.query.filter(
+            Module.is_active == True,
+            Module.id.in_(accessible_module_ids)
+        ).all()
+        
+        # Organize modules into a sidebar structure
+        sidebar_modules = []
+        for mod in modules:
+            # Only process root modules (no parent)
+            if not mod.parent_id:
+                module_data = {
+                    'id': mod.id,
+                    'name': mod.name,
+                    'code': mod.code,
+                    'icon': 'fa-folder',  # Default icon
+                    'url': mod.url if hasattr(mod, 'url') else None,
+                    'active_children': []
+                }
+                
+                # Get active child modules that user has access to
+                children = Module.query.filter(
+                    Module.is_active == True,
+                    Module.parent_id == mod.id,
+                    Module.id.in_(accessible_module_ids)
+                ).order_by(Module.order, Module.name).all()
+                
+                for child in children:
+                    child_data = {
+                        'id': child.id,
+                        'name': child.name,
+                        'code': child.code,
+                        'icon': 'fa-file',  # Default icon
+                        'url': getattr(child, 'url', None) or url_for('user.manage_module', module_id=child.id)
+                    }
+                    module_data['active_children'].append(child_data)
+                
+                # Only add modules that either have children or their own URL
+                if module_data['active_children'] or module_data['url']:
+                    sidebar_modules.append(module_data)
+        
+        # Sort sidebar modules by order and name
+        sidebar_modules.sort(key=lambda x: (x.get('order', float('inf')), x['name']))
+
         return render_with_modules('user/manage_module.html',
                              module=module,
                              submissions=submissions,
                              client_types=client_types,
                              products=products,
-                             selected_type=selected_type)
+                             selected_type=selected_type,
+                             sidebar_modules=sidebar_modules)
                              
                              
     except Exception as e:

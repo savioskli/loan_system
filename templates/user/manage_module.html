@@ -268,10 +268,11 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
                                 {% if module.id == 32 and submission.__class__.__name__ == 'ProspectRegistration' %}
-                                        <button onclick="showConvertModal('{{ submission.id }}')" 
-                                                class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 px-3 py-1.5 text-sm font-medium border border-green-600 rounded bg-green-50 hover:bg-green-100"
+                                        <button onclick="showConvertModal('{{ submission.id }}')"
+                                                class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 px-2 py-1 text-xs font-medium border border-green-600 rounded bg-green-50 hover:bg-green-100 inline-flex items-center gap-1"
                                                 title="Transition to Client">
-                                            Transition
+                                            <span>Transition</span>
+                                            <i class="fas fa-arrow-right text-xs"></i>
                                         </button>
                                 {% endif %}
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}

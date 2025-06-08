@@ -12,7 +12,7 @@ mysqldump -u root loan_system > database_backup.sql
 
 # Add all changes including the database backup
 git add .
-git add database_backup.sql
+git add -f database_backup.sql
 
 # Commit with the provided message
 git commit -m "$1"

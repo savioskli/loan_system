@@ -467,31 +467,88 @@ function showConvertModal(submissionId) {
 }
 
 function convertToClient() {
-    const submissionId = document.getElementById('convertSubmissionId').value;
-    fetch(`/user/convert_to_client/${submissionId}`, {
+    const prospectId = document.getElementById('convertSubmissionId').value;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Show loading indicator
+    document.getElementById('convertModal').classList.add('loading');
+    
+    console.log(`Converting prospect ${prospectId} to client...`);
+    console.log(`CSRF Token: ${csrfToken ? 'Present' : 'Missing!'}`);
+    
+    // Use the new API endpoint specifically for AJAX requests
+    const url = `/user/api/convert_to_client/${prospectId}`;
+    console.log(`Fetching URL: ${url}`);
+    
+    // Use form data instead of JSON to match what Flask expects
+    const formData = new FormData();
+    formData.append('csrf_token', csrfToken);
+    
+    fetch(url, {
         method: 'POST',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        }
+            'X-Requested-With': 'XMLHttpRequest'
+            // Don't set Content-Type header when using FormData
+            // Let the browser set it with the correct boundary
+        },
+        credentials: 'same-origin',
+        body: formData
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Reload the page to reflect changes
-            window.location.reload();
+        console.log(`Response status: ${response.status}`);
+        console.log(`Response type: ${response.headers.get('content-type')}`);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                return { data, status: response.status };
+            });
         } else {
-            alert('Failed to convert prospect to client: ' + data.message);
+            // Handle non-JSON response
+            return response.text().then(text => {
+                console.error('Received non-JSON response:', text.substring(0, 100) + '...');
+                throw new Error('Server returned non-JSON response');
+            });
+        }
+    })
+    .then(({ data, status }) => {
+        if (status >= 200 && status < 300 && data.success) {
+            // Show success message with client ID if available
+            const clientId = data.client_id || 'N/A';
+            const message = `Successfully converted prospect to client!\nClient ID: ${clientId}`;
+            
+            // Update UI to show conversion was successful
+            const prospectRow = document.querySelector(`tr[data-id="${prospectId}"]`);
+            if (prospectRow) {
+                // Update status cell if it exists
+                const statusCell = prospectRow.querySelector('.status-cell');
+                if (statusCell) {
+                    statusCell.textContent = 'Converted';
+                    statusCell.classList.add('text-green-600');
+                }
+                
+                // Add visual indicator that row was converted
+                prospectRow.classList.add('bg-green-50');
+            }
+            
+            alert(message);
+            
+            // Reload the page after a short delay to reflect changes
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            // Handle error response with JSON
+            const message = data.message || 'Unknown error occurred';
+            alert(`Failed to convert prospect to client: ${message}`);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while converting the prospect to client');
+        alert(`An error occurred while converting the prospect to client: ${error.message}`);
+    })
+    .finally(() => {
+        // Hide loading indicator
+        document.getElementById('convertModal').classList.remove('loading');
     })
     .finally(() => {
         closeModal('convertModal');

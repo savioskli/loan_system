@@ -1683,149 +1683,812 @@ def delete_prospect(prospect_id):
 @user_bp.route('/convert_to_client/<int:prospect_id>', methods=['GET', 'POST'])
 @login_required
 def convert_to_client(prospect_id):
-    """Convert an approved prospect to a client."""
+    """Convert a prospect to a client - supports both regular form submission and GET requests"""
+    # Check if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    # For AJAX requests, redirect to the AJAX-specific endpoint
+    if is_ajax and request.method == 'POST':
+        return ajax_convert_to_client(prospect_id)
+        
+    # Continue with regular (non-AJAX) processing
+    
+@user_bp.route('/api/convert_to_client/<int:prospect_id>', methods=['POST'])
+@login_required
+def ajax_convert_to_client(prospect_id):
+    """AJAX-specific endpoint for prospect-to-client conversion
+    This function will only handle AJAX requests and always return JSON"""
     try:
+        current_app.logger.info(f"=== AJAX convert_to_client STARTED for prospect_id={prospect_id} ===")
+        
+        # Import required models
         from models.prospect_registration import ProspectRegistration
-        from models.client import Client
-        from models.next_of_kin import NextOfKin
+        from models.module import Module
         
         # Get the prospect
-        prospect = ProspectRegistration.query.get_or_404(prospect_id)
+        prospect = ProspectRegistration.query.get(prospect_id)
+        if not prospect:
+            response = jsonify({
+                'success': False,
+                'message': f'Prospect with ID {prospect_id} not found'
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+            
+        # Check user permissions
+        has_permission = False
+        for role in ['admin', 'manager', 'officer']:
+            if current_user.has_role(role):
+                has_permission = True
+                break
+                
+        if not has_permission:
+            response = jsonify({
+                'success': False,
+                'message': 'You do not have permission to convert prospects to clients.'
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 403
+            
+        # Check if prospect is approved
+        status = getattr(prospect, 'status', '').strip().lower()
+        if status not in ['pending', 'approved']:
+            response = jsonify({
+                'success': False,
+                'message': 'Only pending or approved prospects can be converted to clients.'
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 400
+            
+        # Get required modules
+        client_module = Module.query.filter_by(code='client_registration').first()
+        if not client_module:
+            client_module = Module.query.filter(Module.name.ilike('%client%registration%')).first()
+            
+        prospect_module = Module.query.filter_by(code='prospect_registration').first()
+        if not prospect_module:
+            prospect_module = Module.query.filter(Module.name.ilike('%prospect%registration%')).first()
+            
+        # Check if modules exist
+        if not client_module:
+            response = jsonify({
+                'success': False,
+                'message': 'Client registration module not found.',
+                'client_id': None
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+            
+        if not prospect_module:
+            response = jsonify({
+                'success': False,
+                'message': 'Prospect registration module not found.',
+                'client_id': None
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+            
+        # Use default table names if not specified in the module
+        if not client_module.table_name:
+            current_app.logger.warning(f"Client module (ID: {client_module.id}) has no table_name, using default")
+            client_module.table_name = 'client_registration_data'
+            
+        if not prospect_module.table_name:
+            current_app.logger.warning(f"Prospect module (ID: {prospect_module.id}) has no table_name, using default")
+            prospect_module.table_name = 'prospect_registration_data'
+            
+        # Log module information
+        current_app.logger.info(f"Client module: ID={client_module.id}, Name={client_module.name}, Table={client_module.table_name}")
+        current_app.logger.info(f"Prospect module: ID={prospect_module.id}, Name={prospect_module.name}, Table={prospect_module.table_name}")
+            
+        # Now perform the actual conversion
+        current_app.logger.info("=== STARTING ACTUAL CONVERSION PROCESS ===")
+        
+        try:
+            # Get the branch ID from the form data or use a default
+            form_data = request.form.to_dict()
+            branch_id = form_data.get('branch_id')
+            if branch_id is None and hasattr(current_user, 'branch_id'):
+                branch_id = current_user.branch_id
+            if branch_id is None:
+                branch_id = 1  # Default branch ID
+            current_app.logger.info(f"Using branch_id: {branch_id}")
+            
+            # Get client table information using SQLAlchemy Core
+            from sqlalchemy import inspect, Table, MetaData, Column, Integer, String, Boolean, DateTime, Float
+            from sqlalchemy.sql import text
+            
+            # Get the client table columns from the database
+            query = text(f"SHOW COLUMNS FROM {client_module.table_name}")
+            columns_result = db.session.execute(query).fetchall()
+            client_db_columns = [col[0] for col in columns_result]
+            current_app.logger.info(f"Client table columns from DB: {client_db_columns[:10]}...")
+            
+            # Create a metadata object
+            metadata = MetaData()
+            
+            # Define the table with autoload to get all columns
+            client_table = Table(client_module.table_name, metadata, autoload_with=db.engine)
+            
+            # Get form fields for both modules
+            from models.form_field import FormField
+            client_fields = FormField.query.filter_by(module_id=client_module.id).all()
+            prospect_fields = FormField.query.filter_by(module_id=prospect_module.id).all()
+            
+            # Create field mappings
+            client_field_mapping = {}
+            client_field_types = {}
+            for field in client_fields:
+                # Ensure we have a valid column name (not None)
+                if field.column_name:
+                    db_field_name = field.column_name
+                else:
+                    # Create a safe column name from the field name
+                    db_field_name = field.field_name.lower().replace(' ', '_')
+                    current_app.logger.info(f"Created column name '{db_field_name}' for field '{field.field_name}'")
+                
+                # Skip fields with empty column names
+                if not db_field_name or db_field_name.strip() == '':
+                    current_app.logger.warning(f"Skipping field '{field.field_name}' with empty column name")
+                    continue
+                    
+                client_field_mapping[field.field_name] = db_field_name
+                client_field_types[field.field_name] = field.field_type
+            
+            prospect_field_mapping = {}
+            for field in prospect_fields:
+                # Ensure we have a valid column name (not None)
+                if field.column_name:
+                    db_field_name = field.column_name
+                else:
+                    # Create a safe column name from the field name
+                    db_field_name = field.field_name.lower().replace(' ', '_')
+                
+                # Skip fields with empty column names
+                if not db_field_name or db_field_name.strip() == '':
+                    continue
+                    
+                prospect_field_mapping[field.field_name] = db_field_name
+            
+            # Initialize record data with required fields
+            from datetime import datetime
+            record_data = {
+                'created_by': current_user.id,
+                'updated_by': current_user.id,
+                'is_active': True,
+                'status': 'Active',
+                'branch_id': int(branch_id) if branch_id is not None else 1,
+                'client_type': getattr(prospect, 'client_type', 'Individual'),
+                'organization_id': current_user.organization_id if hasattr(current_user, 'organization_id') else None
+            }
+            
+            # Add timestamps if the columns exist
+            if 'created_at' in client_db_columns:
+                record_data['created_at'] = datetime.utcnow()
+            if 'updated_at' in client_db_columns:
+                record_data['updated_at'] = datetime.utcnow()
+            
+            # Convert prospect data to a dictionary
+            prospect_dict = {}
+            for column in inspect(ProspectRegistration).columns:
+                value = getattr(prospect, column.name)
+                prospect_dict[column.name] = value
+            
+            # Map prospect fields to client fields
+            import json
+            for client_field_name, client_db_field in client_field_mapping.items():
+                # Skip fields that don't exist in the client table
+                if client_db_field not in client_db_columns:
+                    continue
+                
+                # First check if the field exists in the form data
+                if client_field_name in form_data:
+                    value = form_data[client_field_name]
+                else:
+                    # Try to find a matching field in the prospect data
+                    prospect_db_field = prospect_field_mapping.get(client_field_name)
+                    
+                    if prospect_db_field and prospect_db_field in prospect_dict:
+                        value = prospect_dict[prospect_db_field]
+                    elif client_db_field in prospect_dict:
+                        # Try direct column name match
+                        value = prospect_dict[client_db_field]
+                    else:
+                        # No match found, skip this field
+                        continue
+                
+                # Process value based on field type
+                field_type = client_field_types.get(client_field_name)
+                
+                if value == '':
+                    value = None
+                elif field_type == 'select':
+                    try:
+                        value = json.loads(value) if isinstance(value, str) else value
+                    except (json.JSONDecodeError, TypeError):
+                        pass  # Keep as is if not valid JSON
+                elif field_type == 'date':
+                    if isinstance(value, str):
+                        try:
+                            value = datetime.strptime(value, '%Y-%m-%d').date()
+                        except ValueError:
+                            value = None
+                elif field_type == 'number':
+                    try:
+                        value = int(value) if value else None
+                    except (ValueError, TypeError):
+                        value = None
+                elif field_type == 'decimal':
+                    try:
+                        value = float(value) if value else None
+                    except (ValueError, TypeError):
+                        value = None
+                
+                # Add the field to the record data if the key is valid
+                if client_db_field and client_db_field.strip() != '':
+                    record_data[client_db_field] = value
+                else:
+                    current_app.logger.warning(f"Skipping field with invalid column name: {client_field_name}")
+            
+            # Log the record data before insertion
+            current_app.logger.info(f"Prepared {len(record_data)} fields for insertion")
+            
+            # Validate record data to ensure no None keys
+            validated_data = {}
+            for key, value in record_data.items():
+                if key is not None and key.strip() != '':
+                    validated_data[key] = value
+                else:
+                    current_app.logger.warning(f"Removing invalid key: {key}")
+            
+            # Log all keys for debugging
+            current_app.logger.info(f"Record data keys: {list(validated_data.keys())}")
+            
+            # Use proper SQLAlchemy Core insert
+            current_app.logger.info("Using SQLAlchemy Core insert...")
+            
+            # Create the insert statement using the insert() construct
+            from sqlalchemy import insert
+            
+            # Log the validated data keys
+            current_app.logger.info(f"Validated data keys: {list(validated_data.keys())}")
+            
+            # Create an insert statement with the validated data
+            insert_stmt = insert(client_table).values(**validated_data)
+            
+            # Execute the insert
+            try:
+                current_app.logger.info("Executing SQLAlchemy insert...")
+                result = db.session.execute(insert_stmt)
+                db.session.flush()
+                
+                # Get the last inserted ID
+                client_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
+                if not client_id:
+                    # Fallback to get the last insert ID
+                    id_query = text("SELECT LAST_INSERT_ID()")
+                    client_id = db.session.execute(id_query).scalar()
+                    
+                current_app.logger.info(f"New client ID: {client_id}")
+            except Exception as sql_error:
+                current_app.logger.error(f"SQLAlchemy Error: {str(sql_error)}")
+                # Log the data being inserted (excluding sensitive fields)
+                safe_data = {k: v for k, v in validated_data.items() if k not in ['password', 'pin']}
+                current_app.logger.error(f"Data: {safe_data}")
+                raise
+            
+            # Update prospect with client reference and change status
+            current_app.logger.info(f"Updating prospect {prospect.id} with client_id {client_id}")
+            prospect.client_id = client_id
+            
+            # Update status from pending to converted
+            if hasattr(prospect, 'status'):
+                old_status = prospect.status
+                prospect.status = 'Converted'
+                current_app.logger.info(f"Updated prospect status from '{old_status}' to 'Converted'")
+            
+            # Add conversion timestamp and user if those fields exist
+            if hasattr(prospect, 'converted_at'):
+                prospect.converted_at = datetime.utcnow()
+            if hasattr(prospect, 'converted_by'):
+                prospect.converted_by = current_user.id
+            
+            # Commit all changes in a transaction
+            current_app.logger.info("Committing transaction...")
+            db.session.commit()
+            current_app.logger.info("Transaction committed successfully")
+            
+            # Return success response
+            response = jsonify({
+                'success': True,
+                'message': 'Prospect successfully converted to client.',
+                'client_id': client_id,
+                'prospect_id': prospect_id,
+                'prospect_name': f"{getattr(prospect, 'first_name', '')} {getattr(prospect, 'last_name', '')}"
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response
+            
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            current_app.logger.error(f"Error in conversion process: {str(e)}\n{traceback.format_exc()}")
+            
+            response = jsonify({
+                'success': False,
+                'message': f'Error during conversion: {str(e)}'
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 500
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"AJAX conversion error: {str(e)}\n{traceback.format_exc()}")
+        
+        response = jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        })
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
+    try:
+        # Log the start of the function with detailed request info
+        current_app.logger.info("\n" + "="*80)
+        current_app.logger.info(f"=== convert_to_client STARTED - prospect_id: {prospect_id} ===")
+        current_app.logger.info(f"Request URL: {request.url}")
+        current_app.logger.info(f"Request method: {request.method}")
+        current_app.logger.info(f"Request path: {request.path}")
+        current_app.logger.info(f"Request endpoint: {request.endpoint}")
+        current_app.logger.info(f"Request view_args: {request.view_args}")
+        current_app.logger.info(f"Request headers: {dict(request.headers)}")
+        current_app.logger.info(f"Request data: {request.data}")
+        
+        # Log current user info
+        current_app.logger.info(f"Current user: {current_user.id if hasattr(current_user, 'id') else 'Anonymous'}")
+        if hasattr(current_user, 'role'):
+            current_app.logger.info(f"User role: {current_user.role.name if current_user.role else 'No role'}")
+        
+        # Determine if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        current_app.logger.info(f"Is AJAX request: {is_ajax}")
+        
+        # Log request details
+        current_app.logger.info(f"Request Content-Type: {request.content_type}")
+        current_app.logger.info(f"Request method: {request.method}")
+        current_app.logger.info(f"Request URL: {request.url}")
+        current_app.logger.info(f"Request headers: {dict(request.headers)}")
+        
+        # Log form data if present
+        if request.form:
+            current_app.logger.info(f"Form data: {dict(request.form)}")
+        
+        # Log JSON data if present
+        if request.is_json:
+            try:
+                json_data = request.get_json()
+                current_app.logger.info(f"JSON data: {json_data}")
+            except Exception as e:
+                current_app.logger.warning(f"Failed to parse JSON data: {str(e)}")
+                
+        # Log request args
+        current_app.logger.info(f"Request args: {dict(request.args)}")
+        
+        # Verify CSRF token is present
+        csrf_token = request.form.get('csrf_token')
+        current_app.logger.info(f"CSRF token in form: {'present' if csrf_token else 'missing'}")
+        
+        # Log all registered routes for debugging
+        current_app.logger.info("\n=== REGISTERED ROUTES ===")
+        for rule in current_app.url_map.iter_rules():
+            if 'convert_to_client' in rule.endpoint:
+                current_app.logger.info(f"FOUND ROUTE: {rule.endpoint} -> {rule.rule} (methods: {rule.methods})")
+        current_app.logger.info("="*80 + "\n")
+        
+        # Import inside the function to avoid circular imports
+        from models.prospect_registration import ProspectRegistration
+        from models.module import Module
+        from sqlalchemy import text
+        
+        # Log before querying the prospect
+        current_app.logger.info(f"Attempting to find prospect with ID: {prospect_id}")
+        
+        # Get the prospect with explicit error handling
+        try:
+            current_app.logger.info(f"Attempting database query: ProspectRegistration.query.get({prospect_id})")
+            prospect = ProspectRegistration.query.get(prospect_id)
+            current_app.logger.info(f"Query result: prospect={'exists' if prospect else 'not found'}")
+            
+            if not prospect:
+                error_msg = f"Prospect with ID {prospect_id} not found"
+                current_app.logger.error(error_msg)
+                if is_ajax:
+                    response = jsonify({'success': False, 'message': error_msg})
+                    response.headers['Content-Type'] = 'application/json'
+                    return response, 404
+                flash(error_msg, 'error')
+                return redirect(url_for('user.dashboard'))
+                
+            current_app.logger.info(f"Found prospect: ID={prospect.id}")
+            current_app.logger.info(f"Prospect name: {getattr(prospect, 'first_name', 'N/A')} {getattr(prospect, 'last_name', '')}")
+            current_app.logger.info(f"Prospect status: {getattr(prospect, 'status', 'N/A')}")
+            
+        except Exception as e:
+            error_msg = f"Error querying prospect: {str(e)}"
+            current_app.logger.error(error_msg, exc_info=True)
+            if is_ajax:
+                response = jsonify({'success': False, 'message': error_msg})
+                response.headers['Content-Type'] = 'application/json'
+                return response, 500
+            flash(error_msg, 'error')
+            return redirect(url_for('user.dashboard'))
         
         # Check if user has permission to convert
-        current_user_role = current_user.role.name if current_user.role else None
+        current_user_role = current_user.role.name.lower() if hasattr(current_user, 'role') and current_user.role else None
         if current_user_role not in ['admin', 'manager', 'officer']:
-            flash('You do not have permission to convert prospects to clients.', 'error')
-            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+            error_msg = 'You do not have permission to convert prospects to clients.'
+            current_app.logger.warning(f"Permission denied for user {current_user.id}: {error_msg}")
+            if is_ajax:
+                response = jsonify({'success': False, 'message': error_msg})
+                response.headers['Content-Type'] = 'application/json'
+                return response, 403
+            flash(error_msg, 'error')
+            return redirect(url_for('user.dashboard'))
         
-        # Check if prospect is approved and not already converted
-        if prospect.status != 'approved':
-            flash('Only approved prospects can be converted to clients.', 'error')
+        # Check if prospect has valid status (pending or approved)
+        current_app.logger.info(f"Prospect status: {prospect.status}")
+        # Allow both 'pending' and 'approved' statuses
+        valid_statuses = ['pending', 'approved']
+        if not prospect.status or prospect.status.lower().strip() not in valid_statuses:
+            error_msg = 'Only pending or approved prospects can be converted to clients.'
+            current_app.logger.info(f"Conversion rejected: {error_msg}")
+            if is_ajax:
+                response = jsonify({
+                    'success': False,
+                    'message': error_msg
+                })
+                response.headers['Content-Type'] = 'application/json'
+                return response, 400
+            flash(error_msg, 'error')
             return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
             
-        if prospect.is_converted:
+        # Ensure proper content type for AJAX responses
+        if is_ajax:
+            current_app.logger.info("Setting response content type to application/json for AJAX request")
+        
+        # Check if client_id is already set (indicating previous conversion)
+        if hasattr(prospect, 'client_id') and prospect.client_id:
+            if is_ajax:
+                response = jsonify({
+                    'success': False,
+                    'message': 'This prospect has already been converted to a client.'
+                })
+                response.headers['Content-Type'] = 'application/json'
+                return response, 400
             flash('This prospect has already been converted to a client.', 'error')
             return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
         
-        # Get CLM02 module (Client Management)
-        clm02_module = Module.query.filter_by(code='CLM02').first_or_404()
+        # Find both required modules using their codes (more reliable than IDs)
+        current_app.logger.info("Attempting to fetch required modules by code...")
         
-        # Check if client with same ID number already exists
-        existing_client = Client.query.filter_by(id_number=prospect.id_number).first()
-        if existing_client:
-            flash(f'A client with ID number {prospect.id_number} already exists.', 'error')
+        # Get modules by code instead of ID
+        client_module = Module.query.filter_by(code='client_registration').first()
+        current_app.logger.info(f"Client module (code=client_registration): {'found' if client_module else 'not found'}")
+        
+        prospect_module = Module.query.filter_by(code='prospect_registration').first()
+        current_app.logger.info(f"Prospect module (code=prospect_registration): {'found' if prospect_module else 'not found'}")
+        
+        # If modules aren't found by code, try to find by name as fallback
+        if not client_module:
+            client_module = Module.query.filter(Module.name.ilike('%client%registration%')).first()
+            current_app.logger.info(f"Fallback client module search by name: {'found' if client_module else 'still not found'}")
+            
+        if not prospect_module:
+            prospect_module = Module.query.filter(Module.name.ilike('%prospect%registration%')).first()
+            current_app.logger.info(f"Fallback prospect module search by name: {'found' if prospect_module else 'still not found'}")
+        
+        # Validate modules with detailed error messages
+        if not client_module:
+            error_msg = 'Client registration module not found in the system. Please contact the administrator to set up the required modules.'
+            current_app.logger.error(error_msg)
+            if is_ajax:
+                response = jsonify({
+                    'success': False,
+                    'message': error_msg,
+                    'error_type': 'missing_module'
+                })
+                response.headers['Content-Type'] = 'application/json'
+                return response, 404
+            flash(error_msg, 'error')
             return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+            
+        if not prospect_module:
+            error_msg = 'Prospect registration module not found in the system. Please contact the administrator to set up the required modules.'
+            current_app.logger.error(error_msg)
+            if is_ajax:
+                response = jsonify({
+                    'success': False,
+                    'message': error_msg,
+                    'error_type': 'missing_module'
+                })
+                response.headers['Content-Type'] = 'application/json'
+                return response, 404
+            flash(error_msg, 'error')
+            return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+            
+        # Log module IDs for reference
+        current_app.logger.info(f"Using client_module.id={client_module.id} and prospect_module.id={prospect_module.id}")
         
+        # Check if a client with the same ID number already exists
+        try:
+            check_query = text(f"SELECT id FROM {client_module.table_name} WHERE identification_number = :id_number")
+            existing_client = db.session.execute(check_query, {"id_number": prospect.identification_number}).fetchone()
+            
+            if existing_client:
+                if is_ajax:
+                    response = jsonify({
+                        'success': False,
+                        'message': f'A client with ID number {prospect.identification_number} already exists.'
+                    })
+                    response.headers['Content-Type'] = 'application/json'
+                    return response, 400
+                flash(f'A client with ID number {prospect.identification_number} already exists.', 'error')
+                return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        except Exception as e:
+            current_app.logger.error(f"Error checking for existing client: {str(e)}")
+            # Continue even if this check fails
+            
         if request.method == 'GET':
             # Get all active branches for the form
             branches = Branch.query.filter_by(status=True).all()
-            client_types = ClientType.query.filter_by(status=True).all()
-            
-            # Get the original client type if available
-            client_type = ClientType.query.get(prospect.client_type_id)
-            
-            return render_with_modules('user/convert_to_client.html',
-                                 prospect=prospect,
-                                 branches=branches,
-                                 client_types=client_types,
-                                 client_type=client_type,
-                                 module=clm02_module)
+            return render_template('user/convert_to_client.html', prospect=prospect, branches=branches)
         
         # Handle POST request
-        if request.method == 'POST':
+        elif request.method == 'POST':
             try:
-                # Get form data
-                branch_id = request.form.get('branch_id')
-                client_type_id = request.form.get('client_type_id', prospect.client_type_id)
+                # For AJAX requests, we don't need form data
+                # Just proceed with the conversion using the prospect data
                 
-                # Validate branch
-                branch = Branch.query.get(branch_id)
-                if not branch or not branch.status:
-                    flash('Please select a valid branch', 'error')
+                # Get branch ID from form if provided (for non-AJAX requests)
+                branch_id = request.form.get('branch_id') if not is_ajax else None
+                
+                # For AJAX requests, we don't require branch selection
+                if not branch_id and not is_ajax:
+                    flash('Branch is required', 'error')
                     return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
                 
-                # Validate client type
-                client_type = ClientType.query.get(client_type_id)
-                if not client_type or not client_type.status:
-                    flash('Please select a valid client type', 'error')
-                    return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
+                # Dynamically reflect the client registration table
+                from sqlalchemy import inspect, Table, MetaData
                 
-                # Create client data from prospect
-                client_data = {
-                    'first_name': prospect.first_name,
-                    'middle_name': prospect.middle_name,
-                    'last_name': prospect.last_name,
-                    'id_type': prospect.id_type,
-                    'id_number': prospect.id_number,
-                    'date_of_birth': prospect.date_of_birth,
-                    'gender': prospect.gender,
-                    'marital_status': prospect.marital_status,
-                    'nationality': prospect.nationality or 'Kenyan',
-                    'email': prospect.email,
-                    'phone': prospect.phone,
-                    'branch_id': branch_id,
-                    'client_type_id': client_type_id,
-                    'registration_date': datetime.utcnow().date(),
-                    'status': 'Active',
+                # Get the table name from the client module
+                client_table_name = client_module.table_name
+                if not client_table_name:
+                    flash(f'Client module does not have an associated database table', 'error')
+                    return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+                
+                # Get table structure dynamically
+                metadata = MetaData()
+                metadata.reflect(bind=db.engine)
+                
+                if client_table_name not in metadata.tables:
+                    flash(f'Table {client_table_name} does not exist in the database', 'error')
+                    return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+                
+                # Get the table object
+                client_table = metadata.tables[client_table_name]
+                
+                # Get column information
+                client_db_columns = {column.name: column for column in client_table.columns}
+                
+                # Get form fields defined for both modules
+                from models.form_field import FormField
+                client_fields = FormField.query.filter_by(module_id=client_module.id).all()
+                prospect_fields = FormField.query.filter_by(module_id=prospect_module.id).all()
+                
+                # Create mappings of field names to column names
+                client_field_mapping = {}
+                client_field_types = {}
+                for field in client_fields:
+                    db_field_name = field.column_name
+                    if not db_field_name:
+                        db_field_name = field.field_name.lower().replace(' ', '_')
+                    
+                    client_field_mapping[field.field_name] = db_field_name
+                    client_field_types[field.field_name] = field.field_type
+                
+                prospect_field_mapping = {}
+                for field in prospect_fields:
+                    db_field_name = field.column_name
+                    if not db_field_name:
+                        db_field_name = field.field_name.lower().replace(' ', '_')
+                    
+                    prospect_field_mapping[field.field_name] = db_field_name
+                
+                # Create a reverse mapping from prospect db columns to field names
+                prospect_reverse_mapping = {v: k for k, v in prospect_field_mapping.items()}
+                
+                # Initialize record data with required fields
+                import json
+                record_data = {
                     'created_by': current_user.id,
-                    'created_at': datetime.utcnow(),
-                    'updated_at': datetime.utcnow(),
-                    'occupation': prospect.occupation,
-                    'employer_name': prospect.employer_name,
-                    'employment_type': prospect.employment_type,
-                    'monthly_income': prospect.monthly_income,
-                    'other_income': prospect.other_income,
-                    'income_source': prospect.income_source,
-                    'county': prospect.county,
-                    'sub_county': prospect.sub_county,
-                    'ward': prospect.ward,
-                    'postal_code': prospect.postal_code,
-                    'postal_town': prospect.postal_town,
-                    'estate': prospect.estate,
-                    'house_number': prospect.house_number
+                    'updated_by': current_user.id,
+                    'is_active': True,
+                    'status': 'Active',
+                    'branch_id': int(branch_id),
+                    'client_type': prospect.client_type,
+                    'organization_id': current_user.organization_id if hasattr(current_user, 'organization_id') else None
                 }
                 
-                # Create new client
-                new_client = Client(**client_data)
-                db.session.add(new_client)
+                # Add created_at if the column exists
+                if 'created_at' in client_db_columns:
+                    record_data['created_at'] = datetime.utcnow()
+                if 'updated_at' in client_db_columns:
+                    record_data['updated_at'] = datetime.utcnow()
                 
-                # Add next of kin if available
-                if prospect.next_of_kin_name:
-                    next_of_kin = NextOfKin(
-                        client=new_client,
-                        full_name=prospect.next_of_kin_name,
-                        relationship=prospect.next_of_kin_relationship,
-                        id_number=prospect.next_of_kin_id,
-                        phone=prospect.next_of_kin_phone,
-                        created_by=current_user.id,
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
-                    )
-                    db.session.add(next_of_kin)
+                # Convert prospect data to a dictionary
+                prospect_dict = {}
+                for column in inspect(ProspectRegistration).columns:
+                    value = getattr(prospect, column.name)
+                    prospect_dict[column.name] = value
                 
-                # Mark the prospect as converted
-                prospect.is_converted = True
-                prospect.converted_at = datetime.utcnow()
-                prospect.converted_by = current_user.id
-                prospect.client_id = new_client.id
-                prospect.updated_at = datetime.utcnow()
+                # Map prospect fields to client fields based on field name matching
+                for client_field_name, client_db_field in client_field_mapping.items():
+                    # Skip fields that don't exist in the client table
+                    if client_db_field not in client_db_columns:
+                        continue
+                    
+                    # First check if the field exists in the form data (user input during conversion)
+                    if client_field_name in form_data:
+                        value = form_data[client_field_name]
+                    else:
+                        # Try to find a matching field in the prospect data
+                        # First check by exact field name match
+                        prospect_db_field = prospect_field_mapping.get(client_field_name)
+                        
+                        if prospect_db_field and prospect_db_field in prospect_dict:
+                            value = prospect_dict[prospect_db_field]
+                        elif client_db_field in prospect_dict:
+                            # Try direct column name match
+                            value = prospect_dict[client_db_field]
+                        else:
+                            # No match found, skip this field
+                            continue
+                    
+                    # Process value based on field type
+                    field_type = client_field_types.get(client_field_name)
+                    
+                    if value == '':
+                        # Handle empty strings
+                        value = None
+                    elif field_type == 'select':
+                        # Handle JSON fields
+                        try:
+                            value = json.loads(value) if isinstance(value, str) else value
+                        except (json.JSONDecodeError, TypeError):
+                            pass  # Keep as is if not valid JSON
+                    elif field_type == 'date':
+                        # Handle date fields
+                        if isinstance(value, str):
+                            try:
+                                value = datetime.strptime(value, '%Y-%m-%d').date()
+                            except ValueError:
+                                value = None
+                    elif field_type == 'number':
+                        # Handle numeric fields
+                        try:
+                            value = int(value) if value else None
+                        except (ValueError, TypeError):
+                            value = None
+                    elif field_type == 'decimal':
+                        # Handle decimal fields
+                        try:
+                            value = float(value) if value else None
+                        except (ValueError, TypeError):
+                            value = None
+                    
+                    # Add the field to the record data
+                    record_data[client_db_field] = value
                 
+                # Log the record data before insertion
+                current_app.logger.info("=== DATABASE INSERT OPERATION ===")
+                current_app.logger.info(f"Inserting into table: {client_module.table_name}")
+                current_app.logger.info(f"Record data keys: {list(record_data.keys())}")
+                
+                # Log a few key fields for debugging
+                safe_fields = ['first_name', 'last_name', 'email', 'phone_number', 'client_type', 'branch_id']
+                for field in safe_fields:
+                    if field in record_data:
+                        current_app.logger.info(f"Field {field}: {record_data[field]}")
+                
+                # Insert data directly using the table object
+                insert_stmt = client_table.insert().values(**record_data)
+                current_app.logger.info(f"Insert statement prepared: {insert_stmt}")
+                
+                # Execute the insert statement
+                current_app.logger.info("Executing insert statement...")
+                result = db.session.execute(insert_stmt)
+                current_app.logger.info("Insert statement executed successfully")
+                
+                client_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
+                current_app.logger.info(f"New client ID: {client_id}")
+                
+                # Update prospect with client reference
+                current_app.logger.info("=== UPDATING PROSPECT RECORD ===")
+                current_app.logger.info(f"Updating prospect ID {prospect.id} with client_id {client_id}")
+                
+                # Store the client ID in the prospect record
+                prospect.client_id = client_id
+                
+                # Add conversion timestamp and user if those fields exist
+                if hasattr(prospect, 'converted_at'):
+                    prospect.converted_at = datetime.utcnow()
+                    current_app.logger.info("Set converted_at timestamp")
+                if hasattr(prospect, 'converted_by'):
+                    prospect.converted_by = current_user.id
+                    current_app.logger.info(f"Set converted_by to user ID {current_user.id}")
+                
+                # Commit all changes in a transaction
+                current_app.logger.info("Committing transaction...")
                 db.session.commit()
+                current_app.logger.info("Transaction committed successfully")
+                current_app.logger.info("=== DATABASE OPERATIONS COMPLETED SUCCESSFULLY ===")
                 
-                flash('Prospect successfully converted to client', 'success')
-                return redirect(url_for('user.view_client', client_id=new_client.id))
+                # Return appropriate response based on request type
+                if is_ajax:
+                    response = jsonify({
+                        'success': True,
+                        'message': 'Prospect successfully converted to client.',
+                        'client_id': client_id
+                    })
+                    response.headers['Content-Type'] = 'application/json'
+                    return response
+                else:
+                    flash('Prospect successfully converted to client.', 'success')
+                    return redirect(url_for('user.manage_module', module_id=client_module.id))
                 
             except Exception as e:
                 db.session.rollback()
-                flash(f'Error converting prospect to client: {str(e)}', 'error')
-                current_app.logger.error(f"Error converting prospect {prospect_id} to client: {str(e)}\n{traceback.format_exc()}")
-                return redirect(url_for('user.convert_to_client', prospect_id=prospect_id))
+                import traceback
+                current_app.logger.error("=== DATABASE ERROR OCCURRED ===")
+                current_app.logger.error(f"Error converting prospect to client: {str(e)}")
+                current_app.logger.error(traceback.format_exc())
                 
+                # Log the state of key objects
+                try:
+                    current_app.logger.error(f"Prospect ID: {prospect.id if prospect else 'None'}")
+                    current_app.logger.error(f"Client module: {client_module.id if client_module else 'None'}")
+                    current_app.logger.error(f"Prospect module: {prospect_module.id if prospect_module else 'None'}")
+                except Exception as inner_e:
+                    current_app.logger.error(f"Error logging object state: {str(inner_e)}")
+                
+                current_app.logger.error("=== END OF ERROR DETAILS ===")
+                
+                # Return appropriate error response based on request type
+                if is_ajax:
+                    response = jsonify({
+                        'success': False,
+                        'message': f'Error converting prospect to client: {str(e)}'
+                    })
+                    response.headers['Content-Type'] = 'application/json'
+                    return response, 500
+                else:
+                    flash(f'Error converting prospect to client: {str(e)}', 'error')
+                    return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        
+        # GET request - show form to confirm conversion
+        branches = Branch.query.filter_by(status=True).all()
+        return render_template('user/convert_prospect.html', prospect=prospect, branches=branches)
+        
     except Exception as e:
-        db.session.rollback()
-        flash(f'Error processing conversion: {str(e)}', 'error')
-        current_app.logger.error(f"Error in convert_to_client for prospect {prospect_id}: {str(e)}\n{traceback.format_exc()}")
-        return redirect(url_for('user.view_prospect', prospect_id=prospect_id))
+        import traceback
+        current_app.logger.error(f"Error in convert_to_client: {str(e)}\n{traceback.format_exc()}")
+        flash(f'Error: {str(e)}', 'error')
+        # Use a safe fallback if prospect_module is not defined
+        try:
+            return redirect(url_for('user.manage_module', module_id=prospect_module.id))
+        except UnboundLocalError:
+            # Fallback to dashboard if prospect_module is not defined
+            return redirect(url_for('user.dashboard'))
+
 
 @user_bp.route('/register_client/<submission_id>', methods=['GET', 'POST'])
 @login_required

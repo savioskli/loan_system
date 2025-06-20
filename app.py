@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import traceback
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import UserMixin, login_user, login_required, logout_user, current_user, LoginManager
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -159,6 +160,21 @@ def create_app():
 
     # Initialize audit middleware
     init_audit_middleware(app)
+    
+    # Debug: Log all registered routes
+    # Use with_appcontext for Flask 2.0+ compatibility
+    def log_routes():
+        with app.app_context():
+            for rule in app.url_map.iter_rules():
+                app.logger.info(f"Route: {rule.endpoint} -> {rule.rule}")
+    
+    # Register the function to run before first request using middleware pattern
+    @app.before_request
+    def before_request_func():
+        # Use a flag in app.config to ensure this runs only once
+        if not app.config.get('ROUTES_LOGGED', False):
+            log_routes()
+            app.config['ROUTES_LOGGED'] = True
 
     # Register blueprints
     app.register_blueprint(main_bp)
@@ -373,10 +389,28 @@ def create_app():
 
     @app.errorhandler(404)
     def not_found_error(error):
+        app.logger.error(f"404 error: {str(error)}")
+        
+        wants_json = (
+            request.headers.get('Content-Type', '').startswith('application/json') or
+            request.headers.get('Accept', '').startswith('application/json') or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.path.startswith('/api/')
+        )
+        
+        if wants_json:
+            response = jsonify({'error': 'Not found', 'message': str(error)})
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+            
         return render_template('errors/404.html'), 404
 
     return app
 
 if __name__ == '__main__':
     app = create_app()
+    # Log all routes when starting the app
+    with app.app_context():
+        for rule in app.url_map.iter_rules():
+            app.logger.info(f"Registered route: {rule.endpoint} -> {rule.rule}")
     app.run(debug=True, host='127.0.0.1', port=5002)

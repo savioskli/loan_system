@@ -86,6 +86,15 @@
                     {{ module.name }}
                 </h2>
             </div>
+            
+            <!-- Wizard Mode Toggle -->
+            <div class="flex items-center mt-4 md:mt-0">
+                <span class="mr-2 text-sm text-gray-600">Step-by-Step Mode</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="wizardToggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
         </div>
 
         <!-- Main Form -->
@@ -96,6 +105,27 @@
                 {% from "components/repeatable_section.html" import render_repeatable_section %}
 
                 {% for section in sections %}
+                <div class="section-container p-8" data-section="{{ loop.index }}">
+                    <div class="space-y-6">
+                        {% if section.is_repeatable %}
+                            {{ render_repeatable_section(section, section_data.get(section.name.lower(), [])) }}
+                        {% else %}
+                            <!-- Section Header -->
+                            <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                                <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
+                            </div>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
+                            {% endif %}
+                            
+                            <!-- Form Fields -->
+                            <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
+                                {% for field in section.fields %}
+                                {% if field.field_type != 'system_reference' or field.is_visible %}
+                                <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
+                                    <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
+                                        {{ field.field_label }}
+                                        {% if field.is_required %}
                                         <span class="text-red-500">*</span>
                                         {% endif %}
                                     </label>
@@ -179,7 +209,7 @@
                 </div>
                 {% endfor %}
                 
-                <!-- Form Actions - Non-sticky version -->
+                <!-- Form Actions -->
                 <div class="mt-8 p-6 bg-gray-50 rounded-b-lg border-t border-gray-200">
                     <div class="flex justify-between items-center">
                         <a href="{{ url_for('user.dashboard') }}" 
@@ -203,8 +233,6 @@
                 </div>
             </form>
         </div>
-
-
     </div>
 </div>
 {% endblock %}

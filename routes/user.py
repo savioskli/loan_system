@@ -690,8 +690,8 @@ def dynamic_form(module_id, prospect_id=None, client_id=None, mode='create'):
         from datetime import datetime
         current_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Render the form template with the sections and fields
-        return render_with_modules('user/dynamic_form.html',
+        # Render the form template with the sections and fields using the fixed template
+        return render_with_modules('user/dynamic_form_fixed.html',
                             module=module,
                             sections=sections_data,
                             current_date=current_date,
@@ -701,6 +701,7 @@ def dynamic_form(module_id, prospect_id=None, client_id=None, mode='create'):
                             counties=[],
                             id_types=[],
                             prospect_data={},
+                            section_data={},  # Empty section data for new forms
                             mode=mode)
                             
     except Exception as e:
@@ -1608,8 +1609,8 @@ def handle_client_form(module_id, client_id, mode='view'):
                 print(f"Error processing client data: {str(e)}")
                 print(f"Full traceback: {traceback.format_exc()}")
         
-        # Render the form template
-        return render_with_modules('user/dynamic_form.html',
+        # Render the form template with the fixed wizard template
+        return render_with_modules('user/dynamic_form_fixed.html',
             module=module,
             sections=sections_data,
             section_data=section_data,  # Pass repeatable section data to template

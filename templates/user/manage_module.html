@@ -63,7 +63,13 @@
             <svg class="w-5 h-5 mr-2 -ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            Add New Prospect
+            {% if module.code.startswith(('CLM01', 'CLT_M01')) %}
+                Add New Prospect
+            {% elif module.code.startswith(('CLM02', 'CLT_M02')) %}
+                Add New Client
+            {% else %}
+                Add New Submission
+            {% endif %}
         </a>
     </div>
 
@@ -142,6 +148,15 @@
                                     {% else %}
                                         <span class="font-bold">{{ submission.corporate_name }}</span>
                                     {% endif %}
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
+                                        {% set first_name = submission.first_name %}
+                                        {% set middle_name = submission.middle_name %}
+                                        {% set last_name = submission.last_name %}
+                                        {{ ' '.join([first_name, middle_name, last_name]|reject('none')|reject('equalto', ''))|title }}
+                                    {% else %}
+                                        <span class="font-bold">{{ submission.corporate_name }}</span>
+                                    {% endif %}
                                 {% elif submission.client_type.client_code == 'IND' %}
                                     {% set first_name = submission.form_data.get('first_name', '') if submission.form_data else '' %}
                                     {% set middle_name = submission.form_data.get('middle_name', '') if submission.form_data else '' %}
@@ -153,11 +168,9 @@
                             </div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
-                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
-                                        {{ submission.email_address }}
-                                    {% else %}
-                                        {{ submission.email_address }}
-                                    {% endif %}
+                                    {{ submission.email_address }}
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                    {{ submission.email_address }}
                                 {% else %}
                                     {% if submission.client_type.client_code == 'IND' %}
                                         {{ submission.form_data.get('email', '') if submission.form_data else '' }}
@@ -170,6 +183,18 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900 dark:text-white">
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
+                                    {% if submission.client_type == 1 or submission.client_type == '1' %}
+                                        {{ submission.identification_number }}
+                                        <div class="text-xs text-gray-500">
+                                            {{ submission.identification_type|replace('_', ' ')|title }}
+                                        </div>
+                                    {% else %}
+                                        {{ submission.corporate_registration_number }}
+                                        <div class="text-xs text-gray-500">
+                                            Corporate Registration
+                                        </div>
+                                    {% endif %}
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
                                     {% if submission.client_type == 1 or submission.client_type == '1' %}
                                         {{ submission.identification_number }}
                                         <div class="text-xs text-gray-500">
@@ -204,6 +229,12 @@
                                     {% else %}
                                         Individual
                                     {% endif %}
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                    {% if submission.client_type_ref %}
+                                        {{ submission.client_type_ref.client_name }}
+                                    {% else %}
+                                        Individual
+                                    {% endif %}
                                 {% else %}
                                     {{ submission.client_type.client_name }}
                                 {% endif %}
@@ -214,6 +245,16 @@
                                 <div class="text-sm text-gray-900 dark:text-white">
                                     {% if submission.product_ref %}
                                         {{ submission.product_ref.label }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                <div class="text-sm text-gray-900 dark:text-white">
+                                    {% if submission.product_ref %}
+                                        {{ submission.product_ref.label }}
+                                    {% elif submission.product %}
+                                        {{ submission.product|replace('_', ' ')|title }}
                                     {% else %}
                                         N/A
                                     {% endif %}
@@ -234,6 +275,16 @@
                                 <div class="text-sm text-gray-900 dark:text-white">
                                     {% if submission.purpose_ref %}
                                         {{ submission.purpose_ref.label }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                <div class="text-sm text-gray-900 dark:text-white">
+                                    {% if submission.purpose_ref %}
+                                        {{ submission.purpose_ref.label }}
+                                    {% elif submission.purpose %}
+                                        {{ submission.purpose|replace('_', ' ')|title }}
                                     {% else %}
                                         N/A
                                     {% endif %}
@@ -279,8 +330,12 @@
                                 <a href="{{ url_for('user.dynamic_form', module_id=32, prospect_id=submission.id, mode='view') }}" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="View Details">
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                <a href="{{ url_for('user.dynamic_form', module_id=33, client_id=submission.id, mode='view') }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                   title="View Details">
                                 {% else %}
-                                <a href="{{ url_for('user.view_prospect_legacy', submission_id=submission.id) }}" 
+                                <a href="#" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="View Details">
                                 {% endif %}
@@ -293,8 +348,12 @@
                                 <a href="{{ url_for('user.dynamic_form', module_id=32, prospect_id=submission.id, mode='edit') }}" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="Edit">
+                                {% elif submission.__class__.__name__ == 'ClientRegistration' %}
+                                <a href="{{ url_for('user.dynamic_form', module_id=33, client_id=submission.id, mode='edit') }}" 
+                                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                   title="Edit">
                                 {% else %}
-                                <a href="{{ url_for('user.edit_prospect_legacy', submission_id=submission.id) }}" 
+                                <a href="#" 
                                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                    title="Edit">
                                 {% endif %}
@@ -330,7 +389,13 @@
                     {% else %}
                     <tr>
                         <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                            No prospects found
+                            {% if module.code.startswith(('CLM01', 'CLT_M01')) %}
+                                No prospects found
+                            {% elif module.code.startswith(('CLM02', 'CLT_M02')) %}
+                                No clients found
+                            {% else %}
+                                No submissions found
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -597,7 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tableRows.forEach(row => {
             if (row.querySelector('td[colspan]')) {
-                // Skip the "No prospects found" row
+                // Skip the "No items found" row
                 return;
             }
 

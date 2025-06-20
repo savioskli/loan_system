@@ -1082,17 +1082,84 @@ def manage_module(module_id):
             
         # Check if this is a client registration module
         elif module.code.startswith(('CLM02', 'CLT_M02')):  # Client registration modules
-            # Get all converted prospects regardless of original module
-            submissions = db.session.query(FormSubmission).\
-                join(ClientType, FormSubmission.client_type_id == ClientType.id).\
-                filter(FormSubmission.is_converted == True)
+            try:
+                # Import the ClientRegistration model
+                from models.client_registration import ClientRegistration
                 
-            # Apply client type filter if specified
-            if selected_type != 'all':
-                submissions = submissions.filter(ClientType.client_code == selected_type)
+                # Start with base query for client registration data
+                query = ClientRegistration.query
                 
-            submissions = submissions.order_by(FormSubmission.created_at.desc()).all()
-            print(f"Found {len(submissions)} client submissions")
+                # Apply client type filter if specified
+                if selected_type != 'all':
+                    print(f"Filtering by client type code: {selected_type}")
+                    # First get the client type ID from the code
+                    client_type = ClientType.query.filter_by(client_code=selected_type).first()
+                    if client_type:
+                        print(f"Found client type: {client_type.client_name} (ID: {client_type.id})")
+                        # Try filtering with both string and integer versions of the ID
+                        query = query.filter(
+                            db.or_(
+                                ClientRegistration.client_type == str(client_type.id),
+                                ClientRegistration.client_type == client_type.id
+                            )
+                        )
+                    else:
+                        print(f"No client type found with code: {selected_type}")
+                        # If no client type found, return empty result
+                        query = query.filter(ClientRegistration.id < 0)  # This will return no results
+                
+                # Get client submissions
+                submissions = query.order_by(ClientRegistration.created_at.desc()).all()
+                print(f"Found {len(submissions)} client submissions from ClientRegistration model")
+                
+                # Import SystemReferenceValue for product and purpose lookups
+                from models.system_reference_value import SystemReferenceValue
+                
+                # Enhance client records with additional attributes needed by the template
+                for client in submissions:
+                    # Add client_type_ref attribute to match the template's expectations
+                    try:
+                        client_type_id = int(client.client_type) if client.client_type else None
+                        client.client_type_ref = ClientType.query.get(client_type_id) if client_type_id else None
+                    except (ValueError, TypeError):
+                        client.client_type_ref = None
+                        
+                    # Add product_ref attribute
+                    try:
+                        product_id = int(client.product) if client.product else None
+                        if product_id:
+                            client.product_ref = SystemReferenceValue.query.get(product_id)
+                        else:
+                            # Try to find by name/code if product is a string
+                            if client.product and isinstance(client.product, str):
+                                client.product_ref = SystemReferenceValue.query.filter(
+                                    SystemReferenceValue.code == client.product
+                                ).first()
+                            else:
+                                client.product_ref = None
+                    except (ValueError, TypeError):
+                        client.product_ref = None
+                        
+                    # Add purpose_ref attribute
+                    try:
+                        purpose_id = int(client.purpose) if client.purpose else None
+                        if purpose_id:
+                            client.purpose_ref = SystemReferenceValue.query.get(purpose_id)
+                        else:
+                            # Try to find by name/code if purpose is a string
+                            if client.purpose and isinstance(client.purpose, str):
+                                client.purpose_ref = SystemReferenceValue.query.filter(
+                                    SystemReferenceValue.code == client.purpose
+                                ).first()
+                            else:
+                                client.purpose_ref = None
+                    except (ValueError, TypeError):
+                        client.purpose_ref = None
+            except Exception as e:
+                print(f"Error loading client data: {str(e)}")
+                print(f"Full traceback: {traceback.format_exc()}")
+                submissions = []
+                flash('Error loading client data: ' + str(e), 'error')
         
         # Handle other modules
         else:

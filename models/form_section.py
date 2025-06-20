@@ -18,6 +18,12 @@ class FormSection(db.Model):
     product_restrictions = db.Column(db.JSON, nullable=True)  # List of product IDs
     submodule_id = db.Column(db.Integer, db.ForeignKey('modules.id', ondelete='SET NULL'), nullable=True)
     
+    # Add new columns for repeatable sections
+    is_repeatable = db.Column(db.Boolean, default=False)
+    min_entries = db.Column(db.Integer, default=0)
+    max_entries = db.Column(db.Integer, default=10)
+    related_model = db.Column(db.String(100), nullable=True)  # Model name for repeatable sections
+    
     # Relationships
     module = db.relationship('Module', foreign_keys=[module_id], backref=db.backref('sections', lazy='dynamic', order_by='FormSection.order'))
     submodule = db.relationship('Module', foreign_keys=[submodule_id], backref=db.backref('parent_sections', lazy='dynamic'))

@@ -132,6 +132,7 @@ def get_model_by_module_id(module_id):
     from models.client import Client
     from models.loan import Loan
     from models.prospect_registration import ProspectRegistration
+    from models.client_registration import ClientRegistration
     from models.staff import Staff
     from models.branch import Branch
     from models.product import Product
@@ -144,6 +145,7 @@ def get_model_by_module_id(module_id):
         2: Loan,                 # Loan management module
         3: ProspectRegistration,  # Prospect registration module
         32: ProspectRegistration, # Prospect registration data
+        33: ClientRegistration,   # Client registration data
         # Add more mappings as needed
     }
     

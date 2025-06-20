@@ -14,6 +14,10 @@ from .guarantor import Guarantor
 from .collection_schedule import CollectionSchedule, CollectionScheduleProgress
 from .workflow import Workflow, CollectionWorkflowStep
 from .prospect_registration import ProspectRegistration
+from .corporate_official import CorporateOfficial
+from .corporate_signatory import CorporateSignatory
+from .corporate_attachment import CorporateAttachment
+from .corporate_service import CorporateService
 
 __all__ = [
     'db',
@@ -32,5 +36,9 @@ __all__ = [
     'CollectionScheduleProgress',
     'Workflow',
     'CollectionWorkflowStep',
-    'ProspectRegistration'
+    'ProspectRegistration',
+    'CorporateOfficial',
+    'CorporateSignatory',
+    'CorporateAttachment',
+    'CorporateService'
 ]

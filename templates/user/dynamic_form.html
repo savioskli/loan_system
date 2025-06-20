@@ -5,9 +5,11 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/system_reference.js') }}"></script>
 <script src="{{ url_for('static', filename='js/client_type_handler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/repeatable_sections.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         new ClientTypeHandler();
+        new RepeatableSections();
     });
 </script>
 {% endblock %}
@@ -61,103 +63,109 @@
             <form id="dynamicForm" method="POST" action="{% if mode == 'edit' %}{{ url_for('user.submit_form', module_id=module.id, prospect_id=prospect_data.id) }}{% else %}{{ url_for('user.submit_form', module_id=module.id) }}{% endif %}" enctype="multipart/form-data" class="divide-y divide-gray-200" {% if mode == 'view' %}onsubmit="return false;"{% endif %}>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
+                {% from "components/repeatable_section.html" import render_repeatable_section %}
+
                 {% for section in sections %}
                 <div class="section-container p-8" data-section="{{ loop.index }}">
                     <div class="space-y-6">
-                        <!-- Section Header -->
-                        <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
-                            <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
-                        </div>
-                        {% if section.description %}
-                        <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
-                        {% endif %}
-                        
-                        <!-- Form Fields -->
-                        <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
-                            {% for field in section.fields %}
-                            {% if field.field_type != 'system_reference' or field.is_visible %}
-                            <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
-                                <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
-                                    {{ field.field_label }}
-                                    {% if field.is_required %}
-                                    <span class="text-red-500">*</span>
-                                    {% endif %}
-                                </label>
-
-                                {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
-                                <div class="mt-1">
-                                    <input type="{{ field.field_type }}"
-                                           id="{{ field.field_name }}"
-                                           name="{{ field.field_name }}"
-                                           class="form-control"
-                                           value="{{ field.value or '' }}"
-                                           {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                           {% if field.is_required %}required{% endif %}
-                                           {% if field.get('readonly') %}readonly{% endif %}
-                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
-                                           data-is-required="{{ field.is_required|tojson }}">
-                                </div>
-
-                                {% elif field.field_type == 'textarea' %}
-                                <div class="mt-1">
-                                    <textarea id="{{ field.field_name }}"
-                                              name="{{ field.field_name }}"
-                                              rows="4"
-                                              class="form-control"
-                                              {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
-                                              {% if field.get('readonly') %}readonly{% endif %}
-                                              {% if mode == 'view' %}readonly{% endif %}
-                                              data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
-                                              data-is-required="{{ field.is_required|tojson }}">{{ prospect_data[field.field_name] if prospect_data else field.value or '' }}</textarea>
-                                </div>
-
-                                {% elif field.field_type in ['select', 'system_reference'] %}
-                                <div class="mt-1">
-                                    <select id="{{ field.field_name }}"
-                                            name="{{ field.field_name }}"
-                                            {% if mode == 'view' %}disabled{% endif %}
-                                            class="form-control"
-                                            {% if field.is_required %}required{% endif %}
-                                            {% if field.get('readonly') %}disabled{% endif %}
-                                            {% if field.field_type == 'system_reference' %}
-                                                data-reference-id="{{ field.system_reference_field_id }}"
-                                                data-is-system-field="true"
-                                                data-previous-value="{{ field.value or '' }}"
-                                            {% endif %}
-                                            data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
-                                            data-is-required="{{ field.is_required|tojson }}">
-                                        <option value="">Select {{ field.field_label }}</option>
-                                        {% if field.options %}
-                                            {% for option in field.options %}
-                                            <option value="{{ option.value }}" {% if option.value == field.value or (not field.value and option.value == field.default_value) %}selected{% endif %}>{{ option.label }}</option>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </select>
-                                </div>
-
-                                {% elif field.field_type == 'file' %}
-                                <div class="mt-1">
-                                    <input type="file"
-                                           id="{{ field.field_name }}"
-                                           name="{{ field.field_name }}"
-                                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                           accept="{{ field.accept or '.pdf,.doc,.docx' }}"
-                                           {% if field.is_required %}required{% endif %}
-                                           data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
-                                           data-is-required="{{ field.is_required|tojson }}">
-                                    {% if field.value %}
-                                    <p class="mt-2 text-sm text-gray-500">Current file: {{ field.value }}</p>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-
-                                {% if field.help_text %}
-                                <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
-                                {% endif %}
+                        {% if section.is_repeatable %}
+                            {{ render_repeatable_section(section, section_data.get(section.name.lower(), [])) }}
+                        {% else %}
+                            <!-- Section Header -->
+                            <div class="section-header bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                                <h3 class="text-lg font-medium leading-6 text-gray-900">{{ section.name }}</h3>
                             </div>
+                            {% if section.description %}
+                            <p class="mt-2 text-sm text-gray-500">{{ section.description }}</p>
                             {% endif %}
-                            {% endfor %}
-                        </div>
+                            
+                            <!-- Form Fields -->
+                            <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-2">
+                                {% for field in section.fields %}
+                                {% if field.field_type != 'system_reference' or field.is_visible %}
+                                <div class="form-group mb-3 {% if field.field_type in ['textarea', 'file'] %}sm:col-span-2{% endif %}">
+                                    <label for="{{ field.field_name }}" class="block text-sm font-medium text-gray-700">
+                                        {{ field.field_label }}
+                                        {% if field.is_required %}
+                                        <span class="text-red-500">*</span>
+                                        {% endif %}
+                                    </label>
+                                    
+                                    {% if field.field_type in ['text', 'email', 'tel', 'number', 'date', 'password'] %}
+                                    <div class="mt-1">
+                                        <input type="{{ field.field_type }}"
+                                               id="{{ field.field_name }}"
+                                               name="{{ field.field_name }}"
+                                               class="form-control"
+                                               value="{{ field.value or '' }}"
+                                               {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                               {% if field.is_required %}required{% endif %}
+                                               {% if field.get('readonly') %}readonly{% endif %}
+                                               data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                               data-is-required="{{ field.is_required|tojson }}">
+                                    </div>
+                                    
+                                    {% elif field.field_type == 'textarea' %}
+                                    <div class="mt-1">
+                                        <textarea id="{{ field.field_name }}"
+                                                  name="{{ field.field_name }}"
+                                                  rows="4"
+                                                  class="form-control"
+                                                  {% if field.field_placeholder %}placeholder="{{ field.field_placeholder }}"{% endif %}
+                                                  {% if field.get('readonly') %}readonly{% endif %}
+                                                  {% if mode == 'view' %}readonly{% endif %}
+                                                  data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                                  data-is-required="{{ field.is_required|tojson }}">{{ prospect_data[field.field_name] if prospect_data else field.value or '' }}</textarea>
+                                    </div>
+                                    
+                                    {% elif field.field_type in ['select', 'system_reference'] %}
+                                    <div class="mt-1">
+                                        <select id="{{ field.field_name }}"
+                                                name="{{ field.field_name }}"
+                                                {% if mode == 'view' %}disabled{% endif %}
+                                                class="form-control"
+                                                {% if field.is_required %}required{% endif %}
+                                                {% if field.get('readonly') %}disabled{% endif %}
+                                                {% if field.field_type == 'system_reference' %}
+                                                    data-reference-id="{{ field.system_reference_field_id }}"
+                                                    data-is-system-field="true"
+                                                    data-previous-value="{{ field.value or '' }}"
+                                                {% endif %}
+                                                data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                                data-is-required="{{ field.is_required|tojson }}">
+                                            <option value="">Select {{ field.field_label }}</option>
+                                            {% if field.options %}
+                                                {% for option in field.options %}
+                                                <option value="{{ option.value }}" {% if option.value == field.value or (not field.value and option.value == field.default_value) %}selected{% endif %}>{{ option.label }}</option>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </select>
+                                    </div>
+
+                                    {% elif field.field_type == 'file' %}
+                                    <div class="mt-1">
+                                        <input type="file"
+                                               id="{{ field.field_name }}"
+                                               name="{{ field.field_name }}"
+                                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                               accept="{{ field.accept or '.pdf,.doc,.docx' }}"
+                                               {% if field.is_required %}required{% endif %}
+                                               data-client-type-restrictions='{{ field.client_type_restrictions|tojson }}'
+                                               data-is-required="{{ field.is_required|tojson }}">
+                                        {% if field.value %}
+                                        <p class="mt-2 text-sm text-gray-500">Current file: {{ field.value }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if field.help_text %}
+                                    <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}

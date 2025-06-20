@@ -10,6 +10,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import mysql.connector
 from datetime import datetime, timedelta
+import traceback
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash, send_file, abort, send_from_directory, session, current_app, g
 import uuid
 from werkzeug.utils import secure_filename
@@ -334,7 +335,13 @@ def allowed_file(filename, allowed_extensions):
 
 @user_bp.route('/dynamic_form/<int:module_id>', methods=['GET', 'POST'])
 @login_required
-def dynamic_form(module_id, prospect_id=None, mode='create'):
+def dynamic_form(module_id, prospect_id=None, client_id=None, mode='create'):
+    # Check for query parameters
+    if request.args.get('client_id') and not prospect_id:
+        client_id = request.args.get('client_id')
+        mode = request.args.get('mode', 'view')
+        return handle_client_form(module_id, client_id, mode)
+    
     """Render dynamic form for creating, viewing, or editing prospects.
     Args:
         module_id: The module ID
@@ -1286,11 +1293,373 @@ def view_prospect(prospect_id):
     """View prospect details using dynamic form."""
     return dynamic_form(module_id=32, prospect_id=prospect_id, mode='view')
 
-@user_bp.route('/edit_prospect/<int:prospect_id>')
+
+def handle_client_form(module_id, client_id, mode='view'):
+    """Handle client registration form with data from the database.
+    
+    Args:
+        module_id: The module ID (should be 33 for client registration)
+        client_id: The client ID to load data from
+        mode: One of 'view', 'edit', or 'register'
+    """
+    try:
+        # Import necessary models
+        from models.client_registration import ClientRegistration
+        from utils.module_permissions import check_module_access
+        from utils.table_inspector import get_model_by_module_id, get_form_fields_from_model
+        from models.form_section import FormSection
+        from models.form_field import FormField
+        # Import corporate models for repeatable sections
+        from models.corporate_official import CorporateOfficial
+        from models.corporate_signatory import CorporateSignatory
+        from models.corporate_attachment import CorporateAttachment
+        from models.corporate_service import CorporateService
+        
+        # Find the module by ID
+        module = Module.query.get_or_404(module_id)
+        
+        # Check if user has write access to this module
+        if not check_module_access(module.id, 'write'):
+            flash('You do not have permission to access this module.', 'error')
+            return redirect(url_for('user.dashboard'))
+        
+        # Get the client data
+        client = ClientRegistration.query.get_or_404(client_id)
+        
+        # Load repeatable section data for corporate clients
+        corporate_data = {}
+        if client.client_type == 2:  # Assuming client_type 2 is for corporate clients
+            # Load corporate officials
+            corporate_officials = CorporateOfficial.query.filter_by(client_id=client_id).all()
+            corporate_data['corporate_officials'] = corporate_officials
+            
+            # Load corporate signatories
+            corporate_signatories = CorporateSignatory.query.filter_by(client_id=client_id).all()
+            corporate_data['corporate_signatories'] = corporate_signatories
+            
+            # Load corporate attachments
+            corporate_attachments = CorporateAttachment.query.filter_by(client_id=client_id).all()
+            corporate_data['corporate_attachments'] = corporate_attachments
+            
+            # Load corporate services
+            corporate_services = CorporateService.query.filter_by(client_id=client_id).all()
+            corporate_data['corporate_services'] = corporate_services
+        
+        # Get all sections for this specific module ID
+        sections = FormSection.query.filter(
+            (FormSection.module_id == module_id) | 
+            (FormSection.submodule_id == module_id)
+        ).order_by(FormSection.order.asc()).all()
+        
+        # Get section IDs
+        section_ids = [s.id for s in sections]
+        
+        # Get all fields for these sections
+        fields = []
+        if section_ids:
+            fields = FormField.query.filter(
+                FormField.module_id == module_id,
+                FormField.section_id.in_(section_ids)
+            ).order_by(
+                FormField.section_id.asc(),
+                FormField.field_order.asc()
+            ).all()
+        
+        # Create a dictionary to hold sections and their fields
+        sections_dict = {}
+        
+        # Create a dictionary to hold repeatable section data
+        section_data = {}
+        
+        # Process sections
+        for section in sections:
+            # Add is_repeatable and related model info to sections
+            sections_dict[section.id] = {
+                'id': section.id,
+                'name': section.name or f'Section {section.id}',
+                'description': section.description or '',
+                'order': section.order or 0,
+                'fields': [],
+                'is_repeatable': section.is_repeatable,
+                'min_entries': section.min_entries or 0,
+                'max_entries': section.max_entries or 10,
+                'related_model': section.related_model
+            }
+        
+        # Process fields and populate with client data
+        for field in fields:
+            section_id = field.section_id or -1  # Use -1 for default section
+            
+            # Create section if it doesn't exist
+            if section_id not in sections_dict:
+                sections_dict[section_id] = {
+                    'id': section_id,
+                    'name': 'General Information' if section_id == -1 else f'Section {section_id}',
+                    'description': 'Basic information required for this form' if section_id == -1 else '',
+                    'order': 0 if section_id == -1 else 999,
+                    'fields': []
+                }
+            
+            # Get the field value from client data
+            field_name = field.field_name
+            field_value = getattr(client, field_name, None) if hasattr(client, field_name) else None
+            
+            # Create field data dictionary
+            field_data = {
+                'id': field.id,
+                'field_name': field_name,
+                'field_label': field.field_label or field_name.replace('_', ' ').title(),
+                'field_placeholder': field.field_placeholder or '',
+                'field_type': field.field_type or 'text',
+                'is_required': bool(field.is_required),
+                'field_order': field.field_order or 0,
+                'section_id': section_id,
+                'section_name': sections_dict[section_id]['name'],
+                'validation_rules': field.validation_rules or {},
+                'default_value': field_value,  # Use client data as default value
+                'is_system': field.is_system,
+                'system_reference_field_id': field.system_reference_field_id,
+                'reference_field_code': field.reference_field_code,
+                'is_visible': field.is_visible if hasattr(field, 'is_visible') else True,
+                'client_type_restrictions': field.client_type_restrictions or []
+            }
+            
+            # For client type field, get options from client_types table
+            if field_name == 'client_type':
+                from models.client_type import ClientType
+                client_types = ClientType.query.filter_by(status=True).order_by(ClientType.client_name).all()
+                field_data['options'] = [{
+                    'value': str(ct.id),
+                    'label': ct.client_name
+                } for ct in client_types]
+                # Set default value to client's client_type
+                field_data['default_value'] = client.client_type
+            else:
+                field_data['options'] = field.options or []
+            
+            sections_dict[section_id]['fields'].append(field_data)
+        
+        # Prepare repeatable section data for the template
+        for section in sections_dict.values():
+            if section['is_repeatable'] and section['related_model']:
+                model_name = section['related_model'].lower()
+                if model_name in corporate_data and corporate_data[model_name]:
+                    entries = []
+                    for item in corporate_data[model_name]:
+                        entry_data = {}
+                        for field in section['fields']:
+                            field_name = field['field_name']
+                            if hasattr(item, field_name):
+                                entry_data[field_name] = getattr(item, field_name)
+                        entries.append(entry_data)
+                    section_data[model_name] = entries
+                else:
+                    # Initialize with empty list if no data
+                    section_data[model_name] = []
+        
+        # Convert to list and sort by section order
+        sections_data = sorted(
+            [s for s in sections_dict.values() if s['fields']],
+            key=lambda x: (x['order'], x['id'])
+        )
+        
+        # Handle form submission for register or edit mode
+        if request.method == 'POST' and mode in ['register', 'edit']:
+            try:
+                # Process form data and update client status
+                form_data = request.form.to_dict()
+                
+                # Process repeatable sections if client is corporate
+                if client.client_type == 2:  # Corporate client
+                    # Process corporate officials
+                    if 'corporateofficial' in request.form:
+                        # Delete existing officials
+                        CorporateOfficial.query.filter_by(client_id=client_id).delete()
+                        
+                        # Get officials data from form
+                        officials_data = {}
+                        for key, value in request.form.items():
+                            if key.startswith('corporateofficial['):
+                                # Extract index and field name from the key
+                                # Format is corporateofficial[index][field_name]
+                                match = re.match(r'corporateofficial\[(\d+)\]\[([^\]]+)\]', key)
+                                if match:
+                                    index, field_name = match.groups()
+                                    if index not in officials_data:
+                                        officials_data[index] = {}
+                                    officials_data[index][field_name] = value
+                        
+                        # Create new officials
+                        for official_data in officials_data.values():
+                            official = CorporateOfficial(
+                                client_id=client_id,
+                                created_by=current_user.id,
+                                updated_by=current_user.id,
+                                **official_data
+                            )
+                            db.session.add(official)
+                    
+                    # Process corporate signatories
+                    if 'corporatesignatory' in request.form:
+                        # Delete existing signatories
+                        CorporateSignatory.query.filter_by(client_id=client_id).delete()
+                        
+                        # Get signatories data from form
+                        signatories_data = {}
+                        for key, value in request.form.items():
+                            if key.startswith('corporatesignatory['):
+                                match = re.match(r'corporatesignatory\[(\d+)\]\[([^\]]+)\]', key)
+                                if match:
+                                    index, field_name = match.groups()
+                                    if index not in signatories_data:
+                                        signatories_data[index] = {}
+                                    signatories_data[index][field_name] = value
+                        
+                        # Create new signatories
+                        for signatory_data in signatories_data.values():
+                            signatory = CorporateSignatory(
+                                client_id=client_id,
+                                created_by=current_user.id,
+                                updated_by=current_user.id,
+                                **signatory_data
+                            )
+                            db.session.add(signatory)
+                    
+                    # Process corporate services
+                    if 'corporateservice' in request.form:
+                        # Delete existing services
+                        CorporateService.query.filter_by(client_id=client_id).delete()
+                        
+                        # Get services data from form
+                        services_data = {}
+                        for key, value in request.form.items():
+                            if key.startswith('corporateservice['):
+                                match = re.match(r'corporateservice\[(\d+)\]\[([^\]]+)\]', key)
+                                if match:
+                                    index, field_name = match.groups()
+                                    if index not in services_data:
+                                        services_data[index] = {}
+                                    services_data[index][field_name] = value
+                        
+                        # Create new services
+                        for service_data in services_data.values():
+                            service = CorporateService(
+                                client_id=client_id,
+                                created_by=current_user.id,
+                                updated_by=current_user.id,
+                                **service_data
+                            )
+                            db.session.add(service)
+                    
+                    # Process corporate attachments with file uploads
+                    if 'corporateattachment' in request.form:
+                        # Delete existing attachments
+                        CorporateAttachment.query.filter_by(client_id=client_id).delete()
+                        
+                        # Get attachments data from form
+                        attachments_data = {}
+                        for key, value in request.form.items():
+                            if key.startswith('corporateattachment['):
+                                match = re.match(r'corporateattachment\[(\d+)\]\[([^\]]+)\]', key)
+                                if match:
+                                    index, field_name = match.groups()
+                                    if index not in attachments_data:
+                                        attachments_data[index] = {}
+                                    attachments_data[index][field_name] = value
+                        
+                        # Process file uploads
+                        for index in attachments_data.keys():
+                            file_key = f'corporateattachment[{index}][attachment_file]'
+                            if file_key in request.files and request.files[file_key].filename:
+                                file = request.files[file_key]
+                                filename = secure_filename(file.filename)
+                                # Save file to uploads directory
+                                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                                file.save(file_path)
+                                # Store file path in attachment data
+                                attachments_data[index]['file_path'] = file_path
+                        
+                        # Create new attachments
+                        for attachment_data in attachments_data.values():
+                            attachment = CorporateAttachment(
+                                client_id=client_id,
+                                created_by=current_user.id,
+                                updated_by=current_user.id,
+                                **attachment_data
+                            )
+                            db.session.add(attachment)
+                
+                # Update client status to 'registered' for register mode
+                if mode == 'register':
+                    client.status = 'registered'
+                
+                client.updated_at = datetime.now()
+                client.updated_by = current_user.id
+                
+                # Save changes
+                db.session.commit()
+                
+                success_message = 'Client registered successfully!' if mode == 'register' else 'Client updated successfully!'
+                flash(success_message, 'success')
+                return redirect(url_for('user.manage_module', module_id=module_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error processing client data: {str(e)}', 'error')
+                print(f"Error processing client data: {str(e)}")
+                print(f"Full traceback: {traceback.format_exc()}")
+        
+        # Render the form template
+        return render_with_modules('user/dynamic_form.html',
+            module=module,
+            sections=sections_data,
+            section_data=section_data,  # Pass repeatable section data to template
+            mode=mode,
+            client=client,
+            prospect_data=client,  # For compatibility with existing template
+            form_title=f"{mode.title()} Client Registration",
+            form_action=url_for('user.dynamic_form', module_id=module_id) + f"?client_id={client_id}&mode={mode}"
+        )
+    except Exception as e:
+        flash(f'Error loading client form: {str(e)}', 'error')
+        print(f"Error loading client form: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return redirect(url_for('user.dashboard'))
+
+
+def view_prospect_legacy(submission_id):
+    """View a prospect submission."""
+    return dynamic_form(module_id=32, prospect_id=submission_id, mode='view')
+
+
+@user_bp.route('/edit_prospect_legacy/<int:submission_id>')
 @login_required
-def edit_prospect(prospect_id):
+def edit_prospect_legacy(submission_id):
     """Edit prospect details using dynamic form."""
-    return dynamic_form(module_id=32, prospect_id=prospect_id, mode='edit')
+    return dynamic_form(module_id=32, prospect_id=submission_id, mode='edit')
+
+
+@user_bp.route('/view_client/<int:client_id>')
+@login_required
+def view_client(client_id):
+    """View client details using dynamic form."""
+    # Directly call handle_client_form instead of dynamic_form
+    return handle_client_form(33, client_id, 'view')
+
+
+@user_bp.route('/edit_client/<int:client_id>')
+@login_required
+def edit_client(client_id):
+    """Edit client details using dynamic form."""
+    # Directly call handle_client_form instead of dynamic_form
+    return handle_client_form(33, client_id, 'edit')
+
+
+@user_bp.route('/client_registration/<int:client_id>')
+@login_required
+def client_registration(client_id):
+    """Register client using dynamic form."""
+    # Directly call handle_client_form instead of dynamic_form
+    return handle_client_form(33, client_id, 'register')
 
 @user_bp.route('/prospect/<int:prospect_id>')
 @login_required
@@ -1442,7 +1811,7 @@ def view_prospect_legacy(prospect_id):
 
 @user_bp.route('/prospect/<int:prospect_id>/edit', methods=['GET', 'POST'])
 @login_required
-def edit_prospect_legacy(prospect_id):
+def edit_prospect_details(prospect_id):
     """Edit a prospect's details."""
     try:
         from models.prospect_registration import ProspectRegistration

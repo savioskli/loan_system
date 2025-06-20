@@ -319,12 +319,19 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
                                 {% if module.id == 32 and submission.__class__.__name__ == 'ProspectRegistration' %}
-                                        <button onclick="showConvertModal('{{ submission.id }}')"
+                                        <button onclick="showConvertModal('{{ submission.id }}')" 
                                                 class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 px-2 py-1 text-xs font-medium border border-green-600 rounded bg-green-50 hover:bg-green-100 inline-flex items-center gap-1"
                                                 title="Transition to Client">
                                             <span>Transition</span>
                                             <i class="fas fa-arrow-right text-xs"></i>
                                         </button>
+                                {% elif module.id == 33 and submission.__class__.__name__ == 'ClientRegistration' %}
+                                        <a href="{{ url_for('user.dynamic_form', module_id=33) }}?client_id={{ submission.id }}&mode=register" 
+                                           class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 px-2 py-1 text-xs font-medium border border-blue-600 rounded bg-blue-50 hover:bg-blue-100 inline-flex items-center gap-1"
+                                           title="Register Client">
+                                            <span>Register</span>
+                                            <i class="fas fa-check-circle text-xs"></i>
+                                        </a>
                                 {% endif %}
                                 {% if submission.__class__.__name__ == 'ProspectRegistration' %}
                                 <a href="{{ url_for('user.dynamic_form', module_id=32, prospect_id=submission.id, mode='view') }}" 
@@ -636,6 +643,11 @@ document.getElementById('confirmDelete').addEventListener('click', function() {
     }
     closeModal('deleteModal');
 });
+
+function registerClient(clientId) {
+    // Redirect to the client registration form with the client ID
+    window.location.href = `/user/client_registration/${clientId}`;
+}
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
